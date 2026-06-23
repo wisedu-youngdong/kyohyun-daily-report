@@ -436,7 +436,7 @@ function StudentEditModal({ student, onClose, onSubmit }) {
         </div>
 
         {/* 버튼 */}
-        <div style={{ padding: '12px 22px', borderTop: '1px solid #E5E7EB', display: 'flex', gap: '8px', justifyContent: 'flex-end', background: '#F9FAFB', borderRadius: '0 0 18px 18px' }}>
+        <div style={{ padding: '12px 22px', borderTop: '1px solid #E5E7EB', display: 'flex', gap: '8px', justifyContent: 'center', background: '#F9FAFB', borderRadius: '0 0 18px 18px' }}>
           <button onClick={onClose} style={{ padding: '9px 18px', fontSize: '13px', fontWeight: 600, borderRadius: '9px', border: '1px solid #E5E7EB', background: '#fff', color: '#6B7280', cursor: 'pointer' }}>취소</button>
           <button onClick={handleSubmit} disabled={!isValid || saving} style={{ padding: '9px 18px', fontSize: '13px', fontWeight: 700, borderRadius: '9px', border: 'none', background: isValid ? '#185FA5' : '#E5E7EB', color: '#fff', cursor: isValid ? 'pointer' : 'not-allowed' }}>
             {saving ? '저장 중...' : '✓ 저장'}
@@ -532,7 +532,7 @@ function ReportPreviewModal({ report: r, onClose, onDelete }) {
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(4px)' }}
       onClick={onClose}>
-      <div style={{ background: '#fff', borderRadius: '24px 24px 0 0', width: '100%', maxWidth: '600px', maxHeight: '90vh', overflow: 'auto', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}
+      <div style={{ background: '#fff', borderRadius: '18px', width: '100%', maxWidth: '600px', maxHeight: '90vh', overflow: 'auto', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}
         onClick={(e) => e.stopPropagation()}>
 
         {/* 모달 헤더 */}
