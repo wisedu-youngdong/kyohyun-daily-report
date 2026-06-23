@@ -347,7 +347,105 @@ function StudentsView({ students, reports, onSave, onDelete }) {
     </div>
   );
 }
+function StudentEditModal({ student, onClose, onSubmit }) {
+  const [name, setName] = useState(student.name || '');
+  const [school, setSchool] = useState(student.school || '');
+  const [parentPhone, setParentPhone] = useState(student.parentPhone || '');
+  const [memo, setMemo] = useState(student.memo || '');
+  const [textbooks, setTextbooks] = useState(
+    student.textbooks?.length > 0 ? student.textbooks : [{ id: Date.now(), name: '' }]
+  );
+  const [saving, setSaving] = useState(false);
 
+  const isValid = name.trim() && school.trim();
+
+  const addTextbook = () => setTextbooks(prev => [...prev, { id: Date.now(), name: '' }]);
+  const updateTextbook = (id, value) => setTextbooks(prev => prev.map(t => t.id === id ? { ...t, name: value } : t));
+  const removeTextbook = (id) => { if (textbooks.length > 1) setTextbooks(prev => prev.filter(t => t.id !== id)); };
+
+  const handleSubmit = async () => {
+    if (!isValid) return;
+    setSaving(true);
+    await onSubmit({
+      name: name.trim(),
+      school: school.trim(),
+      parentPhone: parentPhone.trim(),
+      memo: memo.trim(),
+      textbooks: textbooks.filter(t => t.name.trim()),
+    });
+    setSaving(false);
+  };
+
+  const overlayStyle = { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px', backdropFilter: 'blur(4px)' };
+  const modalStyle = { background: '#fff', borderRadius: '18px', width: '100%', maxWidth: '500px', maxHeight: '90vh', overflow: 'auto', boxShadow: '0 20px 50px rgba(0,0,0,0.2)', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" };
+  const inputStyle = { width: '100%', padding: '9px 11px', fontSize: '13px', border: '1px solid #E5E7EB', borderRadius: '9px', background: '#F9FAFB', outline: 'none', fontFamily: 'inherit', fontWeight: 500, color: '#1A1A1A', boxSizing: 'border-box' };
+  const labelStyle = { fontSize: '11px', color: '#6B7280', fontWeight: 700, margin: '0 0 5px', display: 'block' };
+
+  return (
+    <div style={overlayStyle} onClick={onClose}>
+      <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
+        {/* 헤더 */}
+        <div style={{ padding: '18px 22px', borderBottom: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <h2 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>학생 정보 수정</h2>
+            <p style={{ fontSize: '11px', color: '#6B7280', margin: '2px 0 0' }}>{student.name} 학생</p>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '20px', color: '#6B7280', cursor: 'pointer' }}>×</button>
+        </div>
+
+        {/* 입력 */}
+        <div style={{ padding: '18px 22px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div>
+              <label style={labelStyle}>이름 *</label>
+              <input value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>학교 / 학년 *</label>
+              <input value={school} onChange={(e) => setSchool(e.target.value)} style={inputStyle} />
+            </div>
+          </div>
+
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <label style={labelStyle}>교재</label>
+              <button onClick={addTextbook} style={{ background: '#E6F1FB', color: '#185FA5', border: 'none', borderRadius: '5px', padding: '3px 9px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>+ 추가</button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+              {textbooks.map((t, idx) => (
+                <div key={t.id} style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+                  <div style={{ background: '#E6F1FB', color: '#185FA5', width: '22px', height: '22px', borderRadius: '5px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>{idx + 1}</div>
+                  <input value={t.name} onChange={(e) => updateTextbook(t.id, e.target.value)} style={inputStyle} />
+                  {textbooks.length > 1 && (
+                    <button onClick={() => removeTextbook(t.id)} style={{ background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer', fontSize: '16px', flexShrink: 0 }}>×</button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label style={labelStyle}>학부모 연락처</label>
+            <input type="tel" value={parentPhone} onChange={(e) => setParentPhone(e.target.value)} placeholder="010-0000-0000" style={inputStyle} />
+          </div>
+
+          <div>
+            <label style={labelStyle}>관리 메모 (내부용)</label>
+            <textarea value={memo} onChange={(e) => setMemo(e.target.value)} rows={2} style={{ ...inputStyle, fontFamily: 'inherit', resize: 'vertical' }} />
+          </div>
+        </div>
+
+        {/* 버튼 */}
+        <div style={{ padding: '12px 22px', borderTop: '1px solid #E5E7EB', display: 'flex', gap: '8px', justifyContent: 'flex-end', background: '#F9FAFB', borderRadius: '0 0 18px 18px' }}>
+          <button onClick={onClose} style={{ padding: '9px 18px', fontSize: '13px', fontWeight: 600, borderRadius: '9px', border: '1px solid #E5E7EB', background: '#fff', color: '#6B7280', cursor: 'pointer' }}>취소</button>
+          <button onClick={handleSubmit} disabled={!isValid || saving} style={{ padding: '9px 18px', fontSize: '13px', fontWeight: 700, borderRadius: '9px', border: 'none', background: isValid ? '#185FA5' : '#E5E7EB', color: '#fff', cursor: isValid ? 'pointer' : 'not-allowed' }}>
+            {saving ? '저장 중...' : '✓ 저장'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 const RATING_EMOJI = { 5: '🌟', 4: '😊', 3: '🙂', 2: '😐', 1: '😟' };
 
 function HistoryView({ reports, onDelete }) {
