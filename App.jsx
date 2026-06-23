@@ -448,20 +448,34 @@ function StudentEditModal({ student, onClose, onSubmit }) {
 }
 const RATING_EMOJI = { 5: '🌟', 4: '😊', 3: '🙂', 2: '😐', 1: '😟' };
 
+const DIAGNOSIS_TAGS_MAP = {
+  calc: { label: '계산 실수', color: '#854F0B', bg: '#FAEEDA', border: '#BA7517' },
+  concept: { label: '개념 누락', color: '#854F0B', bg: '#FAEEDA', border: '#BA7517' },
+  apply: { label: '응용 부족', color: '#791F1F', bg: '#FCEBEB', border: '#A32D2D' },
+  time: { label: '시간 부족', color: '#791F1F', bg: '#FCEBEB', border: '#A32D2D' },
+  perfect: { label: '개념 완벽', color: '#0F6E56', bg: '#E1F5EE', border: '#0F6E56' },
+};
+
 function HistoryView({ reports, onDelete }) {
+  const [previewReport, setPreviewReport] = useState(null);
+
   return (
     <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <h2 style={{ fontSize: '20px', fontWeight: 700, letterSpacing: '-0.02em' }}>기록 보관소</h2>
-        <span style={{ fontSize: '11px', color: '#6B7280', fontWeight: 600, background: '#fff', padding: '4px 10px', borderRadius: '8px', border: `1px solid #E5E7EB` }}>총 {reports.length}건</span>
+        <span style={{ fontSize: '11px', color: '#6B7280', fontWeight: 600, background: '#fff', padding: '4px 10px', borderRadius: '8px', border: '1px solid #E5E7EB' }}>총 {reports.length}건</span>
       </div>
+
       {reports.length === 0
-        ? <div style={{ background: '#fff', borderRadius: '16px', border: `1px solid #E5E7EB`, padding: '60px 20px', textAlign: 'center', color: '#9CA3AF', fontSize: '13px' }}>작성된 리포트가 없습니다</div>
+        ? <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #E5E7EB', padding: '60px 20px', textAlign: 'center', color: '#9CA3AF', fontSize: '13px' }}>작성된 리포트가 없습니다</div>
         : <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {reports.map(r => {
-            const date = r.createdAt?.seconds ? new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' }) : '날짜 없음';
+            const date = r.createdAt?.seconds
+              ? new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })
+              : '날짜 없음';
             return (
-              <div key={r.id} style={{ background: '#fff', borderRadius: '16px', padding: '16px 18px', border: `1px solid #E5E7EB` }}>
+              <div key={r.id} style={{ background: '#fff', borderRadius: '16px', padding: '16px 18px', border: '1px solid #E5E7EB', cursor: 'pointer' }}
+                onClick={() => setPreviewReport(r)}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                   <div>
                     <p style={{ fontSize: '15px', fontWeight: 700, margin: 0 }}>{r.studentName}</p>
@@ -469,16 +483,154 @@ function HistoryView({ reports, onDelete }) {
                   </div>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <span style={{ fontSize: '20px' }}>{RATING_EMOJI[r.homeworkRating] || ''}</span>
-                    <button onClick={() => { if (confirm('삭제하시겠습니까?')) onDelete(r.id); }} style={{ background: 'none', border: 'none', color: '#D1D5DB', fontSize: '18px', cursor: 'pointer' }}>×</button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); if (confirm('삭제하시겠습니까?')) onDelete(r.id); }}
+                      style={{ background: 'none', border: 'none', color: '#D1D5DB', fontSize: '18px', cursor: 'pointer' }}>×</button>
                   </div>
                 </div>
                 {r.textbook && <p style={{ fontSize: '12px', color: '#6B7280', margin: '0 0 4px', fontWeight: 500 }}>{r.textbook} · {r.unit}</p>}
-                {r.teacherNote && <p style={{ fontSize: '12px', color: '#1A1A1A', margin: 0, lineHeight: 1.6, fontWeight: 500, background: '#F9FAFB', padding: '8px 10px', borderRadius: '8px' }}>{r.teacherNote.length > 80 ? r.teacherNote.slice(0, 80) + '...' : r.teacherNote}</p>}
+                {r.teacherNote && (
+                  <p style={{ fontSize: '12px', color: '#1A1A1A', margin: 0, lineHeight: 1.6, fontWeight: 500, background: '#F9FAFB', padding: '8px 10px', borderRadius: '8px' }}>
+                    {r.teacherNote.length > 80 ? r.teacherNote.slice(0, 80) + '...' : r.teacherNote}
+                  </p>
+                )}
+                <p style={{ fontSize: '11px', color: '#185FA5', fontWeight: 600, margin: '8px 0 0' }}>👆 탭하여 전체 보기</p>
               </div>
             );
           })}
         </div>
       }
+
+      {/* 리포트 미리보기 모달 */}
+      {previewReport && (
+        <ReportPreviewModal
+          report={previewReport}
+          onClose={() => setPreviewReport(null)}
+          onDelete={(id) => { onDelete(id); setPreviewReport(null); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function ReportPreviewModal({ report: r, onClose, onDelete }) {
+  const date = r.createdAt?.seconds
+    ? new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })
+    : '날짜 없음';
+
+  const shareUrl = `${window.location.origin}/report/${r.id}`;
+
+  const handleShare = () => {
+    if (navigator.share) {
+      navigator.share({ title: `${r.studentName} 학습 리포트`, url: shareUrl });
+    } else {
+      navigator.clipboard.writeText(shareUrl);
+      alert('링크가 복사됐습니다! 카톡으로 붙여넣기 하세요.');
+    }
+  };
+
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(4px)' }}
+      onClick={onClose}>
+      <div style={{ background: '#fff', borderRadius: '24px 24px 0 0', width: '100%', maxWidth: '600px', maxHeight: '90vh', overflow: 'auto', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}
+        onClick={(e) => e.stopPropagation()}>
+
+        {/* 모달 헤더 */}
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, background: '#fff', zIndex: 10 }}>
+          <div>
+            <p style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>{r.studentName} 리포트</p>
+            <p style={{ fontSize: '11px', color: '#6B7280', margin: '2px 0 0' }}>{date} · {r.teacherName}</p>
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={handleShare} style={{ background: '#185FA5', color: '#fff', border: 'none', borderRadius: '9px', padding: '7px 14px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+              🔗 링크 공유
+            </button>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '20px', color: '#6B7280', cursor: 'pointer' }}>×</button>
+          </div>
+        </div>
+
+        {/* 리포트 카드 내용 */}
+        <div style={{ padding: '20px' }}>
+
+          {/* 등원 + 평가 */}
+          <div style={{ background: '#F0F7FC', borderRadius: '14px', padding: '14px 16px', marginBottom: '12px' }}>
+            <p style={{ fontSize: '11px', color: '#185FA5', fontWeight: 700, margin: '0 0 10px' }}>📋 출결 및 평가</p>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <span style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '5px 12px', fontSize: '12px', fontWeight: 600 }}>
+                {r.attendance} · {r.arrivalTime}
+              </span>
+              <span style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '5px 12px', fontSize: '12px', fontWeight: 600 }}>
+                과제 {RATING_EMOJI[r.homeworkRating]} {r.homeworkRating}점
+              </span>
+              <span style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '5px 12px', fontSize: '12px', fontWeight: 600 }}>
+                개념 {RATING_EMOJI[r.conceptRating]} {r.conceptRating}점
+              </span>
+            </div>
+          </div>
+
+          {/* 테스트 */}
+          {r.hasTest && r.testName && (
+            <div style={{ background: '#FAEEDA', borderRadius: '14px', padding: '14px 16px', marginBottom: '12px' }}>
+              <p style={{ fontSize: '11px', color: '#854F0B', fontWeight: 700, margin: '0 0 6px' }}>📝 테스트</p>
+              <p style={{ fontSize: '14px', fontWeight: 700, margin: 0 }}>{r.testName}</p>
+              {r.testScore && <p style={{ fontSize: '22px', fontWeight: 700, color: '#633806', margin: '4px 0 0' }}>{r.testScore}점</p>}
+            </div>
+          )}
+
+          {/* 오늘 학습 */}
+          {(r.textbook || r.unit) && (
+            <div style={{ background: '#F9FAFB', borderRadius: '14px', padding: '14px 16px', marginBottom: '12px', border: '1px solid #E5E7EB' }}>
+              <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 700, margin: '0 0 6px' }}>📚 오늘 학습</p>
+              {r.textbook && <p style={{ fontSize: '14px', fontWeight: 700, margin: 0 }}>{r.textbook}</p>}
+              {(r.unit || r.pages) && <p style={{ fontSize: '12px', color: '#6B7280', margin: '3px 0 0' }}>{r.unit}{r.unit && r.pages ? ' · ' : ''}{r.pages}</p>}
+            </div>
+          )}
+
+          {/* 진단 태그 */}
+          {r.diagnosis?.length > 0 && (
+            <div style={{ background: '#FAEEDA', borderRadius: '14px', padding: '14px 16px', marginBottom: '12px' }}>
+              <p style={{ fontSize: '11px', color: '#854F0B', fontWeight: 700, margin: '0 0 8px' }}>🎯 오늘의 진단</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {r.diagnosis.map((d, i) => {
+                  const tag = DIAGNOSIS_TAGS_MAP[d.key] || {};
+                  return (
+                    <div key={i} style={{ background: '#fff', borderRadius: '10px', padding: '10px 12px' }}>
+                      <span style={{ display: 'inline-block', background: tag.bg, border: `1px solid ${tag.border}`, color: tag.color, fontSize: '11px', padding: '2px 8px', borderRadius: '5px', fontWeight: 700, marginBottom: d.detail ? '5px' : 0 }}>
+                        {tag.label}{d.unit ? ` · ${d.unit}` : ''}{d.pages ? ` ${d.pages}` : ''}
+                      </span>
+                      {d.detail && <p style={{ fontSize: '12px', color: '#633806', margin: 0, fontWeight: 500 }}>{d.detail}</p>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* 선생님 코멘트 */}
+          {r.teacherNote && (
+            <div style={{ background: '#F9FAFB', borderRadius: '14px', padding: '14px 16px', marginBottom: '12px', border: '1px solid #E5E7EB' }}>
+              <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 700, margin: '0 0 6px' }}>💬 선생님 한 마디</p>
+              <p style={{ fontSize: '13px', color: '#1A1A1A', margin: 0, lineHeight: 1.7, fontWeight: 500, whiteSpace: 'pre-wrap' }}>{r.teacherNote}</p>
+            </div>
+          )}
+
+          {/* 다음 수업 계획 */}
+          {r.nextPlan && (
+            <div style={{ background: '#E1F5EE', borderRadius: '14px', padding: '14px 16px', marginBottom: '12px' }}>
+              <p style={{ fontSize: '11px', color: '#0F6E56', fontWeight: 700, margin: '0 0 6px' }}>➡️ 다음 수업 계획</p>
+              <p style={{ fontSize: '14px', fontWeight: 700, color: '#085041', margin: 0 }}>{r.nextPlan}</p>
+              {r.nextPlanDetail && <p style={{ fontSize: '12px', color: '#0F6E56', margin: '3px 0 0' }}>{r.nextPlanDetail}</p>}
+            </div>
+          )}
+
+          {/* 삭제 버튼 */}
+          <button
+            onClick={() => { if (confirm(`${r.studentName} 리포트를 삭제하시겠습니까?`)) onDelete(r.id); }}
+            style={{ width: '100%', padding: '12px', fontSize: '13px', fontWeight: 700, borderRadius: '12px', border: '1px solid #FCA5A5', background: '#FEF2F2', color: '#DC2626', cursor: 'pointer', fontFamily: 'inherit' }}>
+            🗑 이 리포트 삭제
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
