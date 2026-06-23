@@ -296,7 +296,9 @@ function StatCard({ label, value, unit }) {
   );
 }
 
-function StudentsView({ students, reports, onDelete }) {
+function StudentsView({ students, reports, onSave, onDelete }) {
+  const [editingStudent, setEditingStudent] = useState(null);
+
   return (
     <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
       <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '16px', letterSpacing: '-0.02em' }}>학생 관리</h2>
@@ -313,6 +315,11 @@ function StudentsView({ students, reports, onDelete }) {
                     <p style={{ fontSize: '15px', fontWeight: 700, margin: 0 }}>{s.name}</p>
                     <p style={{ fontSize: '11px', color: '#6B7280', margin: '2px 0 0', fontWeight: 500 }}>{s.school} · 리포트 {sReports.length}건</p>
                   </div>
+                  <button
+                    onClick={() => setEditingStudent(s)}
+                    style={{ background: '#E6F1FB', border: 'none', color: '#185FA5', fontSize: '12px', fontWeight: 700, padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', marginRight: '6px' }}>
+                    ✏️ 수정
+                  </button>
                   <button onClick={() => { if (confirm(`${s.name} 학생을 삭제하시겠습니까?`)) onDelete(s.id); }} style={{ background: 'none', border: 'none', color: '#D1D5DB', fontSize: '18px', cursor: 'pointer', padding: '4px' }}>×</button>
                 </div>
                 {s.textbooks?.length > 0 && (
@@ -325,6 +332,18 @@ function StudentsView({ students, reports, onDelete }) {
           })}
         </div>
       }
+
+      {/* 수정 모달 */}
+      {editingStudent && (
+        <StudentEditModal
+          student={editingStudent}
+          onClose={() => setEditingStudent(null)}
+          onSubmit={async (updated) => {
+            await onSave({ id: editingStudent.id, ...updated });
+            setEditingStudent(null);
+          }}
+        />
+      )}
     </div>
   );
 }
