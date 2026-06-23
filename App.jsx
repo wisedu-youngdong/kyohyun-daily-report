@@ -530,7 +530,10 @@ function ReportPreviewModal({ report: r, onClose, onDelete }) {
   };
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(4px)' }}
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
+background: 'rgba(0,0,0,0.5)', display: 'flex', 
+alignItems: 'center',
+justifyContent: 'center', zIndex: 1000, padding: '20px', backdropFilter: 'blur(4px)' }}
       onClick={onClose}>
       <div style={{ background: '#fff', borderRadius: '18px', width: '100%', maxWidth: '600px', maxHeight: '90vh', overflow: 'auto', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}
         onClick={(e) => e.stopPropagation()}>
