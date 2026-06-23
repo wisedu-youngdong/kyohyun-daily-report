@@ -138,7 +138,23 @@ setAiPolishedNote(data.result);
     alert('AI 연결에 실패했습니다. 잠시 후 다시 시도해주세요.');
   }
 };
-      // 리포트 저장 후 초기화
+     const handleSubmit = async () => {
+    if (!isValid) return alert('학생, 강사, 평가를 모두 입력해주세요.');
+    setSaving(true);
+    try {
+      await onSave({
+        studentId, studentName: student?.name,
+        teacherId, teacherName: teacher?.name,
+        attendance, arrivalTime,
+        homeworkRating, conceptRating,
+        hasTest,
+        testName: hasTest ? testName : null,
+        testScore: hasTest ? testScore : null,
+        textbook, unit, pages,
+        diagnosis: selectedTags,
+        teacherNote: aiPolishedNote || teacherNote,
+        nextPlan, nextPlanDetail,
+      });
       setStudentId(''); setHomeworkRating(0); setConceptRating(0);
       setHasTest(false); setTestName(''); setTestScore('');
       setTextbook(''); setUnit(''); setPages('');
@@ -151,7 +167,6 @@ setAiPolishedNote(data.result);
     }
     setSaving(false);
   };
-
   return (
     <div style={{
       fontFamily: "'Pretendard Variable', Pretendard, -apple-system, sans-serif",
