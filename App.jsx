@@ -173,7 +173,6 @@ export default function App() {
     alert('저장 실패: ' + e.message);
   }
 };
-  };
   const handleDeleteStudent = async (id) => await deleteDoc(doc(db, 'students', id));
 
   const handleSaveTeacher = async (d) => {
