@@ -29,6 +29,8 @@ export default async function handler(req, res) {
   );
 
   const data = await response.json();
-  const result = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-  res.status(200).json({ result });
-}
+console.log('Gemini 응답:', JSON.stringify(data));
+const result = data.candidates?.[0]?.content?.parts?.[0]?.text 
+  || data.error?.message 
+  || '응답 없음';
+res.status(200).json({ result });
