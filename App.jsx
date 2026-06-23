@@ -517,25 +517,34 @@ function ReportPreviewModal({ report: r, onClose, onDelete }) {
   const date = r.createdAt?.seconds
     ? new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })
     : '날짜 없음';
+  const cardRef = React.useRef(null);
+  const [downloading, setDownloading] = React.useState(false);
 
-  const shareUrl = `${window.location.origin}/report/${r.id}`;
-
-  const handleShare = () => {
-    if (navigator.share) {
-      navigator.share({ title: `${r.studentName} 학습 리포트`, url: shareUrl });
-    } else {
-      navigator.clipboard.writeText(shareUrl);
-      alert('링크가 복사됐습니다! 카톡으로 붙여넣기 하세요.');
+  const handleDownload = async () => {
+    if (!cardRef.current) return;
+    setDownloading(true);
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+      const canvas = await html2canvas(cardRef.current, {
+        scale: 3,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+      });
+      const link = document.createElement('a');
+      link.download = `${r.studentName}_리포트_${date}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (e) {
+      alert('이미지 저장 실패: ' + e.message);
     }
+    setDownloading(false);
   };
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
-background: 'rgba(0,0,0,0.5)', display: 'flex', 
-alignItems: 'center',
-justifyContent: 'center', zIndex: 1000, padding: '20px', backdropFilter: 'blur(4px)' }}
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px', backdropFilter: 'blur(4px)' }}
       onClick={onClose}>
-      <div style={{ background: '#fff', borderRadius: '18px', width: '100%', maxWidth: '600px', maxHeight: '90vh', overflow: 'auto', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}
+      <div style={{ background: '#fff', borderRadius: '18px', width: '100%', maxWidth: '600px', maxHeight: '85vh', overflow: 'auto', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}
         onClick={(e) => e.stopPropagation()}>
 
         {/* 모달 헤더 */}
@@ -545,29 +554,30 @@ justifyContent: 'center', zIndex: 1000, padding: '20px', backdropFilter: 'blur(4
             <p style={{ fontSize: '11px', color: '#6B7280', margin: '2px 0 0' }}>{date} · {r.teacherName}</p>
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
-            <button onClick={handleShare} style={{ background: '#185FA5', color: '#fff', border: 'none', borderRadius: '9px', padding: '7px 14px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-              🔗 링크 공유
+            <button onClick={handleDownload} disabled={downloading} style={{ background: '#0F6E56', color: '#fff', border: 'none', borderRadius: '9px', padding: '7px 14px', fontSize: '12px', fontWeight: 700, cursor: downloading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+              {downloading ? '저장 중...' : '📥 이미지 저장'}
             </button>
             <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '20px', color: '#6B7280', cursor: 'pointer' }}>×</button>
           </div>
         </div>
 
-        {/* 리포트 카드 내용 */}
-        <div style={{ padding: '20px' }}>
+        {/* 이미지로 저장될 카드 영역 */}
+        <div ref={cardRef} style={{ padding: '20px', background: '#fff' }}>
 
-          {/* 등원 + 평가 */}
+          {/* 카드 헤더 */}
+          <div style={{ background: '#F0F7FC', borderRadius: '14px', padding: '14px 16px', marginBottom: '12px', textAlign: 'center' }}>
+            <p style={{ fontSize: '11px', color: '#185FA5', fontWeight: 700, margin: '0 0 4px' }}>교현학원 오늘의 학습 리포트</p>
+            <p style={{ fontSize: '18px', fontWeight: 700, margin: '0 0 2px' }}>{r.studentName} 학생</p>
+            <p style={{ fontSize: '11px', color: '#6B7280', margin: 0 }}>{date} · {r.teacherName} 선생님</p>
+          </div>
+
+          {/* 출결 및 평가 */}
           <div style={{ background: '#F0F7FC', borderRadius: '14px', padding: '14px 16px', marginBottom: '12px' }}>
             <p style={{ fontSize: '11px', color: '#185FA5', fontWeight: 700, margin: '0 0 10px' }}>📋 출결 및 평가</p>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <span style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '5px 12px', fontSize: '12px', fontWeight: 600 }}>
-                {r.attendance} · {r.arrivalTime}
-              </span>
-              <span style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '5px 12px', fontSize: '12px', fontWeight: 600 }}>
-                과제 {RATING_EMOJI[r.homeworkRating]} {r.homeworkRating}점
-              </span>
-              <span style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '5px 12px', fontSize: '12px', fontWeight: 600 }}>
-                개념 {RATING_EMOJI[r.conceptRating]} {r.conceptRating}점
-              </span>
+              <span style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '5px 12px', fontSize: '12px', fontWeight: 600 }}>{r.attendance} · {r.arrivalTime}</span>
+              <span style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '5px 12px', fontSize: '12px', fontWeight: 600 }}>과제 {RATING_EMOJI[r.homeworkRating]} {r.homeworkRating}점</span>
+              <span style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '5px 12px', fontSize: '12px', fontWeight: 600 }}>개념 {RATING_EMOJI[r.conceptRating]} {r.conceptRating}점</span>
             </div>
           </div>
 
@@ -626,7 +636,14 @@ justifyContent: 'center', zIndex: 1000, padding: '20px', backdropFilter: 'blur(4
             </div>
           )}
 
-          {/* 삭제 버튼 */}
+          {/* 하단 서명 */}
+          <div style={{ textAlign: 'center', padding: '10px 0 0', borderTop: '1px solid #E5E7EB', marginTop: '4px' }}>
+            <p style={{ fontSize: '11px', color: '#9CA3AF', margin: 0 }}>교현학원 · 031-707-0591</p>
+          </div>
+        </div>
+
+        {/* 삭제 버튼 (이미지에 포함 안 됨) */}
+        <div style={{ padding: '12px 20px', borderTop: '1px solid #E5E7EB' }}>
           <button
             onClick={() => { if (confirm(`${r.studentName} 리포트를 삭제하시겠습니까?`)) onDelete(r.id); }}
             style={{ width: '100%', padding: '12px', fontSize: '13px', fontWeight: 700, borderRadius: '12px', border: '1px solid #FCA5A5', background: '#FEF2F2', color: '#DC2626', cursor: 'pointer', fontFamily: 'inherit' }}>
