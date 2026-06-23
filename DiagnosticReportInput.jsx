@@ -105,20 +105,14 @@ export default function DiagnosticReportInput({
   }, [teachers, teacherId]);
 
   // ----- 학생 등록 핸들러 -----
-  const handleAddStudent = (newStudent) => {
-    const studentWithId = { ...newStudent, id: `student-${Date.now()}` };
-    setStudents(prev => [...prev, studentWithId]);
-    setStudentId(studentWithId.id); // 자동 선택
-    onSaveStudent(studentWithId);
-    setShowStudentModal(false);
+ const handleAddStudent = async (newStudent) => {
+  await onSaveStudent(newStudent);
+  setShowStudentModal(false);
   };
 
   // ----- 강사 등록 핸들러 -----
-  const handleAddTeacher = (name) => {
-    const newTeacher = { id: `teacher-${Date.now()}`, name };
-    setTeachers(prev => [...prev, newTeacher]);
-    onSaveTeacher(newTeacher);
-    return newTeacher;
+ const handleAddTeacher = async (name) => {
+  await onSaveTeacher({ name });
   };
 
   const handleDeleteTeacher = (id) => {
