@@ -3,19 +3,15 @@ export default async function handler(req, res) {
 
   const { note } = req.body;
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': process.env.ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1000,
-      messages: [{
-        role: 'user',
-        content: `당신은 학원 선생님의 메모를 학부모에게 보내는 따뜻하고 전문적인 알림 메시지로 바꿔주는 도우미입니다.
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: `당신은 학원 선생님의 메모를 학부모에게 보내는 따뜻하고 전문적인 알림 메시지로 바꿔주는 도우미입니다.
 
 다음 규칙을 지켜주세요:
 - 따뜻하고 신뢰감 있는 톤 유지
@@ -26,11 +22,13 @@ export default async function handler(req, res) {
 - 앞뒤 설명 없이 메시지 본문만 출력
 
 선생님 메모: ${note}`
-      }]
-    })
-  });
+          }]
+        }]
+      })
+    }
+  );
 
   const data = await response.json();
-  const result = data.content?.[0]?.text || '';
+  const result = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
   res.status(200).json({ result });
 }
