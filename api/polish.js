@@ -6,7 +6,7 @@ export default async function handler(req, res) {
     console.log('요청 받음:', note);
     console.log('API 키 확인:', process.env.GEMINI_API_KEY ? '있음' : '없음');
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
     
     const response = await fetch(url, {
       method: 'POST',
