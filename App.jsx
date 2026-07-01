@@ -16,15 +16,15 @@ import {
 
 // ── 캐릭터 아바타 목록
 const AVATARS = [
-  { key: 'student',      label: '교복 남학생',  url: `https://raw.githubusercontent.com/wisedu-youngdong/kyohyun-daily-report/main/public/avatars/student.png` },
-  { key: 'student__1_', label: '교복 여학생',  url: `https://raw.githubusercontent.com/wisedu-youngdong/kyohyun-daily-report/main/public/avatars/student__1_.png` },
-  { key: 'write',        label: '공부왕',        url: `https://raw.githubusercontent.com/wisedu-youngdong/kyohyun-daily-report/main/public/avatars/write.png` },
-  { key: 'student__3_', label: '졸업 남학생',  url: `https://raw.githubusercontent.com/wisedu-youngdong/kyohyun-daily-report/main/public/avatars/student__3_.png` },
-  { key: 'student__2_', label: '졸업 여학생',  url: `https://raw.githubusercontent.com/wisedu-youngdong/kyohyun-daily-report/main/public/avatars/student__2_.png` },
-  { key: 'graduate',     label: '졸업가운 남',  url: `https://raw.githubusercontent.com/wisedu-youngdong/kyohyun-daily-report/main/public/avatars/graduate.png` },
-  { key: 'graduated',    label: '안경 졸업생',  url: `https://raw.githubusercontent.com/wisedu-youngdong/kyohyun-daily-report/main/public/avatars/graduated.png` },
-  { key: 'graduate__1_',label: '졸업가운 여',  url: `https://raw.githubusercontent.com/wisedu-youngdong/kyohyun-daily-report/main/public/avatars/graduate__1_.png` },
-  { key: 'graduation',   label: '졸업식',        url: `https://raw.githubusercontent.com/wisedu-youngdong/kyohyun-daily-report/main/public/avatars/graduation.png` },
+  { key: 'student',       label: '교복 남학생', url: '/avatars/student.png' },
+  { key: 'student__1_',  label: '교복 여학생', url: '/avatars/student__1_.png' },
+  { key: 'write',         label: '공부왕',       url: '/avatars/write.png' },
+  { key: 'student__3_',  label: '졸업 남학생', url: '/avatars/student__3_.png' },
+  { key: 'student__2_',  label: '졸업 여학생', url: '/avatars/student__2_.png' },
+  { key: 'graduate',      label: '졸업가운 남', url: '/avatars/graduate.png' },
+  { key: 'graduated',     label: '안경 졸업생', url: '/avatars/graduated.png' },
+  { key: 'graduate__1_', label: '졸업가운 여', url: '/avatars/graduate__1_.png' },
+  { key: 'graduation',    label: '졸업식',       url: '/avatars/graduation.png' },
 ];
 
 const T = {
