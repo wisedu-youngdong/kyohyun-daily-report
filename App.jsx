@@ -14,6 +14,19 @@ import {
   LayoutDashboard, Users, FileText, History, BarChart2, LogOut
 } from 'lucide-react';
 
+// ── 캐릭터 아바타 목록
+const AVATARS = [
+  { key: 'student',      label: '교복 남학생',  url: `https://raw.githubusercontent.com/wisedu-youngdong/kyohyun-daily-report/main/public/avatars/student.png` },
+  { key: 'student__1_', label: '교복 여학생',  url: `https://raw.githubusercontent.com/wisedu-youngdong/kyohyun-daily-report/main/public/avatars/student__1_.png` },
+  { key: 'write',        label: '공부왕',        url: `https://raw.githubusercontent.com/wisedu-youngdong/kyohyun-daily-report/main/public/avatars/write.png` },
+  { key: 'student__3_', label: '졸업 남학생',  url: `https://raw.githubusercontent.com/wisedu-youngdong/kyohyun-daily-report/main/public/avatars/student__3_.png` },
+  { key: 'student__2_', label: '졸업 여학생',  url: `https://raw.githubusercontent.com/wisedu-youngdong/kyohyun-daily-report/main/public/avatars/student__2_.png` },
+  { key: 'graduate',     label: '졸업가운 남',  url: `https://raw.githubusercontent.com/wisedu-youngdong/kyohyun-daily-report/main/public/avatars/graduate.png` },
+  { key: 'graduated',    label: '안경 졸업생',  url: `https://raw.githubusercontent.com/wisedu-youngdong/kyohyun-daily-report/main/public/avatars/graduated.png` },
+  { key: 'graduate__1_',label: '졸업가운 여',  url: `https://raw.githubusercontent.com/wisedu-youngdong/kyohyun-daily-report/main/public/avatars/graduate__1_.png` },
+  { key: 'graduation',   label: '졸업식',        url: `https://raw.githubusercontent.com/wisedu-youngdong/kyohyun-daily-report/main/public/avatars/graduation.png` },
+];
+
 const T = {
   brand: '#185FA5', brandLight: '#E6F1FB', brandBg: '#F0F7FC',
   text: '#1A1A1A', textSub: '#6B7280', textMute: '#9CA3AF',
@@ -310,7 +323,12 @@ function StudentsView({ students, reports, onSave, onDelete }) {
             return (
               <div key={s.id} style={{ background: '#fff', borderRadius: '16px', padding: '16px 18px', border: `1px solid #E5E7EB` }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: '#185FA5', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 700 }}>{s.name?.[0]}</div>
+                  <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: '#E6F1FB', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    {s.avatar
+                      ? <img src={AVATARS.find(a => a.key === s.avatar)?.url} alt="avatar" style={{ width: '44px', height: '44px', objectFit: 'cover' }} />
+                      : <span style={{ fontSize: '18px', fontWeight: 700, color: '#185FA5' }}>{s.name?.[0]}</span>
+                    }
+                  </div>
                   <div style={{ flex: 1 }}>
                     <p style={{ fontSize: '15px', fontWeight: 700, margin: 0 }}>{s.name}</p>
                     <p style={{ fontSize: '11px', color: '#6B7280', margin: '2px 0 0', fontWeight: 500 }}>{s.school} · 리포트 {sReports.length}건</p>
@@ -355,6 +373,7 @@ function StudentEditModal({ student, onClose, onSubmit }) {
   const [textbooks, setTextbooks] = useState(
     student.textbooks?.length > 0 ? student.textbooks : [{ id: Date.now(), name: '' }]
   );
+  const [avatar, setAvatar] = useState(student.avatar || '');
   const [saving, setSaving] = useState(false);
 
   const isValid = name.trim() && school.trim();
@@ -372,6 +391,7 @@ function StudentEditModal({ student, onClose, onSubmit }) {
       parentPhone: parentPhone.trim(),
       memo: memo.trim(),
       textbooks: textbooks.filter(t => t.name.trim()),
+      avatar: avatar,
     });
     setSaving(false);
   };
@@ -432,6 +452,34 @@ function StudentEditModal({ student, onClose, onSubmit }) {
           <div>
             <label style={labelStyle}>관리 메모 (내부용)</label>
             <textarea value={memo} onChange={(e) => setMemo(e.target.value)} rows={2} style={{ ...inputStyle, fontFamily: 'inherit', resize: 'vertical' }} />
+          </div>
+
+          {/* 캐릭터 선택 */}
+          <div>
+            <label style={labelStyle}>캐릭터 아바타</label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+              {AVATARS.map(av => (
+                <div
+                  key={av.key}
+                  onClick={() => setAvatar(av.key)}
+                  style={{
+                    border: avatar === av.key ? '2.5px solid #185FA5' : '2px solid #E5E7EB',
+                    borderRadius: '12px', padding: '8px 6px',
+                    cursor: 'pointer', textAlign: 'center',
+                    background: avatar === av.key ? '#E6F1FB' : '#F9FAFB',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <img src={av.url} alt={av.label} style={{ width: '48px', height: '48px', objectFit: 'contain', marginBottom: '4px' }} />
+                  <p style={{ fontSize: '10px', fontWeight: 600, color: avatar === av.key ? '#185FA5' : '#6B7280', margin: 0, lineHeight: 1.3 }}>{av.label}</p>
+                  {avatar === av.key && (
+                    <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: '#185FA5', margin: '4px auto 0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <span style={{ color: '#fff', fontSize: '10px', fontWeight: 900 }}>✓</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
