@@ -684,6 +684,8 @@ function TeacherPanel({ teachers, onAdd, onDelete, onClose }) {
 // ============================================================
 // 학부모 카드 미리보기
 // ============================================================
+const AVATAR_BASE = "https://raw.githubusercontent.com/wisedu-youngdong/kyohyun-daily-report/main/public/avatars";
+
 function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating, conceptRating, hasTest, testName, testScore, textbook, unit, pages, diagnosis, teacherNote, nextPlan, nextPlanDetail, skin }) {
   const today = new Date();
   const dateStr = `${String(today.getMonth() + 1).padStart(2,'0')}.${String(today.getDate()).padStart(2,'0')} (${'일월화수목금토'[today.getDay()]})`;
@@ -723,8 +725,15 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
           <span style={{ fontSize: '10px', fontWeight: 600, color: 'rgba(255,255,255,0.85)', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', padding: '3px 10px', borderRadius: '20px' }}>{dateStr}</span>
         </div>
         <div style={{ position: 'relative', zIndex: 1 }}>
-          <p style={{ fontFamily: 'Montserrat, sans-serif', fontSize: '9px', fontWeight: 700, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.2em', margin: '0 0 5px' }}>LEARNING REPORT</p>
-          <p style={{ fontSize: '24px', fontWeight: 800, color: '#ffffff', margin: '0 0 10px', letterSpacing: '-0.5px' }}>{student.name}</p>
+          <p style={{ fontFamily: 'Montserrat, sans-serif', fontSize: '9px', fontWeight: 700, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.2em', margin: '0 0 8px' }}>LEARNING REPORT</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
+            {student.avatar && (
+              <div style={{ width: '52px', height: '52px', borderRadius: '16px', background: 'rgba(255,255,255,0.15)', border: '2px solid rgba(255,255,255,0.25)', overflow: 'hidden', flexShrink: 0 }}>
+                <img src={`${AVATAR_BASE}/${student.avatar}.png`} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              </div>
+            )}
+            <p style={{ fontSize: '24px', fontWeight: 800, color: '#ffffff', margin: 0, letterSpacing: '-0.5px' }}>{student.name}</p>
+          </div>
           <div style={{ height: '1px', background: 'rgba(255,255,255,0.15)', marginBottom: '10px' }} />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.9)' }}>{student.school}</span>
