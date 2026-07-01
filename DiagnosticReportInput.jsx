@@ -780,7 +780,6 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
               {cardLabel('학습 범위', true)}
               {/* 교재명 */}
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: '7px', background: 'rgba(255,255,255,0.08)', borderRadius: '8px', padding: '7px 9px', marginBottom: '4px' }}>
-                <span style={{ fontSize: '13px', flexShrink: 0 }}>📖</span>
                 <p style={{ fontSize: '12px', fontWeight: 800, color: '#ffffff', margin: 0, lineHeight: 1.4, wordBreak: 'keep-all' }}>{textbook || '미입력'}</p>
               </div>
               {/* 구분선 */}
