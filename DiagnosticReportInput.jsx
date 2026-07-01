@@ -35,88 +35,54 @@ const ATTENDANCE = ['정시', '지각', '결석', '조퇴', '보강', '자율학
 // ============================================================
 // 스킨 팔레트
 // ============================================================
+// 메인 컬러 → SKIN 객체 자동 생성
+function buildSkin(key, name, mainHex, accentHex) {
+  const r = parseInt(mainHex.slice(1,3),16);
+  const g = parseInt(mainHex.slice(3,5),16);
+  const b = parseInt(mainHex.slice(5,7),16);
+  const toHex = (r,g,b) => '#'+[r,g,b].map(v=>Math.round(Math.max(0,Math.min(255,v))).toString(16).padStart(2,'0')).join('');
+  const pale  = toHex(r+140,g+140,b+140);
+  const dark  = toHex(Math.max(0,r-30),Math.max(0,g-30),Math.max(0,b-30));
+  const sub   = toHex(Math.max(0,r-30),Math.max(0,g-30),Math.max(0,b-30));
+  const text  = toHex(Math.max(0,r-80),Math.max(0,g-80),Math.max(0,b-80));
+  const foot  = toHex(r+80,g+80,b+80);
+  const accent = accentHex || pale;
+  return {
+    key, name,
+    headerBg:      `linear-gradient(155deg, ${dark}, ${mainHex}, ${toHex(r+20,g+20,b+20)})`,
+    headerText:    '#ffffff',
+    headerSub:     'rgba(255,255,255,0.85)',
+    bodyBg:        '#F7F5F2',
+    cardBg:        pale,
+    cardDarkBg:    mainHex,
+    cardText:      text,
+    cardDarkText:  '#ffffff',
+    cardSub:       sub,
+    cardDarkSub:   'rgba(255,255,255,0.75)',
+    accentBg:      mainHex,
+    accentText:    '#ffffff',
+    tagBg:         pale,
+    tagText:       text,
+    tagBorder:     foot,
+    commentBg:     pale,
+    commentBorder: mainHex,
+    commentText:   text,
+    nextBg:        mainHex,
+    nextText:      '#ffffff',
+    footerText:    foot,
+    dots:          [mainHex, accent, '#ffffff'],
+  };
+}
+
 export const SKINS = {
-  navy: {
-    key: 'navy',
-    name: '네이비 + 크림',
-    desc: '전문적인 느낌',
-    headerBg: 'linear-gradient(155deg, #1A2540 0%, #243060 55%, #1E3A6E 100%)',
-    headerText: '#ffffff',
-    headerSub: 'rgba(255,255,255,0.7)',
-    bodyBg: '#F7F5F2',
-    cardBg: '#EDEBE6',
-    cardDarkBg: '#1A2540',
-    cardText: '#1A2540',
-    cardDarkText: '#ffffff',
-    cardSub: '#A09888',
-    cardDarkSub: 'rgba(255,255,255,0.35)',
-    accentBg: '#1A2540',
-    accentText: '#ffffff',
-    tagBg: '#EDEBE6',
-    tagText: '#1A2540',
-    tagBorder: '#C0B8A8',
-    commentBg: '#EDEBE6',
-    commentBorder: '#1A2540',
-    commentText: '#2A2420',
-    nextBg: '#1A2540',
-    nextText: '#ffffff',
-    footerText: '#C0B8A8',
-    dots: ['#1A2540', '#EDEBE6', '#ffffff'],
-  },
-  violet: {
-    key: 'violet',
-    name: '보라 + 노랑',
-    desc: '밝고 활기찬 느낌',
-    headerBg: '#7B5EA7',
-    headerText: '#ffffff',
-    headerSub: 'rgba(255,255,255,0.85)',
-    bodyBg: '#ffffff',
-    cardBg: '#F0EEFF',       // 라이트: 연보라
-    cardDarkBg: '#7B5EA7',   // 다크: 진보라 (노랑 → 보라로 변경, 대비 확보)
-    cardText: '#3A1F6B',     // 라이트 텍스트: 진한 보라
-    cardDarkText: '#ffffff', // 다크 텍스트: 흰색
-    cardSub: '#6B4FA0',      // 라이트 서브: 진한 보라
-    cardDarkSub: 'rgba(255,255,255,0.7)', // 다크 서브: 흰색 70%
-    accentBg: 'linear-gradient(135deg, #7B5EA7, #9B6FD4)',
-    accentText: '#ffffff',
-    tagBg: '#FFFBEB',
-    tagText: '#5A3A00',
-    tagBorder: '#F5D76E',
-    commentBg: '#F0EEFF',
-    commentBorder: '#7B5EA7',
-    commentText: '#3A1F6B',
-    nextBg: 'linear-gradient(135deg, #7B5EA7, #9B6FD4)',
-    nextText: '#ffffff',
-    footerText: '#9B6FD4',
-    dots: ['#7B5EA7', '#F5D76E', '#ffffff'],
-  },
-  purple: {
-    key: 'purple',
-    name: '보라 + 화이트',
-    desc: '고급스러운 느낌',
-    headerBg: '#6B3FA0',
-    headerText: '#ffffff',
-    headerSub: 'rgba(255,255,255,0.85)',
-    bodyBg: '#ffffff',
-    cardBg: '#F8F6FC',
-    cardDarkBg: '#6B3FA0',
-    cardText: '#2A1848',
-    cardDarkText: '#ffffff',
-    cardSub: '#7B5EA7',
-    cardDarkSub: 'rgba(255,255,255,0.75)',
-    accentBg: '#6B3FA0',
-    accentText: '#ffffff',
-    tagBg: '#F0E8FF',
-    tagText: '#6B3FA0',
-    tagBorder: 'rgba(107,63,160,0.3)',
-    commentBg: '#F8F6FC',
-    commentBorder: '#6B3FA0',
-    commentText: '#2A1848',
-    nextBg: '#6B3FA0',
-    nextText: '#ffffff',
-    footerText: '#C0B0D8',
-    dots: ['#6B3FA0', '#F0E8FF', '#ffffff'],
-  },
+  navy:   buildSkin('navy',   '네이비 + 크림',  '#1A2540', '#EDEBE6'),
+  purple: buildSkin('purple', '보라 + 화이트',  '#6B3FA0', '#F0E8FF'),
+  violet: buildSkin('violet', '보라 + 노랑',    '#7B5EA7', '#F5D76E'),
+  blue:   buildSkin('blue',   '딥블루 + 민트',  '#0F3460', '#00C9A7'),
+  dark:   buildSkin('dark',   '다크 + 골드',    '#1A1714', '#D4AF37'),
+  green:  buildSkin('green',  '그린 + 화이트',  '#2E7D32', '#E8F5E9'),
+  red:    buildSkin('red',    '레드 + 화이트',  '#C0392B', '#FEE8E8'),
+  indigo: buildSkin('indigo', '인디고 + 피치',  '#3949AB', '#FFCCBC'),
 };
 
 export default function DiagnosticReportInput({
@@ -472,25 +438,21 @@ setAiPolishedNote(data.result);
                 <span style={{ fontSize: '10px', color: '#9CA3AF', fontFamily: 'monospace' }}>{student.skinColor}</span>
               </div>
             ) : (
-              <div style={{ display: 'flex', gap: '7px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
                 {Object.values(SKINS).map(sk => (
                   <button
                     key={sk.key}
                     onClick={() => setSelectedSkin(sk.key)}
                     style={{
-                      flex: 1, border: selectedSkin === sk.key ? '2px solid #185FA5' : '2px solid #E5E7EB',
-                      borderRadius: '10px', padding: '8px 4px', cursor: 'pointer',
+                      border: selectedSkin === sk.key ? '2px solid #185FA5' : '2px solid #E5E7EB',
+                      borderRadius: '10px', padding: '7px 4px', cursor: 'pointer',
                       background: selectedSkin === sk.key ? '#E6F1FB' : '#F9FAFB',
                       display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px',
                       fontFamily: 'inherit', transition: 'all 0.15s',
                     }}
                   >
-                    <div style={{ display: 'flex', gap: '3px' }}>
-                      {sk.dots.map((c, i) => (
-                        <div key={i} style={{ width: '10px', height: '10px', borderRadius: '50%', background: c, border: '1px solid rgba(0,0,0,0.08)' }} />
-                      ))}
-                    </div>
-                    <span style={{ fontSize: '9px', fontWeight: 700, color: selectedSkin === sk.key ? '#185FA5' : '#6B7280', textAlign: 'center', lineHeight: 1.3 }}>{sk.name}</span>
+                    <div style={{ width: '100%', height: '18px', borderRadius: '5px', background: sk.dots[0], marginBottom: '2px' }}></div>
+                    <span style={{ fontSize: '8px', fontWeight: 700, color: selectedSkin === sk.key ? '#185FA5' : '#6B7280', textAlign: 'center', lineHeight: 1.3 }}>{sk.name}</span>
                   </button>
                 ))}
               </div>
