@@ -772,9 +772,27 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
             {/* 학습 범위 — 다크 */}
             <div style={{ background: s.cardDarkBg, borderRadius: '14px', padding: '12px 12px' }}>
               {cardLabel('학습 범위', true)}
-              {cardValue(textbook || '미입력', true, '11px')}
-              {unit && cardSub(unit, true)}
-              {pages && cardSub(pages, true)}
+              {/* 교재명 */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', marginBottom: '3px' }}>
+                <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(255,255,255,0.45)', flexShrink: 0, marginTop: '5px' }} />
+                <p style={{ fontSize: '12px', fontWeight: 700, color: '#ffffff', margin: 0, lineHeight: 1.4, wordBreak: 'keep-all' }}>{textbook || '미입력'}</p>
+              </div>
+              {/* 구분선 */}
+              {(unit || pages) && <div style={{ height: '1px', background: 'rgba(255,255,255,0.12)', margin: '7px 0' }} />}
+              {/* 단원 */}
+              {unit && (
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', marginBottom: '3px' }}>
+                  <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(255,255,255,0.45)', flexShrink: 0, marginTop: '5px' }} />
+                  <p style={{ fontSize: '12px', fontWeight: 700, color: '#ffffff', margin: 0, lineHeight: 1.4, wordBreak: 'keep-all' }}>{unit}</p>
+                </div>
+              )}
+              {/* 범위 */}
+              {pages && (
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+                  <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(255,255,255,0.45)', flexShrink: 0, marginTop: '5px' }} />
+                  <p style={{ fontSize: '12px', fontWeight: 700, color: '#ffffff', margin: 0, lineHeight: 1.4 }}>{pages}</p>
+                </div>
+              )}
             </div>
 
           </div>
