@@ -457,31 +457,44 @@ setAiPolishedNote(data.result);
         <div style={{ position: 'sticky', top: '20px' }}>
           <p style={{ fontSize: '11px', color: TOKENS.textMute, fontWeight: 700, marginBottom: '8px' }}>학부모 발송 미리보기</p>
 
-          {/* 스킨 선택 */}
-          <div style={{ background: '#fff', borderRadius: '14px', border: '1px solid #E5E7EB', padding: '12px 14px', marginBottom: '10px' }}>
-            <p style={{ fontSize: '10px', fontWeight: 700, color: '#6B7280', margin: '0 0 8px', letterSpacing: '0.06em' }}>🎨 리포트 스킨</p>
-            <div style={{ display: 'flex', gap: '7px' }}>
-              {Object.values(SKINS).map(sk => (
-                <button
-                  key={sk.key}
-                  onClick={() => setSelectedSkin(sk.key)}
-                  style={{
-                    flex: 1, border: selectedSkin === sk.key ? '2px solid #185FA5' : '2px solid #E5E7EB',
-                    borderRadius: '10px', padding: '8px 4px', cursor: 'pointer',
-                    background: selectedSkin === sk.key ? '#E6F1FB' : '#F9FAFB',
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px',
-                    fontFamily: 'inherit', transition: 'all 0.15s',
-                  }}
-                >
-                  <div style={{ display: 'flex', gap: '3px' }}>
-                    {sk.dots.map((c, i) => (
-                      <div key={i} style={{ width: '10px', height: '10px', borderRadius: '50%', background: c, border: '1px solid rgba(0,0,0,0.08)' }} />
-                    ))}
-                  </div>
-                  <span style={{ fontSize: '9px', fontWeight: 700, color: selectedSkin === sk.key ? '#185FA5' : '#6B7280', textAlign: 'center', lineHeight: 1.3 }}>{sk.name}</span>
-                </button>
-              ))}
+          {/* 스킨 표시 — 학생 개별 스킨 or 선택 스킨 */}
+          <div style={{ background: '#fff', borderRadius: '14px', border: '1px solid #E5E7EB', padding: '10px 14px', marginBottom: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <p style={{ fontSize: '10px', fontWeight: 700, color: '#6B7280', margin: 0, letterSpacing: '0.06em' }}>🎨 리포트 스킨</p>
+              {student?.skinColor && (
+                <span style={{ fontSize: '9px', fontWeight: 700, color: '#185FA5', background: '#E6F1FB', padding: '2px 8px', borderRadius: '6px' }}>학생 개별 스킨 적용 중</span>
+              )}
             </div>
+            {student?.skinColor ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#F9FAFB', borderRadius: '10px', padding: '8px 10px' }}>
+                <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: student.skinColor, border: '2px solid rgba(0,0,0,0.08)', flexShrink: 0 }}></div>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: '#1A1A1A' }}>개별 설정 색상</span>
+                <span style={{ fontSize: '10px', color: '#9CA3AF', fontFamily: 'monospace' }}>{student.skinColor}</span>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: '7px' }}>
+                {Object.values(SKINS).map(sk => (
+                  <button
+                    key={sk.key}
+                    onClick={() => setSelectedSkin(sk.key)}
+                    style={{
+                      flex: 1, border: selectedSkin === sk.key ? '2px solid #185FA5' : '2px solid #E5E7EB',
+                      borderRadius: '10px', padding: '8px 4px', cursor: 'pointer',
+                      background: selectedSkin === sk.key ? '#E6F1FB' : '#F9FAFB',
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px',
+                      fontFamily: 'inherit', transition: 'all 0.15s',
+                    }}
+                  >
+                    <div style={{ display: 'flex', gap: '3px' }}>
+                      {sk.dots.map((c, i) => (
+                        <div key={i} style={{ width: '10px', height: '10px', borderRadius: '50%', background: c, border: '1px solid rgba(0,0,0,0.08)' }} />
+                      ))}
+                    </div>
+                    <span style={{ fontSize: '9px', fontWeight: 700, color: selectedSkin === sk.key ? '#185FA5' : '#6B7280', textAlign: 'center', lineHeight: 1.3 }}>{sk.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <ParentCard
@@ -686,14 +699,44 @@ function TeacherPanel({ teachers, onAdd, onDelete, onClose }) {
 // ============================================================
 const AVATAR_BASE = "/avatars";
 
+// 커스텀 컬러 → SKINS 형식으로 변환
+function deriveColorsToSkin(mainHex) {
+  const r = parseInt(mainHex.slice(1,3),16);
+  const g = parseInt(mainHex.slice(3,5),16);
+  const b = parseInt(mainHex.slice(5,7),16);
+  const toHex = (r,g,b) => '#'+[r,g,b].map(v=>Math.round(Math.max(0,Math.min(255,v))).toString(16).padStart(2,'0')).join('');
+  return {
+    headerBg:     `linear-gradient(155deg, ${toHex(r-20,g-20,b-20)}, ${mainHex}, ${toHex(r+30,g+30,b+30)})`,
+    headerText:   '#ffffff',
+    headerSub:    'rgba(255,255,255,0.85)',
+    bodyBg:       '#ffffff',
+    cardBg:       toHex(r+150,g+150,b+150),
+    cardDarkBg:   mainHex,
+    cardText:     toHex(r-60,g-60,b-60),
+    cardDarkText: '#ffffff',
+    cardSub:      toHex(r+60,g+60,b+60),
+    cardDarkSub:  'rgba(255,255,255,0.7)',
+    tagBg:        toHex(r+150,g+150,b+150),
+    tagText:      toHex(r-40,g-40,b-40),
+    tagBorder:    toHex(r+100,g+100,b+100),
+    commentBg:    toHex(r+150,g+150,b+150),
+    commentBorder: mainHex,
+    commentText:  toHex(r-60,g-60,b-60),
+    nextBg:       mainHex,
+    nextText:     '#ffffff',
+    footerText:   toHex(r+80,g+80,b+80),
+  };
+}
+
 function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating, conceptRating, hasTest, testName, testScore, textbook, unit, pages, diagnosis, teacherNote, nextPlan, nextPlanDetail, skin }) {
   const today = new Date();
   const dateStr = `${String(today.getMonth() + 1).padStart(2,'0')}.${String(today.getDate()).padStart(2,'0')} (${'일월화수목금토'[today.getDay()]})`;
   const homework = RATING_LEVELS.find(r => r.level === homeworkRating);
   const concept  = RATING_LEVELS.find(r => r.level === conceptRating);
 
-  // 스킨 기본값 (skin prop 없을 때)
-  const s = skin || SKINS.navy;
+  // 학생 개별 스킨 → 없으면 선택 스킨 → 없으면 기본값
+  const studentSkin = student?.skinColor ? deriveColorsToSkin(student.skinColor) : null;
+  const s = studentSkin || skin || SKINS.navy;
 
   if (!student) return (
     <div style={{ background: '#fff', border: `1px dashed #E5E7EB`, borderRadius: '18px', padding: '50px 20px', textAlign: 'center' }}>
