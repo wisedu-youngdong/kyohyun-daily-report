@@ -700,24 +700,35 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
     </div>
   );
 
+  // 텍스트 계층 헬퍼 — 라벨/본문/서브 3단계
+  const cardLabel = (text, dark=false) => (
+    <p style={{ fontSize: '9px', fontWeight: 800, color: dark ? 'rgba(255,255,255,0.55)' : s.cardSub, letterSpacing: '0.1em', margin: '0 0 5px', fontFamily: 'Montserrat, sans-serif', textTransform: 'uppercase' }}>{text}</p>
+  );
+  const cardValue = (text, dark=false, size='13px') => (
+    <p style={{ fontSize: size, fontWeight: 700, color: dark ? '#ffffff' : s.cardText, margin: 0, lineHeight: 1.35, wordBreak: 'keep-all' }}>{text}</p>
+  );
+  const cardSub = (text, dark=false) => (
+    <p style={{ fontSize: '10px', fontWeight: 600, color: dark ? 'rgba(255,255,255,0.65)' : s.cardSub, margin: '3px 0 0' }}>{text}</p>
+  );
+
   return (
-    <div style={{ background: s.bodyBg, borderRadius: '18px', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
+    <div style={{ background: s.bodyBg, borderRadius: '18px', overflow: 'hidden', boxShadow: '0 4px 24px rgba(0,0,0,0.12)' }}>
 
       {/* 헤더 */}
       <div style={{ background: s.headerBg, padding: '20px 18px 18px', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', top: '-30px', right: '-30px', width: '110px', height: '110px', borderRadius: '50%', background: 'rgba(255,255,255,0.07)' }} />
         <div style={{ position: 'absolute', top: '20px', right: '10px', width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', position: 'relative', zIndex: 1 }}>
-          <span style={{ fontFamily: 'Montserrat, sans-serif', fontSize: '9px', fontWeight: 700, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.2em' }}>교현학원</span>
-          <span style={{ fontSize: '9px', fontWeight: 600, color: 'rgba(255,255,255,0.75)', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.18)', padding: '3px 10px', borderRadius: '20px' }}>{dateStr}</span>
+          <span style={{ fontFamily: 'Montserrat, sans-serif', fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.18em' }}>교현학원</span>
+          <span style={{ fontSize: '10px', fontWeight: 600, color: 'rgba(255,255,255,0.85)', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', padding: '3px 10px', borderRadius: '20px' }}>{dateStr}</span>
         </div>
         <div style={{ position: 'relative', zIndex: 1 }}>
-          <p style={{ fontFamily: 'Montserrat, sans-serif', fontSize: '8px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', letterSpacing: '0.18em', margin: '0 0 4px' }}>LEARNING REPORT</p>
-          <p style={{ fontSize: '22px', fontWeight: 700, color: s.headerText, margin: '0 0 8px', letterSpacing: '-0.5px' }}>{student.name}</p>
-          <div style={{ height: '1px', background: 'rgba(255,255,255,0.12)', marginBottom: '10px' }} />
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.85)' }}>{student.school}</span>
-            <span style={{ fontSize: '10px', color: s.headerSub }}>{teacher?.name || '선생님'} 드림</span>
+          <p style={{ fontFamily: 'Montserrat, sans-serif', fontSize: '9px', fontWeight: 700, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.2em', margin: '0 0 5px' }}>LEARNING REPORT</p>
+          <p style={{ fontSize: '24px', fontWeight: 800, color: '#ffffff', margin: '0 0 10px', letterSpacing: '-0.5px' }}>{student.name}</p>
+          <div style={{ height: '1px', background: 'rgba(255,255,255,0.15)', marginBottom: '10px' }} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.9)' }}>{student.school}</span>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.8)' }}>{teacher?.name || '선생님'} 드림</span>
           </div>
         </div>
       </div>
@@ -725,58 +736,71 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
       {/* 바디 */}
       <div style={{ padding: '14px' }}>
 
-        {/* 출결 + 평가 */}
+        {/* 평가 + 출결 그리드 */}
         {(homeworkRating || conceptRating) && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '7px', marginBottom: '10px' }}>
-            <div style={{ background: s.cardDarkBg, borderRadius: '13px', padding: '11px 10px' }}>
-              <p style={{ fontSize: '7px', fontWeight: 700, color: s.cardDarkSub, letterSpacing: '0.12em', margin: '0 0 6px', fontFamily: 'Montserrat, sans-serif' }}>과제 수행</p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
+
+            {/* 과제 수행 — 다크 */}
+            <div style={{ background: s.cardDarkBg, borderRadius: '14px', padding: '12px 12px' }}>
+              {cardLabel('과제 수행', true)}
               {homework ? (
                 <>
-                  <div style={{ fontSize: '22px', lineHeight: 1, marginBottom: '3px' }}>{homework.emoji}</div>
-                  <p style={{ fontSize: '11px', color: s.cardDarkText, margin: 0, fontWeight: 700 }}>{homework.label}</p>
+                  <div style={{ fontSize: '24px', lineHeight: 1, marginBottom: '4px' }}>{homework.emoji}</div>
+                  <p style={{ fontSize: '13px', fontWeight: 800, color: '#ffffff', margin: 0 }}>{homework.label}</p>
                 </>
-              ) : <p style={{ fontSize: '11px', color: s.cardDarkSub, margin: 0 }}>미입력</p>}
+              ) : <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', margin: 0 }}>미입력</p>}
             </div>
-            <div style={{ background: s.cardBg, borderRadius: '13px', padding: '11px 10px' }}>
-              <p style={{ fontSize: '7px', fontWeight: 700, color: s.cardSub, letterSpacing: '0.12em', margin: '0 0 6px', fontFamily: 'Montserrat, sans-serif' }}>개념 이해</p>
+
+            {/* 개념 이해 — 라이트 */}
+            <div style={{ background: s.cardBg, borderRadius: '14px', padding: '12px 12px' }}>
+              {cardLabel('개념 이해', false)}
               {concept ? (
                 <>
-                  <div style={{ fontSize: '22px', lineHeight: 1, marginBottom: '3px' }}>{concept.emoji}</div>
-                  <p style={{ fontSize: '11px', color: s.cardText, margin: 0, fontWeight: 700 }}>{concept.label}</p>
+                  <div style={{ fontSize: '24px', lineHeight: 1, marginBottom: '4px' }}>{concept.emoji}</div>
+                  <p style={{ fontSize: '13px', fontWeight: 800, color: s.cardText, margin: 0 }}>{concept.label}</p>
                 </>
-              ) : <p style={{ fontSize: '11px', color: s.cardSub, margin: 0 }}>미입력</p>}
+              ) : <p style={{ fontSize: '12px', color: s.cardSub, margin: 0 }}>미입력</p>}
             </div>
-            <div style={{ background: s.cardBg, borderRadius: '13px', padding: '11px 10px' }}>
-              <p style={{ fontSize: '7px', fontWeight: 700, color: s.cardSub, letterSpacing: '0.12em', margin: '0 0 5px', fontFamily: 'Montserrat, sans-serif' }}>출결</p>
-              <p style={{ fontSize: '13px', fontWeight: 700, color: s.cardText, margin: 0 }}>{attendance}</p>
-              <p style={{ fontSize: '9px', color: s.cardSub, margin: '3px 0 0', whiteSpace: 'nowrap' }}>{arrivalTime} 등원</p>
+
+            {/* 출결 — 라이트 */}
+            <div style={{ background: s.cardBg, borderRadius: '14px', padding: '12px 12px' }}>
+              {cardLabel('출결', false)}
+              {cardValue(attendance, false, '14px')}
+              {cardSub(`${arrivalTime} 등원`, false)}
             </div>
-            <div style={{ background: s.cardDarkBg, borderRadius: '13px', padding: '11px 10px' }}>
-              <p style={{ fontSize: '7px', fontWeight: 700, color: s.cardDarkSub, letterSpacing: '0.12em', margin: '0 0 5px', fontFamily: 'Montserrat, sans-serif' }}>학습 범위</p>
-              <p style={{ fontSize: '10px', fontWeight: 700, color: s.cardDarkText, margin: 0, lineHeight: 1.4, wordBreak: 'keep-all', overflowWrap: 'break-word' }}>{textbook || '미입력'}</p>
-              {pages && <p style={{ fontSize: '9px', color: s.cardDarkSub, margin: '3px 0 0' }}>{pages}</p>}
+
+            {/* 학습 범위 — 다크 */}
+            <div style={{ background: s.cardDarkBg, borderRadius: '14px', padding: '12px 12px' }}>
+              {cardLabel('학습 범위', true)}
+              {cardValue(textbook || '미입력', true, '11px')}
+              {pages && cardSub(pages, true)}
             </div>
+
           </div>
         )}
 
         {/* 시험 */}
         {hasTest && testName && (
-          <div style={{ background: '#FFFBEB', borderRadius: '13px', padding: '11px 13px', marginBottom: '10px', border: '1px solid #F5D76E' }}>
-            <p style={{ fontSize: '8px', fontWeight: 700, color: '#B8860B', margin: '0 0 4px', fontFamily: 'Montserrat, sans-serif', letterSpacing: '0.1em' }}>TEST RESULT</p>
-            <p style={{ fontSize: '11px', fontWeight: 600, color: '#7A5500', margin: '0 0 3px' }}>{testName}</p>
-            {testScore && <p style={{ fontSize: '24px', fontWeight: 800, color: '#7A5500', margin: 0, fontFamily: 'Montserrat, sans-serif', letterSpacing: '-1px' }}>{testScore}<span style={{ fontSize: '11px', fontWeight: 500 }}>점</span></p>}
+          <div style={{ background: '#FFFBEB', borderRadius: '14px', padding: '12px 14px', marginBottom: '10px', border: '1.5px solid #F5D76E' }}>
+            <p style={{ fontSize: '9px', fontWeight: 800, color: '#B8860B', margin: '0 0 5px', fontFamily: 'Montserrat, sans-serif', letterSpacing: '0.1em' }}>TEST RESULT</p>
+            <p style={{ fontSize: '12px', fontWeight: 700, color: '#7A5500', margin: '0 0 4px' }}>{testName}</p>
+            {testScore && (
+              <p style={{ fontSize: '26px', fontWeight: 800, color: '#7A5500', margin: 0, fontFamily: 'Montserrat, sans-serif', letterSpacing: '-1px', lineHeight: 1 }}>
+                {testScore}<span style={{ fontSize: '13px', fontWeight: 600, marginLeft: '2px' }}>점</span>
+              </p>
+            )}
           </div>
         )}
 
         {/* 진단 */}
         {diagnosis.length > 0 && (
           <div style={{ marginBottom: '10px' }}>
-            <p style={{ fontSize: '7px', fontWeight: 700, color: s.cardSub, letterSpacing: '0.14em', margin: '0 0 6px', fontFamily: 'Montserrat, sans-serif' }}>DIAGNOSIS</p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+            <p style={{ fontSize: '9px', fontWeight: 800, color: s.cardSub, letterSpacing: '0.12em', margin: '0 0 7px', fontFamily: 'Montserrat, sans-serif' }}>DIAGNOSIS</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
               {diagnosis.map((d, idx) => {
                 const tagDef = DIAGNOSIS_TAGS.find(t => t.key === d.key);
                 return (
-                  <span key={idx} style={{ background: s.tagBg, border: `1px solid ${s.tagBorder}`, color: s.tagText, fontSize: '10px', fontWeight: 700, padding: '4px 10px', borderRadius: '20px' }}>
+                  <span key={idx} style={{ background: s.tagBg, border: `1.5px solid ${s.tagBorder}`, color: s.tagText, fontSize: '11px', fontWeight: 700, padding: '5px 11px', borderRadius: '20px' }}>
                     {tagDef?.label}{d.unit && ` · ${d.unit}`}
                   </span>
                 );
@@ -787,28 +811,28 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
 
         {/* 선생님 코멘트 */}
         {teacherNote && (
-          <div style={{ background: s.commentBg, borderRadius: '13px', padding: '12px 14px', marginBottom: '10px', borderLeft: `3px solid ${s.commentBorder}`, border: '1px solid rgba(0,0,0,0.04)', borderLeft: `3px solid ${s.commentBorder}` }}>
-            <p style={{ fontSize: '7px', fontWeight: 700, color: s.cardSub, letterSpacing: '0.16em', margin: '0 0 6px', padding: '0 0 0 8px', fontFamily: 'Montserrat, sans-serif' }}>TEACHER'S NOTE</p>
-            <p style={{ fontSize: '11px', color: s.commentText, margin: 0, lineHeight: 2, padding: '0 0 0 8px', fontWeight: 400 }}>{teacherNote}</p>
+          <div style={{ background: s.commentBg, borderRadius: '14px', padding: '13px 15px', marginBottom: '10px', borderLeft: `3px solid ${s.commentBorder}` }}>
+            <p style={{ fontSize: '9px', fontWeight: 800, color: s.cardSub, letterSpacing: '0.14em', margin: '0 0 7px', fontFamily: 'Montserrat, sans-serif' }}>TEACHER'S NOTE</p>
+            <p style={{ fontSize: '12px', fontWeight: 500, color: s.commentText, margin: 0, lineHeight: 1.9, letterSpacing: '0.01em' }}>{teacherNote}</p>
           </div>
         )}
 
         {/* 다음 수업 */}
         {nextPlan && (
-          <div style={{ background: s.nextBg, borderRadius: '13px', padding: '11px 13px', marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <p style={{ fontSize: '7px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.16em', margin: '0 0 3px', fontFamily: 'Montserrat, sans-serif' }}>NEXT CLASS</p>
-              <p style={{ fontSize: '12px', fontWeight: 700, color: s.nextText, margin: 0 }}>{nextPlan}</p>
-              {nextPlanDetail && <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)', margin: '2px 0 0' }}>{nextPlanDetail}</p>}
+          <div style={{ background: s.nextBg, borderRadius: '14px', padding: '12px 14px', marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ flex: 1, marginRight: '10px' }}>
+              <p style={{ fontSize: '9px', fontWeight: 800, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.14em', margin: '0 0 4px', fontFamily: 'Montserrat, sans-serif' }}>NEXT CLASS</p>
+              <p style={{ fontSize: '13px', fontWeight: 700, color: '#ffffff', margin: 0, lineHeight: 1.4 }}>{nextPlan}</p>
+              {nextPlanDetail && <p style={{ fontSize: '11px', fontWeight: 500, color: 'rgba(255,255,255,0.7)', margin: '3px 0 0' }}>{nextPlanDetail}</p>}
             </div>
-            <div style={{ width: '28px', height: '28px', background: 'rgba(255,255,255,0.12)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.7)', fontSize: '14px' }}>→</div>
+            <div style={{ width: '30px', height: '30px', background: 'rgba(255,255,255,0.15)', borderRadius: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.85)', fontSize: '15px', flexShrink: 0 }}>→</div>
           </div>
         )}
 
         {/* 푸터 */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '8px', borderTop: '1px solid rgba(0,0,0,0.05)' }}>
-          <span style={{ fontSize: '8px', fontWeight: 600, color: s.footerText, fontFamily: 'Montserrat, sans-serif', letterSpacing: '0.1em' }}>교현학원</span>
-          <span style={{ fontSize: '8px', fontWeight: 400, color: s.footerText, fontFamily: 'Montserrat, sans-serif' }}>031-707-0591</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '10px', borderTop: `1px solid rgba(0,0,0,0.06)` }}>
+          <span style={{ fontSize: '9px', fontWeight: 700, color: s.footerText, fontFamily: 'Montserrat, sans-serif', letterSpacing: '0.12em' }}>교현학원</span>
+          <span style={{ fontSize: '9px', fontWeight: 500, color: s.footerText, fontFamily: 'Montserrat, sans-serif' }}>031-707-0591</span>
         </div>
       </div>
     </div>
