@@ -824,19 +824,24 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
               {diagnosis.map((d, idx) => {
                 const tagDef = DIAGNOSIS_TAGS.find(t => t.key === d.key);
-                const hasDetail = d.unit || d.pages;
+                const hasDetail = d.unit || d.pages || d.detail;
                 return (
-                  <span key={idx} style={{ display: 'inline-flex', alignItems: 'center', background: s.tagBg, border: `1.5px solid ${s.tagBorder}`, color: s.tagText, fontSize: '11px', fontWeight: 700, padding: '5px 11px', borderRadius: '20px' }}>
-                    {tagDef?.label}
-                    {hasDetail && (
-                      <>
-                        <span style={{ width: '1px', height: '12px', background: s.tagBorder, margin: '0 8px', flexShrink: 0, display: 'inline-block' }} />
-                        <span style={{ fontSize: '11px', fontWeight: 700, color: s.tagText }}>
-                          {d.unit && `${d.unit}단원`}{d.unit && d.pages ? ' · ' : ''}{d.pages && `${d.pages}p`}
-                        </span>
-                      </>
+                  <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', background: s.tagBg, border: `1.5px solid ${s.tagBorder}`, color: s.tagText, fontSize: '11px', fontWeight: 700, padding: '5px 11px', borderRadius: '20px' }}>
+                      {tagDef?.label}
+                      {(d.unit || d.pages) && (
+                        <>
+                          <span style={{ width: '1px', height: '12px', background: s.tagBorder, margin: '0 8px', flexShrink: 0, display: 'inline-block' }} />
+                          <span style={{ fontSize: '11px', fontWeight: 700, color: s.tagText }}>
+                            {d.unit && `${d.unit}단원`}{d.unit && d.pages ? ' · ' : ''}{d.pages && `${d.pages}p`}
+                          </span>
+                        </>
+                      )}
+                    </span>
+                    {d.detail && (
+                      <p style={{ fontSize: '11px', fontWeight: 600, color: s.cardSub, margin: '0 0 0 4px', lineHeight: 1.5 }}>{d.detail}</p>
                     )}
-                  </span>
+                  </div>
                 );
               })}
             </div>
