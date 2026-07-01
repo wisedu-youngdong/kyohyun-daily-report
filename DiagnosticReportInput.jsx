@@ -684,7 +684,7 @@ function TeacherPanel({ teachers, onAdd, onDelete, onClose }) {
 // ============================================================
 // 학부모 카드 미리보기
 // ============================================================
-const AVATAR_BASE = "https://raw.githubusercontent.com/wisedu-youngdong/kyohyun-daily-report/main/public/avatars";
+const AVATAR_BASE = "/avatars";
 
 function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating, conceptRating, hasTest, testName, testScore, textbook, unit, pages, diagnosis, teacherNote, nextPlan, nextPlanDetail, skin }) {
   const today = new Date();
