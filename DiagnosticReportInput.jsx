@@ -839,7 +839,10 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
                       )}
                     </span>
                     {d.detail && (
-                      <p style={{ fontSize: '11px', fontWeight: 600, color: s.cardSub, margin: '0 0 0 4px', lineHeight: 1.5 }}>{d.detail}</p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px', paddingLeft: '4px' }}>
+                        <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: s.tagBorder, flexShrink: 0 }} />
+                        <p style={{ fontSize: '12px', fontWeight: 700, color: s.tagText, margin: 0, lineHeight: 1.4 }}>{d.detail}</p>
+                      </div>
                     )}
                   </div>
                 );
@@ -860,9 +863,17 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
         {nextPlan && (
           <div style={{ background: s.nextBg, borderRadius: '14px', padding: '12px 14px', marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ flex: 1, marginRight: '10px' }}>
-              <p style={{ fontSize: '9px', fontWeight: 800, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.14em', margin: '0 0 4px', fontFamily: 'Montserrat, sans-serif' }}>NEXT CLASS</p>
-              <p style={{ fontSize: '13px', fontWeight: 700, color: '#ffffff', margin: 0, lineHeight: 1.4 }}>{nextPlan}</p>
-              {nextPlanDetail && <p style={{ fontSize: '11px', fontWeight: 500, color: 'rgba(255,255,255,0.7)', margin: '3px 0 0' }}>{nextPlanDetail}</p>}
+              <p style={{ fontSize: '9px', fontWeight: 800, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.14em', margin: '0 0 6px', fontFamily: 'Montserrat, sans-serif' }}>NEXT CLASS</p>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', marginBottom: nextPlanDetail ? '4px' : '0' }}>
+                <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(255,255,255,0.55)', flexShrink: 0, marginTop: '5px' }} />
+                <p style={{ fontSize: '12px', fontWeight: 700, color: '#ffffff', margin: 0, lineHeight: 1.4 }}>{nextPlan}</p>
+              </div>
+              {nextPlanDetail && (
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+                  <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(255,255,255,0.55)', flexShrink: 0, marginTop: '5px' }} />
+                  <p style={{ fontSize: '12px', fontWeight: 700, color: '#ffffff', margin: 0, lineHeight: 1.4 }}>{nextPlanDetail}</p>
+                </div>
+              )}
             </div>
             <div style={{ width: '30px', height: '30px', background: 'rgba(255,255,255,0.15)', borderRadius: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.85)', fontSize: '15px', flexShrink: 0 }}>→</div>
           </div>
