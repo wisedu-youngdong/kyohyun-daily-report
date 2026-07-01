@@ -773,6 +773,7 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
             <div style={{ background: s.cardDarkBg, borderRadius: '14px', padding: '12px 12px' }}>
               {cardLabel('학습 범위', true)}
               {cardValue(textbook || '미입력', true, '11px')}
+              {unit && cardSub(unit, true)}
               {pages && cardSub(pages, true)}
             </div>
 
