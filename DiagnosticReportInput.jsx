@@ -749,12 +749,12 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
             <div style={{ background: s.cardBg, borderRadius: '13px', padding: '11px 10px' }}>
               <p style={{ fontSize: '7px', fontWeight: 700, color: s.cardSub, letterSpacing: '0.12em', margin: '0 0 5px', fontFamily: 'Montserrat, sans-serif' }}>출결</p>
               <p style={{ fontSize: '13px', fontWeight: 700, color: s.cardText, margin: 0 }}>{attendance}</p>
-              <p style={{ fontSize: '9px', color: s.cardSub, margin: '2px 0 0' }}>{arrivalTime} 등원</p>
+              <p style={{ fontSize: '9px', color: s.cardSub, margin: '3px 0 0', whiteSpace: 'nowrap' }}>{arrivalTime} 등원</p>
             </div>
             <div style={{ background: s.cardDarkBg, borderRadius: '13px', padding: '11px 10px' }}>
               <p style={{ fontSize: '7px', fontWeight: 700, color: s.cardDarkSub, letterSpacing: '0.12em', margin: '0 0 5px', fontFamily: 'Montserrat, sans-serif' }}>학습 범위</p>
-              <p style={{ fontSize: '13px', fontWeight: 700, color: s.cardDarkText, margin: 0 }}>{textbook ? textbook.slice(0,8) : '미입력'}</p>
-              {pages && <p style={{ fontSize: '9px', color: s.cardDarkSub, margin: '2px 0 0' }}>{pages}</p>}
+              <p style={{ fontSize: '10px', fontWeight: 700, color: s.cardDarkText, margin: 0, lineHeight: 1.4, wordBreak: 'keep-all', overflowWrap: 'break-word' }}>{textbook || '미입력'}</p>
+              {pages && <p style={{ fontSize: '9px', color: s.cardDarkSub, margin: '3px 0 0' }}>{pages}</p>}
             </div>
           </div>
         )}
