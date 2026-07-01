@@ -779,9 +779,9 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
             <div style={{ background: s.cardDarkBg, borderRadius: '14px', padding: '12px 12px' }}>
               {cardLabel('학습 범위', true)}
               {/* 교재명 */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', marginBottom: '3px' }}>
-                <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(255,255,255,0.45)', flexShrink: 0, marginTop: '5px' }} />
-                <p style={{ fontSize: '12px', fontWeight: 700, color: '#ffffff', margin: 0, lineHeight: 1.4, wordBreak: 'keep-all' }}>{textbook || '미입력'}</p>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '7px', background: 'rgba(255,255,255,0.08)', borderRadius: '8px', padding: '7px 9px', marginBottom: '4px' }}>
+                <span style={{ fontSize: '13px', flexShrink: 0 }}>📖</span>
+                <p style={{ fontSize: '12px', fontWeight: 800, color: '#ffffff', margin: 0, lineHeight: 1.4, wordBreak: 'keep-all' }}>{textbook || '미입력'}</p>
               </div>
               {/* 구분선 */}
               {(unit || pages) && <div style={{ height: '1px', background: 'rgba(255,255,255,0.12)', margin: '7px 0' }} />}
@@ -855,7 +855,7 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
         {teacherNote && (
           <div style={{ background: s.commentBg, borderRadius: '14px', padding: '13px 15px', marginBottom: '10px', borderLeft: `3px solid ${s.commentBorder}` }}>
             <p style={{ fontSize: '9px', fontWeight: 800, color: s.cardSub, letterSpacing: '0.14em', margin: '0 0 7px', fontFamily: 'Montserrat, sans-serif' }}>TEACHER'S NOTE</p>
-            <p style={{ fontSize: '12px', fontWeight: 500, color: s.commentText, margin: 0, lineHeight: 1.9, letterSpacing: '0.01em' }}>{teacherNote}</p>
+            <p style={{ fontSize: '13px', fontWeight: 700, color: s.commentText, margin: 0, lineHeight: 1.9, letterSpacing: '0.01em' }}>{teacherNote}</p>
           </div>
         )}
 
