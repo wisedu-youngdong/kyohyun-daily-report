@@ -50,6 +50,21 @@ export default async function handler(req, res) {
     });
 
     const data = await response.json();
+
+    // Gemini API 레벨 에러(쿼터초과 429, 키 오류 400 등) 먼저 체크 — 원인 그대로 노출
+    if (data.error) {
+      console.error('Gemini API 에러:', JSON.stringify(data.error));
+      const code = data.error.code;
+      const status = data.error.status;
+      let userMsg = `Gemini API 오류 (${code} ${status}): ${data.error.message}`;
+      if (status === 'RESOURCE_EXHAUSTED' || code === 429) {
+        userMsg = '⚠️ Gemini API 쿼터가 초과됐습니다. (프로젝트 단위 쿼터 소진 가능성 — 1test.ai와 같은 프로젝트 키를 쓰는 경우 그쪽 사용량도 확인 필요) 잠시 후 다시 시도하거나 콘솔에서 쿼터를 확인해주세요.';
+      } else if (code === 400 && /API key/i.test(data.error.message || '')) {
+        userMsg = '⚠️ API 키가 유효하지 않습니다. Vercel 환경변수 GEMINI_API_KEY를 확인해주세요.';
+      }
+      return res.status(200).json({ error: userMsg });
+    }
+
     const finishReason = data.candidates?.[0]?.finishReason;
     const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
@@ -57,7 +72,7 @@ export default async function handler(req, res) {
       console.error('Gemini 응답 없음. finishReason:', finishReason, 'full:', JSON.stringify(data));
       const reasonMsg = finishReason === 'SAFETY' || finishReason === 'PROHIBITED_CONTENT'
         ? '이미지가 안전 필터에 걸려 분석하지 못했습니다. 다른 사진으로 시도해주세요.'
-        : 'AI가 응답하지 않았습니다. 잠시 후 다시 시도해주세요.';
+        : `AI가 응답하지 않았습니다. (finishReason: ${finishReason || '알수없음'}) 잠시 후 다시 시도해주세요.`;
       return res.status(200).json({ error: reasonMsg });
     }
 
