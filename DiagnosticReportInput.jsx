@@ -493,6 +493,18 @@ setAiPolishedNote(data.result);
                             {[photoAnalysis.bookOrTest, photoAnalysis.unit, photoAnalysis.pageRange].filter(Boolean).join(' · ')}
                           </p>
                         )}
+                        {(photoAnalysis.rawObservations || []).length > 0 && (
+                          <details style={{ marginBottom: '10px' }}>
+                            <summary style={{ fontSize: '11px', fontWeight: 700, color: TOKENS.textSub, cursor: 'pointer' }}>
+                              AI가 관찰한 표시 원본 {photoAnalysis.rawObservations.length}개 (펼쳐서 사진과 대조)
+                            </summary>
+                            <ul style={{ margin: '6px 0 0', paddingLeft: '16px' }}>
+                              {photoAnalysis.rawObservations.map((obs, i) => (
+                                <li key={i} style={{ fontSize: '11px', color: TOKENS.textSub, marginBottom: '3px' }}>{obs}</li>
+                              ))}
+                            </ul>
+                          </details>
+                        )}
                         {(photoAnalysis.problemTypes || []).map((p, i) => (
                           <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', marginBottom: '6px', fontSize: '12px' }}>
                             <span style={{
