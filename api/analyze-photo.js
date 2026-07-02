@@ -14,7 +14,8 @@ export default async function handler(req, res) {
   · 동그라미(O) 또는 체크(✓) = 정답
   · 빗금(/) 또는 X = 오답
   · 세모(△) = 재풀이 후 정답
-- 교재에 인쇄된 예제/풀이(본문 텍스트)와 학생이 직접 손으로 쓴 풀이(확인문제, 과제, 시험 답안)를 반드시 구분하라. 채점 대상은 오직 학생이 직접 쓴 부분이다. 인쇄된 예제는 문맥 참고용으로만 사용하고 problemTypes에 포함하지 마라.
+- ⚠️ 매우 중요: 교재에 인쇄된 예제와 그 풀이(활자로 인쇄된 본문 텍스트, "풀이"라고 표시된 인쇄 박스 등)는 절대 problemTypes에 포함하지 마라. 채점 대상은 오직 학생이 직접 손으로 쓴 답안(확인문제, 과제, 시험 답안, 연습문제 등)뿐이다. 각 문항을 problemTypes에 추가하기 전, "이게 학생이 손으로 쓴 것인가, 인쇄된 예제인가?"를 스스로 재확인하라. 인쇄된 예제는 단원/유형 파악을 위한 문맥으로만 참고하라.
+- 사진에 문항이 여러 개(10개 이상) 있으면 전부 빠짐없이 problemTypes에 포함하라. 지면이 넓거나 문항이 많다고 임의로 일부만 골라 요약하지 마라.
 - 표시가 흐릿하거나 애매하면 result를 "확인필요"로 표시하라. 절대 추측해서 단정하지 마라.
 - 점수나 총점, 백분율을 계산하지 마라. 이 리포트는 점수 산정과 무관하다.
 - type 필드는 교재 소제목을 그대로 복사하지 말고, 핵심 수학/학습 개념을 5~10자 내외 키워드로 축약하라. (예: "삼각비 값 구하기", "닮음비 활용")
@@ -49,7 +50,8 @@ export default async function handler(req, res) {
         }],
         generationConfig: {
           temperature: 0.2,
-          responseMimeType: 'application/json'
+          responseMimeType: 'application/json',
+          maxOutputTokens: 8192
         }
       })
     });
@@ -75,9 +77,12 @@ export default async function handler(req, res) {
 
     if (!rawText) {
       console.error('Gemini 응답 없음. finishReason:', finishReason, 'full:', JSON.stringify(data));
-      const reasonMsg = finishReason === 'SAFETY' || finishReason === 'PROHIBITED_CONTENT'
-        ? '이미지가 안전 필터에 걸려 분석하지 못했습니다. 다른 사진으로 시도해주세요.'
-        : `AI가 응답하지 않았습니다. (finishReason: ${finishReason || '알수없음'}) 잠시 후 다시 시도해주세요.`;
+      let reasonMsg = `AI가 응답하지 않았습니다. (finishReason: ${finishReason || '알수없음'}) 잠시 후 다시 시도해주세요.`;
+      if (finishReason === 'SAFETY' || finishReason === 'PROHIBITED_CONTENT') {
+        reasonMsg = '이미지가 안전 필터에 걸려 분석하지 못했습니다. 다른 사진으로 시도해주세요.';
+      } else if (finishReason === 'MAX_TOKENS') {
+        reasonMsg = '문항이 너무 많아 응답이 중간에 잘렸습니다. 사진을 페이지 절반씩 나눠서 다시 시도해주세요.';
+      }
       return res.status(200).json({ error: reasonMsg });
     }
 
@@ -87,6 +92,12 @@ export default async function handler(req, res) {
     try {
       parsed = JSON.parse(cleaned);
     } catch (parseErr) {
+      if (finishReason === 'MAX_TOKENS') {
+        console.error('MAX_TOKENS로 응답 잘림. 길이:', cleaned.length);
+        return res.status(200).json({
+          error: '문항이 너무 많아 응답이 중간에 잘렸습니다. 사진을 페이지 절반씩 나눠서 다시 시도해주세요.'
+        });
+      }
       // 앞뒤에 설명 텍스트가 섞였을 경우 첫 '{' ~ 마지막 '}' 구간만 추출해 재시도
       const start = cleaned.indexOf('{');
       const end = cleaned.lastIndexOf('}');

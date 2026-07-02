@@ -9,7 +9,8 @@ import { storage } from './firebase.js';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 // 사진을 캔버스로 리사이즈/압축해서 base64로 반환 (업로드 용량 절감, API 페이로드 제한 대응)
-function compressImage(file, maxDim = 1600, quality = 0.75) {
+// maxDim/quality를 다소 넉넉히 잡음 — 한 페이지에 문항이 많을수록 글씨가 작아 판독력이 중요
+function compressImage(file, maxDim = 2000, quality = 0.82) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const reader = new FileReader();
