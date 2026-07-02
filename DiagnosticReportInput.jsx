@@ -150,13 +150,12 @@ export default function DiagnosticReportInput({
   const [nextPlanDetail, setNextPlanDetail] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // 사진 분석
-  const [photoFile, setPhotoFile] = useState(null);
-  const [photoPreview, setPhotoPreview] = useState('');
-  const [photoBlob, setPhotoBlob] = useState(null);
+  // 사진 분석 (다중 업로드 — 최대 6장)
+  const [photos, setPhotos] = useState([]); // [{ preview, blob }]
   const [analyzingPhoto, setAnalyzingPhoto] = useState(false);
   const [photoAnalysis, setPhotoAnalysis] = useState(null);
   const [photoError, setPhotoError] = useState('');
+  const MAX_PHOTOS = 6;
 
   // 강사 1명이면 자동 선택
   useEffect(() => {
@@ -234,33 +233,41 @@ setAiPolishedNote(data.result);
   }
 };
 
-  // 사진 선택 → 미리보기
-  const handlePhotoSelect = async (file) => {
-    if (!file) return;
-    setPhotoFile(file);
+  // 사진 선택 → 미리보기 (여러 장 동시 선택 가능, 기존 목록에 추가됨)
+  const handlePhotoSelect = async (fileList) => {
+    const files = Array.from(fileList || []).slice(0, MAX_PHOTOS - photos.length);
+    if (files.length === 0) return;
     setPhotoAnalysis(null);
     setPhotoError('');
     try {
-      const { base64, mimeType, blob } = await compressImage(file);
-      setPhotoPreview(`data:${mimeType};base64,${base64}`);
-      setPhotoBlob(blob);
+      const compressed = await Promise.all(files.map(f => compressImage(f)));
+      setPhotos(prev => [
+        ...prev,
+        ...compressed.map(({ base64, mimeType, blob }) => ({ preview: `data:${mimeType};base64,${base64}`, blob }))
+      ]);
     } catch (e) {
       console.error('사진 처리 오류:', e);
       setPhotoError('사진을 불러오지 못했습니다.');
     }
   };
 
+  const removeOnePhoto = (idx) => {
+    setPhotos(prev => prev.filter((_, i) => i !== idx));
+    setPhotoAnalysis(null);
+  };
+
   // Gemini Vision 분석 요청 (mode: 'auto'|'calculation'|'concept'|'mock_exam' — 재지정 시 override로 재호출)
+  // 여러 장을 한 번에 보내 페이지 간 연산 집계를 누적한다.
   const handleAnalyzePhoto = async (modeOverride) => {
-    if (!photoPreview) return;
+    if (photos.length === 0) return;
     setAnalyzingPhoto(true);
     setPhotoError('');
     try {
-      const base64 = photoPreview.split(',')[1];
+      const images = photos.map(p => ({ imageBase64: p.preview.split(',')[1], mimeType: 'image/jpeg' }));
       const response = await fetch('/api/analyze-photo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64: base64, mimeType: 'image/jpeg', hintTextbook: textbook, hintUnit: unit, mode: modeOverride || 'auto' }),
+        body: JSON.stringify({ images, hintTextbook: textbook, hintUnit: unit, mode: modeOverride || 'auto' }),
       });
       const data = await response.json();
       if (data.error) {
@@ -281,20 +288,22 @@ setAiPolishedNote(data.result);
     setTeacherNote(prev => prev ? `${prev}\n\n${photoAnalysis.draftComment}` : photoAnalysis.draftComment);
   };
 
-  const removePhoto = () => {
-    setPhotoFile(null); setPhotoPreview(''); setPhotoBlob(null);
+  const removeAllPhotos = () => {
+    setPhotos([]);
     setPhotoAnalysis(null); setPhotoError('');
   };
      const handleSubmit = async () => {
     if (!isValid) return alert('학생, 강사, 평가를 모두 입력해주세요.');
     setSaving(true);
     try {
-      let photoUrl = null;
-      if (photoBlob) {
-        const path = `students/${studentId}/photos/${Date.now()}.jpg`;
-        const storageRef = ref(storage, path);
-        await uploadBytes(storageRef, photoBlob);
-        photoUrl = await getDownloadURL(storageRef);
+      let photoUrls = [];
+      if (photos.length > 0) {
+        photoUrls = await Promise.all(photos.map(async (p, i) => {
+          const path = `students/${studentId}/photos/${Date.now()}_${i}.jpg`;
+          const storageRef = ref(storage, path);
+          await uploadBytes(storageRef, p.blob);
+          return await getDownloadURL(storageRef);
+        }));
       }
 
       const reportPayload = {
@@ -309,7 +318,7 @@ setAiPolishedNote(data.result);
         diagnosis: selectedTags,
         teacherNote: aiPolishedNote || teacherNote,
         nextPlan, nextPlanDetail,
-        photoUrl,
+        photoUrls,
         photoAnalysis: photoAnalysis || null,
       };
       reportPayload.points = calculateReportPoints(reportPayload);
@@ -319,7 +328,7 @@ setAiPolishedNote(data.result);
       setTextbook(''); setUnit(''); setPages('');
       setSelectedTags([]); setTeacherNote(''); setAiPolishedNote('');
       setNextPlan(''); setNextPlanDetail('');
-      removePhoto();
+      removeAllPhotos();
       alert('리포트가 저장됐습니다!');
     } catch (e) {
       console.error('리포트 저장 오류:', e);
@@ -455,34 +464,55 @@ setAiPolishedNote(data.result);
               </FormSection>
 
               {/* 5-1. 교재/시험지 사진 분석 (선택) */}
-              <FormSection number="5+" title="교재·시험지 사진 분석 (선택)" badge={photoAnalysis ? '분석완료' : undefined}>
+              <FormSection number="5+" title="교재·시험지 사진 분석 (선택)" badge={photoAnalysis ? '분석완료' : (photos.length > 0 ? `${photos.length}장 선택됨` : undefined)}>
                 <p style={{ fontSize: '11px', color: TOKENS.textMute, margin: '0 0 10px' }}>
-                  채점(O/△/빗금) 완료된 페이지를 촬영하면, AI가 표시만 그대로 읽어 유형별 코멘트 초안을 만들어줍니다. 점수는 반영되지 않습니다.
+                  채점(O/△/빗금) 완료된 페이지를 촬영하면, AI가 표시만 그대로 읽어 유형별 코멘트 초안을 만들어줍니다. 여러 장(최대 {MAX_PHOTOS}장) 한 번에 올려서 페이지별 결과를 통합 분석할 수 있습니다. 점수는 반영되지 않습니다.
                 </p>
-                {!photoPreview && (
+                {photos.length === 0 && (
                   <label style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
                     border: `1.5px dashed ${TOKENS.border}`, borderRadius: '12px', padding: '18px',
                     cursor: 'pointer', color: TOKENS.textSub, fontSize: '13px', fontWeight: 600, background: TOKENS.bgSoft
                   }}>
-                    <FileText size={16} /> 사진 선택 / 촬영
-                    <input type="file" accept="image/*" capture="environment" style={{ display: 'none' }}
-                      onChange={(e) => handlePhotoSelect(e.target.files?.[0])} />
+                    <FileText size={16} /> 사진 선택 / 촬영 (여러 장 가능)
+                    <input type="file" accept="image/*" multiple capture="environment" style={{ display: 'none' }}
+                      onChange={(e) => { handlePhotoSelect(e.target.files); e.target.value = ''; }} />
                   </label>
                 )}
-                {photoPreview && (
+                {photos.length > 0 && (
                   <div>
-                    <div style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', marginBottom: '10px' }}>
-                      <img src={photoPreview} alt="업로드된 사진" style={{ width: '100%', maxHeight: '260px', objectFit: 'cover', display: 'block' }} />
-                      <button onClick={removePhoto} style={{
-                        position: 'absolute', top: '8px', right: '8px', background: 'rgba(0,0,0,0.55)',
-                        border: 'none', borderRadius: '50%', width: '26px', height: '26px', color: '#fff', cursor: 'pointer',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center'
-                      }}><X size={14} /></button>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '10px' }}>
+                      {photos.map((p, i) => (
+                        <div key={i} style={{ position: 'relative', borderRadius: '10px', overflow: 'hidden', aspectRatio: '3/4' }}>
+                          <img src={p.preview} alt={`사진 ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                          <span style={{ position: 'absolute', bottom: '4px', left: '4px', background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: '6px' }}>{i + 1}</span>
+                          <button onClick={() => removeOnePhoto(i)} style={{
+                            position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.55)',
+                            border: 'none', borderRadius: '50%', width: '22px', height: '22px', color: '#fff', cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                          }}><X size={12} /></button>
+                        </div>
+                      ))}
+                      {photos.length < MAX_PHOTOS && (
+                        <label style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', aspectRatio: '3/4',
+                          border: `1.5px dashed ${TOKENS.border}`, borderRadius: '10px',
+                          cursor: 'pointer', color: TOKENS.textMute, background: TOKENS.bgSoft
+                        }}>
+                          <Plus size={20} />
+                          <input type="file" accept="image/*" multiple capture="environment" style={{ display: 'none' }}
+                            onChange={(e) => { handlePhotoSelect(e.target.files); e.target.value = ''; }} />
+                        </label>
+                      )}
                     </div>
+                    <button onClick={removeAllPhotos} style={{ ...suggestionStyle, marginBottom: '10px' }}>전체 지우기</button>
+                  </div>
+                )}
+                {photos.length > 0 && (
+                  <div>
                     {!photoAnalysis && (
                       <button onClick={() => handleAnalyzePhoto('auto')} disabled={analyzingPhoto} style={aiButtonStyle(analyzingPhoto)}>
-                        <Sparkles size={13} /> {analyzingPhoto ? 'AI가 분석 중...' : 'AI로 분석하기'}
+                        <Sparkles size={13} /> {analyzingPhoto ? 'AI가 분석 중...' : `AI로 분석하기 (${photos.length}장)`}
                       </button>
                     )}
                     {photoError && <p style={{ fontSize: '11px', color: TOKENS.danger, marginTop: '8px' }}>{photoError}</p>}

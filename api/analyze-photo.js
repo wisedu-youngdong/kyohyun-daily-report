@@ -1,4 +1,4 @@
-function buildPrompt(mode, hintTextbook, hintUnit) {
+function buildPrompt(mode, hintTextbook, hintUnit, pageCount = 1) {
   const modeInstruction = {
     auto: `## 0단계: 페이지 유형 자동 분류
 먼저 사진 전체를 훑어보고 pageType을 판단하라:
@@ -16,7 +16,7 @@ function buildPrompt(mode, hintTextbook, hintUnit) {
   }[mode] || null;
 
   return `너는 학원 선생님의 교재/시험지 채점 결과를 정리해주는 보조 도구다.
-
+${pageCount > 1 ? `\n## 다중 페이지 안내\n지금 ${pageCount}장의 사진이 순서대로 첨부됐다. 이 사진들은 같은 학생의 연속된 페이지(또는 같은 시험지의 여러 장)로 취급하라. rawObservations는 페이지 구분 없이 순서대로 통합해서 나열하되, 각 관찰 앞에 "(N페이지)"를 붙여 어느 사진에서 나온 관찰인지 표시하라. calculation 섹션의 summary는 모든 페이지의 집계를 합산한 하나의 총계로 내라. concept/mock_exam 섹션도 여러 페이지에 걸쳐 문항이 있으면 하나의 problemTypes/groupSummary 배열로 통합하라.\n` : ''}
 ## 작업 순서 (반드시 이 순서로 사고하라)
 1단계: 사진에서 눈에 보이는 모든 "손으로 그린 색깔 표시"(펜/색연필 등 인쇄색과 다른 색)를 위치 순서대로 하나하나 빠짐없이 rawObservations에 나열하라. 이 단계에서는 그게 정답인지 오답인지 해석하지 말고, 오직 "어디에 무슨 모양이 있는지"만 사실 그대로 적어라. 확실하지 않으면 "불명확한 표시"라고 적어라. 표시가 하나도 없으면 빈 배열로 두어라. 절대로 없는 표시를 지어내지 마라.
 ${modeInstruction}
@@ -83,12 +83,16 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
   try {
-    const { imageBase64, mimeType, hintTextbook, hintUnit, mode } = req.body;
-    if (!imageBase64) return res.status(400).json({ error: '이미지가 없습니다.' });
+    const { images, imageBase64, mimeType, hintTextbook, hintUnit, mode } = req.body;
+    // images: [{ imageBase64, mimeType }] 배열 (신규, 다중 업로드). 없으면 구버전 단일 imageBase64로 fallback.
+    const imageList = Array.isArray(images) && images.length > 0
+      ? images
+      : (imageBase64 ? [{ imageBase64, mimeType }] : []);
+    if (imageList.length === 0) return res.status(400).json({ error: '이미지가 없습니다.' });
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${process.env.GEMINI_API_KEY}`;
 
-    const prompt = buildPrompt(mode || 'auto', hintTextbook, hintUnit);
+    const prompt = buildPrompt(mode || 'auto', hintTextbook, hintUnit, imageList.length);
 
     const response = await fetch(url, {
       method: 'POST',
@@ -97,13 +101,13 @@ export default async function handler(req, res) {
         contents: [{
           parts: [
             { text: prompt },
-            { inline_data: { mime_type: mimeType || 'image/jpeg', data: imageBase64 } }
+            ...imageList.map(img => ({ inline_data: { mime_type: img.mimeType || 'image/jpeg', data: img.imageBase64 } }))
           ]
         }],
         generationConfig: {
           temperature: 0,
           responseMimeType: 'application/json',
-          maxOutputTokens: 16384
+          maxOutputTokens: 24576
         }
       })
     });
