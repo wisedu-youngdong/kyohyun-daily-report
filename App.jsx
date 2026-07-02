@@ -13,6 +13,10 @@ import DiagnosticReportInput from './DiagnosticReportInput';
 import {
   LayoutDashboard, Users, FileText, History, BarChart2, LogOut
 } from 'lucide-react';
+import { calculateTotalPoints, getStageInfo } from './growth.js';
+import {
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend
+} from 'recharts';
 
 // ── 캐릭터 아바타 목록
 const AVATARS = [
@@ -929,6 +933,71 @@ function SettingsView({ students, onSaveStudent }) {
   );
 }
 
+// ── 성장 단계 카드 ──
+function GrowthStageCard({ reports }) {
+  const { current, next, pct, totalPoints } = getStageInfo(calculateTotalPoints(reports));
+  return (
+    <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontSize: '32px' }}>{current.icon}</span>
+          <div>
+            <p style={{ fontSize: '16px', fontWeight: 800, margin: 0 }}>{current.label}</p>
+            <p style={{ fontSize: '11px', color: '#9B6FD4', fontWeight: 600, margin: '2px 0 0' }}>누적 {totalPoints}P</p>
+          </div>
+        </div>
+        {next && (
+          <span style={{ background: '#F0E8FF', color: '#6B3FA0', fontSize: '11px', fontWeight: 700, padding: '5px 12px', borderRadius: '20px', border: '1.5px solid rgba(107,63,160,0.2)' }}>
+            다음: {next.icon} {next.label}
+          </span>
+        )}
+      </div>
+      <div style={{ height: '10px', background: '#F0E8FF', borderRadius: '20px', overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${pct}%`, borderRadius: '20px', background: 'linear-gradient(90deg, #6B3FA0, #9B6FD4)' }} />
+      </div>
+      {next && <p style={{ fontSize: '10px', color: '#B0A0C8', marginTop: '6px', textAlign: 'right' }}>{next.min - totalPoints}P 남음</p>}
+      {!next && <p style={{ fontSize: '10px', color: '#B0A0C8', marginTop: '6px', textAlign: 'right' }}>최고 단계 달성 🎉</p>}
+    </div>
+  );
+}
+
+// ── 과제/시험 성취 추이 차트 ──
+function HomeworkTestChart({ reports }) {
+  const data = [...reports]
+    .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0))
+    .map(r => ({
+      date: r.createdAt?.seconds
+        ? new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })
+        : '',
+      과제: r.homeworkRating || 0,
+      개념: r.conceptRating || 0,
+      시험: r.hasTest && r.testScore ? Math.round(Number(r.testScore) / 20) : null, // 100점 만점 → 5점 척도로 환산해 같은 축에 표시
+    }));
+
+  if (data.length === 0) return null;
+
+  return (
+    <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB' }}>
+      <h3 style={{ fontSize: '13px', fontWeight: 700, marginBottom: '12px' }}>과제 · 개념 · 시험 추이</h3>
+      <div style={{ width: '100%', height: 220 }}>
+        <ResponsiveContainer>
+          <BarChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
+            <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+            <YAxis domain={[0, 5]} tick={{ fontSize: 10 }} />
+            <Tooltip contentStyle={{ fontSize: '11px', borderRadius: '8px' }} />
+            <Legend wrapperStyle={{ fontSize: '11px' }} />
+            <Bar dataKey="과제" fill="#185FA5" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="개념" fill="#9B6FD4" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="시험" fill="#0F6E56" radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      <p style={{ fontSize: '10px', color: '#9CA3AF', marginTop: '6px' }}>* 시험 점수는 100점 만점을 5점 척도로 환산해 표시</p>
+    </div>
+  );
+}
+
 function AnalysisView({ students, reports }) {
   const [selectedId, setSelectedId] = useState('');
   const studentReports = reports.filter(r => r.studentId === selectedId);
@@ -945,11 +1014,13 @@ function AnalysisView({ students, reports }) {
       </div>
       {selectedId && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <GrowthStageCard reports={studentReports} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
             <StatCard label="총 리포트" value={studentReports.length} unit="건" />
             <StatCard label="과제 평균" value={avg('homeworkRating')} unit="점" />
             <StatCard label="개념 평균" value={avg('conceptRating')} unit="점" />
           </div>
+          <HomeworkTestChart reports={studentReports} />
           <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: `1px solid #E5E7EB` }}>
             <h3 style={{ fontSize: '13px', fontWeight: 700, marginBottom: '12px' }}>진단 태그 분포</h3>
             {(() => {

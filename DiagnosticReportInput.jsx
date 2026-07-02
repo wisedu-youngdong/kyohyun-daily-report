@@ -4,6 +4,7 @@ import {
   FileText, Sparkles, Send, Plus, X, Check,
   UserPlus, GraduationCap, Settings, Trash2
 } from 'lucide-react';
+import { calculateReportPoints } from './growth.js';
 
 const TOKENS = {
   brand: '#185FA5', brandDark: '#0C447C', brandLight: '#E6F1FB', brandBg: '#F0F7FC',
@@ -196,7 +197,7 @@ setAiPolishedNote(data.result);
     if (!isValid) return alert('학생, 강사, 평가를 모두 입력해주세요.');
     setSaving(true);
     try {
-      await onSave({
+      const reportPayload = {
         studentId, studentName: student?.name,
         teacherId, teacherName: teacher?.name,
         attendance, arrivalTime,
@@ -208,7 +209,9 @@ setAiPolishedNote(data.result);
         diagnosis: selectedTags,
         teacherNote: aiPolishedNote || teacherNote,
         nextPlan, nextPlanDetail,
-      });
+      };
+      reportPayload.points = calculateReportPoints(reportPayload);
+      await onSave(reportPayload);
       setStudentId(''); setHomeworkRating(0); setConceptRating(0);
       setHasTest(false); setTestName(''); setTestScore('');
       setTextbook(''); setUnit(''); setPages('');
