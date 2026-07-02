@@ -1,53 +1,94 @@
-export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).end();
+function buildPrompt(mode, hintTextbook, hintUnit) {
+  const modeInstruction = {
+    auto: `## 0단계: 페이지 유형 자동 분류
+먼저 사진 전체를 훑어보고 pageType을 판단하라:
+- "calculation": 문항 10개 이상, 각 문항이 1~2줄짜리 단순 계산식 반복 (연산 드릴)
+- "concept": 문항 1~9개, 서술/그림/여러 줄 풀이가 있는 개념·응용 문제
+- "mock_exam": 문항 20개 이상, 객관식 보기(①②③④) 또는 배점 표시가 있는 시험지
+- "mixed": 한 페이지에 위 유형이 섞여 있음 (예: 연산 파트 + 서술형 파트)
+판단한 pageType에 따라 아래 "유형별 출력 규칙"을 적용해 sections를 구성하라. mixed면 섹션을 유형별로 나눠 각각 다른 규칙을 적용한 여러 섹션을 만들어라.`,
+    calculation: `## 지정된 모드: calculation (연산문제)
+이 페이지는 연산 드릴로 지정됐다. pageType은 "calculation"으로 고정하고, 아래 "연산(calculation) 섹션 규칙"만 적용해 섹션 하나로 출력하라.`,
+    concept: `## 지정된 모드: concept (유형/개념문제)
+이 페이지는 유형·개념 문제로 지정됐다. pageType은 "concept"로 고정하고, 아래 "유형(concept) 섹션 규칙"만 적용해 섹션 하나로 출력하라.`,
+    mock_exam: `## 지정된 모드: mock_exam (모의고사/시험지)
+이 페이지는 모의고사·시험지로 지정됐다. pageType은 "mock_exam"으로 고정하고, 아래 "모의고사(mock_exam) 섹션 규칙"만 적용해 섹션 하나로 출력하라.`,
+  }[mode] || null;
 
-  try {
-    const { imageBase64, mimeType, hintTextbook, hintUnit } = req.body;
-    if (!imageBase64) return res.status(400).json({ error: '이미지가 없습니다.' });
-
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${process.env.GEMINI_API_KEY}`;
-
-    const prompt = `너는 학원 선생님의 교재/시험지 채점 결과를 정리해주는 보조 도구다.
+  return `너는 학원 선생님의 교재/시험지 채점 결과를 정리해주는 보조 도구다.
 
 ## 작업 순서 (반드시 이 순서로 사고하라)
-1단계: 사진에서 눈에 보이는 모든 "손으로 그린 색깔 표시"(펜/색연필 등 인쇄색과 다른 색)를 위치 순서대로 하나하나 빠짐없이 rawObservations에 나열하라. 이 단계에서는 그게 정답인지 오답인지 해석하지 말고, 오직 "어디에 무슨 모양이 있는지"만 사실 그대로 적어라. 확실하지 않으면 "불명확한 표시"라고 적어라. 표시가 하나도 없으면 빈 배열로 두어라. 절대로 없는 표시를 지어내지 마라 — 각 관찰 항목은 실제로 눈에 보이는 색깔 변화(인쇄 잉크색이 아닌 손글씨/필기색)에 근거해야 한다.
-2단계: 1단계에서 나열한 rawObservations만 근거로 삼아 problemTypes를 작성하라. rawObservations에 없는 표시를 problemTypes의 mark 근거로 쓰지 마라.
+1단계: 사진에서 눈에 보이는 모든 "손으로 그린 색깔 표시"(펜/색연필 등 인쇄색과 다른 색)를 위치 순서대로 하나하나 빠짐없이 rawObservations에 나열하라. 이 단계에서는 그게 정답인지 오답인지 해석하지 말고, 오직 "어디에 무슨 모양이 있는지"만 사실 그대로 적어라. 확실하지 않으면 "불명확한 표시"라고 적어라. 표시가 하나도 없으면 빈 배열로 두어라. 절대로 없는 표시를 지어내지 마라.
+${modeInstruction}
+2단계: 1단계에서 나열한 rawObservations만 근거로 삼아 아래 섹션 규칙에 따라 sections를 작성하라. rawObservations에 없는 표시를 근거로 쓰지 마라.
 
 ## 절대 규칙
 - ⚠️ 가장 중요한 규칙: 너는 이 문제를 수학적으로 풀 수 있는 능력이 있어도 절대 사용하지 마라. "계산해보니 정답이니까 잘함"이라고 판단하는 것은 금지된 행동이다. 오직 1단계에서 실제로 관찰한 색깔 표시의 형태만 근거로 삼아라.
-- 학생이 정답을 강조하려고 그린 검은색/네모 박스(인쇄 색과 같은 필기구, 즉 문제 풀이에 쓴 것과 같은 검은 펜/연필로 답을 감싸는 박스)는 채점 표시가 아니다. 이건 "표시없음"에 해당한다. 채점 표시는 오직 풀이에 쓴 필기구와 다른 색(주로 빨간색 등)으로 나중에 추가된 표시만 해당한다.
-- 각 문항마다 mark 필드에 정확히 적어라: "동그라미", "체크", "빗금", "세모", "표시없음" 중 하나. mark가 "표시없음"이면 result는 반드시 "확인필요"여야 한다.
-  · 동그라미(O) 또는 체크(✓) = 정답
-  · 빗금(/) 또는 X = 오답
-  · 세모(△) = 재풀이 후 정답
-- 문항이 여러 개일 때 서로 다른 문항에 같은 note 문장을 복사해서 쓰지 마라. 각 문항의 실제 기호 위치와 형태를 개별적으로 다시 관찰하고 묘사하라.
-- ⚠️ 매우 중요: 교재에 인쇄된 예제와 그 풀이(활자로 인쇄된 본문 텍스트, "풀이"라고 표시된 인쇄 박스 등)는 절대 problemTypes에 포함하지 마라. 채점 대상은 오직 학생이 직접 손으로 쓴 답안(확인문제, 과제, 시험 답안, 연습문제 등)뿐이다. 인쇄된 예제는 단원/유형 파악을 위한 문맥으로만 참고하라.
-- 사진에 문항이 여러 개(10개 이상) 있으면 전부 빠짐없이 problemTypes에 포함하라.
-- 점수나 총점, 백분율을 계산하지 마라. 이 리포트는 점수 산정과 무관하다.
-- type 필드는 교재 소제목을 그대로 복사하지 말고, 핵심 수학/학습 개념을 5~10자 내외 키워드로 축약하라. (예: "삼각비 값 구하기", "닮음비 활용")
-- unit 필드는 학생이 실제로 푼 문제들이 속한 단원 하나만 대표로 적어라. 여러 소제목이 섞여 있으면 가장 상위 단원명으로 통일하라.
+- 학생이 정답을 강조하려고 그린 검은색/네모 박스(문제 풀이에 쓴 것과 같은 필기구로 답을 감싸는 박스)는 채점 표시가 아니다. 채점 표시는 오직 풀이에 쓴 필기구와 다른 색(주로 빨간색)으로 나중에 추가된 표시만 해당한다.
+- mark는 "동그라미" | "체크" | "빗금" | "세모" | "표시없음" 중 하나. mark가 "표시없음"이면 result는 반드시 "확인필요".
+  · 동그라미(O) 또는 체크(✓) = 정답 / 빗금(/) 또는 X = 오답 / 세모(△) = 재풀이 후 정답
+- 인쇄된 교재 예제/풀이는 절대 채점 대상에 포함하지 마라. 채점 대상은 오직 학생이 직접 손으로 쓴 답안뿐이다.
+- 점수나 총점, 백분율을 계산하지 마라.
+
+## 섹션 규칙
+
+### 연산(calculation) 섹션 규칙
+- 문제 내용은 읽지 말고 문항 번호 옆 mark만 확인한다.
+- 문항별 코멘트를 달지 마라. 대신 전체 집계만 낸다.
+- label에 단원/페이지 범위를 적고, summary에 {total, correct(동그라미+체크), retry(세모), wrong(빗금/X), unmarked(표시없음)} 개수를 넣어라.
+
+### 유형(concept) 섹션 규칙
+- 문제 텍스트와 풀이 과정을 참고해서 type을 정확한 개념 키워드(5~10자)로 축약하라. 단, 정답 여부 판정은 여전히 mark로만 한다 (문제를 직접 풀어서 판단 금지).
+- problemTypes 배열에 문항별로 {number, type, mark, result, note}를 전부 채워라. note는 rawObservations 근거를 명시.
+
+### 모의고사(mock_exam) 섹션 규칙
+- 문항이 매우 많으므로 문항별 코멘트를 전부 달지 마라.
+- groupSummary: 문제 유형별로 묶어 {type, total, correct, wrong, retry} 집계.
+- weakDetail: result가 "약점" 또는 "확인필요"인 문항만 {number, type, mark, note}로 상세 기록. 잘한 문항은 상세 기록하지 않는다.
 
 ## 참고 정보 (선생님이 입력, 없으면 무시)
 - 교재/시험지명 힌트: ${hintTextbook || '없음'}
 - 단원 힌트: ${hintUnit || '없음'}
 
 ## 출력 형식
-아래 JSON만 출력하라. 다른 텍스트, 마크다운 코드펜스, 설명 없이 JSON 객체 하나만.
+아래 JSON만 출력하라. 다른 텍스트, 마크다운 코드펜스, 설명 없이 JSON 객체 하나만. sectionType에 따라 필요한 필드만 채우고 나머지는 생략해도 된다.
 
 {
-  "rawObservations": [
-    "예: 확인3 풀이 영역 전체를 감싸는 빨간색 동그라미가 있음",
-    "예: 확인4의 'tan x=2√2' 줄 옆에 빨간색 동그라미가 있음",
-    "예: 확인4의 'cos y' 줄 옆에 빨간색 체크(✓) 표시가 있음"
+  "rawObservations": ["실제 관찰한 표시들을 순서대로"],
+  "bookOrTest": "교재명/시험지명",
+  "unit": "단원명",
+  "pageRange": "페이지 범위",
+  "pageType": "calculation" | "concept" | "mock_exam" | "mixed",
+  "sections": [
+    {
+      "sectionType": "calculation",
+      "label": "예: 3단원 소수의 나눗셈 연산 문제",
+      "summary": { "total": 0, "correct": 0, "retry": 0, "wrong": 0, "unmarked": 0 }
+    },
+    {
+      "sectionType": "concept",
+      "problemTypes": [ { "number": "", "type": "", "mark": "", "result": "", "note": "" } ]
+    },
+    {
+      "sectionType": "mock_exam",
+      "groupSummary": [ { "type": "", "total": 0, "correct": 0, "wrong": 0, "retry": 0 } ],
+      "weakDetail": [ { "number": "", "type": "", "mark": "", "note": "" } ]
+    }
   ],
-  "bookOrTest": "인식된 교재명 또는 시험지명 (모르면 빈 문자열)",
-  "unit": "인식된 단원명 (모르면 빈 문자열)",
-  "pageRange": "인식된 페이지 범위 (모르면 빈 문자열)",
-  "problemTypes": [
-    { "number": "문항 번호(있으면)", "type": "문제 유형", "mark": "동그라미" | "체크" | "빗금" | "세모" | "표시없음", "result": "잘함" | "약점" | "확인필요", "note": "rawObservations 중 몇 번째 관찰에 근거했는지와 그 내용 1문장" }
-  ],
-  "draftComment": "위 내용을 종합한 학부모용 코멘트 초안 2~3문장. 잘한 점과 보완할 유형을 인과관계로 설명."
+  "draftComment": "위 내용을 종합한 학부모용 코멘트 초안 2~3문장. 연산 섹션은 집계 수치로, 유형/모의고사 섹션은 약점 유형 중심의 인과관계로 설명."
 }`;
+}
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+
+  try {
+    const { imageBase64, mimeType, hintTextbook, hintUnit, mode } = req.body;
+    if (!imageBase64) return res.status(400).json({ error: '이미지가 없습니다.' });
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${process.env.GEMINI_API_KEY}`;
+
+    const prompt = buildPrompt(mode || 'auto', hintTextbook, hintUnit);
 
     const response = await fetch(url, {
       method: 'POST',

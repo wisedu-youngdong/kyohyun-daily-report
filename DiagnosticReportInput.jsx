@@ -250,8 +250,8 @@ setAiPolishedNote(data.result);
     }
   };
 
-  // Gemini Vision 분석 요청
-  const handleAnalyzePhoto = async () => {
+  // Gemini Vision 분석 요청 (mode: 'auto'|'calculation'|'concept'|'mock_exam' — 재지정 시 override로 재호출)
+  const handleAnalyzePhoto = async (modeOverride) => {
     if (!photoPreview) return;
     setAnalyzingPhoto(true);
     setPhotoError('');
@@ -260,7 +260,7 @@ setAiPolishedNote(data.result);
       const response = await fetch('/api/analyze-photo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64: base64, mimeType: 'image/jpeg', hintTextbook: textbook, hintUnit: unit }),
+        body: JSON.stringify({ imageBase64: base64, mimeType: 'image/jpeg', hintTextbook: textbook, hintUnit: unit, mode: modeOverride || 'auto' }),
       });
       const data = await response.json();
       if (data.error) {
@@ -481,7 +481,7 @@ setAiPolishedNote(data.result);
                       }}><X size={14} /></button>
                     </div>
                     {!photoAnalysis && (
-                      <button onClick={handleAnalyzePhoto} disabled={analyzingPhoto} style={aiButtonStyle(analyzingPhoto)}>
+                      <button onClick={() => handleAnalyzePhoto('auto')} disabled={analyzingPhoto} style={aiButtonStyle(analyzingPhoto)}>
                         <Sparkles size={13} /> {analyzingPhoto ? 'AI가 분석 중...' : 'AI로 분석하기'}
                       </button>
                     )}
@@ -493,6 +493,22 @@ setAiPolishedNote(data.result);
                             {[photoAnalysis.bookOrTest, photoAnalysis.unit, photoAnalysis.pageRange].filter(Boolean).join(' · ')}
                           </p>
                         )}
+
+                        {/* AI 판정 배지 + 재지정 버튼 */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 700, color: TOKENS.textSub }}>AI 판정:</span>
+                          <span style={{ fontSize: '11px', fontWeight: 700, color: TOKENS.brand, background: TOKENS.brandLight, padding: '3px 10px', borderRadius: '10px' }}>
+                            {{ calculation: '연산문제', concept: '유형문제', mock_exam: '모의고사', mixed: '혼합' }[photoAnalysis.pageType] || photoAnalysis.pageType}
+                          </span>
+                          <span style={{ fontSize: '10px', color: TOKENS.textMute, marginLeft: '4px' }}>다르면 재지정:</span>
+                          {[['calculation', '연산'], ['concept', '유형'], ['mock_exam', '모의고사']].map(([m, label]) => (
+                            <button key={m} onClick={() => handleAnalyzePhoto(m)} disabled={analyzingPhoto}
+                              style={{ ...suggestionStyle, opacity: analyzingPhoto ? 0.5 : 1, cursor: analyzingPhoto ? 'not-allowed' : 'pointer' }}>
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+
                         {(photoAnalysis.rawObservations || []).length > 0 && (
                           <details style={{ marginBottom: '10px' }}>
                             <summary style={{ fontSize: '11px', fontWeight: 700, color: TOKENS.textSub, cursor: 'pointer' }}>
@@ -505,22 +521,66 @@ setAiPolishedNote(data.result);
                             </ul>
                           </details>
                         )}
-                        {(photoAnalysis.problemTypes || []).map((p, i) => (
-                          <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', marginBottom: '6px', fontSize: '12px' }}>
-                            <span style={{
-                              flexShrink: 0, fontWeight: 700, fontSize: '10px', padding: '2px 8px', borderRadius: '10px',
-                              background: p.result === '잘함' ? '#E1F5EE' : p.result === '약점' ? TOKENS.dangerBg : TOKENS.warnBg,
-                              color: p.result === '잘함' ? TOKENS.successDark : p.result === '약점' ? TOKENS.dangerBorder : TOKENS.warnText,
-                            }}>{p.result}</span>
-                            <div>
-                              <p style={{ margin: 0, fontWeight: 600 }}>
-                                {p.number ? `${p.number}. ` : ''}{p.type}
-                                {p.mark && <span style={{ marginLeft: '6px', fontSize: '10px', fontWeight: 600, color: TOKENS.textMute }}>[관찰된 표시: {p.mark}]</span>}
-                              </p>
-                              <p style={{ margin: '2px 0 0', color: TOKENS.textSub }}>{p.note}</p>
-                            </div>
+
+                        {/* 섹션별 렌더링: 연산 = 집계만 / 유형 = 문항별 상세 / 모의고사 = 그룹집계+약점상세 */}
+                        {(photoAnalysis.sections || []).map((sec, si) => (
+                          <div key={si} style={{ marginBottom: '10px' }}>
+                            {sec.sectionType === 'calculation' && sec.summary && (
+                              <div style={{ background: '#fff', borderRadius: '10px', padding: '10px' }}>
+                                {sec.label && <p style={{ fontSize: '11px', fontWeight: 700, margin: '0 0 6px' }}>{sec.label}</p>}
+                                <p style={{ fontSize: '12px', margin: 0 }}>
+                                  총 <b>{sec.summary.total ?? 0}</b>문제 중
+                                  <span style={{ color: TOKENS.successDark, fontWeight: 700 }}> 정답 {sec.summary.correct ?? 0}</span>
+                                  {sec.summary.retry ? <span style={{ color: TOKENS.warnText, fontWeight: 700 }}> · 재풀이후정답 {sec.summary.retry}</span> : null}
+                                  {sec.summary.wrong ? <span style={{ color: TOKENS.dangerBorder, fontWeight: 700 }}> · 오답 {sec.summary.wrong}</span> : null}
+                                  {sec.summary.unmarked ? <span style={{ color: TOKENS.textMute, fontWeight: 700 }}> · 확인필요 {sec.summary.unmarked}</span> : null}
+                                </p>
+                              </div>
+                            )}
+
+                            {sec.sectionType === 'concept' && (sec.problemTypes || []).map((p, i) => (
+                              <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', marginBottom: '6px', fontSize: '12px' }}>
+                                <span style={{
+                                  flexShrink: 0, fontWeight: 700, fontSize: '10px', padding: '2px 8px', borderRadius: '10px',
+                                  background: p.result === '잘함' ? '#E1F5EE' : p.result === '약점' ? TOKENS.dangerBg : TOKENS.warnBg,
+                                  color: p.result === '잘함' ? TOKENS.successDark : p.result === '약점' ? TOKENS.dangerBorder : TOKENS.warnText,
+                                }}>{p.result}</span>
+                                <div>
+                                  <p style={{ margin: 0, fontWeight: 600 }}>
+                                    {p.number ? `${p.number}. ` : ''}{p.type}
+                                    {p.mark && <span style={{ marginLeft: '6px', fontSize: '10px', fontWeight: 600, color: TOKENS.textMute }}>[관찰된 표시: {p.mark}]</span>}
+                                  </p>
+                                  <p style={{ margin: '2px 0 0', color: TOKENS.textSub }}>{p.note}</p>
+                                </div>
+                              </div>
+                            ))}
+
+                            {sec.sectionType === 'mock_exam' && (
+                              <div style={{ background: '#fff', borderRadius: '10px', padding: '10px' }}>
+                                {(sec.groupSummary || []).map((g, i) => (
+                                  <p key={i} style={{ fontSize: '12px', margin: '0 0 4px' }}>
+                                    <b>{g.type}</b> — 총 {g.total} · 정답 {g.correct}
+                                    {g.retry ? ` · 재풀이후정답 ${g.retry}` : ''}
+                                    {g.wrong ? ` · 오답 ${g.wrong}` : ''}
+                                  </p>
+                                ))}
+                                {(sec.weakDetail || []).length > 0 && (
+                                  <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: `1px solid ${TOKENS.border}` }}>
+                                    <p style={{ fontSize: '11px', fontWeight: 700, color: TOKENS.textSub, margin: '0 0 6px' }}>보완 필요 문항</p>
+                                    {sec.weakDetail.map((p, i) => (
+                                      <p key={i} style={{ fontSize: '12px', margin: '0 0 4px' }}>
+                                        {p.number ? `${p.number}. ` : ''}{p.type}
+                                        {p.mark && <span style={{ marginLeft: '6px', fontSize: '10px', color: TOKENS.textMute }}>[{p.mark}]</span>}
+                                        {p.note && <span style={{ display: 'block', color: TOKENS.textSub }}>{p.note}</span>}
+                                      </p>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
                         ))}
+
                         {photoAnalysis.draftComment && (
                           <div style={{ background: '#fff', borderRadius: '10px', padding: '10px', marginTop: '8px' }}>
                             <p style={{ fontSize: '11px', color: TOKENS.textMute, fontWeight: 700, margin: '0 0 4px' }}>코멘트 초안</p>
