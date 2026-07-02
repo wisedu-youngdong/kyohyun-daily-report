@@ -5,6 +5,37 @@ import {
   UserPlus, GraduationCap, Settings, Trash2
 } from 'lucide-react';
 import { calculateReportPoints } from './growth.js';
+import { storage } from './firebase.js';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+
+// 사진을 캔버스로 리사이즈/압축해서 base64로 반환 (업로드 용량 절감, API 페이로드 제한 대응)
+function compressImage(file, maxDim = 1600, quality = 0.75) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = (e) => { img.src = e.target.result; };
+    reader.onerror = reject;
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > height && width > maxDim) { height = Math.round(height * maxDim / width); width = maxDim; }
+      else if (height > maxDim) { width = Math.round(width * maxDim / height); height = maxDim; }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      canvas.toBlob((blob) => {
+        const fr = new FileReader();
+        fr.onload = () => {
+          const base64 = fr.result.split(',')[1];
+          resolve({ base64, mimeType: 'image/jpeg', blob });
+        };
+        fr.onerror = reject;
+        fr.readAsDataURL(blob);
+      }, 'image/jpeg', quality);
+    };
+    img.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 const TOKENS = {
   brand: '#185FA5', brandDark: '#0C447C', brandLight: '#E6F1FB', brandBg: '#F0F7FC',
@@ -118,6 +149,14 @@ export default function DiagnosticReportInput({
   const [nextPlanDetail, setNextPlanDetail] = useState('');
   const [saving, setSaving] = useState(false);
 
+  // 사진 분석
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState('');
+  const [photoBlob, setPhotoBlob] = useState(null);
+  const [analyzingPhoto, setAnalyzingPhoto] = useState(false);
+  const [photoAnalysis, setPhotoAnalysis] = useState(null);
+  const [photoError, setPhotoError] = useState('');
+
   // 강사 1명이면 자동 선택
   useEffect(() => {
     if (teachers.length === 1 && !teacherId) {
@@ -193,10 +232,70 @@ setAiPolishedNote(data.result);
     alert('AI 연결에 실패했습니다. 잠시 후 다시 시도해주세요.');
   }
 };
+
+  // 사진 선택 → 미리보기
+  const handlePhotoSelect = async (file) => {
+    if (!file) return;
+    setPhotoFile(file);
+    setPhotoAnalysis(null);
+    setPhotoError('');
+    try {
+      const { base64, mimeType, blob } = await compressImage(file);
+      setPhotoPreview(`data:${mimeType};base64,${base64}`);
+      setPhotoBlob(blob);
+    } catch (e) {
+      console.error('사진 처리 오류:', e);
+      setPhotoError('사진을 불러오지 못했습니다.');
+    }
+  };
+
+  // Gemini Vision 분석 요청
+  const handleAnalyzePhoto = async () => {
+    if (!photoPreview) return;
+    setAnalyzingPhoto(true);
+    setPhotoError('');
+    try {
+      const base64 = photoPreview.split(',')[1];
+      const response = await fetch('/api/analyze-photo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: base64, mimeType: 'image/jpeg', hintTextbook: textbook, hintUnit: unit }),
+      });
+      const data = await response.json();
+      if (data.error) {
+        setPhotoError(data.error);
+      } else {
+        setPhotoAnalysis(data);
+      }
+    } catch (e) {
+      console.error('사진 분석 오류:', e);
+      setPhotoError('AI 분석에 실패했습니다. 잠시 후 다시 시도해주세요.');
+    }
+    setAnalyzingPhoto(false);
+  };
+
+  // AI 초안 코멘트를 강사 메모에 이어붙이기 (덮어쓰지 않음)
+  const appendDraftComment = () => {
+    if (!photoAnalysis?.draftComment) return;
+    setTeacherNote(prev => prev ? `${prev}\n\n${photoAnalysis.draftComment}` : photoAnalysis.draftComment);
+  };
+
+  const removePhoto = () => {
+    setPhotoFile(null); setPhotoPreview(''); setPhotoBlob(null);
+    setPhotoAnalysis(null); setPhotoError('');
+  };
      const handleSubmit = async () => {
     if (!isValid) return alert('학생, 강사, 평가를 모두 입력해주세요.');
     setSaving(true);
     try {
+      let photoUrl = null;
+      if (photoBlob) {
+        const path = `students/${studentId}/photos/${Date.now()}.jpg`;
+        const storageRef = ref(storage, path);
+        await uploadBytes(storageRef, photoBlob);
+        photoUrl = await getDownloadURL(storageRef);
+      }
+
       const reportPayload = {
         studentId, studentName: student?.name,
         teacherId, teacherName: teacher?.name,
@@ -209,6 +308,8 @@ setAiPolishedNote(data.result);
         diagnosis: selectedTags,
         teacherNote: aiPolishedNote || teacherNote,
         nextPlan, nextPlanDetail,
+        photoUrl,
+        photoAnalysis: photoAnalysis || null,
       };
       reportPayload.points = calculateReportPoints(reportPayload);
       await onSave(reportPayload);
@@ -217,6 +318,7 @@ setAiPolishedNote(data.result);
       setTextbook(''); setUnit(''); setPages('');
       setSelectedTags([]); setTeacherNote(''); setAiPolishedNote('');
       setNextPlan(''); setNextPlanDetail('');
+      removePhoto();
       alert('리포트가 저장됐습니다!');
     } catch (e) {
       console.error('리포트 저장 오류:', e);
@@ -349,6 +451,71 @@ setAiPolishedNote(data.result);
                 <div style={{ height: '8px' }} />
                 <FieldLabel>학습 범위</FieldLabel>
                 <input value={pages} onChange={(e) => setPages(e.target.value)} placeholder="예: p.24 ~ p.32" style={inputStyle} />
+              </FormSection>
+
+              {/* 5-1. 교재/시험지 사진 분석 (선택) */}
+              <FormSection number="5+" title="교재·시험지 사진 분석 (선택)" badge={photoAnalysis ? '분석완료' : undefined}>
+                <p style={{ fontSize: '11px', color: TOKENS.textMute, margin: '0 0 10px' }}>
+                  채점(O/△/빗금) 완료된 페이지를 촬영하면, AI가 표시만 그대로 읽어 유형별 코멘트 초안을 만들어줍니다. 점수는 반영되지 않습니다.
+                </p>
+                {!photoPreview && (
+                  <label style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                    border: `1.5px dashed ${TOKENS.border}`, borderRadius: '12px', padding: '18px',
+                    cursor: 'pointer', color: TOKENS.textSub, fontSize: '13px', fontWeight: 600, background: TOKENS.bgSoft
+                  }}>
+                    <FileText size={16} /> 사진 선택 / 촬영
+                    <input type="file" accept="image/*" capture="environment" style={{ display: 'none' }}
+                      onChange={(e) => handlePhotoSelect(e.target.files?.[0])} />
+                  </label>
+                )}
+                {photoPreview && (
+                  <div>
+                    <div style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', marginBottom: '10px' }}>
+                      <img src={photoPreview} alt="업로드된 사진" style={{ width: '100%', maxHeight: '260px', objectFit: 'cover', display: 'block' }} />
+                      <button onClick={removePhoto} style={{
+                        position: 'absolute', top: '8px', right: '8px', background: 'rgba(0,0,0,0.55)',
+                        border: 'none', borderRadius: '50%', width: '26px', height: '26px', color: '#fff', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center'
+                      }}><X size={14} /></button>
+                    </div>
+                    {!photoAnalysis && (
+                      <button onClick={handleAnalyzePhoto} disabled={analyzingPhoto} style={aiButtonStyle(analyzingPhoto)}>
+                        <Sparkles size={13} /> {analyzingPhoto ? 'AI가 분석 중...' : 'AI로 분석하기'}
+                      </button>
+                    )}
+                    {photoError && <p style={{ fontSize: '11px', color: TOKENS.danger, marginTop: '8px' }}>{photoError}</p>}
+                    {photoAnalysis && (
+                      <div style={{ background: TOKENS.successBg, borderRadius: '12px', padding: '12px', marginTop: '4px' }}>
+                        {(photoAnalysis.bookOrTest || photoAnalysis.unit || photoAnalysis.pageRange) && (
+                          <p style={{ fontSize: '11px', color: TOKENS.success, fontWeight: 700, margin: '0 0 8px' }}>
+                            {[photoAnalysis.bookOrTest, photoAnalysis.unit, photoAnalysis.pageRange].filter(Boolean).join(' · ')}
+                          </p>
+                        )}
+                        {(photoAnalysis.problemTypes || []).map((p, i) => (
+                          <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', marginBottom: '6px', fontSize: '12px' }}>
+                            <span style={{
+                              flexShrink: 0, fontWeight: 700, fontSize: '10px', padding: '2px 8px', borderRadius: '10px',
+                              background: p.result === '잘함' ? '#E1F5EE' : p.result === '약점' ? TOKENS.dangerBg : TOKENS.warnBg,
+                              color: p.result === '잘함' ? TOKENS.successDark : p.result === '약점' ? TOKENS.dangerBorder : TOKENS.warnText,
+                            }}>{p.result}</span>
+                            <div>
+                              <p style={{ margin: 0, fontWeight: 600 }}>{p.number ? `${p.number}. ` : ''}{p.type}</p>
+                              <p style={{ margin: '2px 0 0', color: TOKENS.textSub }}>{p.note}</p>
+                            </div>
+                          </div>
+                        ))}
+                        {photoAnalysis.draftComment && (
+                          <div style={{ background: '#fff', borderRadius: '10px', padding: '10px', marginTop: '8px' }}>
+                            <p style={{ fontSize: '11px', color: TOKENS.textMute, fontWeight: 700, margin: '0 0 4px' }}>코멘트 초안</p>
+                            <p style={{ fontSize: '12px', margin: 0, lineHeight: 1.5 }}>{photoAnalysis.draftComment}</p>
+                            <button onClick={appendDraftComment} style={{ ...suggestionStyle, marginTop: '8px' }}>선생님 한 마디에 이어붙이기</button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </FormSection>
 
               {/* 6. 진단 */}
