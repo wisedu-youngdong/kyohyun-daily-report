@@ -42,23 +42,51 @@ export default async function handler(req, res) {
             { inline_data: { mime_type: mimeType || 'image/jpeg', data: imageBase64 } }
           ]
         }],
-        generationConfig: { temperature: 0.2 }
+        generationConfig: {
+          temperature: 0.2,
+          responseMimeType: 'application/json'
+        }
       })
     });
 
     const data = await response.json();
+    const finishReason = data.candidates?.[0]?.finishReason;
     const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+    if (!rawText) {
+      console.error('Gemini 응답 없음. finishReason:', finishReason, 'full:', JSON.stringify(data));
+      const reasonMsg = finishReason === 'SAFETY' || finishReason === 'PROHIBITED_CONTENT'
+        ? '이미지가 안전 필터에 걸려 분석하지 못했습니다. 다른 사진으로 시도해주세요.'
+        : 'AI가 응답하지 않았습니다. 잠시 후 다시 시도해주세요.';
+      return res.status(200).json({ error: reasonMsg });
+    }
+
     const cleaned = rawText.replace(/```json|```/g, '').trim();
 
     let parsed;
     try {
       parsed = JSON.parse(cleaned);
     } catch (parseErr) {
-      console.error('JSON 파싱 실패:', cleaned);
-      return res.status(200).json({
-        error: 'AI 응답을 정리하지 못했습니다. 다시 시도하거나 직접 입력해주세요.',
-        raw: cleaned
-      });
+      // 앞뒤에 설명 텍스트가 섞였을 경우 첫 '{' ~ 마지막 '}' 구간만 추출해 재시도
+      const start = cleaned.indexOf('{');
+      const end = cleaned.lastIndexOf('}');
+      if (start !== -1 && end !== -1 && end > start) {
+        try {
+          parsed = JSON.parse(cleaned.slice(start, end + 1));
+        } catch (secondErr) {
+          console.error('JSON 파싱 2차 실패:', cleaned);
+          return res.status(200).json({
+            error: 'AI 응답을 정리하지 못했습니다. 다시 시도하거나 직접 입력해주세요.',
+            raw: cleaned
+          });
+        }
+      } else {
+        console.error('JSON 파싱 실패:', cleaned);
+        return res.status(200).json({
+          error: 'AI 응답을 정리하지 못했습니다. 다시 시도하거나 직접 입력해주세요.',
+          raw: cleaned
+        });
+      }
     }
 
     res.status(200).json(parsed);
