@@ -295,7 +295,7 @@ export default function App() {
             onSave={handleSaveReport}
           />
         )}
-        {activeTab === 'history' && <HistoryView reports={reports} onDelete={handleDeleteReport} />}
+        {activeTab === 'history' && <HistoryView reports={reports} students={students} onDelete={handleDeleteReport} />}
         {activeTab === 'analysis' && <AnalysisView students={students} reports={reports} />}
       </main>
 
@@ -609,20 +609,79 @@ const DIAGNOSIS_TAGS_MAP = {
   perfect: { label: '개념 완벽', color: '#0F6E56', bg: '#E1F5EE', border: '#0F6E56' },
 };
 
-function HistoryView({ reports, onDelete }) {
+function HistoryView({ reports, students, onDelete }) {
   const [previewReport, setPreviewReport] = useState(null);
+  const [studentFilter, setStudentFilter] = useState('');
+  const [searchText, setSearchText] = useState('');
+  const [periodFilter, setPeriodFilter] = useState('all'); // all | week | month
+  const [photoOnly, setPhotoOnly] = useState(false);
+
+  const now = Date.now() / 1000;
+  const filtered = reports.filter(r => {
+    if (studentFilter && r.studentId !== studentFilter) return false;
+    if (photoOnly && !(r.photoUrls?.length > 0)) return false;
+    if (periodFilter !== 'all') {
+      const ts = r.createdAt?.seconds || 0;
+      const cutoff = periodFilter === 'week' ? 7 * 86400 : 30 * 86400;
+      if (now - ts > cutoff) return false;
+    }
+    if (searchText.trim()) {
+      const q = searchText.trim().toLowerCase();
+      const haystack = `${r.studentName || ''} ${r.textbook || ''} ${r.unit || ''} ${r.teacherNote || ''}`.toLowerCase();
+      if (!haystack.includes(q)) return false;
+    }
+    return true;
+  });
 
   return (
     <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <h2 style={{ fontSize: '20px', fontWeight: 700, letterSpacing: '-0.02em' }}>기록 보관소</h2>
-        <span style={{ fontSize: '11px', color: '#6B7280', fontWeight: 600, background: '#fff', padding: '4px 10px', borderRadius: '8px', border: '1px solid #E5E7EB' }}>총 {reports.length}건</span>
+        <span style={{ fontSize: '11px', color: '#6B7280', fontWeight: 600, background: '#fff', padding: '4px 10px', borderRadius: '8px', border: '1px solid #E5E7EB' }}>
+          {filtered.length}건 {filtered.length !== reports.length && `/ 전체 ${reports.length}건`}
+        </span>
       </div>
 
-      {reports.length === 0
-        ? <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #E5E7EB', padding: '60px 20px', textAlign: 'center', color: '#9CA3AF', fontSize: '13px' }}>작성된 리포트가 없습니다</div>
+      {/* 검색 */}
+      <input
+        value={searchText} onChange={(e) => setSearchText(e.target.value)}
+        placeholder="🔍 학생명·교재명·코멘트 검색"
+        style={{ width: '100%', padding: '10px 14px', fontSize: '13px', border: '1px solid #E5E7EB', borderRadius: '10px', background: '#fff', outline: 'none', fontFamily: 'inherit', marginBottom: '10px', boxSizing: 'border-box' }}
+      />
+
+      {/* 학생 필터 */}
+      <select value={studentFilter} onChange={(e) => setStudentFilter(e.target.value)}
+        style={{ width: '100%', padding: '10px 12px', fontSize: '13px', fontWeight: 500, border: '1px solid #E5E7EB', borderRadius: '10px', background: '#F9FAFB', outline: 'none', fontFamily: 'inherit', marginBottom: '10px' }}>
+        <option value="">전체 학생</option>
+        {(students || []).map(s => <option key={s.id} value={s.id}>{s.name} · {s.school}</option>)}
+      </select>
+
+      {/* 기간·사진 필터 칩 */}
+      <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
+        {[['all', '전체 기간'], ['week', '최근 1주'], ['month', '최근 1개월']].map(([key, label]) => (
+          <button key={key} onClick={() => setPeriodFilter(key)}
+            style={{
+              padding: '6px 12px', fontSize: '11px', fontWeight: 700, borderRadius: '20px', cursor: 'pointer', fontFamily: 'inherit',
+              border: periodFilter === key ? '1.5px solid #185FA5' : '1px solid #E5E7EB',
+              background: periodFilter === key ? '#E6F1FB' : '#fff',
+              color: periodFilter === key ? '#185FA5' : '#6B7280',
+            }}>{label}</button>
+        ))}
+        <button onClick={() => setPhotoOnly(v => !v)}
+          style={{
+            padding: '6px 12px', fontSize: '11px', fontWeight: 700, borderRadius: '20px', cursor: 'pointer', fontFamily: 'inherit',
+            border: photoOnly ? '1.5px solid #185FA5' : '1px solid #E5E7EB',
+            background: photoOnly ? '#E6F1FB' : '#fff',
+            color: photoOnly ? '#185FA5' : '#6B7280',
+          }}>📷 사진 있는 것만</button>
+      </div>
+
+      {filtered.length === 0
+        ? <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #E5E7EB', padding: '60px 20px', textAlign: 'center', color: '#9CA3AF', fontSize: '13px' }}>
+            {reports.length === 0 ? '작성된 리포트가 없습니다' : '조건에 맞는 리포트가 없습니다'}
+          </div>
         : <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {reports.map(r => {
+          {filtered.map(r => {
             const date = r.createdAt?.seconds
               ? new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })
               : '날짜 없음';
@@ -631,7 +690,10 @@ function HistoryView({ reports, onDelete }) {
                 onClick={() => setPreviewReport(r)}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                   <div>
-                    <p style={{ fontSize: '15px', fontWeight: 700, margin: 0 }}>{r.studentName}</p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <p style={{ fontSize: '15px', fontWeight: 700, margin: 0 }}>{r.studentName}</p>
+                      {r.photoUrls?.length > 0 && <span style={{ fontSize: '11px' }}>📷{r.photoUrls.length}</span>}
+                    </div>
                     <p style={{ fontSize: '11px', color: '#6B7280', margin: '2px 0 0', fontWeight: 500 }}>{date} · {r.teacherName}</p>
                   </div>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
