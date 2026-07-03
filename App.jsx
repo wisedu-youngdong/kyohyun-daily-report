@@ -13,7 +13,7 @@ import DiagnosticReportInput from './DiagnosticReportInput';
 import {
   LayoutDashboard, Users, FileText, History, BarChart2, LogOut
 } from 'lucide-react';
-import { calculateTotalPoints, getStageInfo } from './growth.js';
+import { calculateTotalPoints, getStageInfo, calculateReportPoints, STAGES } from './growth.js';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LabelList
 } from 'recharts';
@@ -1188,7 +1188,7 @@ function InsightCard({ reports }) {
 }
 
 // ── 기간별 종합 리포트 (이미지 내보내기) ──
-function MonthlyReportModal({ student, reports, periodLabel, onClose }) {
+function MonthlyReportModal({ student, reports, allReports, periodLabel, onClose }) {
   const cardRef = React.useRef(null);
   const [downloading, setDownloading] = React.useState(false);
 
@@ -1199,11 +1199,61 @@ function MonthlyReportModal({ student, reports, periodLabel, onClose }) {
   const testReports = sorted.filter(r => r.hasTest && r.testScore);
   const testAvg = testReports.length ? Math.round(testReports.reduce((s, r) => s + Number(r.testScore || 0), 0) / testReports.length) : null;
   const insight = buildInsights(sorted);
-  const notesWithText = sorted.filter(r => r.teacherNote);
 
   const fmtDate = (r) => r.createdAt?.seconds
     ? new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })
     : '-';
+
+  // ── 누적 성장 곡선 (차별화 핵심 — 기간 상관없이 전체 히스토리 기준) ──
+  const fullSorted = [...(allReports || reports)].sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+  let running = 0;
+  const cumulativeSeries = fullSorted.map(r => {
+    running += (r.points ?? calculateReportPoints(r));
+    return { date: fmtDate(r), value: running, ts: r.createdAt?.seconds || 0 };
+  });
+  const stageInfo = getStageInfo(running);
+  const periodStartPoints = (() => {
+    if (sorted.length === 0) return running;
+    const firstInPeriodTs = sorted[0].createdAt?.seconds || 0;
+    let pts = 0;
+    for (const r of fullSorted) {
+      if ((r.createdAt?.seconds || 0) < firstInPeriodTs) pts += (r.points ?? calculateReportPoints(r));
+      else break;
+    }
+    return pts;
+  })();
+  const periodGained = running - periodStartPoints;
+
+  // 누적 곡선 SVG 좌표 계산 (recharts 미사용 — html2canvas 캡처 안정성)
+  const chartW = 560, chartH = 130, pad = 24;
+  const maxVal = Math.max(...cumulativeSeries.map(d => d.value), 10);
+  const stepX = cumulativeSeries.length > 1 ? (chartW - pad * 2) / (cumulativeSeries.length - 1) : 0;
+  const toXY = (d, i) => {
+    const x = pad + i * stepX;
+    const y = chartH - pad - (d.value / maxVal) * (chartH - pad * 1.5);
+    return [x, y];
+  };
+  const points = cumulativeSeries.map(toXY);
+  const polyline = points.map(([x, y]) => `${x},${y}`).join(' ');
+  const periodStartIdx = cumulativeSeries.findIndex(d => d.ts >= (sorted[0]?.createdAt?.seconds || Infinity));
+
+  // ── 통합 피드백 (원문 나열 대신, 진단 태그·추세를 한 문단으로 종합) ──
+  const tagCount = {};
+  sorted.forEach(r => (r.diagnosis || []).forEach(d => { tagCount[d.key] = (tagCount[d.key] || 0) + 1; }));
+  const tagEntries = Object.entries(tagCount).sort((a, b) => b[1] - a[1]);
+  const noteCount = sorted.filter(r => r.teacherNote).length;
+  let combinedFeedback = `이번 ${periodLabel} 동안 총 ${sorted.length}회 수업이 진행됐고, 그중 ${noteCount}회에 걸쳐 담당 선생님의 개별 피드백이 누적됐습니다.`;
+  if (tagEntries.length > 0) {
+    const [topKey, topCount] = tagEntries[0];
+    if (topKey === 'perfect') {
+      combinedFeedback += ` 이 기간 가장 두드러진 특징은 '개념 완벽' 진단이 ${topCount}회로 가장 많았다는 점이며, 이는 꾸준한 이해도 유지를 의미합니다.`;
+    } else {
+      combinedFeedback += ` 선생님들이 공통적으로 짚은 지점은 '${TAG_LABELS[topKey]}'(${topCount}회)로, 이번 기간 학습에서 가장 반복적으로 관찰된 패턴입니다.`;
+    }
+  }
+  if (periodGained > 0) {
+    combinedFeedback += ` 이 기간 동안 성장 포인트가 ${periodGained}P 누적되며 꾸준한 진전을 보였습니다.`;
+  }
 
   const handleDownload = async () => {
     if (!cardRef.current) return;
@@ -1248,7 +1298,55 @@ function MonthlyReportModal({ student, reports, periodLabel, onClose }) {
             <p style={{ fontSize: '12px', margin: 0, opacity: 0.85 }}>{periodLabel} · {student?.school}</p>
           </div>
 
-          {/* 핵심 지표 */}
+          {/* ★ 성장 평가 — 차별화 핵심 섹션, 최상단 배치 */}
+          <div style={{ background: 'linear-gradient(135deg, #F0E8FF, #F7F1FF)', border: '1.5px solid rgba(107,63,160,0.15)', borderRadius: '16px', padding: '18px', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '32px' }}>{stageInfo.current.icon}</span>
+                <div>
+                  <p style={{ fontSize: '11px', color: '#8A6BB5', fontWeight: 700, margin: 0 }}>현재 성장 단계</p>
+                  <p style={{ fontSize: '18px', fontWeight: 800, margin: '2px 0 0', color: '#4A2E7A' }}>{stageInfo.current.label} · 누적 {stageInfo.totalPoints}P</p>
+                </div>
+              </div>
+              {periodGained > 0 && (
+                <div style={{ textAlign: 'right' }}>
+                  <p style={{ fontSize: '10px', color: '#8A6BB5', fontWeight: 700, margin: 0 }}>{periodLabel} 획득</p>
+                  <p style={{ fontSize: '20px', fontWeight: 800, margin: '2px 0 0', color: '#0F6E56' }}>+{periodGained}P</p>
+                </div>
+              )}
+            </div>
+
+            {/* 단계 진행바 */}
+            <div style={{ height: '8px', background: '#E5D6FA', borderRadius: '20px', overflow: 'hidden', marginBottom: '4px' }}>
+              <div style={{ height: '100%', width: `${stageInfo.pct}%`, borderRadius: '20px', background: 'linear-gradient(90deg, #6B3FA0, #9B6FD4)' }} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '14px' }}>
+              <span style={{ fontSize: '9px', color: '#B0A0C8' }}>{STAGES.map(s => s.icon).join(' → ')}</span>
+              {stageInfo.next && <span style={{ fontSize: '9px', color: '#B0A0C8' }}>다음 {stageInfo.next.icon}{stageInfo.next.label}까지 {stageInfo.next.min - stageInfo.totalPoints}P</span>}
+            </div>
+
+            {/* 누적 성장 곡선 (전체 히스토리) */}
+            <div style={{ background: '#fff', borderRadius: '12px', padding: '10px 12px 4px' }}>
+              <p style={{ fontSize: '10px', fontWeight: 700, color: '#6B3FA0', margin: '0 0 4px' }}>누적 성장 곡선 (등원 시작일부터)</p>
+              {cumulativeSeries.length >= 2 ? (
+                <svg viewBox={`0 0 ${chartW} ${chartH}`} width="100%" height={chartH}>
+                  {periodStartIdx > 0 && (
+                    <rect x={points[periodStartIdx][0]} y={0} width={chartW - pad - points[periodStartIdx][0]} height={chartH} fill="#F0E8FF" />
+                  )}
+                  <polyline points={polyline} fill="none" stroke="#6B3FA0" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+                  {points.map(([x, y], i) => (
+                    <circle key={i} cx={x} cy={y} r={i === points.length - 1 ? 4 : 2} fill={i === points.length - 1 ? '#0F6E56' : '#9B6FD4'} />
+                  ))}
+                  <text x={points[points.length - 1][0] - 10} y={points[points.length - 1][1] - 8} fontSize="11" fontWeight="700" fill="#0F6E56" textAnchor="end">{running}P</text>
+                </svg>
+              ) : (
+                <p style={{ fontSize: '11px', color: '#9CA3AF', textAlign: 'center', padding: '20px 0' }}>누적 데이터가 더 쌓이면 곡선이 표시됩니다</p>
+              )}
+              <p style={{ fontSize: '9px', color: '#B0A0C8', margin: '4px 0 6px' }}>보라색 배경 = {periodLabel} 구간</p>
+            </div>
+          </div>
+
+          {/* 핵심 지표 (이 기간 스냅샷) */}
           <div style={{ display: 'grid', gridTemplateColumns: testAvg !== null ? '1fr 1fr 1fr 1fr' : '1fr 1fr 1fr', gap: '8px', marginBottom: '16px' }}>
             <div style={{ background: '#F0F7FC', borderRadius: '12px', padding: '12px', textAlign: 'center' }}>
               <p style={{ fontSize: '10px', color: '#185FA5', fontWeight: 700, margin: '0 0 4px' }}>총 수업</p>
@@ -1270,9 +1368,9 @@ function MonthlyReportModal({ student, reports, periodLabel, onClose }) {
             )}
           </div>
 
-          {/* 개념이해도 추이 (순수 CSS 바 — html2canvas 안정성 위해 recharts 미사용) */}
+          {/* 개념이해도 추이 (이 기간) */}
           <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: '14px', padding: '16px', marginBottom: '16px' }}>
-            <p style={{ fontSize: '12px', fontWeight: 700, margin: '0 0 12px' }}>개념 이해도 추이</p>
+            <p style={{ fontSize: '12px', fontWeight: 700, margin: '0 0 12px' }}>개념 이해도 추이 ({periodLabel})</p>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: '6px', height: '90px' }}>
               {sorted.map((r, i) => (
                 <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
@@ -1328,28 +1426,11 @@ function MonthlyReportModal({ student, reports, periodLabel, onClose }) {
             </div>
           )}
 
-          {/* 선생님 피드백 원문 타임라인 */}
-          {notesWithText.length > 0 && (
-            <div style={{ marginBottom: '16px' }}>
-              <p style={{ fontSize: '12px', fontWeight: 700, margin: '0 0 8px' }}>선생님 피드백 원문</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {notesWithText.map((r, i) => (
-                  <div key={i} style={{ background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: '10px', padding: '10px 12px' }}>
-                    <p style={{ fontSize: '10px', fontWeight: 700, color: '#185FA5', margin: '0 0 4px' }}>{fmtDate(r)}</p>
-                    <p style={{ fontSize: '11px', color: '#1A1A1A', margin: 0, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{r.teacherNote}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* 종합의견 */}
-          {insight && (
-            <div style={{ background: '#F0F7FC', borderRadius: '14px', padding: '16px', marginBottom: '4px' }}>
-              <p style={{ fontSize: '11px', fontWeight: 700, color: '#185FA5', margin: '0 0 8px' }}>✦ 종합 의견</p>
-              <p style={{ fontSize: '12px', color: '#1A1A1A', margin: 0, lineHeight: 1.7 }}>{insight.summary}</p>
-            </div>
-          )}
+          {/* 통합 피드백 (원문 나열 대신 종합) */}
+          <div style={{ background: '#F0F7FC', borderRadius: '14px', padding: '16px', marginBottom: '4px' }}>
+            <p style={{ fontSize: '11px', fontWeight: 700, color: '#185FA5', margin: '0 0 8px' }}>✦ 종합 피드백</p>
+            <p style={{ fontSize: '12px', color: '#1A1A1A', margin: 0, lineHeight: 1.7 }}>{combinedFeedback}</p>
+          </div>
 
           <div style={{ textAlign: 'center', padding: '12px 0 0', borderTop: '1px solid #E5E7EB', marginTop: '12px' }}>
             <p style={{ fontSize: '11px', color: '#9CA3AF', margin: 0 }}>교현학원 · 031-707-0591</p>
@@ -1481,6 +1562,7 @@ function AnalysisView({ students, reports }) {
         <MonthlyReportModal
           student={students.find(s => s.id === selectedId)}
           reports={periodReports}
+          allReports={studentReports}
           periodLabel={periodLabel}
           onClose={() => setShowMonthlyReport(false)}
         />
