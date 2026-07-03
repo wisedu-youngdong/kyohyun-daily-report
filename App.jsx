@@ -1198,61 +1198,66 @@ function MonthlyReportModal({ student, reports, allReports, periodLabel, onClose
   const conceptAvg = avgOf('conceptRating');
   const testReports = sorted.filter(r => r.hasTest && r.testScore);
   const testAvg = testReports.length ? Math.round(testReports.reduce((s, r) => s + Number(r.testScore || 0), 0) / testReports.length) : null;
-  const insight = buildInsights(sorted);
 
   const fmtDate = (r) => r.createdAt?.seconds
     ? new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })
     : '-';
+  const unitOf = (r) => [r.textbook, r.unit].filter(Boolean).join(' · ') || '학습 내용';
 
-  // ── 누적 성장 곡선 (차별화 핵심 — 기간 상관없이 전체 히스토리 기준) ──
+  // ── 포인트/단계는 동기부여용 소형 배지로만 사용 (증명 그래프 역할에서 제외) ──
   const fullSorted = [...(allReports || reports)].sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
-  let running = 0;
-  const cumulativeSeries = fullSorted.map(r => {
-    running += (r.points ?? calculateReportPoints(r));
-    return { date: fmtDate(r), value: running, ts: r.createdAt?.seconds || 0 };
-  });
-  const stageInfo = getStageInfo(running);
-  const periodStartPoints = (() => {
-    if (sorted.length === 0) return running;
-    const firstInPeriodTs = sorted[0].createdAt?.seconds || 0;
-    let pts = 0;
-    for (const r of fullSorted) {
-      if ((r.createdAt?.seconds || 0) < firstInPeriodTs) pts += (r.points ?? calculateReportPoints(r));
-      else break;
-    }
-    return pts;
-  })();
-  const periodGained = running - periodStartPoints;
+  const totalPoints = fullSorted.reduce((sum, r) => sum + (r.points ?? calculateReportPoints(r)), 0);
+  const stageInfo = getStageInfo(totalPoints);
 
-  // 누적 곡선 SVG 좌표 계산 (recharts 미사용 — html2canvas 캡처 안정성)
-  const chartW = 560, chartH = 130, pad = 24;
-  const maxVal = Math.max(...cumulativeSeries.map(d => d.value), 10);
-  const stepX = cumulativeSeries.length > 1 ? (chartW - pad * 2) / (cumulativeSeries.length - 1) : 0;
-  const toXY = (d, i) => {
-    const x = pad + i * stepX;
-    const y = chartH - pad - (d.value / maxVal) * (chartH - pad * 1.5);
-    return [x, y];
-  };
-  const points = cumulativeSeries.map(toXY);
-  const polyline = points.map(([x, y]) => `${x},${y}`).join(' ');
-  const periodStartIdx = cumulativeSeries.findIndex(d => d.ts >= (sorted[0]?.createdAt?.seconds || Infinity));
-
-  // ── 통합 피드백 (원문 나열 대신, 진단 태그·추세를 한 문단으로 종합) ──
+  // ── 실측 추이 (개념이해도 + 시험점수) — 학부모에게 보이는 '증명' 그래프 ──
+  const TAG_LABELS_LOCAL = { calc: '계산 실수', concept: '개념 누락', apply: '응용 부족', time: '시간 부족', perfect: '개념 완벽' };
   const tagCount = {};
-  sorted.forEach(r => (r.diagnosis || []).forEach(d => { tagCount[d.key] = (tagCount[d.key] || 0) + 1; }));
+  const tagFirstExample = {};
+  sorted.forEach(r => (r.diagnosis || []).forEach(d => {
+    tagCount[d.key] = (tagCount[d.key] || 0) + 1;
+    if (!tagFirstExample[d.key]) tagFirstExample[d.key] = r;
+  }));
   const tagEntries = Object.entries(tagCount).sort((a, b) => b[1] - a[1]);
-  const noteCount = sorted.filter(r => r.teacherNote).length;
-  let combinedFeedback = `이번 ${periodLabel} 동안 총 ${sorted.length}회 수업이 진행됐고, 그중 ${noteCount}회에 걸쳐 담당 선생님의 개별 피드백이 누적됐습니다.`;
-  if (tagEntries.length > 0) {
-    const [topKey, topCount] = tagEntries[0];
-    if (topKey === 'perfect') {
-      combinedFeedback += ` 이 기간 가장 두드러진 특징은 '개념 완벽' 진단이 ${topCount}회로 가장 많았다는 점이며, 이는 꾸준한 이해도 유지를 의미합니다.`;
-    } else {
-      combinedFeedback += ` 선생님들이 공통적으로 짚은 지점은 '${TAG_LABELS[topKey]}'(${topCount}회)로, 이번 기간 학습에서 가장 반복적으로 관찰된 패턴입니다.`;
-    }
+  const topTag = tagEntries.find(([k]) => k !== 'perfect');
+  const perfectTag = tagEntries.find(([k]) => k === 'perfect');
+
+  const bestConceptReport = sorted.reduce((best, r) => ((r.conceptRating || 0) > (best?.conceptRating || 0) ? r : best), null);
+  const unitsCovered = [...new Set(sorted.map(unitOf))];
+  const allAttended = sorted.length > 0 && sorted.every(r => r.attendance === '정시');
+
+  // 인용 가능한 선생님 코멘트 한 문장 발췌 (가장 최근 노트에서 첫 문장)
+  const notesWithText = sorted.filter(r => r.teacherNote);
+  const quoteSource = notesWithText[notesWithText.length - 1];
+  const quoteSentence = quoteSource
+    ? (quoteSource.teacherNote.split(/[.!?\n]/).map(s => s.trim()).find(s => s.length > 5) || quoteSource.teacherNote.slice(0, 40))
+    : null;
+
+  // ── 강점 (구체적 인용 기반) ──
+  const citedStrengths = [];
+  if (bestConceptReport) {
+    citedStrengths.push(`${fmtDate(bestConceptReport)} 수업(${unitOf(bestConceptReport)})에서 개념이해도 ${bestConceptReport.conceptRating}점으로 이 기간 최고치를 기록했습니다.`);
   }
-  if (periodGained > 0) {
-    combinedFeedback += ` 이 기간 동안 성장 포인트가 ${periodGained}P 누적되며 꾸준한 진전을 보였습니다.`;
+  if (allAttended && sorted.length >= 2) {
+    citedStrengths.push(`${periodLabel} 동안 ${sorted.length}회 전 수업 정시 출석 — 학습 리듬을 흔들림 없이 유지했습니다.`);
+  }
+  if (perfectTag) {
+    const ex = tagFirstExample[perfectTag[0]];
+    citedStrengths.push(`${fmtDate(ex)} 수업(${unitOf(ex)})에서 '개념 완벽' 진단을 받는 등, 이 기간 ${perfectTag[1]}회 최상위 이해도를 보였습니다.`);
+  }
+  if (homeworkAvg >= 4.5) {
+    citedStrengths.push(`과제 수행 평균 ${homeworkAvg}점 — ${unitsCovered[0] || ''} 등 배운 내용을 빠짐없이 소화하고 있습니다.`);
+  }
+
+  // ── 보완 포인트 (구체적 인용 기반) ──
+  const citedWeaknesses = [];
+  if (topTag) {
+    const [key, count] = topTag;
+    const ex = tagFirstExample[key];
+    citedWeaknesses.push(`${fmtDate(ex)} 수업(${unitOf(ex)})에서 처음 관찰된 '${TAG_LABELS_LOCAL[key]}' 패턴이 이 기간 총 ${count}회로 가장 빈번했습니다 — ${unitOf(ex)} 유형 위주로 복습이 필요합니다.`);
+  }
+  if (conceptAvg < 3.5 && conceptAvg > 0) {
+    const worst = sorted.reduce((w, r) => ((r.conceptRating ?? 5) < (w?.conceptRating ?? 5) ? r : w), null);
+    if (worst) citedWeaknesses.push(`${fmtDate(worst)} 수업(${unitOf(worst)})에서 개념이해도 ${worst.conceptRating}점으로 이 기간 중 가장 어려워했습니다.`);
   }
 
   const handleDownload = async () => {
@@ -1291,62 +1296,21 @@ function MonthlyReportModal({ student, reports, allReports, periodLabel, onClose
         </div>
 
         <div ref={cardRef} style={{ padding: '24px', background: '#fff' }}>
-          {/* 표지 헤더 */}
-          <div style={{ background: 'linear-gradient(135deg, #185FA5, #0C447C)', borderRadius: '16px', padding: '20px', marginBottom: '16px', textAlign: 'center', color: '#fff' }}>
-            <p style={{ fontSize: '10px', letterSpacing: '0.2em', margin: '0 0 6px', opacity: 0.8, fontWeight: 700 }}>교현학원 종합 리포트</p>
-            <p style={{ fontSize: '22px', fontWeight: 800, margin: '0 0 4px' }}>{student?.name} 학생</p>
-            <p style={{ fontSize: '12px', margin: 0, opacity: 0.85 }}>{periodLabel} · {student?.school}</p>
+          {/* 표지 헤더 — 성장 배지는 우측 상단에 소형으로만 (동기부여용, 증명용 아님) */}
+          <div style={{ background: 'linear-gradient(135deg, #185FA5, #0C447C)', borderRadius: '16px', padding: '20px', marginBottom: '16px', color: '#fff', position: 'relative' }}>
+            <div style={{
+              position: 'absolute', top: '14px', right: '14px', background: 'rgba(255,255,255,0.15)',
+              borderRadius: '20px', padding: '5px 12px', display: 'flex', alignItems: 'center', gap: '5px'
+            }}>
+              <span style={{ fontSize: '14px' }}>{stageInfo.current.icon}</span>
+              <span style={{ fontSize: '10px', fontWeight: 700 }}>{stageInfo.current.label} · {stageInfo.totalPoints}P</span>
+            </div>
+            <p style={{ fontSize: '10px', letterSpacing: '0.2em', margin: '0 0 6px', opacity: 0.8, fontWeight: 700, textAlign: 'center' }}>교현학원 종합 리포트</p>
+            <p style={{ fontSize: '22px', fontWeight: 800, margin: '0 0 4px', textAlign: 'center' }}>{student?.name} 학생</p>
+            <p style={{ fontSize: '12px', margin: 0, opacity: 0.85, textAlign: 'center' }}>{periodLabel} · {student?.school}</p>
           </div>
 
-          {/* ★ 성장 평가 — 차별화 핵심 섹션, 최상단 배치 */}
-          <div style={{ background: 'linear-gradient(135deg, #F0E8FF, #F7F1FF)', border: '1.5px solid rgba(107,63,160,0.15)', borderRadius: '16px', padding: '18px', marginBottom: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '32px' }}>{stageInfo.current.icon}</span>
-                <div>
-                  <p style={{ fontSize: '11px', color: '#8A6BB5', fontWeight: 700, margin: 0 }}>현재 성장 단계</p>
-                  <p style={{ fontSize: '18px', fontWeight: 800, margin: '2px 0 0', color: '#4A2E7A' }}>{stageInfo.current.label} · 누적 {stageInfo.totalPoints}P</p>
-                </div>
-              </div>
-              {periodGained > 0 && (
-                <div style={{ textAlign: 'right' }}>
-                  <p style={{ fontSize: '10px', color: '#8A6BB5', fontWeight: 700, margin: 0 }}>{periodLabel} 획득</p>
-                  <p style={{ fontSize: '20px', fontWeight: 800, margin: '2px 0 0', color: '#0F6E56' }}>+{periodGained}P</p>
-                </div>
-              )}
-            </div>
-
-            {/* 단계 진행바 */}
-            <div style={{ height: '8px', background: '#E5D6FA', borderRadius: '20px', overflow: 'hidden', marginBottom: '4px' }}>
-              <div style={{ height: '100%', width: `${stageInfo.pct}%`, borderRadius: '20px', background: 'linear-gradient(90deg, #6B3FA0, #9B6FD4)' }} />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '14px' }}>
-              <span style={{ fontSize: '9px', color: '#B0A0C8' }}>{STAGES.map(s => s.icon).join(' → ')}</span>
-              {stageInfo.next && <span style={{ fontSize: '9px', color: '#B0A0C8' }}>다음 {stageInfo.next.icon}{stageInfo.next.label}까지 {stageInfo.next.min - stageInfo.totalPoints}P</span>}
-            </div>
-
-            {/* 누적 성장 곡선 (전체 히스토리) */}
-            <div style={{ background: '#fff', borderRadius: '12px', padding: '10px 12px 4px' }}>
-              <p style={{ fontSize: '10px', fontWeight: 700, color: '#6B3FA0', margin: '0 0 4px' }}>누적 성장 곡선 (등원 시작일부터)</p>
-              {cumulativeSeries.length >= 2 ? (
-                <svg viewBox={`0 0 ${chartW} ${chartH}`} width="100%" height={chartH}>
-                  {periodStartIdx > 0 && (
-                    <rect x={points[periodStartIdx][0]} y={0} width={chartW - pad - points[periodStartIdx][0]} height={chartH} fill="#F0E8FF" />
-                  )}
-                  <polyline points={polyline} fill="none" stroke="#6B3FA0" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
-                  {points.map(([x, y], i) => (
-                    <circle key={i} cx={x} cy={y} r={i === points.length - 1 ? 4 : 2} fill={i === points.length - 1 ? '#0F6E56' : '#9B6FD4'} />
-                  ))}
-                  <text x={points[points.length - 1][0] - 10} y={points[points.length - 1][1] - 8} fontSize="11" fontWeight="700" fill="#0F6E56" textAnchor="end">{running}P</text>
-                </svg>
-              ) : (
-                <p style={{ fontSize: '11px', color: '#9CA3AF', textAlign: 'center', padding: '20px 0' }}>누적 데이터가 더 쌓이면 곡선이 표시됩니다</p>
-              )}
-              <p style={{ fontSize: '9px', color: '#B0A0C8', margin: '4px 0 6px' }}>보라색 배경 = {periodLabel} 구간</p>
-            </div>
-          </div>
-
-          {/* 핵심 지표 (이 기간 스냅샷) */}
+          {/* 핵심 지표 */}
           <div style={{ display: 'grid', gridTemplateColumns: testAvg !== null ? '1fr 1fr 1fr 1fr' : '1fr 1fr 1fr', gap: '8px', marginBottom: '16px' }}>
             <div style={{ background: '#F0F7FC', borderRadius: '12px', padding: '12px', textAlign: 'center' }}>
               <p style={{ fontSize: '10px', color: '#185FA5', fontWeight: 700, margin: '0 0 4px' }}>총 수업</p>
@@ -1368,18 +1332,34 @@ function MonthlyReportModal({ student, reports, allReports, periodLabel, onClose
             )}
           </div>
 
-          {/* 개념이해도 추이 (이 기간) */}
-          <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: '14px', padding: '16px', marginBottom: '16px' }}>
-            <p style={{ fontSize: '12px', fontWeight: 700, margin: '0 0 12px' }}>개념 이해도 추이 ({periodLabel})</p>
+          {/* ★ 실력 성장 추이 — 메인 증명 그래프 (오르내림 있는 실측 데이터) */}
+          <div style={{ background: '#fff', border: '1.5px solid #185FA5', borderRadius: '14px', padding: '16px', marginBottom: '16px' }}>
+            <p style={{ fontSize: '13px', fontWeight: 800, margin: '0 0 4px', color: '#0C447C' }}>📈 실력 성장 추이</p>
+            <p style={{ fontSize: '10px', color: '#6B7280', margin: '0 0 12px', lineHeight: 1.5 }}>
+              매 수업 측정한 개념이해도(5점 만점) 실제 점수입니다. 오르내림이 자연스러우며, 전체 흐름과 최근 방향이 중요합니다.
+            </p>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: '6px', height: '90px' }}>
               {sorted.map((r, i) => (
                 <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
-                  <span style={{ fontSize: '9px', fontWeight: 700, color: '#9B6FD4', marginBottom: '2px' }}>{r.conceptRating || 0}</span>
-                  <div style={{ width: '100%', maxWidth: '18px', height: `${((r.conceptRating || 0) / 5) * 70}px`, background: '#9B6FD4', borderRadius: '3px 3px 0 0' }} />
+                  <span style={{ fontSize: '9px', fontWeight: 700, color: '#185FA5', marginBottom: '2px' }}>{r.conceptRating || 0}</span>
+                  <div style={{ width: '100%', maxWidth: '18px', height: `${((r.conceptRating || 0) / 5) * 70}px`, background: '#185FA5', borderRadius: '3px 3px 0 0' }} />
                   <span style={{ fontSize: '8px', color: '#9CA3AF', marginTop: '4px' }}>{fmtDate(r)}</span>
                 </div>
               ))}
             </div>
+            {testReports.length >= 1 && (
+              <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px dashed #E5E7EB' }}>
+                <p style={{ fontSize: '10px', fontWeight: 700, color: '#0F6E56', margin: '0 0 8px' }}>시험 점수 추이 (100점 만점)</p>
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  {testReports.map((r, i) => (
+                    <div key={i} style={{ background: '#E1F5EE', borderRadius: '8px', padding: '6px 10px', textAlign: 'center' }}>
+                      <p style={{ fontSize: '13px', fontWeight: 800, color: '#0F6E56', margin: 0 }}>{r.testScore}점</p>
+                      <p style={{ fontSize: '8px', color: '#6B7280', margin: '2px 0 0' }}>{fmtDate(r)} · {r.testName || '테스트'}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* 수업이력 테이블 */}
@@ -1401,35 +1381,46 @@ function MonthlyReportModal({ student, reports, allReports, periodLabel, onClose
                     <td style={{ padding: '6px 4px' }}>{r.homeworkRating || 0}점</td>
                     <td style={{ padding: '6px 4px' }}>{r.conceptRating || 0}점</td>
                     <td style={{ padding: '6px 4px' }}>{r.hasTest && r.testScore ? `${r.testScore}점` : '-'}</td>
-                    <td style={{ padding: '6px 4px' }}>{[r.textbook, r.unit].filter(Boolean).join(' · ') || '-'}</td>
+                    <td style={{ padding: '6px 4px' }}>{unitOf(r)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
 
-          {/* 강점/보완 */}
-          {insight && (insight.strengths.length > 0 || insight.weaknesses.length > 0) && (
+          {/* 강점/보완 — 전부 날짜·단원 직접 인용 */}
+          {(citedStrengths.length > 0 || citedWeaknesses.length > 0) && (
             <div style={{ marginBottom: '16px' }}>
-              {insight.strengths.length > 0 && (
+              {citedStrengths.length > 0 && (
                 <div style={{ background: '#E1F5EE', borderRadius: '12px', padding: '12px 14px', marginBottom: '8px' }}>
                   <p style={{ fontSize: '11px', fontWeight: 700, color: '#0F6E56', margin: '0 0 6px' }}>✅ 강점</p>
-                  {insight.strengths.map((s, i) => <p key={i} style={{ fontSize: '11px', color: '#085041', margin: i > 0 ? '3px 0 0' : 0, lineHeight: 1.5 }}>{s}</p>)}
+                  {citedStrengths.map((s, i) => <p key={i} style={{ fontSize: '11px', color: '#085041', margin: i > 0 ? '5px 0 0' : 0, lineHeight: 1.5 }}>{s}</p>)}
                 </div>
               )}
-              {insight.weaknesses.length > 0 && (
+              {citedWeaknesses.length > 0 && (
                 <div style={{ background: '#FAEEDA', borderRadius: '12px', padding: '12px 14px' }}>
                   <p style={{ fontSize: '11px', fontWeight: 700, color: '#854F0B', margin: '0 0 6px' }}>🔧 보완 포인트</p>
-                  {insight.weaknesses.map((s, i) => <p key={i} style={{ fontSize: '11px', color: '#633806', margin: i > 0 ? '3px 0 0' : 0, lineHeight: 1.5 }}>{s}</p>)}
+                  {citedWeaknesses.map((s, i) => <p key={i} style={{ fontSize: '11px', color: '#633806', margin: i > 0 ? '5px 0 0' : 0, lineHeight: 1.5 }}>{s}</p>)}
                 </div>
               )}
             </div>
           )}
 
-          {/* 통합 피드백 (원문 나열 대신 종합) */}
+          {/* 종합 피드백 — 커버한 단원 + 선생님 코멘트 발췌 인용 */}
           <div style={{ background: '#F0F7FC', borderRadius: '14px', padding: '16px', marginBottom: '4px' }}>
             <p style={{ fontSize: '11px', fontWeight: 700, color: '#185FA5', margin: '0 0 8px' }}>✦ 종합 피드백</p>
-            <p style={{ fontSize: '12px', color: '#1A1A1A', margin: 0, lineHeight: 1.7 }}>{combinedFeedback}</p>
+            <p style={{ fontSize: '12px', color: '#1A1A1A', margin: 0, lineHeight: 1.7 }}>
+              {periodLabel} 동안 {unitsCovered.slice(0, 3).join(', ')}{unitsCovered.length > 3 ? ' 등' : ''}을 학습했습니다.
+              {bestConceptReport && ` 특히 ${fmtDate(bestConceptReport)} 수업(${unitOf(bestConceptReport)})에서 가장 높은 이해도를 보였습니다.`}
+              {topTag && ` 다만 '${TAG_LABELS_LOCAL[topTag[0]]}' 패턴이 반복 관찰되어 ${unitOf(tagFirstExample[topTag[0]])} 관련 복습이 필요합니다.`}
+            </p>
+            {quoteSentence && (
+              <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #C7DDF0' }}>
+                <p style={{ fontSize: '11px', color: '#185FA5', margin: 0, fontStyle: 'italic', lineHeight: 1.6 }}>
+                  "{quoteSentence}" — {fmtDate(quoteSource)} 담당 선생님
+                </p>
+              </div>
+            )}
           </div>
 
           <div style={{ textAlign: 'center', padding: '12px 0 0', borderTop: '1px solid #E5E7EB', marginTop: '12px' }}>
