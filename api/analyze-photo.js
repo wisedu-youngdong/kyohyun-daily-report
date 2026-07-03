@@ -25,8 +25,11 @@ ${modeInstruction}
 ## 절대 규칙
 - ⚠️ 가장 중요한 규칙: 너는 이 문제를 수학적으로 풀 수 있는 능력이 있어도 절대 사용하지 마라. "계산해보니 정답이니까 잘함"이라고 판단하는 것은 금지된 행동이다. 오직 1단계에서 실제로 관찰한 색깔 표시의 형태만 근거로 삼아라.
 - 학생이 정답을 강조하려고 그린 검은색/네모 박스(문제 풀이에 쓴 것과 같은 필기구로 답을 감싸는 박스)는 채점 표시가 아니다. 채점 표시는 오직 풀이에 쓴 필기구와 다른 색(주로 빨간색)으로 나중에 추가된 표시만 해당한다.
-- mark는 "동그라미" | "체크" | "빗금" | "세모" | "표시없음" 중 하나. mark가 "표시없음"이면 result는 반드시 "확인필요".
-  · 동그라미(O) 또는 체크(✓) = 정답 / 빗금(/) 또는 X = 오답 / 세모(△) = 재풀이 후 정답
+- ⚠️ 판정 기준 (반드시 이 이분법을 그대로 따를 것 — 예외 없음):
+  · mark가 "동그라미"이고 그 색이 명확히 빨간색(또는 붉은 계열)일 때만 → result = "잘함"
+  · 그 외의 모든 경우 → result = "약점" (체크, 빗금, 세모, 표시없음, 색이 불명확한 동그라미, 판독이 애매한 모든 표시 포함)
+  · "확인필요"는 사용하지 마라. 빨간 동그라미가 아니면 전부 "약점"으로 분류한다.
+  · mark 필드에는 실제로 관찰한 형태를 그대로 적어라 ("동그라미", "체크", "빗금", "세모", "표시없음" 중 하나) — result 판정과 무관하게 관찰 사실은 정확히 기록.
 - 인쇄된 교재 예제/풀이는 절대 채점 대상에 포함하지 마라. 채점 대상은 오직 학생이 직접 손으로 쓴 답안뿐이다.
 - 점수나 총점, 백분율을 계산하지 마라.
 
@@ -35,7 +38,7 @@ ${modeInstruction}
 ### 연산(calculation) 섹션 규칙
 - 문제 내용은 읽지 말고 문항 번호 옆 mark만 확인한다.
 - 문항별 코멘트를 달지 마라. 대신 전체 집계만 낸다.
-- label에 단원/페이지 범위를 적고, summary에 {total, correct(동그라미+체크), retry(세모), wrong(빗금/X), unmarked(표시없음)} 개수를 넣어라.
+- label에 단원/페이지 범위를 적고, summary에 {total, correct(빨간 동그라미만), wrong(그 외 전부 — 체크/빗금/세모/표시없음 합산)} 개수를 넣어라. retry/unmarked 필드는 쓰지 말고 wrong에 통합하라.
 
 ### 유형(concept) 섹션 규칙
 - 문제 텍스트와 풀이 과정을 참고해서 type을 정확한 개념 키워드(5~10자)로 축약하라. 단, 정답 여부 판정은 여전히 mark로만 한다 (문제를 직접 풀어서 판단 금지).
@@ -43,8 +46,8 @@ ${modeInstruction}
 
 ### 모의고사(mock_exam) 섹션 규칙
 - 문항이 매우 많으므로 문항별 코멘트를 전부 달지 마라.
-- groupSummary: 문제 유형별로 묶어 {type, total, correct, wrong, retry} 집계.
-- weakDetail: result가 "약점" 또는 "확인필요"인 문항만 {number, type, mark, note}로 상세 기록. 잘한 문항은 상세 기록하지 않는다.
+- groupSummary: 문제 유형별로 묶어 {type, total, correct, wrong} 집계. (correct=빨간 동그라미만, wrong=그 외 전부)
+- weakDetail: result가 "약점"인 문항만 {number, type, mark, note}로 상세 기록. 잘한 문항은 상세 기록하지 않는다.
 
 ## 참고 정보 (선생님이 입력, 없으면 무시)
 - 교재/시험지명 힌트: ${hintTextbook || '없음'}
@@ -63,15 +66,15 @@ ${modeInstruction}
     {
       "sectionType": "calculation",
       "label": "예: 3단원 소수의 나눗셈 연산 문제",
-      "summary": { "total": 0, "correct": 0, "retry": 0, "wrong": 0, "unmarked": 0 }
+      "summary": { "total": 0, "correct": 0, "wrong": 0 }
     },
     {
       "sectionType": "concept",
-      "problemTypes": [ { "number": "", "type": "", "mark": "", "result": "", "note": "" } ]
+      "problemTypes": [ { "number": "", "type": "", "mark": "", "result": "잘함" | "약점", "note": "" } ]
     },
     {
       "sectionType": "mock_exam",
-      "groupSummary": [ { "type": "", "total": 0, "correct": 0, "wrong": 0, "retry": 0 } ],
+      "groupSummary": [ { "type": "", "total": 0, "correct": 0, "wrong": 0 } ],
       "weakDetail": [ { "number": "", "type": "", "mark": "", "note": "" } ]
     }
   ],

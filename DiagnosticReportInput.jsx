@@ -560,10 +560,8 @@ setAiPolishedNote(data.result);
                                 {sec.label && <p style={{ fontSize: '11px', fontWeight: 700, margin: '0 0 6px' }}>{sec.label}</p>}
                                 <p style={{ fontSize: '12px', margin: 0 }}>
                                   총 <b>{sec.summary.total ?? 0}</b>문제 중
-                                  <span style={{ color: TOKENS.successDark, fontWeight: 700 }}> 정답 {sec.summary.correct ?? 0}</span>
-                                  {sec.summary.retry ? <span style={{ color: TOKENS.warnText, fontWeight: 700 }}> · 재풀이후정답 {sec.summary.retry}</span> : null}
-                                  {sec.summary.wrong ? <span style={{ color: TOKENS.dangerBorder, fontWeight: 700 }}> · 오답 {sec.summary.wrong}</span> : null}
-                                  {sec.summary.unmarked ? <span style={{ color: TOKENS.textMute, fontWeight: 700 }}> · 확인필요 {sec.summary.unmarked}</span> : null}
+                                  <span style={{ color: TOKENS.successDark, fontWeight: 700 }}> 정답(빨간 동그라미) {sec.summary.correct ?? 0}</span>
+                                  <span style={{ color: TOKENS.dangerBorder, fontWeight: 700 }}> · 약점 {sec.summary.wrong ?? 0}</span>
                                 </p>
                               </div>
                             )}
@@ -572,8 +570,8 @@ setAiPolishedNote(data.result);
                               <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', marginBottom: '6px', fontSize: '12px' }}>
                                 <span style={{
                                   flexShrink: 0, fontWeight: 700, fontSize: '10px', padding: '2px 8px', borderRadius: '10px',
-                                  background: p.result === '잘함' ? '#E1F5EE' : p.result === '약점' ? TOKENS.dangerBg : TOKENS.warnBg,
-                                  color: p.result === '잘함' ? TOKENS.successDark : p.result === '약점' ? TOKENS.dangerBorder : TOKENS.warnText,
+                                  background: p.result === '잘함' ? '#E1F5EE' : TOKENS.dangerBg,
+                                  color: p.result === '잘함' ? TOKENS.successDark : TOKENS.dangerBorder,
                                 }}>{p.result}</span>
                                 <div>
                                   <p style={{ margin: 0, fontWeight: 600 }}>
@@ -589,9 +587,7 @@ setAiPolishedNote(data.result);
                               <div style={{ background: '#fff', borderRadius: '10px', padding: '10px' }}>
                                 {(sec.groupSummary || []).map((g, i) => (
                                   <p key={i} style={{ fontSize: '12px', margin: '0 0 4px' }}>
-                                    <b>{g.type}</b> — 총 {g.total} · 정답 {g.correct}
-                                    {g.retry ? ` · 재풀이후정답 ${g.retry}` : ''}
-                                    {g.wrong ? ` · 오답 ${g.wrong}` : ''}
+                                    <b>{g.type}</b> — 총 {g.total} · 정답(빨간 동그라미) {g.correct} · 약점 {g.wrong}
                                   </p>
                                 ))}
                                 {(sec.weakDetail || []).length > 0 && (
