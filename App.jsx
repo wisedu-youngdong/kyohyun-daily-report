@@ -1187,10 +1187,219 @@ function InsightCard({ reports }) {
   );
 }
 
+// ── 기간별 종합 리포트 (이미지 내보내기) ──
+function MonthlyReportModal({ student, reports, periodLabel, onClose }) {
+  const cardRef = React.useRef(null);
+  const [downloading, setDownloading] = React.useState(false);
+
+  const sorted = [...reports].sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+  const avgOf = (key) => sorted.length ? Math.round(sorted.reduce((s, r) => s + (r[key] || 0), 0) / sorted.length * 10) / 10 : 0;
+  const homeworkAvg = avgOf('homeworkRating');
+  const conceptAvg = avgOf('conceptRating');
+  const testReports = sorted.filter(r => r.hasTest && r.testScore);
+  const testAvg = testReports.length ? Math.round(testReports.reduce((s, r) => s + Number(r.testScore || 0), 0) / testReports.length) : null;
+  const insight = buildInsights(sorted);
+  const notesWithText = sorted.filter(r => r.teacherNote);
+
+  const fmtDate = (r) => r.createdAt?.seconds
+    ? new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })
+    : '-';
+
+  const handleDownload = async () => {
+    if (!cardRef.current) return;
+    setDownloading(true);
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+      const canvas = await html2canvas(cardRef.current, { scale: 3, useCORS: true, backgroundColor: '#ffffff', logging: false });
+      const link = document.createElement('a');
+      link.download = `${student?.name}_종합리포트_${periodLabel}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (e) {
+      alert('이미지 저장 실패: ' + e.message);
+    }
+    setDownloading(false);
+  };
+
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px', backdropFilter: 'blur(4px)' }}
+      onClick={onClose}>
+      <div style={{ background: '#fff', borderRadius: '18px', width: '100%', maxWidth: '640px', maxHeight: '85vh', overflow: 'auto', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}
+        onClick={(e) => e.stopPropagation()}>
+
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, background: '#fff', zIndex: 10 }}>
+          <div>
+            <p style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>{student?.name} 종합 리포트</p>
+            <p style={{ fontSize: '11px', color: '#6B7280', margin: '2px 0 0' }}>{periodLabel} · {sorted.length}건</p>
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={handleDownload} disabled={downloading} style={{ background: '#0F6E56', color: '#fff', border: 'none', borderRadius: '9px', padding: '7px 14px', fontSize: '12px', fontWeight: 700, cursor: downloading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+              {downloading ? '저장 중...' : '📥 이미지 저장'}
+            </button>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '20px', color: '#6B7280', cursor: 'pointer' }}>×</button>
+          </div>
+        </div>
+
+        <div ref={cardRef} style={{ padding: '24px', background: '#fff' }}>
+          {/* 표지 헤더 */}
+          <div style={{ background: 'linear-gradient(135deg, #185FA5, #0C447C)', borderRadius: '16px', padding: '20px', marginBottom: '16px', textAlign: 'center', color: '#fff' }}>
+            <p style={{ fontSize: '10px', letterSpacing: '0.2em', margin: '0 0 6px', opacity: 0.8, fontWeight: 700 }}>교현학원 종합 리포트</p>
+            <p style={{ fontSize: '22px', fontWeight: 800, margin: '0 0 4px' }}>{student?.name} 학생</p>
+            <p style={{ fontSize: '12px', margin: 0, opacity: 0.85 }}>{periodLabel} · {student?.school}</p>
+          </div>
+
+          {/* 핵심 지표 */}
+          <div style={{ display: 'grid', gridTemplateColumns: testAvg !== null ? '1fr 1fr 1fr 1fr' : '1fr 1fr 1fr', gap: '8px', marginBottom: '16px' }}>
+            <div style={{ background: '#F0F7FC', borderRadius: '12px', padding: '12px', textAlign: 'center' }}>
+              <p style={{ fontSize: '10px', color: '#185FA5', fontWeight: 700, margin: '0 0 4px' }}>총 수업</p>
+              <p style={{ fontSize: '18px', fontWeight: 800, margin: 0 }}>{sorted.length}회</p>
+            </div>
+            <div style={{ background: '#F0F7FC', borderRadius: '12px', padding: '12px', textAlign: 'center' }}>
+              <p style={{ fontSize: '10px', color: '#185FA5', fontWeight: 700, margin: '0 0 4px' }}>과제 평균</p>
+              <p style={{ fontSize: '18px', fontWeight: 800, margin: 0 }}>{homeworkAvg}점</p>
+            </div>
+            <div style={{ background: '#F0F7FC', borderRadius: '12px', padding: '12px', textAlign: 'center' }}>
+              <p style={{ fontSize: '10px', color: '#185FA5', fontWeight: 700, margin: '0 0 4px' }}>개념 평균</p>
+              <p style={{ fontSize: '18px', fontWeight: 800, margin: 0 }}>{conceptAvg}점</p>
+            </div>
+            {testAvg !== null && (
+              <div style={{ background: '#F0F7FC', borderRadius: '12px', padding: '12px', textAlign: 'center' }}>
+                <p style={{ fontSize: '10px', color: '#185FA5', fontWeight: 700, margin: '0 0 4px' }}>시험 평균</p>
+                <p style={{ fontSize: '18px', fontWeight: 800, margin: 0 }}>{testAvg}점</p>
+              </div>
+            )}
+          </div>
+
+          {/* 개념이해도 추이 (순수 CSS 바 — html2canvas 안정성 위해 recharts 미사용) */}
+          <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: '14px', padding: '16px', marginBottom: '16px' }}>
+            <p style={{ fontSize: '12px', fontWeight: 700, margin: '0 0 12px' }}>개념 이해도 추이</p>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '6px', height: '90px' }}>
+              {sorted.map((r, i) => (
+                <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
+                  <span style={{ fontSize: '9px', fontWeight: 700, color: '#9B6FD4', marginBottom: '2px' }}>{r.conceptRating || 0}</span>
+                  <div style={{ width: '100%', maxWidth: '18px', height: `${((r.conceptRating || 0) / 5) * 70}px`, background: '#9B6FD4', borderRadius: '3px 3px 0 0' }} />
+                  <span style={{ fontSize: '8px', color: '#9CA3AF', marginTop: '4px' }}>{fmtDate(r)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 수업이력 테이블 */}
+          <div style={{ marginBottom: '16px' }}>
+            <p style={{ fontSize: '12px', fontWeight: 700, margin: '0 0 8px' }}>수업 이력</p>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px' }}>
+              <thead>
+                <tr style={{ background: '#F9FAFB' }}>
+                  {['날짜', '출결', '과제', '개념', '시험', '학습 단원'].map(h => (
+                    <th key={h} style={{ padding: '6px 4px', textAlign: 'left', fontWeight: 700, color: '#6B7280', borderBottom: '1.5px solid #E5E7EB' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {sorted.map((r, i) => (
+                  <tr key={i} style={{ borderBottom: '1px solid #F3F4F6' }}>
+                    <td style={{ padding: '6px 4px' }}>{fmtDate(r)}</td>
+                    <td style={{ padding: '6px 4px' }}>{r.attendance || '-'}</td>
+                    <td style={{ padding: '6px 4px' }}>{r.homeworkRating || 0}점</td>
+                    <td style={{ padding: '6px 4px' }}>{r.conceptRating || 0}점</td>
+                    <td style={{ padding: '6px 4px' }}>{r.hasTest && r.testScore ? `${r.testScore}점` : '-'}</td>
+                    <td style={{ padding: '6px 4px' }}>{[r.textbook, r.unit].filter(Boolean).join(' · ') || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* 강점/보완 */}
+          {insight && (insight.strengths.length > 0 || insight.weaknesses.length > 0) && (
+            <div style={{ marginBottom: '16px' }}>
+              {insight.strengths.length > 0 && (
+                <div style={{ background: '#E1F5EE', borderRadius: '12px', padding: '12px 14px', marginBottom: '8px' }}>
+                  <p style={{ fontSize: '11px', fontWeight: 700, color: '#0F6E56', margin: '0 0 6px' }}>✅ 강점</p>
+                  {insight.strengths.map((s, i) => <p key={i} style={{ fontSize: '11px', color: '#085041', margin: i > 0 ? '3px 0 0' : 0, lineHeight: 1.5 }}>{s}</p>)}
+                </div>
+              )}
+              {insight.weaknesses.length > 0 && (
+                <div style={{ background: '#FAEEDA', borderRadius: '12px', padding: '12px 14px' }}>
+                  <p style={{ fontSize: '11px', fontWeight: 700, color: '#854F0B', margin: '0 0 6px' }}>🔧 보완 포인트</p>
+                  {insight.weaknesses.map((s, i) => <p key={i} style={{ fontSize: '11px', color: '#633806', margin: i > 0 ? '3px 0 0' : 0, lineHeight: 1.5 }}>{s}</p>)}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 선생님 피드백 원문 타임라인 */}
+          {notesWithText.length > 0 && (
+            <div style={{ marginBottom: '16px' }}>
+              <p style={{ fontSize: '12px', fontWeight: 700, margin: '0 0 8px' }}>선생님 피드백 원문</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {notesWithText.map((r, i) => (
+                  <div key={i} style={{ background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: '10px', padding: '10px 12px' }}>
+                    <p style={{ fontSize: '10px', fontWeight: 700, color: '#185FA5', margin: '0 0 4px' }}>{fmtDate(r)}</p>
+                    <p style={{ fontSize: '11px', color: '#1A1A1A', margin: 0, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{r.teacherNote}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 종합의견 */}
+          {insight && (
+            <div style={{ background: '#F0F7FC', borderRadius: '14px', padding: '16px', marginBottom: '4px' }}>
+              <p style={{ fontSize: '11px', fontWeight: 700, color: '#185FA5', margin: '0 0 8px' }}>✦ 종합 의견</p>
+              <p style={{ fontSize: '12px', color: '#1A1A1A', margin: 0, lineHeight: 1.7 }}>{insight.summary}</p>
+            </div>
+          )}
+
+          <div style={{ textAlign: 'center', padding: '12px 0 0', borderTop: '1px solid #E5E7EB', marginTop: '12px' }}>
+            <p style={{ fontSize: '11px', color: '#9CA3AF', margin: 0 }}>교현학원 · 031-707-0591</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AnalysisView({ students, reports }) {
   const [selectedId, setSelectedId] = useState('');
   const studentReports = reports.filter(r => r.studentId === selectedId);
   const avg = (key) => studentReports.length ? Math.round(studentReports.reduce((a, r) => a + (r[key] || 0), 0) / studentReports.length * 10) / 10 : 0;
+
+  // ── 기간 설정 (월간 고정 버튼 + 커스텀 기간) ──
+  const [periodMode, setPeriodMode] = useState('all'); // all | thisMonth | lastMonth | custom
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
+  const [showMonthlyReport, setShowMonthlyReport] = useState(false);
+
+  const getPeriodRange = () => {
+    const now = new Date();
+    if (periodMode === 'thisMonth') {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+      return { start, end, label: `${now.getFullYear()}년 ${now.getMonth() + 1}월` };
+    }
+    if (periodMode === 'lastMonth') {
+      const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+      return { start, end, label: `${start.getFullYear()}년 ${start.getMonth() + 1}월` };
+    }
+    if (periodMode === 'custom' && customStart && customEnd) {
+      const start = new Date(customStart);
+      const end = new Date(customEnd + 'T23:59:59');
+      return { start, end, label: `${customStart} ~ ${customEnd}` };
+    }
+    return { start: null, end: null, label: '전체 기간' };
+  };
+  const { start: periodStart, end: periodEnd, label: periodLabel } = getPeriodRange();
+
+  const periodReports = (periodStart && periodEnd)
+    ? studentReports.filter(r => {
+        const ts = r.createdAt?.seconds ? r.createdAt.seconds * 1000 : 0;
+        return ts >= periodStart.getTime() && ts <= periodEnd.getTime();
+      })
+    : studentReports;
+
+  const periodAvg = (key) => periodReports.length ? Math.round(periodReports.reduce((a, r) => a + (r[key] || 0), 0) / periodReports.length * 10) / 10 : 0;
 
   return (
     <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
@@ -1203,19 +1412,43 @@ function AnalysisView({ students, reports }) {
       </div>
       {selectedId && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {/* 기간 선택 */}
+          <div style={{ background: '#fff', borderRadius: '16px', padding: '14px 16px', border: `1px solid #E5E7EB` }}>
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: periodMode === 'custom' ? '10px' : 0 }}>
+              {[['all', '전체'], ['thisMonth', '이번달'], ['lastMonth', '지난달'], ['custom', '기간 지정']].map(([key, label]) => (
+                <button key={key} onClick={() => setPeriodMode(key)}
+                  style={{
+                    padding: '6px 12px', fontSize: '11px', fontWeight: 700, borderRadius: '20px', cursor: 'pointer', fontFamily: 'inherit',
+                    border: periodMode === key ? '1.5px solid #185FA5' : '1px solid #E5E7EB',
+                    background: periodMode === key ? '#E6F1FB' : '#fff',
+                    color: periodMode === key ? '#185FA5' : '#6B7280',
+                  }}>{label}</button>
+              ))}
+            </div>
+            {periodMode === 'custom' && (
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)}
+                  style={{ flex: 1, padding: '8px 10px', fontSize: '12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontFamily: 'inherit' }} />
+                <span style={{ fontSize: '12px', color: '#9CA3AF' }}>~</span>
+                <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)}
+                  style={{ flex: 1, padding: '8px 10px', fontSize: '12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontFamily: 'inherit' }} />
+              </div>
+            )}
+          </div>
+
           <GrowthStageCard reports={studentReports} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
-            <StatCard label="총 리포트" value={studentReports.length} unit="건" />
-            <StatCard label="과제 평균" value={avg('homeworkRating')} unit="점" />
-            <StatCard label="개념 평균" value={avg('conceptRating')} unit="점" />
+            <StatCard label={`리포트 (${periodLabel})`} value={periodReports.length} unit="건" />
+            <StatCard label="과제 평균" value={periodAvg('homeworkRating')} unit="점" />
+            <StatCard label="개념 평균" value={periodAvg('conceptRating')} unit="점" />
           </div>
-          <HomeworkTestChart reports={studentReports} />
-          <InsightCard reports={studentReports} />
+          <HomeworkTestChart reports={periodReports} />
+          <InsightCard reports={periodReports} />
           <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: `1px solid #E5E7EB` }}>
-            <h3 style={{ fontSize: '13px', fontWeight: 700, marginBottom: '12px' }}>진단 태그 분포</h3>
+            <h3 style={{ fontSize: '13px', fontWeight: 700, marginBottom: '12px' }}>진단 태그 분포 ({periodLabel})</h3>
             {(() => {
               const tagCount = {};
-              studentReports.forEach(r => (r.diagnosis || []).forEach(d => { tagCount[d.key] = (tagCount[d.key] || 0) + 1; }));
+              periodReports.forEach(r => (r.diagnosis || []).forEach(d => { tagCount[d.key] = (tagCount[d.key] || 0) + 1; }));
               const tagLabels = { calc: '계산 실수', concept: '개념 누락', apply: '응용 부족', time: '시간 부족', perfect: '개념 완벽' };
               const entries = Object.entries(tagCount).sort((a, b) => b[1] - a[1]);
               return entries.length === 0
@@ -1231,7 +1464,26 @@ function AnalysisView({ students, reports }) {
                 ));
             })()}
           </div>
+
+          <button onClick={() => setShowMonthlyReport(true)} disabled={periodReports.length === 0}
+            style={{
+              width: '100%', padding: '14px', fontSize: '14px', fontWeight: 700, borderRadius: '14px', border: 'none',
+              background: periodReports.length === 0 ? '#E5E7EB' : 'linear-gradient(135deg, #185FA5, #0C447C)',
+              color: periodReports.length === 0 ? '#9CA3AF' : '#fff',
+              cursor: periodReports.length === 0 ? 'not-allowed' : 'pointer', fontFamily: 'inherit'
+            }}>
+            📄 {periodLabel} 종합 리포트 만들기
+          </button>
         </div>
+      )}
+
+      {showMonthlyReport && (
+        <MonthlyReportModal
+          student={students.find(s => s.id === selectedId)}
+          reports={periodReports}
+          periodLabel={periodLabel}
+          onClose={() => setShowMonthlyReport(false)}
+        />
       )}
     </div>
   );
