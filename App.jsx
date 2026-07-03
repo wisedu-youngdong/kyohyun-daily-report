@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { calculateTotalPoints, getStageInfo } from './growth.js';
 import {
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LabelList
 } from 'recharts';
 
 // ── 캐릭터 아바타 목록
@@ -1010,21 +1010,117 @@ function HomeworkTestChart({ reports }) {
   return (
     <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB' }}>
       <h3 style={{ fontSize: '13px', fontWeight: 700, marginBottom: '12px' }}>과제 · 개념 · 시험 추이</h3>
+      <p style={{ fontSize: '10px', color: '#9CA3AF', margin: '0 0 10px' }}>막대가 높을수록 그날 점수가 좋았다는 뜻입니다 (5점 만점 기준).</p>
       <div style={{ width: '100%', height: 220 }}>
         <ResponsiveContainer>
-          <BarChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+          <BarChart data={data} margin={{ top: 16, right: 4, left: -20, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
             <XAxis dataKey="date" tick={{ fontSize: 10 }} />
             <YAxis domain={[0, 5]} tick={{ fontSize: 10 }} />
             <Tooltip contentStyle={{ fontSize: '11px', borderRadius: '8px' }} />
             <Legend wrapperStyle={{ fontSize: '11px' }} />
-            <Bar dataKey="과제" fill="#185FA5" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="개념" fill="#9B6FD4" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="시험" fill="#0F6E56" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="과제" fill="#185FA5" radius={[4, 4, 0, 0]}>
+              <LabelList dataKey="과제" position="top" style={{ fontSize: '10px', fill: '#185FA5', fontWeight: 700 }} />
+            </Bar>
+            <Bar dataKey="개념" fill="#9B6FD4" radius={[4, 4, 0, 0]}>
+              <LabelList dataKey="개념" position="top" style={{ fontSize: '10px', fill: '#9B6FD4', fontWeight: 700 }} />
+            </Bar>
+            <Bar dataKey="시험" fill="#0F6E56" radius={[4, 4, 0, 0]}>
+              <LabelList dataKey="시험" position="top" style={{ fontSize: '10px', fill: '#0F6E56', fontWeight: 700 }} />
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>
       <p style={{ fontSize: '10px', color: '#9CA3AF', marginTop: '6px' }}>* 시험 점수는 100점 만점을 5점 척도로 환산해 표시</p>
+    </div>
+  );
+}
+
+// ── 데이터 기반 인사이트 문장 생성 (AI 호출 없이 계산만으로, 즉시·무료) ──
+const TAG_LABELS = { calc: '계산 실수', concept: '개념 누락', apply: '응용 부족', time: '시간 부족', perfect: '개념 완벽' };
+
+function buildInsights(reports) {
+  if (!reports || reports.length === 0) return null;
+  const sorted = [...reports].sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+
+  const avgOf = (arr, key) => arr.length ? arr.reduce((s, r) => s + (r[key] || 0), 0) / arr.length : 0;
+  const overallHw = avgOf(sorted, 'homeworkRating');
+  const overallCc = avgOf(sorted, 'conceptRating');
+
+  // 최근 절반 vs 이전 절반 비교로 추세 판단 (최소 4건부터 의미있는 비교)
+  let trendText = null;
+  if (sorted.length >= 4) {
+    const mid = Math.floor(sorted.length / 2);
+    const prevHalf = sorted.slice(0, mid);
+    const recentHalf = sorted.slice(mid);
+    const hwDelta = avgOf(recentHalf, 'homeworkRating') - avgOf(prevHalf, 'homeworkRating');
+    const ccDelta = avgOf(recentHalf, 'conceptRating') - avgOf(prevHalf, 'conceptRating');
+    const parts = [];
+    if (Math.abs(hwDelta) >= 0.5) parts.push(`과제 수행이 최근 ${hwDelta > 0 ? '상승' : '하락'}세(${hwDelta > 0 ? '+' : ''}${hwDelta.toFixed(1)}점)`);
+    if (Math.abs(ccDelta) >= 0.5) parts.push(`개념 이해가 최근 ${ccDelta > 0 ? '상승' : '하락'}세(${ccDelta > 0 ? '+' : ''}${ccDelta.toFixed(1)}점)`);
+    if (parts.length > 0) trendText = parts.join(', ') + '입니다.';
+  }
+
+  // 진단 태그 최빈값
+  const tagCount = {};
+  sorted.forEach(r => (r.diagnosis || []).forEach(d => { tagCount[d.key] = (tagCount[d.key] || 0) + 1; }));
+  const tagEntries = Object.entries(tagCount).sort((a, b) => b[1] - a[1]);
+  const topTag = tagEntries[0];
+
+  // 시험 평균/추세
+  const testReports = sorted.filter(r => r.hasTest && r.testScore);
+  const testAvg = testReports.length ? avgOf(testReports, 'testScore') : null;
+  const testTrend = testReports.length >= 2
+    ? Number(testReports[testReports.length - 1].testScore) - Number(testReports[0].testScore)
+    : null;
+
+  // 강점/보완 bullet
+  const strengths = [];
+  const weaknesses = [];
+  if (overallHw >= 4) strengths.push(`과제 수행 평균 ${overallHw.toFixed(1)}점 — 꾸준히 성실하게 임하고 있습니다.`);
+  if (overallCc >= 4) strengths.push(`개념 이해 평균 ${overallCc.toFixed(1)}점 — 새 단원 적응력이 좋습니다.`);
+  if (tagEntries.find(([k]) => k === 'perfect')) strengths.push(`'개념 완벽' 진단이 ${tagCount.perfect}회 기록됐습니다.`);
+  if (testTrend !== null && testTrend > 0) strengths.push(`시험 점수가 최근 ${testTrend > 0 ? '+' : ''}${testTrend}점 상승했습니다.`);
+
+  if (topTag && topTag[0] !== 'perfect') weaknesses.push(`'${TAG_LABELS[topTag[0]]}' 패턴이 ${topTag[1]}회로 가장 빈번합니다 — 이 부분 집중 보강을 권장합니다.`);
+  if (overallHw < 3.5 && overallHw > 0) weaknesses.push(`과제 수행 평균이 ${overallHw.toFixed(1)}점으로 다소 낮습니다.`);
+  if (overallCc < 3.5 && overallCc > 0) weaknesses.push(`개념 이해 평균이 ${overallCc.toFixed(1)}점으로 보강이 필요합니다.`);
+
+  // 한 줄 종합 요약
+  let summary = `최근 ${sorted.length}회 리포트 기준, 과제 평균 ${overallHw.toFixed(1)}점 · 개념 평균 ${overallCc.toFixed(1)}점입니다.`;
+  if (testAvg !== null) summary += ` 시험 평균은 ${Math.round(testAvg)}점입니다.`;
+  if (trendText) summary += ` ${trendText}`;
+
+  return { summary, strengths, weaknesses, testAvg, testTrend, sampleSize: sorted.length };
+}
+
+function InsightCard({ reports }) {
+  const insight = buildInsights(reports);
+  if (!insight) return null;
+  return (
+    <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB' }}>
+      <h3 style={{ fontSize: '13px', fontWeight: 700, marginBottom: '10px' }}>📊 인사이트 요약</h3>
+      <p style={{ fontSize: '13px', lineHeight: 1.6, color: '#1A1A1A', margin: '0 0 12px', fontWeight: 500 }}>{insight.summary}</p>
+
+      {insight.strengths.length > 0 && (
+        <div style={{ background: '#E1F5EE', borderRadius: '10px', padding: '10px 12px', marginBottom: '8px' }}>
+          <p style={{ fontSize: '11px', fontWeight: 700, color: '#0F6E56', margin: '0 0 6px' }}>✅ 강점</p>
+          {insight.strengths.map((s, i) => (
+            <p key={i} style={{ fontSize: '12px', color: '#085041', margin: i > 0 ? '4px 0 0' : 0, lineHeight: 1.5 }}>{s}</p>
+          ))}
+        </div>
+      )}
+      {insight.weaknesses.length > 0 && (
+        <div style={{ background: '#FAEEDA', borderRadius: '10px', padding: '10px 12px' }}>
+          <p style={{ fontSize: '11px', fontWeight: 700, color: '#854F0B', margin: '0 0 6px' }}>🔧 보완 포인트</p>
+          {insight.weaknesses.map((s, i) => (
+            <p key={i} style={{ fontSize: '12px', color: '#633806', margin: i > 0 ? '4px 0 0' : 0, lineHeight: 1.5 }}>{s}</p>
+          ))}
+        </div>
+      )}
+      {insight.sampleSize < 4 && (
+        <p style={{ fontSize: '10px', color: '#9CA3AF', marginTop: '8px' }}>* 리포트가 더 쌓이면(4건 이상) 추세 분석이 추가됩니다.</p>
+      )}
     </div>
   );
 }
@@ -1052,6 +1148,7 @@ function AnalysisView({ students, reports }) {
             <StatCard label="개념 평균" value={avg('conceptRating')} unit="점" />
           </div>
           <HomeworkTestChart reports={studentReports} />
+          <InsightCard reports={studentReports} />
           <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: `1px solid #E5E7EB` }}>
             <h3 style={{ fontSize: '13px', fontWeight: 700, marginBottom: '12px' }}>진단 태그 분포</h3>
             {(() => {
