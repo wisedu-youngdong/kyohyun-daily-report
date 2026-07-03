@@ -725,7 +725,7 @@ function ReportPreviewModal({ report: r, allReports, onClose, onDelete }) {
           <div style={{ background: '#F0F7FC', borderRadius: '14px', padding: '14px 16px', marginBottom: '12px', textAlign: 'center' }}>
             <p style={{ fontSize: '11px', color: '#185FA5', fontWeight: 700, margin: '0 0 4px' }}>교현학원 오늘의 학습 리포트</p>
             <p style={{ fontSize: '18px', fontWeight: 700, margin: '0 0 2px' }}>{r.studentName} 학생</p>
-            <p style={{ fontSize: '11px', color: '#6B7280', margin: 0 }}>{date} · {r.teacherName}{/선생님?$/.test(r.teacherName || '') ? '' : ' 선생님'}</p>
+            <p style={{ fontSize: '11px', color: '#6B7280', margin: 0, fontWeight: 700 }}>{date} · {r.teacherName}{/선생님?$/.test(r.teacherName || '') ? '' : ' 선생님'}</p>
           </div>
 
           {/* 성장 단계 */}
