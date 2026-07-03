@@ -658,6 +658,7 @@ function HistoryView({ reports, onDelete }) {
       {previewReport && (
         <ReportPreviewModal
           report={previewReport}
+          allReports={reports}
           onClose={() => setPreviewReport(null)}
           onDelete={(id) => { onDelete(id); setPreviewReport(null); }}
         />
@@ -666,12 +667,15 @@ function HistoryView({ reports, onDelete }) {
   );
 }
 
-function ReportPreviewModal({ report: r, onClose, onDelete }) {
+function ReportPreviewModal({ report: r, allReports, onClose, onDelete }) {
   const date = r.createdAt?.seconds
     ? new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })
     : '날짜 없음';
   const cardRef = React.useRef(null);
   const [downloading, setDownloading] = React.useState(false);
+
+  const studentReports = (allReports || []).filter(x => x.studentId === r.studentId);
+  const stageInfo = getStageInfo(calculateTotalPoints(studentReports));
 
   const handleDownload = async () => {
     if (!cardRef.current) return;
@@ -723,6 +727,33 @@ function ReportPreviewModal({ report: r, onClose, onDelete }) {
             <p style={{ fontSize: '18px', fontWeight: 700, margin: '0 0 2px' }}>{r.studentName} 학생</p>
             <p style={{ fontSize: '11px', color: '#6B7280', margin: 0 }}>{date} · {r.teacherName} 선생님</p>
           </div>
+
+          {/* 성장 단계 */}
+          <div style={{ background: 'linear-gradient(135deg, #F0E8FF, #F7F1FF)', borderRadius: '14px', padding: '14px 16px', marginBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '30px' }}>{stageInfo.current.icon}</span>
+              <div>
+                <p style={{ fontSize: '15px', fontWeight: 800, margin: 0, color: '#4A2E7A' }}>{stageInfo.current.label} 단계</p>
+                <p style={{ fontSize: '10px', color: '#8A6BB5', fontWeight: 600, margin: '2px 0 0' }}>누적 {stageInfo.totalPoints}P{stageInfo.next ? ` · 다음 ${stageInfo.next.icon}${stageInfo.next.label}까지 ${stageInfo.next.min - stageInfo.totalPoints}P` : ' · 최고 단계 달성 🎉'}</p>
+              </div>
+            </div>
+            <div style={{ width: '46px', height: '46px', borderRadius: '50%', background: `conic-gradient(#6B3FA0 ${stageInfo.pct * 3.6}deg, #E5D6FA 0deg)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 800, color: '#6B3FA0' }}>{stageInfo.pct}%</div>
+            </div>
+          </div>
+
+          {/* 오늘 찍은 문제집 사진 */}
+          {r.photoUrls?.length > 0 && (
+            <div style={{ background: '#F9FAFB', borderRadius: '14px', padding: '14px 16px', marginBottom: '12px', border: '1px solid #E5E7EB' }}>
+              <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 700, margin: '0 0 8px' }}>📷 오늘 푼 문제집</p>
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(r.photoUrls.length, 3)}, 1fr)`, gap: '6px' }}>
+                {r.photoUrls.map((url, i) => (
+                  <img key={i} src={url} alt={`문제집 사진 ${i + 1}`} crossOrigin="anonymous"
+                    style={{ width: '100%', aspectRatio: '3/4', objectFit: 'cover', borderRadius: '8px', border: '1px solid #E5E7EB' }} />
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* 출결 및 평가 */}
           <div style={{ background: '#F0F7FC', borderRadius: '14px', padding: '14px 16px', marginBottom: '12px' }}>
