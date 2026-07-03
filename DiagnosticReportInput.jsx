@@ -453,7 +453,7 @@ setAiPolishedNote(data.result);
                 <FieldLabel>교재</FieldLabel>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: '12px' }}>
                   {(student?.textbooks || []).map(t => (
-                    <button key={t.id} onClick={() => setTextbook(t.name)} style={chipStyle(textbook === t.name)}>{t.name}</button>
+                    <button key={t.id} onClick={() => setTextbook(prev => prev === t.name ? '' : t.name)} style={chipStyle(textbook === t.name)}>{t.name}</button>
                   ))}
                 </div>
                 <FieldLabel>단원</FieldLabel>
