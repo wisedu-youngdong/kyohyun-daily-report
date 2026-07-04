@@ -1348,36 +1348,54 @@ function MonthlyReportModal({ student, reports, allReports, periodLabel, onClose
         </div>
 
         {/* ─── 캡처 대상 문서 영역 ─── */}
-        <div ref={cardRef} style={{ padding: '32px 28px', background: DS.paper }}>
+        <div ref={cardRef} style={{ background: DS.paper }}>
 
-          {/* 표지 헤더 — 단색 네이비, 그라디언트 없음 */}
-          <div style={{ background: DS.navy900, padding: '24px 28px', marginBottom: '28px', position: 'relative' }}>
-            {/* 발행 주체 — 실제 로고 이미지 */}
+          {/* 표지 헤더 B안: 흰 영역(컬러 로고) → 골드 헤어라인 → 네이비(학생 정보) */}
+
+          {/* 1. 흰 영역 — 컬러 로고 + 발행 정보 */}
+          <div style={{ background: DS.paper, padding: '16px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${DS.rule}` }}>
             <img
-              src="/logo_white.png"
+              src="/kyohyun-logo.png"
               alt="와이즈에듀 교현학원"
               crossOrigin="anonymous"
-              style={{ height: '36px', width: 'auto', marginBottom: '16px', display: 'block' }}
+              style={{ height: '44px', width: 'auto', display: 'block' }}
+              onError={(e) => {
+                e.target.style.display = 'none';
+                e.target.nextSibling.style.display = 'block';
+              }}
             />
-            {/* 학생명 */}
+            <div style={{ display: 'none' }}>
+              <p style={{ fontSize: '9px', color: '#8B1A1A', fontWeight: 700, margin: 0, letterSpacing: '0.15em' }}>와이즈에듀</p>
+              <p style={{ fontSize: '13px', color: DS.navy900, fontWeight: 700, margin: 0 }}>교현학원</p>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <p style={{ fontSize: '10px', color: DS.inkMute, margin: 0, letterSpacing: '0.05em' }}>종합 리포트</p>
+              <p style={{ fontSize: '11px', color: DS.inkSub, fontWeight: 600, margin: '2px 0 0' }}>{periodLabel}</p>
+            </div>
+          </div>
+
+          {/* 2. 골드 헤어라인 (시그니처 연결선) */}
+          <div style={{ height: '2px', background: `linear-gradient(90deg, ${DS.gold} 0%, ${DS.gold} 60%, rgba(201,162,39,0.1) 100%)` }} />
+
+          {/* 3. 네이비 영역 — 학생 정보 */}
+          <div style={{ background: DS.navy900, padding: '20px 28px', position: 'relative', marginBottom: '28px' }}>
             <p style={{ fontFamily: DS.serif, fontSize: '26px', fontWeight: 700, color: '#fff', margin: '0 0 4px', letterSpacing: '-0.02em' }}>
               {student?.name}
             </p>
-            <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.65)', margin: 0 }}>{student?.school} · {periodLabel}</p>
-            {/* 골드 헤어라인 */}
-            <div style={{ width: '100%', height: '1px', background: DS.gold, marginTop: '20px', opacity: 0.6 }} />
-            {/* 성장 단계 — 우측 상단 소형, 텍스트만 (이모지 제거) */}
+            <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', margin: 0 }}>{student?.school} · {periodLabel}</p>
+            <div style={{ width: '100%', height: '1px', background: `rgba(201,162,39,0.35)`, marginTop: '16px' }} />
+            {/* 성장 단계 배지 */}
             <div style={{
-              position: 'absolute', top: '24px', right: '28px',
-              border: `1px solid rgba(201,162,39,0.5)`, borderRadius: '3px',
-              padding: '4px 10px', textAlign: 'center'
+              position: 'absolute', top: '20px', right: '28px',
+              border: `1px solid rgba(201,162,39,0.5)`, borderRadius: '2px',
+              padding: '5px 12px', textAlign: 'center'
             }}>
               <p style={{ fontSize: '9px', color: DS.gold, margin: '0 0 1px', letterSpacing: '0.1em', fontWeight: 700 }}>성장 단계</p>
               <p style={{ fontSize: '12px', fontWeight: 700, color: '#fff', margin: 0 }}>{stageInfo.current.label} · {stageInfo.totalPoints}P</p>
             </div>
           </div>
 
-          {/* ① 한 줄 평가 (DB 충분할 때 내용이 채워짐) */}
+          <div style={{ padding: '0 28px' }}>
           {headline && (
             <div style={{ borderLeft: `3px solid ${DS.gold}`, paddingLeft: '14px', marginBottom: '28px' }}>
               <p style={{ fontSize: '10px', fontWeight: 700, color: DS.gold, margin: '0 0 4px', letterSpacing: '0.1em' }}>이번 기간 핵심</p>
@@ -1553,12 +1571,13 @@ function MonthlyReportModal({ student, reports, allReports, periodLabel, onClose
             )}
           </div>
 
-          {/* 푸터 — 발행 주체 + 발행일 */}
+          {/* 푸터 */}
           <div style={{ marginTop: '24px', paddingTop: '14px', borderTop: `1px solid ${DS.rule}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <p style={{ fontSize: '10px', color: DS.inkMute, margin: 0, letterSpacing: '0.04em' }}>와이즈에듀 교현학원 · 031-707-0591</p>
             <p style={{ fontSize: '10px', color: DS.inkMute, margin: 0 }}>발행일 {today}</p>
           </div>
-        </div>
+          </div>{/* 내부 패딩 div 닫힘 */}
+        </div>{/* cardRef 닫힘 */}
       </div>
     </div>
   );
