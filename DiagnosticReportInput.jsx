@@ -513,7 +513,7 @@ setAiPolishedNote(data.result);
                 <input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="예: 3단원 소수의 나눗셈" style={inputStyle} />
                 <div style={{ height: '8px' }} />
                 <FieldLabel>학습 범위</FieldLabel>
-                <input value={pages} onChange={(e) => setPages(e.target.value)} placeholder="예: p.24 ~ p.32" style={inputStyle} />
+                <input value={pages} onChange={(e) => setPages(e.target.value)} placeholder="예: 111, 114, 124쪽 / 24~32쪽" style={inputStyle} />
               </FormSection>
 
               {/* 5-1. 교재/시험지 사진 분석 (선택) */}
