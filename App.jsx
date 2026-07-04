@@ -189,6 +189,7 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('write');
+  const [editingReport, setEditingReport] = useState(null);
   const [students, setStudents] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [reports, setReports] = useState([]);
@@ -293,9 +294,11 @@ export default function App() {
             onSaveTeacher={handleSaveTeacher}
             onDeleteTeacher={handleDeleteTeacher}
             onSave={handleSaveReport}
+            editingReport={editingReport}
+            onEditDone={() => setEditingReport(null)}
           />
         )}
-        {activeTab === 'history' && <HistoryView reports={reports} students={students} onDelete={handleDeleteReport} />}
+        {activeTab === 'history' && <HistoryView reports={reports} students={students} onDelete={handleDeleteReport} onEdit={(report) => { setEditingReport(report); setActiveTab('write'); }} />}
         {activeTab === 'analysis' && <AnalysisView students={students} reports={reports} />}
       </main>
 
@@ -609,7 +612,7 @@ const DIAGNOSIS_TAGS_MAP = {
   perfect: { label: '개념 완벽', color: '#0F6E56', bg: '#E1F5EE', border: '#0F6E56' },
 };
 
-function HistoryView({ reports, students, onDelete }) {
+function HistoryView({ reports, students, onDelete, onEdit }) {
   const [previewReport, setPreviewReport] = useState(null);
   const [studentFilter, setStudentFilter] = useState('');
   const [searchText, setSearchText] = useState('');
@@ -723,13 +726,14 @@ function HistoryView({ reports, students, onDelete }) {
           allReports={reports}
           onClose={() => setPreviewReport(null)}
           onDelete={(id) => { onDelete(id); setPreviewReport(null); }}
+          onEdit={onEdit}
         />
       )}
     </div>
   );
 }
 
-function ReportPreviewModal({ report: r, allReports, onClose, onDelete }) {
+function ReportPreviewModal({ report: r, allReports, onClose, onDelete, onEdit }) {
   const date = r.createdAt?.seconds
     ? new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })
     : '날짜 없음';
@@ -888,12 +892,19 @@ function ReportPreviewModal({ report: r, allReports, onClose, onDelete }) {
           </div>
         </div>
 
-        {/* 삭제 버튼 (이미지에 포함 안 됨) */}
-        <div style={{ padding: '12px 20px', borderTop: '1px solid #E5E7EB' }}>
+        {/* 수정/삭제 버튼 (이미지에 포함 안 됨) */}
+        <div style={{ padding: '12px 20px', borderTop: '1px solid #E5E7EB', display: 'flex', gap: '8px' }}>
+          {onEdit && (
+            <button
+              onClick={() => { onEdit(r); onClose(); }}
+              style={{ flex: 1, padding: '12px', fontSize: '13px', fontWeight: 700, borderRadius: '12px', border: '1px solid #185FA5', background: '#EAF0F9', color: '#185FA5', cursor: 'pointer', fontFamily: 'inherit' }}>
+              수정하기
+            </button>
+          )}
           <button
             onClick={() => { if (confirm(`${r.studentName} 리포트를 삭제하시겠습니까?`)) onDelete(r.id); }}
-            style={{ width: '100%', padding: '12px', fontSize: '13px', fontWeight: 700, borderRadius: '12px', border: '1px solid #FCA5A5', background: '#FEF2F2', color: '#DC2626', cursor: 'pointer', fontFamily: 'inherit' }}>
-            🗑 이 리포트 삭제
+            style={{ flex: 1, padding: '12px', fontSize: '13px', fontWeight: 700, borderRadius: '12px', border: '1px solid #FCA5A5', background: '#FEF2F2', color: '#DC2626', cursor: 'pointer', fontFamily: 'inherit' }}>
+            삭제
           </button>
         </div>
       </div>

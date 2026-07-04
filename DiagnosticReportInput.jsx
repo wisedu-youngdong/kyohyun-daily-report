@@ -125,6 +125,8 @@ export default function DiagnosticReportInput({
   onSaveTeacher = async () => {},
   onDeleteTeacher = async () => {},
   onSave = async () => {},
+  editingReport = null,
+  onEditDone = () => {},
 }) {
   const [showStudentModal, setShowStudentModal] = useState(false);
   const [showTeacherPanel, setShowTeacherPanel] = useState(false);
@@ -156,6 +158,30 @@ export default function DiagnosticReportInput({
   const [photoAnalysis, setPhotoAnalysis] = useState(null);
   const [photoError, setPhotoError] = useState('');
   const MAX_PHOTOS = 6;
+
+  // ── 수정 모드: editingReport가 들어오면 폼 pre-fill ──
+  useEffect(() => {
+    if (!editingReport) return;
+    setStudentId(editingReport.studentId || '');
+    setTeacherId(editingReport.teacherId || '');
+    setAttendance(editingReport.attendance || '정시');
+    setArrivalTime(editingReport.arrivalTime || '15:30');
+    setHomeworkRating(editingReport.homeworkRating || 0);
+    setConceptRating(editingReport.conceptRating || 0);
+    setHasTest(editingReport.hasTest || false);
+    setTestName(editingReport.testName || '');
+    setTestScore(editingReport.testScore || '');
+    setTextbook(editingReport.textbook || '');
+    setUnit(editingReport.unit || '');
+    setPages(editingReport.pages || '');
+    setSelectedTags(editingReport.diagnosis || []);
+    setTeacherNote(editingReport.teacherNote || '');
+    setAiPolishedNote('');
+    setNextPlan(editingReport.nextPlan || '');
+    setNextPlanDetail(editingReport.nextPlanDetail || '');
+    setPhotos([]);
+    setPhotoAnalysis(editingReport.photoAnalysis || null);
+  }, [editingReport]);
 
   // 강사 1명이면 자동 선택
   useEffect(() => {
@@ -307,6 +333,7 @@ setAiPolishedNote(data.result);
       }
 
       const reportPayload = {
+        ...(editingReport ? { id: editingReport.id } : {}),
         studentId, studentName: student?.name,
         teacherId, teacherName: teacher?.name,
         attendance, arrivalTime,
@@ -329,7 +356,12 @@ setAiPolishedNote(data.result);
       setSelectedTags([]); setTeacherNote(''); setAiPolishedNote('');
       setNextPlan(''); setNextPlanDetail('');
       removeAllPhotos();
-      alert('리포트가 저장됐습니다!');
+      if (editingReport) {
+        onEditDone();
+        alert('리포트가 수정됐습니다!');
+      } else {
+        alert('리포트가 저장됐습니다!');
+      }
     } catch (e) {
       console.error('리포트 저장 오류:', e);
       alert('저장 중 오류가 발생했습니다.');
@@ -345,6 +377,27 @@ setAiPolishedNote(data.result);
       padding: '20px',
       color: TOKENS.text,
     }}>
+      {/* 수정 모드 배너 */}
+      {editingReport && (
+        <div style={{
+          maxWidth: '1100px', margin: '0 auto 16px',
+          background: '#FFF8E7', border: '1.5px solid #F5A623', borderRadius: '10px',
+          padding: '12px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+        }}>
+          <div>
+            <p style={{ fontSize: '12px', fontWeight: 800, color: '#7A5200', margin: 0 }}>
+              수정 모드 — {editingReport.studentName} 리포트를 수정 중입니다
+            </p>
+            <p style={{ fontSize: '11px', color: '#9A6800', margin: '2px 0 0' }}>
+              내용을 수정한 뒤 저장하면 기존 리포트가 업데이트됩니다.
+            </p>
+          </div>
+          <button onClick={() => { onEditDone(); setStudentId(''); }}
+            style={{ background: 'none', border: '1px solid #F5A623', borderRadius: '6px', padding: '5px 12px', fontSize: '11px', fontWeight: 700, color: '#7A5200', cursor: 'pointer' }}>
+            취소
+          </button>
+        </div>
+      )}
       <div style={{
         maxWidth: '1100px', margin: '0 auto',
         display: 'grid',
