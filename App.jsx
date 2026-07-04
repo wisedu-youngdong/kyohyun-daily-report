@@ -697,8 +697,7 @@ function HistoryView({ reports, students, onDelete, onEdit }) {
                       <p style={{ fontSize: '15px', fontWeight: 700, margin: 0 }}>{r.studentName}</p>
                       {r.photoUrls?.length > 0 && <span style={{ fontSize: '11px' }}>📷{r.photoUrls.length}</span>}
                     </div>
-                    <p style={{ fontSize: '11px', color: '#6B7280', margin: '2px 0 0', fontWeight: 500 }}>{date} · {r.teacherName}</p>
-                  </div>
+                    <p style={{ fontSize: '11px', color: '#6B7280', margin: '2px 0 0', fontWeight: 500 }}>{date} · {r.teacherName}</p>                  </div>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <span style={{ fontSize: '20px' }}>{RATING_EMOJI[r.homeworkRating] || ''}</span>
                     <button
@@ -777,6 +776,12 @@ function ReportPreviewModal({ report: r, allReports, onClose, onDelete, onEdit }
             <p style={{ fontSize: '11px', color: '#6B7280', margin: '2px 0 0' }}>{date} · {r.teacherName}</p>
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={() => {
+              const url = `${window.location.origin}/report/${r.id}`;
+              navigator.clipboard.writeText(url).then(() => alert('링크가 복사됐습니다!\n카톡에 붙여넣기 하세요.'));
+            }} style={{ background: '#1A5CB8', color: '#fff', border: 'none', borderRadius: '9px', padding: '7px 14px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+              링크 복사
+            </button>
             <button onClick={handleDownload} disabled={downloading} style={{ background: '#0F6E56', color: '#fff', border: 'none', borderRadius: '9px', padding: '7px 14px', fontSize: '12px', fontWeight: 700, cursor: downloading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
               {downloading ? '저장 중...' : '📥 이미지 저장'}
             </button>

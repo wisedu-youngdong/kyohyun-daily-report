@@ -987,7 +987,7 @@ function TeacherPanel({ teachers, onAdd, onDelete, onClose }) {
 const AVATAR_BASE = "/avatars";
 
 // 커스텀 컬러 → SKINS 형식으로 변환
-function deriveColorsToSkin(mainHex) {
+export function deriveColorsToSkin(mainHex) {
   const r = parseInt(mainHex.slice(1,3),16);
   const g = parseInt(mainHex.slice(3,5),16);
   const b = parseInt(mainHex.slice(5,7),16);
