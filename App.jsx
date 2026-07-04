@@ -1352,10 +1352,13 @@ function MonthlyReportModal({ student, reports, allReports, periodLabel, onClose
 
           {/* 표지 헤더 — 단색 네이비, 그라디언트 없음 */}
           <div style={{ background: DS.navy900, padding: '24px 28px', marginBottom: '28px', position: 'relative' }}>
-            {/* 발행 주체 (로고 자리 — 추후 SVG로 교체) */}
-            <p style={{ fontSize: '10px', fontWeight: 700, color: DS.gold, margin: '0 0 16px', letterSpacing: '0.18em' }}>
-              와이즈에듀 교현학원
-            </p>
+            {/* 발행 주체 — 실제 로고 이미지 */}
+            <img
+              src="/logo_white.png"
+              alt="와이즈에듀 교현학원"
+              crossOrigin="anonymous"
+              style={{ height: '36px', width: 'auto', marginBottom: '16px', display: 'block' }}
+            />
             {/* 학생명 */}
             <p style={{ fontFamily: DS.serif, fontSize: '26px', fontWeight: 700, color: '#fff', margin: '0 0 4px', letterSpacing: '-0.02em' }}>
               {student?.name}
