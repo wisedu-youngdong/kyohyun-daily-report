@@ -1209,6 +1209,14 @@ function MonthlyReportModal({ student, reports, allReports, periodLabel, onClose
   const totalPoints = fullSorted.reduce((sum, r) => sum + (r.points ?? calculateReportPoints(r)), 0);
   const stageInfo = getStageInfo(totalPoints);
 
+  // ── ② 기준선: 이전 기간(선택 기간 시작 전) 본인 평균 — "지난 기간의 나"와 비교 ──
+  const periodStartTs = sorted[0]?.createdAt?.seconds || 0;
+  const prevReports = fullSorted.filter(r => (r.createdAt?.seconds || 0) < periodStartTs);
+  const prevConceptAvg = prevReports.length
+    ? Math.round(prevReports.reduce((s, r) => s + (r.conceptRating || 0), 0) / prevReports.length * 10) / 10
+    : null;
+  const conceptDelta = prevConceptAvg !== null ? Math.round((conceptAvg - prevConceptAvg) * 10) / 10 : null;
+
   // ── 실측 추이 (개념이해도 + 시험점수) — 학부모에게 보이는 '증명' 그래프 ──
   const TAG_LABELS_LOCAL = { calc: '계산 실수', concept: '개념 누락', apply: '응용 부족', time: '시간 부족', perfect: '개념 완벽' };
   const tagCount = {};
@@ -1224,6 +1232,23 @@ function MonthlyReportModal({ student, reports, allReports, periodLabel, onClose
   const bestConceptReport = sorted.reduce((best, r) => ((r.conceptRating || 0) > (best?.conceptRating || 0) ? r : best), null);
   const unitsCovered = [...new Set(sorted.map(unitOf))];
   const allAttended = sorted.length > 0 && sorted.every(r => r.attendance === '정시');
+
+  // ── ① 한 줄 평가 헤드라인: [진행 단원] · [추세] · [액션] 3어절 구조 ──
+  const headlineParts = [];
+  if (sorted.length > 0) {
+    const lastUnit = sorted[sorted.length - 1]?.unit || sorted[sorted.length - 1]?.textbook || '';
+    if (lastUnit) headlineParts.push(`${lastUnit} 진행 중`);
+    if (conceptDelta !== null && Math.abs(conceptDelta) >= 0.3) {
+      headlineParts.push(conceptDelta > 0 ? `개념이해 상승세 (+${conceptDelta})` : `개념이해 주춤 (${conceptDelta})`);
+    } else if (conceptAvg >= 4.5) {
+      headlineParts.push('개념이해 최상위 유지');
+    } else if (conceptAvg >= 4) {
+      headlineParts.push('개념이해 안정적');
+    }
+    if (topTag) headlineParts.push(`${TAG_LABELS_LOCAL[topTag[0]]} 보강 필요`);
+    else if (perfectTag) headlineParts.push('약점 없음');
+  }
+  const headline = headlineParts.slice(0, 3).join(' · ');
 
   // 인용 가능한 선생님 코멘트 한 문장 발췌 (가장 최근 노트에서 첫 문장)
   const notesWithText = sorted.filter(r => r.teacherNote);
@@ -1310,6 +1335,14 @@ function MonthlyReportModal({ student, reports, allReports, periodLabel, onClose
             <p style={{ fontSize: '12px', margin: 0, opacity: 0.85, textAlign: 'center' }}>{periodLabel} · {student?.school}</p>
           </div>
 
+          {/* ① 이번 기간 한 줄 평가 — 3초 스크롤 학부모용 결론 */}
+          {headline && (
+            <div style={{ background: '#FFF8E7', border: '1.5px solid #F5A623', borderRadius: '12px', padding: '12px 16px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '18px', flexShrink: 0 }}>📌</span>
+              <p style={{ fontSize: '13px', fontWeight: 800, color: '#7A5200', margin: 0, lineHeight: 1.5 }}>{headline}</p>
+            </div>
+          )}
+
           {/* 핵심 지표 */}
           <div style={{ display: 'grid', gridTemplateColumns: testAvg !== null ? '1fr 1fr 1fr 1fr' : '1fr 1fr 1fr', gap: '8px', marginBottom: '16px' }}>
             <div style={{ background: '#F0F7FC', borderRadius: '12px', padding: '12px', textAlign: 'center' }}>
@@ -1334,19 +1367,53 @@ function MonthlyReportModal({ student, reports, allReports, periodLabel, onClose
 
           {/* ★ 실력 성장 추이 — 메인 증명 그래프 (오르내림 있는 실측 데이터) */}
           <div style={{ background: '#fff', border: '1.5px solid #185FA5', borderRadius: '14px', padding: '16px', marginBottom: '16px' }}>
-            <p style={{ fontSize: '13px', fontWeight: 800, margin: '0 0 4px', color: '#0C447C' }}>📈 실력 성장 추이</p>
-            <p style={{ fontSize: '10px', color: '#6B7280', margin: '0 0 12px', lineHeight: 1.5 }}>
-              매 수업 측정한 개념이해도(5점 만점) 실제 점수입니다. 오르내림이 자연스러우며, 전체 흐름과 최근 방향이 중요합니다.
-            </p>
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '6px', height: '90px' }}>
-              {sorted.map((r, i) => (
-                <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
-                  <span style={{ fontSize: '9px', fontWeight: 700, color: '#185FA5', marginBottom: '2px' }}>{r.conceptRating || 0}</span>
-                  <div style={{ width: '100%', maxWidth: '18px', height: `${((r.conceptRating || 0) / 5) * 70}px`, background: '#185FA5', borderRadius: '3px 3px 0 0' }} />
-                  <span style={{ fontSize: '8px', color: '#9CA3AF', marginTop: '4px' }}>{fmtDate(r)}</span>
-                </div>
-              ))}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+              <p style={{ fontSize: '13px', fontWeight: 800, margin: 0, color: '#0C447C' }}>📈 실력 성장 추이</p>
+              {conceptDelta !== null && (
+                <span style={{
+                  fontSize: '11px', fontWeight: 800, padding: '3px 10px', borderRadius: '12px',
+                  background: conceptDelta >= 0 ? '#E1F5EE' : '#FCEBEB',
+                  color: conceptDelta >= 0 ? '#0F6E56' : '#A32D2D',
+                }}>
+                  지난 기간 대비 {conceptDelta > 0 ? '+' : ''}{conceptDelta}점
+                </span>
+              )}
             </div>
+            <p style={{ fontSize: '10px', color: '#6B7280', margin: '0 0 12px', lineHeight: 1.5 }}>
+              매 수업 측정한 개념이해도(5점 만점) 실제 점수입니다.{prevConceptAvg !== null ? ` 회색 점선은 지난 기간 본인 평균(${prevConceptAvg}점) — 이 선보다 위에 있으면 이전보다 성장한 것입니다.` : ' 오르내림이 자연스러우며, 전체 흐름과 최근 방향이 중요합니다.'}
+            </p>
+            <div style={{ position: 'relative' }}>
+              {prevConceptAvg !== null && (
+                <div style={{
+                  position: 'absolute', left: 0, right: 0,
+                  bottom: `${16 + (prevConceptAvg / 5) * 70}px`,
+                  borderTop: '2px dashed #9CA3AF', zIndex: 1,
+                }}>
+                  <span style={{
+                    position: 'absolute', right: 0, top: '-16px',
+                    fontSize: '9px', fontWeight: 700, color: '#6B7280',
+                    background: '#fff', padding: '0 4px',
+                  }}>지난 기간 평균 {prevConceptAvg}</span>
+                </div>
+              )}
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '6px', height: '90px', position: 'relative' }}>
+                {sorted.map((r, i) => (
+                  <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
+                    <span style={{ fontSize: '9px', fontWeight: 700, color: '#185FA5', marginBottom: '2px' }}>{r.conceptRating || 0}</span>
+                    <div style={{
+                      width: '100%', maxWidth: '18px',
+                      height: `${((r.conceptRating || 0) / 5) * 70}px`,
+                      background: prevConceptAvg !== null && (r.conceptRating || 0) >= prevConceptAvg ? '#185FA5' : '#A8C6E4',
+                      borderRadius: '3px 3px 0 0'
+                    }} />
+                    <span style={{ fontSize: '8px', color: '#9CA3AF', marginTop: '4px' }}>{fmtDate(r)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {prevConceptAvg !== null && (
+              <p style={{ fontSize: '9px', color: '#9CA3AF', margin: '6px 0 0' }}>진한 막대 = 지난 기간 평균 이상 · 연한 막대 = 평균 미만</p>
+            )}
             {testReports.length >= 1 && (
               <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px dashed #E5E7EB' }}>
                 <p style={{ fontSize: '10px', fontWeight: 700, color: '#0F6E56', margin: '0 0 8px' }}>시험 점수 추이 (100점 만점)</p>
