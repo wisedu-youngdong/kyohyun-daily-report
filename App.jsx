@@ -1301,127 +1301,180 @@ function MonthlyReportModal({ student, reports, allReports, periodLabel, onClose
     setDownloading(false);
   };
 
+  // ── 디자인 시스템 v1 토큰 ──
+  const DS = {
+    navy900: '#0D2D6B', navy700: '#1A5CB8', navy100: '#EAF0F9',
+    gold: '#C9A227',
+    positive: '#1E6B4E', caution: '#8A5A00', negative: '#8C2B2B',
+    ink: '#1A1A1A', inkSub: '#5A6472', inkMute: '#98A1AC',
+    rule: '#D8DDE4', paper: '#FFFFFF', paperWarm: '#FAF9F6',
+    serif: "'Noto Serif KR', serif",
+    body: "'Pretendard Variable', Pretendard, sans-serif",
+  };
+
+  // 섹션 제목 컴포넌트 스타일 (Serif + 골드 헤어라인)
+  const SectionTitle = ({ children }) => (
+    <div style={{ marginBottom: '14px' }}>
+      <p style={{ fontFamily: DS.serif, fontSize: '15px', fontWeight: 700, color: DS.ink, margin: '0 0 6px', letterSpacing: '-0.01em' }}>{children}</p>
+      <div style={{ width: '32px', height: '2px', background: DS.gold }} />
+    </div>
+  );
+
+  // 발행일
+  const today = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px', backdropFilter: 'blur(4px)' }}
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px', backdropFilter: 'blur(4px)' }}
       onClick={onClose}>
-      <div style={{ background: '#fff', borderRadius: '18px', width: '100%', maxWidth: '640px', maxHeight: '85vh', overflow: 'auto', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}
+      <div style={{ background: DS.paper, borderRadius: '6px', width: '100%', maxWidth: '640px', maxHeight: '88vh', overflow: 'auto', fontFamily: DS.body, boxShadow: '0 24px 64px rgba(0,0,0,0.25)' }}
         onClick={(e) => e.stopPropagation()}>
 
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, background: '#fff', zIndex: 10 }}>
+        {/* 조작 바 (캡처 영역 밖) */}
+        <div style={{ padding: '14px 20px', borderBottom: `1px solid ${DS.rule}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, background: DS.paper, zIndex: 10 }}>
           <div>
-            <p style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>{student?.name} 종합 리포트</p>
-            <p style={{ fontSize: '11px', color: '#6B7280', margin: '2px 0 0' }}>{periodLabel} · {sorted.length}건</p>
+            <p style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: DS.ink }}>{student?.name} 종합 리포트</p>
+            <p style={{ fontSize: '11px', color: DS.inkMute, margin: '2px 0 0', letterSpacing: '0.03em' }}>{periodLabel} · {sorted.length}회 수업</p>
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
-            <button onClick={handleDownload} disabled={downloading} style={{ background: '#0F6E56', color: '#fff', border: 'none', borderRadius: '9px', padding: '7px 14px', fontSize: '12px', fontWeight: 700, cursor: downloading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
-              {downloading ? '저장 중...' : '📥 이미지 저장'}
+            <button onClick={handleDownload} disabled={downloading} style={{
+              background: DS.navy900, color: '#fff', border: 'none', borderRadius: '4px',
+              padding: '7px 16px', fontSize: '12px', fontWeight: 700,
+              cursor: downloading ? 'not-allowed' : 'pointer', fontFamily: DS.body, letterSpacing: '0.03em'
+            }}>
+              {downloading ? '저장 중...' : '이미지 저장'}
             </button>
-            <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '20px', color: '#6B7280', cursor: 'pointer' }}>×</button>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '20px', color: DS.inkMute, cursor: 'pointer', lineHeight: 1 }}>×</button>
           </div>
         </div>
 
-        <div ref={cardRef} style={{ padding: '24px', background: '#fff' }}>
-          {/* 표지 헤더 — 성장 배지는 우측 상단에 소형으로만 (동기부여용, 증명용 아님) */}
-          <div style={{ background: 'linear-gradient(135deg, #185FA5, #0C447C)', borderRadius: '16px', padding: '20px', marginBottom: '16px', color: '#fff', position: 'relative' }}>
+        {/* ─── 캡처 대상 문서 영역 ─── */}
+        <div ref={cardRef} style={{ padding: '32px 28px', background: DS.paper }}>
+
+          {/* 표지 헤더 — 단색 네이비, 그라디언트 없음 */}
+          <div style={{ background: DS.navy900, padding: '24px 28px', marginBottom: '28px', position: 'relative' }}>
+            {/* 발행 주체 (로고 자리 — 추후 SVG로 교체) */}
+            <p style={{ fontSize: '10px', fontWeight: 700, color: DS.gold, margin: '0 0 16px', letterSpacing: '0.18em' }}>
+              와이즈에듀 교현학원
+            </p>
+            {/* 학생명 */}
+            <p style={{ fontFamily: DS.serif, fontSize: '26px', fontWeight: 700, color: '#fff', margin: '0 0 4px', letterSpacing: '-0.02em' }}>
+              {student?.name}
+            </p>
+            <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.65)', margin: 0 }}>{student?.school} · {periodLabel}</p>
+            {/* 골드 헤어라인 */}
+            <div style={{ width: '100%', height: '1px', background: DS.gold, marginTop: '20px', opacity: 0.6 }} />
+            {/* 성장 단계 — 우측 상단 소형, 텍스트만 (이모지 제거) */}
             <div style={{
-              position: 'absolute', top: '14px', right: '14px', background: 'rgba(255,255,255,0.15)',
-              borderRadius: '20px', padding: '5px 12px', display: 'flex', alignItems: 'center', gap: '5px'
+              position: 'absolute', top: '24px', right: '28px',
+              border: `1px solid rgba(201,162,39,0.5)`, borderRadius: '3px',
+              padding: '4px 10px', textAlign: 'center'
             }}>
-              <span style={{ fontSize: '14px' }}>{stageInfo.current.icon}</span>
-              <span style={{ fontSize: '10px', fontWeight: 700 }}>{stageInfo.current.label} · {stageInfo.totalPoints}P</span>
+              <p style={{ fontSize: '9px', color: DS.gold, margin: '0 0 1px', letterSpacing: '0.1em', fontWeight: 700 }}>성장 단계</p>
+              <p style={{ fontSize: '12px', fontWeight: 700, color: '#fff', margin: 0 }}>{stageInfo.current.label} · {stageInfo.totalPoints}P</p>
             </div>
-            <p style={{ fontSize: '10px', letterSpacing: '0.2em', margin: '0 0 6px', opacity: 0.8, fontWeight: 700, textAlign: 'center' }}>교현학원 종합 리포트</p>
-            <p style={{ fontSize: '22px', fontWeight: 800, margin: '0 0 4px', textAlign: 'center' }}>{student?.name} 학생</p>
-            <p style={{ fontSize: '12px', margin: 0, opacity: 0.85, textAlign: 'center' }}>{periodLabel} · {student?.school}</p>
           </div>
 
-          {/* ① 이번 기간 한 줄 평가 — 3초 스크롤 학부모용 결론 */}
+          {/* ① 한 줄 평가 (DB 충분할 때 내용이 채워짐) */}
           {headline && (
-            <div style={{ background: '#FFF8E7', border: '1.5px solid #F5A623', borderRadius: '12px', padding: '12px 16px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '18px', flexShrink: 0 }}>📌</span>
-              <p style={{ fontSize: '13px', fontWeight: 800, color: '#7A5200', margin: 0, lineHeight: 1.5 }}>{headline}</p>
+            <div style={{ borderLeft: `3px solid ${DS.gold}`, paddingLeft: '14px', marginBottom: '28px' }}>
+              <p style={{ fontSize: '10px', fontWeight: 700, color: DS.gold, margin: '0 0 4px', letterSpacing: '0.1em' }}>이번 기간 핵심</p>
+              <p style={{ fontFamily: DS.serif, fontSize: '14px', fontWeight: 700, color: DS.ink, margin: 0, lineHeight: 1.5 }}>{headline}</p>
             </div>
           )}
 
-          {/* 핵심 지표 */}
-          <div style={{ display: 'grid', gridTemplateColumns: testAvg !== null ? '1fr 1fr 1fr 1fr' : '1fr 1fr 1fr', gap: '8px', marginBottom: '16px' }}>
-            <div style={{ background: '#F0F7FC', borderRadius: '12px', padding: '12px', textAlign: 'center' }}>
-              <p style={{ fontSize: '10px', color: '#185FA5', fontWeight: 700, margin: '0 0 4px' }}>총 수업</p>
-              <p style={{ fontSize: '18px', fontWeight: 800, margin: 0 }}>{sorted.length}회</p>
+          {/* 핵심 지표 — 흰 배경 + 상단 룰, 이모지 없음 */}
+          <div style={{ marginBottom: '28px' }}>
+            <SectionTitle>수업 성과 요약</SectionTitle>
+            <div style={{ display: 'grid', gridTemplateColumns: testAvg !== null ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)', gap: '0' }}>
+              {[
+                { label: '총  수  업', value: `${sorted.length}회` },
+                { label: '과제 평균', value: `${homeworkAvg}점` },
+                { label: '개념 평균', value: `${conceptAvg}점` },
+                ...(testAvg !== null ? [{ label: '시험 평균', value: `${testAvg}점` }] : []),
+              ].map((item, i, arr) => (
+                <div key={i} style={{
+                  padding: '14px 12px',
+                  borderTop: `1px solid ${DS.rule}`,
+                  borderBottom: `1px solid ${DS.rule}`,
+                  borderRight: i < arr.length - 1 ? `1px solid ${DS.rule}` : 'none',
+                  textAlign: 'center',
+                }}>
+                  <p style={{ fontSize: '10px', fontWeight: 700, color: DS.inkMute, margin: '0 0 6px', letterSpacing: '0.06em' }}>{item.label}</p>
+                  <p style={{ fontSize: '22px', fontWeight: 800, color: DS.navy900, margin: 0, fontVariantNumeric: 'tabular-nums' }}>{item.value}</p>
+                </div>
+              ))}
             </div>
-            <div style={{ background: '#F0F7FC', borderRadius: '12px', padding: '12px', textAlign: 'center' }}>
-              <p style={{ fontSize: '10px', color: '#185FA5', fontWeight: 700, margin: '0 0 4px' }}>과제 평균</p>
-              <p style={{ fontSize: '18px', fontWeight: 800, margin: 0 }}>{homeworkAvg}점</p>
-            </div>
-            <div style={{ background: '#F0F7FC', borderRadius: '12px', padding: '12px', textAlign: 'center' }}>
-              <p style={{ fontSize: '10px', color: '#185FA5', fontWeight: 700, margin: '0 0 4px' }}>개념 평균</p>
-              <p style={{ fontSize: '18px', fontWeight: 800, margin: 0 }}>{conceptAvg}점</p>
-            </div>
-            {testAvg !== null && (
-              <div style={{ background: '#F0F7FC', borderRadius: '12px', padding: '12px', textAlign: 'center' }}>
-                <p style={{ fontSize: '10px', color: '#185FA5', fontWeight: 700, margin: '0 0 4px' }}>시험 평균</p>
-                <p style={{ fontSize: '18px', fontWeight: 800, margin: 0 }}>{testAvg}점</p>
-              </div>
-            )}
           </div>
 
-          {/* ★ 실력 성장 추이 — 메인 증명 그래프 (오르내림 있는 실측 데이터) */}
-          <div style={{ background: '#fff', border: '1.5px solid #185FA5', borderRadius: '14px', padding: '16px', marginBottom: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-              <p style={{ fontSize: '13px', fontWeight: 800, margin: 0, color: '#0C447C' }}>📈 실력 성장 추이</p>
+          {/* ② 실력 성장 추이 — 메인 증명 그래프 */}
+          <div style={{ marginBottom: '28px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '14px' }}>
+              <div>
+                <p style={{ fontFamily: DS.serif, fontSize: '15px', fontWeight: 700, color: DS.ink, margin: '0 0 6px' }}>실력 성장 추이</p>
+                <div style={{ width: '32px', height: '2px', background: DS.gold }} />
+              </div>
               {conceptDelta !== null && (
-                <span style={{
-                  fontSize: '11px', fontWeight: 800, padding: '3px 10px', borderRadius: '12px',
-                  background: conceptDelta >= 0 ? '#E1F5EE' : '#FCEBEB',
-                  color: conceptDelta >= 0 ? '#0F6E56' : '#A32D2D',
+                <div style={{
+                  textAlign: 'right',
+                  borderLeft: `2px solid ${conceptDelta >= 0 ? DS.positive : DS.negative}`,
+                  paddingLeft: '10px',
                 }}>
-                  지난 기간 대비 {conceptDelta > 0 ? '+' : ''}{conceptDelta}점
-                </span>
+                  <p style={{ fontSize: '9px', color: DS.inkMute, margin: '0 0 2px', letterSpacing: '0.05em' }}>지난 기간 대비</p>
+                  <p style={{ fontSize: '16px', fontWeight: 800, color: conceptDelta >= 0 ? DS.positive : DS.negative, margin: 0, fontVariantNumeric: 'tabular-nums' }}>
+                    {conceptDelta > 0 ? '+' : ''}{conceptDelta}점
+                  </p>
+                </div>
               )}
             </div>
-            <p style={{ fontSize: '10px', color: '#6B7280', margin: '0 0 12px', lineHeight: 1.5 }}>
-              매 수업 측정한 개념이해도(5점 만점) 실제 점수입니다.{prevConceptAvg !== null ? ` 회색 점선은 지난 기간 본인 평균(${prevConceptAvg}점) — 이 선보다 위에 있으면 이전보다 성장한 것입니다.` : ' 오르내림이 자연스러우며, 전체 흐름과 최근 방향이 중요합니다.'}
+            <p style={{ fontSize: '10px', color: DS.inkMute, margin: '0 0 14px', lineHeight: 1.6 }}>
+              매 수업 측정한 개념이해도(5점 만점) 실제 점수.{prevConceptAvg !== null
+                ? ` 회색 점선은 지난 기간 본인 평균(${prevConceptAvg}점) — 이 선 위가 성장 구간입니다.`
+                : ' 오르내림이 자연스러우며 전체 흐름과 최근 방향이 중요합니다.'}
             </p>
-            <div style={{ position: 'relative' }}>
+            <div style={{ position: 'relative', borderBottom: `1px solid ${DS.rule}`, paddingBottom: '4px' }}>
               {prevConceptAvg !== null && (
                 <div style={{
                   position: 'absolute', left: 0, right: 0,
-                  bottom: `${16 + (prevConceptAvg / 5) * 70}px`,
-                  borderTop: '2px dashed #9CA3AF', zIndex: 1,
+                  bottom: `${4 + (prevConceptAvg / 5) * 70}px`,
+                  borderTop: `1.5px dashed ${DS.inkMute}`, zIndex: 1,
                 }}>
                   <span style={{
-                    position: 'absolute', right: 0, top: '-16px',
-                    fontSize: '9px', fontWeight: 700, color: '#6B7280',
-                    background: '#fff', padding: '0 4px',
-                  }}>지난 기간 평균 {prevConceptAvg}</span>
+                    position: 'absolute', right: 0, top: '-15px',
+                    fontSize: '9px', fontWeight: 700, color: DS.inkMute,
+                    background: DS.paper, padding: '0 4px',
+                  }}>이전 평균 {prevConceptAvg}</span>
                 </div>
               )}
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '6px', height: '90px', position: 'relative' }}>
-                {sorted.map((r, i) => (
-                  <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
-                    <span style={{ fontSize: '9px', fontWeight: 700, color: '#185FA5', marginBottom: '2px' }}>{r.conceptRating || 0}</span>
-                    <div style={{
-                      width: '100%', maxWidth: '18px',
-                      height: `${((r.conceptRating || 0) / 5) * 70}px`,
-                      background: prevConceptAvg !== null && (r.conceptRating || 0) >= prevConceptAvg ? '#185FA5' : '#A8C6E4',
-                      borderRadius: '3px 3px 0 0'
-                    }} />
-                    <span style={{ fontSize: '8px', color: '#9CA3AF', marginTop: '4px' }}>{fmtDate(r)}</span>
-                  </div>
-                ))}
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '6px', height: '86px' }}>
+                {sorted.map((r, i) => {
+                  const aboveBase = prevConceptAvg === null || (r.conceptRating || 0) >= prevConceptAvg;
+                  return (
+                    <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
+                      <span style={{ fontSize: '9px', fontWeight: 700, color: aboveBase ? DS.navy700 : DS.inkMute, marginBottom: '2px', fontVariantNumeric: 'tabular-nums' }}>{r.conceptRating || 0}</span>
+                      <div style={{
+                        width: '100%', maxWidth: '20px',
+                        height: `${((r.conceptRating || 0) / 5) * 70}px`,
+                        background: aboveBase ? DS.navy700 : DS.navy100,
+                        borderRadius: '2px 2px 0 0',
+                        borderTop: aboveBase ? `2px solid ${DS.navy900}` : `2px solid ${DS.inkMute}`,
+                      }} />
+                      <span style={{ fontSize: '8px', color: DS.inkMute, marginTop: '5px' }}>{fmtDate(r)}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
             {prevConceptAvg !== null && (
-              <p style={{ fontSize: '9px', color: '#9CA3AF', margin: '6px 0 0' }}>진한 막대 = 지난 기간 평균 이상 · 연한 막대 = 평균 미만</p>
+              <p style={{ fontSize: '9px', color: DS.inkMute, margin: '6px 0 0' }}>진한 막대 = 이전 평균 이상(성장 구간) · 연한 막대 = 이전 평균 미만</p>
             )}
             {testReports.length >= 1 && (
-              <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px dashed #E5E7EB' }}>
-                <p style={{ fontSize: '10px', fontWeight: 700, color: '#0F6E56', margin: '0 0 8px' }}>시험 점수 추이 (100점 만점)</p>
+              <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: `1px solid ${DS.rule}` }}>
+                <p style={{ fontSize: '10px', fontWeight: 700, color: DS.inkSub, margin: '0 0 10px', letterSpacing: '0.05em' }}>시험 점수 추이</p>
                 <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                   {testReports.map((r, i) => (
-                    <div key={i} style={{ background: '#E1F5EE', borderRadius: '8px', padding: '6px 10px', textAlign: 'center' }}>
-                      <p style={{ fontSize: '13px', fontWeight: 800, color: '#0F6E56', margin: 0 }}>{r.testScore}점</p>
-                      <p style={{ fontSize: '8px', color: '#6B7280', margin: '2px 0 0' }}>{fmtDate(r)} · {r.testName || '테스트'}</p>
+                    <div key={i} style={{ borderLeft: `2px solid ${DS.positive}`, paddingLeft: '10px' }}>
+                      <p style={{ fontSize: '18px', fontWeight: 800, color: DS.positive, margin: 0, fontVariantNumeric: 'tabular-nums' }}>{r.testScore}점</p>
+                      <p style={{ fontSize: '9px', color: DS.inkMute, margin: '2px 0 0' }}>{fmtDate(r)} · {r.testName || '테스트'}</p>
                     </div>
                   ))}
                 </div>
@@ -1429,69 +1482,78 @@ function MonthlyReportModal({ student, reports, allReports, periodLabel, onClose
             )}
           </div>
 
-          {/* 수업이력 테이블 */}
-          <div style={{ marginBottom: '16px' }}>
-            <p style={{ fontSize: '12px', fontWeight: 700, margin: '0 0 8px' }}>수업 이력</p>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px' }}>
+          {/* 수업 이력 표 */}
+          <div style={{ marginBottom: '28px' }}>
+            <SectionTitle>수업 이력</SectionTitle>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', fontVariantNumeric: 'tabular-nums' }}>
               <thead>
-                <tr style={{ background: '#F9FAFB' }}>
-                  {['날짜', '출결', '과제', '개념', '시험', '학습 단원'].map(h => (
-                    <th key={h} style={{ padding: '6px 4px', textAlign: 'left', fontWeight: 700, color: '#6B7280', borderBottom: '1.5px solid #E5E7EB' }}>{h}</th>
+                <tr style={{ background: DS.navy100 }}>
+                  {['날짜', '출결', '과제', '개념', ...(testReports.length > 0 ? ['시험'] : []), '학습 단원'].map(h => (
+                    <th key={h} style={{ padding: '7px 6px', textAlign: 'left', fontWeight: 700, color: DS.navy900, fontSize: '10px', letterSpacing: '0.05em', borderBottom: `1.5px solid ${DS.navy700}` }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {sorted.map((r, i) => (
-                  <tr key={i} style={{ borderBottom: '1px solid #F3F4F6' }}>
-                    <td style={{ padding: '6px 4px' }}>{fmtDate(r)}</td>
-                    <td style={{ padding: '6px 4px' }}>{r.attendance || '-'}</td>
-                    <td style={{ padding: '6px 4px' }}>{r.homeworkRating || 0}점</td>
-                    <td style={{ padding: '6px 4px' }}>{r.conceptRating || 0}점</td>
-                    <td style={{ padding: '6px 4px' }}>{r.hasTest && r.testScore ? `${r.testScore}점` : '-'}</td>
-                    <td style={{ padding: '6px 4px' }}>{unitOf(r)}</td>
+                  <tr key={i} style={{ borderBottom: `1px solid ${DS.rule}` }}>
+                    <td style={{ padding: '7px 6px', color: DS.inkSub }}>{fmtDate(r)}</td>
+                    <td style={{ padding: '7px 6px' }}>{r.attendance || '-'}</td>
+                    <td style={{ padding: '7px 6px', fontWeight: 600 }}>{r.homeworkRating || 0}점</td>
+                    <td style={{ padding: '7px 6px', fontWeight: 600 }}>{r.conceptRating || 0}점</td>
+                    {testReports.length > 0 && <td style={{ padding: '7px 6px', fontWeight: 600 }}>{r.hasTest && r.testScore ? `${r.testScore}점` : '-'}</td>}
+                    <td style={{ padding: '7px 6px', color: DS.inkSub }}>{unitOf(r)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
 
-          {/* 강점/보완 — 전부 날짜·단원 직접 인용 */}
+          {/* 강점 / 보완 — 좌측 컬러 룰, 배경 박스 없음 */}
           {(citedStrengths.length > 0 || citedWeaknesses.length > 0) && (
-            <div style={{ marginBottom: '16px' }}>
+            <div style={{ marginBottom: '28px' }}>
+              <SectionTitle>학습 분석</SectionTitle>
               {citedStrengths.length > 0 && (
-                <div style={{ background: '#E1F5EE', borderRadius: '12px', padding: '12px 14px', marginBottom: '8px' }}>
-                  <p style={{ fontSize: '11px', fontWeight: 700, color: '#0F6E56', margin: '0 0 6px' }}>✅ 강점</p>
-                  {citedStrengths.map((s, i) => <p key={i} style={{ fontSize: '11px', color: '#085041', margin: i > 0 ? '5px 0 0' : 0, lineHeight: 1.5 }}>{s}</p>)}
+                <div style={{ borderLeft: `3px solid ${DS.positive}`, paddingLeft: '14px', marginBottom: '16px' }}>
+                  <p style={{ fontSize: '10px', fontWeight: 700, color: DS.positive, margin: '0 0 8px', letterSpacing: '0.06em' }}>강점</p>
+                  {citedStrengths.map((s, i) => (
+                    <p key={i} style={{ fontSize: '12px', color: DS.ink, margin: i > 0 ? '6px 0 0' : 0, lineHeight: 1.65 }}>{s}</p>
+                  ))}
                 </div>
               )}
               {citedWeaknesses.length > 0 && (
-                <div style={{ background: '#FAEEDA', borderRadius: '12px', padding: '12px 14px' }}>
-                  <p style={{ fontSize: '11px', fontWeight: 700, color: '#854F0B', margin: '0 0 6px' }}>🔧 보완 포인트</p>
-                  {citedWeaknesses.map((s, i) => <p key={i} style={{ fontSize: '11px', color: '#633806', margin: i > 0 ? '5px 0 0' : 0, lineHeight: 1.5 }}>{s}</p>)}
+                <div style={{ borderLeft: `3px solid ${DS.caution}`, paddingLeft: '14px' }}>
+                  <p style={{ fontSize: '10px', fontWeight: 700, color: DS.caution, margin: '0 0 8px', letterSpacing: '0.06em' }}>보완 포인트</p>
+                  {citedWeaknesses.map((s, i) => (
+                    <p key={i} style={{ fontSize: '12px', color: DS.ink, margin: i > 0 ? '6px 0 0' : 0, lineHeight: 1.65 }}>{s}</p>
+                  ))}
                 </div>
               )}
             </div>
           )}
 
-          {/* 종합 피드백 — 커버한 단원 + 선생님 코멘트 발췌 인용 */}
-          <div style={{ background: '#F0F7FC', borderRadius: '14px', padding: '16px', marginBottom: '4px' }}>
-            <p style={{ fontSize: '11px', fontWeight: 700, color: '#185FA5', margin: '0 0 8px' }}>✦ 종합 피드백</p>
-            <p style={{ fontSize: '12px', color: '#1A1A1A', margin: 0, lineHeight: 1.7 }}>
+          {/* 종합 피드백 — 배경 박스 대신 구분선 위 단순 텍스트 */}
+          <div style={{ borderTop: `1px solid ${DS.rule}`, paddingTop: '20px', marginBottom: '4px' }}>
+            <SectionTitle>종합 피드백</SectionTitle>
+            <p style={{ fontSize: '12px', color: DS.ink, margin: 0, lineHeight: 1.8 }}>
               {periodLabel} 동안 {unitsCovered.slice(0, 3).join(', ')}{unitsCovered.length > 3 ? ' 등' : ''}을 학습했습니다.
               {bestConceptReport && ` 특히 ${fmtDate(bestConceptReport)} 수업(${unitOf(bestConceptReport)})에서 가장 높은 이해도를 보였습니다.`}
               {topTag && ` 다만 '${TAG_LABELS_LOCAL[topTag[0]]}' 패턴이 반복 관찰되어 ${unitOf(tagFirstExample[topTag[0]])} 관련 복습이 필요합니다.`}
             </p>
+            {/* 선생님 코멘트 발췌 — 골드 룰 인용구 */}
             {quoteSentence && (
-              <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #C7DDF0' }}>
-                <p style={{ fontSize: '11px', color: '#185FA5', margin: 0, fontStyle: 'italic', lineHeight: 1.6 }}>
-                  "{quoteSentence}" — {fmtDate(quoteSource)} 담당 선생님
+              <div style={{ borderLeft: `2px solid ${DS.gold}`, paddingLeft: '14px', marginTop: '16px' }}>
+                <p style={{ fontFamily: DS.serif, fontSize: '12px', color: DS.inkSub, margin: 0, lineHeight: 1.7, fontStyle: 'italic' }}>
+                  "{quoteSentence}"
                 </p>
+                <p style={{ fontSize: '10px', color: DS.inkMute, margin: '4px 0 0' }}>{fmtDate(quoteSource)} 담당 선생님</p>
               </div>
             )}
           </div>
 
-          <div style={{ textAlign: 'center', padding: '12px 0 0', borderTop: '1px solid #E5E7EB', marginTop: '12px' }}>
-            <p style={{ fontSize: '11px', color: '#9CA3AF', margin: 0 }}>교현학원 · 031-707-0591</p>
+          {/* 푸터 — 발행 주체 + 발행일 */}
+          <div style={{ marginTop: '24px', paddingTop: '14px', borderTop: `1px solid ${DS.rule}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <p style={{ fontSize: '10px', color: DS.inkMute, margin: 0, letterSpacing: '0.04em' }}>와이즈에듀 교현학원 · 031-707-0591</p>
+            <p style={{ fontSize: '10px', color: DS.inkMute, margin: 0 }}>발행일 {today}</p>
           </div>
         </div>
       </div>
