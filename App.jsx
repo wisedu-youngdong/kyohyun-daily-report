@@ -1797,11 +1797,165 @@ function MonthlyReportModal({ student, reports, allReports, periodLabel, onClose
 // ============================================================
 // 원장 보고서 뷰
 // ============================================================
+// ============================================================
+// 학생 종합 프로필 모달 — 상담용
+// ============================================================
+function StudentProfileModal({ student, reports, onClose, DIAG_MAP }) {
+  const sorted = [...reports].sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+  const recent = sorted.slice(-10); // 최근 10회
+
+  const avgConcept = sorted.length ? Math.round(sorted.reduce((s, r) => s + (r.conceptRating || 0), 0) / sorted.length * 10) / 10 : 0;
+  const avgHomework = sorted.length ? Math.round(sorted.reduce((s, r) => s + (r.homeworkRating || 0), 0) / sorted.length * 10) / 10 : 0;
+  const attendanceRate = sorted.length ? Math.round(sorted.filter(r => r.attendance === '정시').length / sorted.length * 100) : 0;
+
+  // 약점 집계
+  const diagCount = {};
+  sorted.forEach(r => (r.diagnosis || []).forEach(d => {
+    if (d.key !== 'perfect') diagCount[d.key] = (diagCount[d.key] || 0) + 1;
+  }));
+  const weakTop3 = Object.entries(diagCount).sort((a, b) => b[1] - a[1]).slice(0, 3);
+
+  // 최근 학습 단원 목록
+  const unitHistory = [...new Set(sorted.map(r => [r.textbook, r.unit].filter(Boolean).join(' · ')).filter(Boolean))].slice(-5).reverse();
+
+  const fmtDate = (r) => r.createdAt?.seconds
+    ? new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })
+    : '';
+
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px', backdropFilter: 'blur(4px)' }}
+      onClick={onClose}>
+      <div style={{ background: '#fff', borderRadius: '12px', width: '100%', maxWidth: '620px', maxHeight: '88vh', overflow: 'auto', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}
+        onClick={e => e.stopPropagation()}>
+
+        {/* 모달 헤더 */}
+        <div style={{ background: '#0D2D6B', padding: '18px 22px', position: 'relative' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+            <div style={{ width: '4px', height: '18px', background: '#C9A227', borderRadius: '0', flexShrink: 0 }} />
+            <span style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.6)', letterSpacing: '0.15em' }}>와이즈에듀 교현학원 · 학생 종합 프로필</span>
+          </div>
+          <p style={{ fontFamily: "'Noto Serif KR', serif", fontSize: '22px', fontWeight: 700, color: '#fff', margin: '0 0 4px' }}>{student.name}</p>
+          <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.55)', margin: 0 }}>총 {sorted.length}회 수업 누적</p>
+          <button onClick={onClose} style={{ position: 'absolute', top: '16px', right: '18px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: '22px', cursor: 'pointer', lineHeight: 1 }}>×</button>
+        </div>
+
+        <div style={{ padding: '20px 22px' }}>
+
+          {/* 핵심 지표 */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px', marginBottom: '20px' }}>
+            {[
+              { label: '개념 이해 평균', value: `${avgConcept}점`, color: avgConcept >= 4 ? '#0F6E56' : avgConcept >= 3 ? '#8A5A00' : '#A32D2D' },
+              { label: '과제 수행 평균', value: `${avgHomework}점`, color: avgHomework >= 4 ? '#0F6E56' : '#8A5A00' },
+              { label: '정시 출석률', value: `${attendanceRate}%`, color: attendanceRate >= 90 ? '#0F6E56' : attendanceRate >= 70 ? '#8A5A00' : '#A32D2D' },
+            ].map((item, i) => (
+              <div key={i} style={{ border: '0.5px solid #E8E6E0', borderRadius: '10px', padding: '12px', textAlign: 'center' }}>
+                <p style={{ fontSize: '10px', color: '#98A1AC', margin: '0 0 4px', letterSpacing: '0.06em' }}>{item.label}</p>
+                <p style={{ fontSize: '22px', fontWeight: 800, color: item.color, margin: 0, fontVariantNumeric: 'tabular-nums' }}>{item.value}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* 개념 이해도 추이 */}
+          <div style={{ marginBottom: '20px' }}>
+            <p style={{ fontFamily: "'Noto Serif KR', serif", fontSize: '14px', fontWeight: 700, margin: '0 0 6px', color: '#1A1A1A' }}>개념 이해도 추이</p>
+            <div style={{ width: '32px', height: '2px', background: '#C9A227', marginBottom: '12px' }} />
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '5px', height: '80px', borderBottom: '1px solid #E8E6E0', paddingBottom: '4px' }}>
+              {recent.map((r, i) => (
+                <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
+                  <span style={{ fontSize: '9px', fontWeight: 700, color: (r.conceptRating >= 4) ? '#0F6E56' : (r.conceptRating <= 2 && r.conceptRating > 0) ? '#A32D2D' : '#1A5CB8', marginBottom: '2px' }}>{r.conceptRating || 0}</span>
+                  <div style={{ width: '100%', maxWidth: '20px', height: `${((r.conceptRating || 0) / 5) * 64}px`, background: (r.conceptRating >= 4) ? '#0F6E56' : (r.conceptRating <= 2 && r.conceptRating > 0) ? '#A32D2D' : '#1A5CB8', borderRadius: '2px 2px 0 0' }} />
+                  <span style={{ fontSize: '8px', color: '#98A1AC', marginTop: '4px' }}>{fmtDate(r)}</span>
+                </div>
+              ))}
+            </div>
+            <p style={{ fontSize: '10px', color: '#98A1AC', margin: '5px 0 0' }}>최근 {recent.length}회 수업 기준</p>
+          </div>
+
+          {/* 반복 약점 TOP3 */}
+          {weakTop3.length > 0 && (
+            <div style={{ marginBottom: '20px' }}>
+              <p style={{ fontFamily: "'Noto Serif KR', serif", fontSize: '14px', fontWeight: 700, margin: '0 0 6px', color: '#1A1A1A' }}>반복 약점 패턴</p>
+              <div style={{ width: '32px', height: '2px', background: '#C9A227', marginBottom: '12px' }} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {weakTop3.map(([key, count], i) => {
+                  const tag = DIAG_MAP[key];
+                  if (!tag) return null;
+                  return (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ background: tag.bg, color: '#fff', fontSize: '11px', fontWeight: 800, width: '20px', height: '20px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{i + 1}</div>
+                      <span style={{ background: tag.bg, color: '#fff', fontSize: '12px', fontWeight: 700, padding: '3px 10px', borderRadius: '20px', flexShrink: 0 }}>{tag.prefix} {tag.label}</span>
+                      <div style={{ flex: 1, height: '5px', background: '#F3F4F6', borderRadius: '4px', overflow: 'hidden' }}>
+                        <div style={{ width: `${(count / (weakTop3[0][1])) * 100}%`, height: '100%', background: tag.bg, borderRadius: '4px' }} />
+                      </div>
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: tag.bg, flexShrink: 0 }}>{count}회</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* 최근 학습 단원 */}
+          {unitHistory.length > 0 && (
+            <div style={{ marginBottom: '20px' }}>
+              <p style={{ fontFamily: "'Noto Serif KR', serif", fontSize: '14px', fontWeight: 700, margin: '0 0 6px', color: '#1A1A1A' }}>최근 학습 단원</p>
+              <div style={{ width: '32px', height: '2px', background: '#C9A227', marginBottom: '12px' }} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {unitHistory.map((unit, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: i === 0 ? '#0D2D6B' : '#D8DDE4', flexShrink: 0 }} />
+                    <p style={{ fontSize: '12px', color: i === 0 ? '#0D2D6B' : '#5A6472', fontWeight: i === 0 ? 700 : 400, margin: 0 }}>{unit}</p>
+                    {i === 0 && <span style={{ fontSize: '10px', background: '#EAF0F9', color: '#1A5CB8', padding: '1px 7px', borderRadius: '10px', fontWeight: 700 }}>최근</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 최근 선생님 코멘트 */}
+          {sorted.filter(r => r.teacherNote).length > 0 && (
+            <div style={{ marginBottom: '20px' }}>
+              <p style={{ fontFamily: "'Noto Serif KR', serif", fontSize: '14px', fontWeight: 700, margin: '0 0 6px', color: '#1A1A1A' }}>최근 선생님 코멘트</p>
+              <div style={{ width: '32px', height: '2px', background: '#C9A227', marginBottom: '12px' }} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {sorted.filter(r => r.teacherNote).slice(-3).reverse().map((r, i) => (
+                  <div key={i} style={{ borderLeft: '2px solid #C9A227', paddingLeft: '12px' }}>
+                    <p style={{ fontSize: '10px', color: '#98A1AC', margin: '0 0 3px' }}>{fmtDate(r)}</p>
+                    <p style={{ fontSize: '12px', color: '#5A6472', margin: 0, lineHeight: 1.7, fontStyle: 'italic' }}>"{r.teacherNote}"</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 원장님 상담 메모 */}
+          <div>
+            <p style={{ fontFamily: "'Noto Serif KR', serif", fontSize: '14px', fontWeight: 700, margin: '0 0 6px', color: '#1A1A1A' }}>원장님 상담 메모</p>
+            <div style={{ width: '32px', height: '2px', background: '#C9A227', marginBottom: '12px' }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {sorted.filter(r => r.directorMemo).slice(-3).reverse().map((r, i) => (
+                <div key={i} style={{ background: '#FFFDF0', border: '0.5px solid #F5D76E', borderRadius: '8px', padding: '10px 12px' }}>
+                  <p style={{ fontSize: '10px', color: '#8A5A00', margin: '0 0 3px' }}>{fmtDate(r)}</p>
+                  <p style={{ fontSize: '12px', color: '#1A1A1A', margin: 0, lineHeight: 1.6 }}>{r.directorMemo}</p>
+                </div>
+              ))}
+              {sorted.filter(r => r.directorMemo).length === 0 && (
+                <p style={{ fontSize: '12px', color: '#98A1AC', margin: 0 }}>저장된 상담 메모가 없습니다.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DirectorView({ reports, students }) {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [expandedId, setExpandedId] = useState(null);
   const [memos, setMemos] = useState({});
   const [savingMemo, setSavingMemo] = useState(null);
+  const [profileStudent, setProfileStudent] = useState(null); // 종합 프로필 모달
 
   const DIAG_MAP = {
     calc:    { label: '계산 실수', bg: '#A32D2D', prefix: '⚠' },
@@ -1845,6 +1999,16 @@ function DirectorView({ reports, students }) {
 
   return (
     <div style={{ maxWidth: '780px', margin: '0 auto', padding: '20px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>
+
+      {/* 학생 종합 프로필 모달 */}
+      {profileStudent && (
+        <StudentProfileModal
+          student={profileStudent}
+          reports={reports.filter(r => r.studentId === profileStudent.id)}
+          onClose={() => setProfileStudent(null)}
+          DIAG_MAP={DIAG_MAP}
+        />
+      )}
 
       {/* 헤더 */}
       <div style={{ background: '#0D2D6B', borderRadius: '4px', padding: '16px 20px', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1895,11 +2059,11 @@ function DirectorView({ reports, students }) {
             <div key={r.id} style={{ background: '#fff', border: `0.5px solid ${borderColor}`, borderRadius: '10px', overflow: 'hidden' }}>
 
               {/* 요약 행 — 클릭으로 펼치기 */}
-              <button onClick={() => setExpandedId(isOpen ? null : r.id)}
-                style={{ width: '100%', padding: '12px 14px', display: 'grid', gridTemplateColumns: '150px 1fr auto auto', gap: '12px', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
+              <div style={{ padding: '12px 14px', display: 'grid', gridTemplateColumns: '150px 1fr auto auto auto', gap: '10px', alignItems: 'center' }}>
 
-                {/* 학생명 + 강사 */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {/* 학생명 + 강사 — 클릭으로 펼치기 */}
+                <button onClick={() => setExpandedId(expandedId === r.id ? null : r.id)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', padding: 0 }}>
                   <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#EAF0F9', color: '#0D2D6B', fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     {r.studentName?.[0]}
                   </div>
@@ -1907,10 +2071,10 @@ function DirectorView({ reports, students }) {
                     <p style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>{r.studentName}</p>
                     <p style={{ fontSize: '10px', color: '#98A1AC', margin: 0 }}>{r.teacherName}{/선생님?$/.test(r.teacherName || '') ? '' : ' 선생님'}</p>
                   </div>
-                </div>
+                </button>
 
                 {/* 학습 단원 */}
-                <div style={{ textAlign: 'left' }}>
+                <div style={{ textAlign: 'left', cursor: 'pointer' }} onClick={() => setExpandedId(expandedId === r.id ? null : r.id)}>
                   {r.textbook && <p style={{ fontSize: '12px', fontWeight: 600, color: '#1A1A1A', margin: '0 0 1px', wordBreak: 'keep-all' }}>{r.textbook}{r.unit ? ` · ${r.unit}` : ''}</p>}
                   {r.pages && <p style={{ fontSize: '11px', color: '#98A1AC', margin: 0 }}>{r.pages}</p>}
                 </div>
@@ -1927,7 +2091,14 @@ function DirectorView({ reports, students }) {
                     {DIAG_MAP[mainDiag.key].prefix} {DIAG_MAP[mainDiag.key].label}
                   </span>
                 )}
-              </button>
+
+                {/* 종합 프로필 버튼 */}
+                <button
+                  onClick={() => setProfileStudent({ id: r.studentId, name: r.studentName })}
+                  style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 700, background: '#EAF0F9', color: '#1A5CB8', border: '1px solid #1A5CB8', borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                  종합 프로필
+                </button>
+              </div>
 
               {/* 펼쳐진 상세 */}
               {isOpen && (
