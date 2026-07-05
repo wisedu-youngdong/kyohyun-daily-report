@@ -729,11 +729,25 @@ setAiPolishedNote(data.result);
 
               {/* 8. 다음 수업 계획 */}
               <FormSection number="8" title="다음 수업 계획">
-                <FieldLabel>계획 (한 줄 요약)</FieldLabel>
-                <input value={nextPlan} onChange={(e) => setNextPlan(e.target.value)} placeholder="예: 3단원 자릿수 보완 + 4단원 도입" style={inputStyle} />
+                <p style={{ fontSize: '11px', color: '#8A5A00', background: '#FFF8E7', border: '1px solid #F5D76E', borderRadius: '8px', padding: '8px 12px', margin: '0 0 10px', lineHeight: 1.6 }}>
+                  💡 오늘 진단된 약점과 연결되는 전략을 적으면 학부모 신뢰도가 높아집니다.<br/>
+                  예: <strong>"응용력 보완을 위한 5단원 개념 연계 풀이 진행"</strong>
+                </p>
+                <FieldLabel>다음 수업 전략 (한 줄)</FieldLabel>
+                <input
+                  value={nextPlan}
+                  onChange={(e) => setNextPlan(e.target.value)}
+                  placeholder="예: 응용력 보완을 위한 5단원 비례식 연계 풀이 진행"
+                  style={inputStyle}
+                />
                 <div style={{ height: '8px' }} />
-                <FieldLabel>교재 범위 (선택)</FieldLabel>
-                <input value={nextPlanDetail} onChange={(e) => setNextPlanDetail(e.target.value)} placeholder="예: 초등 수학 개념 완성 · p.33~40" style={inputStyle} />
+                <FieldLabel>교재 및 범위 (선택)</FieldLabel>
+                <input
+                  value={nextPlanDetail}
+                  onChange={(e) => setNextPlanDetail(e.target.value)}
+                  placeholder="예: 디딤돌 기본+응용 6-2 · 5단원 p.130~140"
+                  style={inputStyle}
+                />
               </FormSection>
 
               {/* 저장 버튼 */}
