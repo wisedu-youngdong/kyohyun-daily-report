@@ -789,112 +789,177 @@ function ReportPreviewModal({ report: r, allReports, onClose, onDelete, onEdit }
           </div>
         </div>
 
-        {/* 이미지로 저장될 카드 영역 */}
-        <div ref={cardRef} style={{ padding: '20px', background: '#fff' }}>
+        {/* 이미지로 저장될 카드 영역 — v2 디자인 (PublicReport와 동일) */}
+        <div ref={cardRef} style={{ background: '#F5F5F0', padding: '20px' }}>
+        <div style={{ background: '#fff', borderRadius: '4px', overflow: 'hidden' }}>
 
-          {/* 카드 헤더 */}
-          <div style={{ background: '#F0F7FC', borderRadius: '14px', padding: '14px 16px', marginBottom: '12px', textAlign: 'center' }}>
-            <p style={{ fontSize: '11px', color: '#185FA5', fontWeight: 700, margin: '0 0 4px' }}>교현학원 오늘의 학습 리포트</p>
-            <p style={{ fontSize: '18px', fontWeight: 700, margin: '0 0 2px' }}>{r.studentName} 학생</p>
-            <p style={{ fontSize: '11px', color: '#6B7280', margin: 0, fontWeight: 700 }}>{date} · {r.teacherName}{/선생님?$/.test(r.teacherName || '') ? '' : ' 선생님'}</p>
-          </div>
-
-          {/* 성장 단계 */}
-          <div style={{ background: 'linear-gradient(135deg, #F0E8FF, #F7F1FF)', borderRadius: '14px', padding: '14px 16px', marginBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '30px' }}>{stageInfo.current.icon}</span>
+          {/* 헤더 */}
+          <div style={{ background: '#0D2D6B', padding: '20px 22px 18px', position: 'relative' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+              <div style={{ width: '4px', height: '20px', background: '#C9A227', borderRadius: '1px', flexShrink: 0 }} />
+              <span style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.15em', fontFamily: 'Montserrat, sans-serif' }}>와이즈에듀 교현학원</span>
+            </div>
+            <div style={{ height: '1px', background: 'rgba(201,162,39,0.3)', marginBottom: '14px' }} />
+            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
               <div>
-                <p style={{ fontSize: '15px', fontWeight: 800, margin: 0, color: '#4A2E7A' }}>{stageInfo.current.label} 단계</p>
-                <p style={{ fontSize: '10px', color: '#8A6BB5', fontWeight: 600, margin: '2px 0 0' }}>누적 {stageInfo.totalPoints}P{stageInfo.next ? ` · 다음 ${stageInfo.next.icon}${stageInfo.next.label}까지 ${stageInfo.next.min - stageInfo.totalPoints}P` : ' · 최고 단계 달성 🎉'}</p>
+                <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.45)', letterSpacing: '0.15em', margin: '0 0 4px', fontWeight: 600, fontFamily: 'Montserrat, sans-serif' }}>LEARNING REPORT</p>
+                <p style={{ fontFamily: "'Noto Serif KR', serif", fontSize: '26px', fontWeight: 700, color: '#fff', margin: '0 0 4px', letterSpacing: '-0.5px' }}>{r.studentName}</p>
+                <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.55)', margin: 0 }}>{date} · {r.teacherName}{/선생님?$/.test(r.teacherName || '') ? '' : ' 선생님'}</p>
               </div>
-            </div>
-            <div style={{ width: '46px', height: '46px', borderRadius: '50%', background: `conic-gradient(#6B3FA0 ${stageInfo.pct * 3.6}deg, #E5D6FA 0deg)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 800, color: '#6B3FA0' }}>{stageInfo.pct}%</div>
+              <div style={{ border: '1px solid rgba(201,162,39,0.5)', padding: '6px 12px', textAlign: 'center', borderRadius: '2px', flexShrink: 0 }}>
+                <p style={{ fontSize: '9px', color: '#C9A227', margin: '0 0 2px', letterSpacing: '0.08em', fontWeight: 700 }}>성장 단계</p>
+                <p style={{ fontSize: '13px', fontWeight: 800, color: '#fff', margin: 0 }}>{stageInfo.current.label} · {stageInfo.totalPoints}P</p>
+              </div>
             </div>
           </div>
 
-          {/* 오늘 찍은 문제집 사진 */}
-          {r.photoUrls?.length > 0 && (
-            <div style={{ background: '#F9FAFB', borderRadius: '14px', padding: '14px 16px', marginBottom: '12px', border: '1px solid #E5E7EB' }}>
-              <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 700, margin: '0 0 8px' }}>📷 오늘 푼 문제집</p>
-              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(r.photoUrls.length, 3)}, 1fr)`, gap: '6px' }}>
-                {r.photoUrls.map((url, i) => (
-                  <img key={i} src={url} alt={`문제집 사진 ${i + 1}`} crossOrigin="anonymous"
-                    style={{ width: '100%', aspectRatio: '3/4', objectFit: 'cover', borderRadius: '8px', border: '1px solid #E5E7EB' }} />
-                ))}
+          {/* 바디 */}
+          <div style={{ padding: '18px 20px' }}>
+
+            {/* TODAY'S SUMMARY */}
+            {(() => {
+              const parts = [];
+              if (r.attendance === '정시') parts.push('정시 등원');
+              else if (r.attendance === '지각') parts.push('지각 등원');
+              else if (r.attendance === '결석') parts.push('결석');
+              if (r.homeworkRating >= 4) parts.push('과제 완벽');
+              else if (r.homeworkRating === 3) parts.push('과제 양호');
+              else if (r.homeworkRating > 0 && r.homeworkRating < 3) parts.push('과제 미흡');
+              if (r.conceptRating >= 4) parts.push('개념 이해 우수');
+              else if (r.conceptRating === 3) parts.push('개념 이해 보통');
+              else if (r.conceptRating > 0 && r.conceptRating < 3) parts.push('개념 보강 필요');
+              if (r.diagnosis?.length > 0) {
+                const TAG_MAP = { calc: '계산 실수 확인', concept: '개념 누락 확인', apply: '응용 부족 확인', time: '시간 부족', perfect: '개념 완벽' };
+                parts.push(TAG_MAP[r.diagnosis[0].key] || '');
+              }
+              if (!parts.length) return null;
+              return (
+                <div style={{ borderLeft: '3px solid #C9A227', paddingLeft: '13px', marginBottom: '18px' }}>
+                  <p style={{ fontSize: '9px', fontWeight: 700, color: '#C9A227', letterSpacing: '0.12em', margin: '0 0 4px', fontFamily: 'Montserrat, sans-serif' }}>TODAY'S SUMMARY</p>
+                  <p style={{ fontSize: '14px', fontWeight: 800, color: '#0D2D6B', margin: 0, lineHeight: 1.5, wordBreak: 'keep-all' }}>{parts.join(' · ')}</p>
+                </div>
+              );
+            })()}
+
+            <div style={{ height: '1px', background: '#E8E6E0', marginBottom: '18px' }} />
+
+            {/* 핵심 지표 */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', marginBottom: '18px' }}>
+              <div style={{ borderRight: '1px solid #E8E6E0', paddingRight: '14px', textAlign: 'center' }}>
+                <p style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.08em', margin: '0 0 4px', fontFamily: 'Montserrat, sans-serif' }}>과제 수행</p>
+                <p style={{ fontSize: '24px', fontWeight: 800, color: '#0D2D6B', margin: 0, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
+                  {r.homeworkRating || '-'}<span style={{ fontSize: '12px', fontWeight: 500, color: '#98A1AC' }}>/5</span>
+                </p>
+                <p style={{ fontSize: '10px', fontWeight: 600, color: '#5A6472', margin: '3px 0 0' }}>{RATING_LEVELS_MAP[r.homeworkRating] || ''}</p>
+              </div>
+              <div style={{ borderRight: '1px solid #E8E6E0', padding: '0 14px', textAlign: 'center' }}>
+                <p style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.08em', margin: '0 0 4px', fontFamily: 'Montserrat, sans-serif' }}>개념 이해</p>
+                <p style={{ fontSize: '24px', fontWeight: 800, color: '#0D2D6B', margin: 0, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
+                  {r.conceptRating || '-'}<span style={{ fontSize: '12px', fontWeight: 500, color: '#98A1AC' }}>/5</span>
+                </p>
+                <p style={{ fontSize: '10px', fontWeight: 600, color: '#5A6472', margin: '3px 0 0' }}>{RATING_LEVELS_MAP[r.conceptRating] || ''}</p>
+              </div>
+              <div style={{ paddingLeft: '14px', textAlign: 'center' }}>
+                <p style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.08em', margin: '0 0 4px', fontFamily: 'Montserrat, sans-serif' }}>출결</p>
+                <p style={{ fontSize: '16px', fontWeight: 800, color: r.attendance === '정시' ? '#1E6B4E' : '#0D2D6B', margin: '4px 0', lineHeight: 1 }}>{r.attendance}</p>
+                <p style={{ fontSize: '10px', fontWeight: 600, color: '#5A6472', margin: '3px 0 0' }}>{r.arrivalTime} 등원</p>
               </div>
             </div>
-          )}
 
-          {/* 출결 및 평가 */}
-          <div style={{ background: '#F0F7FC', borderRadius: '14px', padding: '14px 16px', marginBottom: '12px' }}>
-            <p style={{ fontSize: '11px', color: '#185FA5', fontWeight: 700, margin: '0 0 10px' }}>📋 출결 및 평가</p>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <span style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '5px 12px', fontSize: '12px', fontWeight: 600 }}>{r.attendance} · {r.arrivalTime}</span>
-              <span style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '5px 12px', fontSize: '12px', fontWeight: 600 }}>과제 {RATING_EMOJI[r.homeworkRating]} {r.homeworkRating}점</span>
-              <span style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '5px 12px', fontSize: '12px', fontWeight: 600 }}>개념 {RATING_EMOJI[r.conceptRating]} {r.conceptRating}점</span>
-            </div>
-          </div>
+            <div style={{ height: '1px', background: '#E8E6E0', marginBottom: '18px' }} />
 
-          {/* 테스트 */}
-          {r.hasTest && r.testName && (
-            <div style={{ background: '#FAEEDA', borderRadius: '14px', padding: '14px 16px', marginBottom: '12px' }}>
-              <p style={{ fontSize: '11px', color: '#854F0B', fontWeight: 700, margin: '0 0 6px' }}>📝 테스트</p>
-              <p style={{ fontSize: '14px', fontWeight: 700, margin: 0 }}>{r.testName}</p>
-              {r.testScore && <p style={{ fontSize: '22px', fontWeight: 700, color: '#633806', margin: '4px 0 0' }}>{r.testScore}점</p>}
-            </div>
-          )}
+            {/* TEACHER'S NOTE */}
+            {r.teacherNote && (
+              <>
+                <div style={{ borderLeft: '3px solid #C9A227', paddingLeft: '13px', marginBottom: '18px' }}>
+                  <p style={{ fontSize: '9px', fontWeight: 700, color: '#C9A227', letterSpacing: '0.12em', margin: '0 0 7px', fontFamily: 'Montserrat, sans-serif' }}>TEACHER'S NOTE</p>
+                  <p style={{ fontSize: '13px', color: '#1A1A1A', margin: 0, lineHeight: 1.9, fontWeight: 500, whiteSpace: 'pre-wrap' }}>{r.teacherNote}</p>
+                </div>
+                <div style={{ height: '1px', background: '#E8E6E0', marginBottom: '18px' }} />
+              </>
+            )}
 
-          {/* 오늘 학습 */}
-          {(r.textbook || r.unit) && (
-            <div style={{ background: '#F9FAFB', borderRadius: '14px', padding: '14px 16px', marginBottom: '12px', border: '1px solid #E5E7EB' }}>
-              <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 700, margin: '0 0 6px' }}>📚 오늘 학습</p>
-              {r.textbook && <p style={{ fontSize: '14px', fontWeight: 700, margin: 0 }}>{r.textbook}</p>}
-              {(r.unit || r.pages) && <p style={{ fontSize: '12px', color: '#6B7280', margin: '3px 0 0' }}>{r.unit}{r.unit && r.pages ? ' · ' : ''}{r.pages}</p>}
-            </div>
-          )}
-
-          {/* 진단 태그 */}
-          {r.diagnosis?.length > 0 && (
-            <div style={{ background: '#FAEEDA', borderRadius: '14px', padding: '14px 16px', marginBottom: '12px' }}>
-              <p style={{ fontSize: '11px', color: '#854F0B', fontWeight: 700, margin: '0 0 8px' }}>🎯 오늘의 진단</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {r.diagnosis.map((d, i) => {
-                  const tag = DIAGNOSIS_TAGS_MAP[d.key] || {};
-                  return (
-                    <div key={i} style={{ background: '#fff', borderRadius: '10px', padding: '10px 12px' }}>
-                      <span style={{ display: 'inline-block', background: tag.bg, border: `1px solid ${tag.border}`, color: tag.color, fontSize: '11px', padding: '2px 8px', borderRadius: '5px', fontWeight: 700, marginBottom: d.detail ? '5px' : 0 }}>
-                        {tag.label}{d.unit ? ` · ${d.unit}` : ''}{d.pages ? ` ${d.pages}` : ''}
-                      </span>
-                      {d.detail && <p style={{ fontSize: '12px', color: '#633806', margin: 0, fontWeight: 500 }}>{d.detail}</p>}
+            {/* 학습 범위 + 진단 */}
+            {(r.textbook || r.unit || r.pages || r.diagnosis?.length > 0) && (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: r.diagnosis?.length > 0 ? '1fr 1fr' : '1fr', gap: '16px', marginBottom: '18px' }}>
+                  {(r.textbook || r.unit || r.pages) && (
+                    <div>
+                      <p style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.08em', margin: '0 0 6px', fontFamily: 'Montserrat, sans-serif' }}>학습 범위</p>
+                      {r.textbook && <p style={{ fontSize: '12px', fontWeight: 700, color: '#0D2D6B', margin: '0 0 2px', wordBreak: 'keep-all' }}>{r.textbook}</p>}
+                      {r.unit && <p style={{ fontSize: '11px', color: '#5A6472', margin: '0 0 1px' }}>{r.unit}</p>}
+                      {r.pages && <p style={{ fontSize: '11px', color: '#98A1AC', margin: 0 }}>{r.pages}</p>}
                     </div>
-                  );
-                })}
+                  )}
+                  {r.diagnosis?.length > 0 && (
+                    <div>
+                      <p style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.08em', margin: '0 0 6px', fontFamily: 'Montserrat, sans-serif' }}>진단</p>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                        {r.diagnosis.map((d, i) => {
+                          const tag = DIAGNOSIS_TAGS_MAP[d.key] || {};
+                          return (
+                            <span key={i} style={{ display: 'inline-block', background: '#FAEEDA', border: '1.5px solid #C9A227', color: '#8A5A00', fontSize: '11px', fontWeight: 700, padding: '4px 11px', borderRadius: '20px' }}>
+                              {tag.label}{d.unit ? ` · ${d.unit}` : ''}{d.pages ? ` ${d.pages}` : ''}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div style={{ height: '1px', background: '#E8E6E0', marginBottom: '18px' }} />
+              </>
+            )}
+
+            {/* 시험 */}
+            {r.hasTest && r.testName && (
+              <>
+                <div style={{ marginBottom: '18px' }}>
+                  <p style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.08em', margin: '0 0 8px', fontFamily: 'Montserrat, sans-serif' }}>TEST RESULT</p>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
+                    {r.testScore && <p style={{ fontSize: '28px', fontWeight: 800, color: '#0D2D6B', margin: 0, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{r.testScore}<span style={{ fontSize: '13px', fontWeight: 600, color: '#98A1AC', marginLeft: '2px' }}>점</span></p>}
+                    <p style={{ fontSize: '12px', color: '#5A6472', margin: 0 }}>{r.testName}</p>
+                  </div>
+                </div>
+                <div style={{ height: '1px', background: '#E8E6E0', marginBottom: '18px' }} />
+              </>
+            )}
+
+            {/* 문제집 사진 */}
+            {r.photoUrls?.length > 0 && (
+              <>
+                <div style={{ marginBottom: '18px' }}>
+                  <p style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.08em', margin: '0 0 8px', fontFamily: 'Montserrat, sans-serif' }}>TODAY'S WORK</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(r.photoUrls.length, 2)}, 1fr)`, gap: '6px' }}>
+                    {r.photoUrls.map((url, i) => (
+                      <img key={i} src={url} alt={`문제집 ${i+1}`} crossOrigin="anonymous"
+                        style={{ width: '100%', aspectRatio: '3/4', objectFit: 'cover', borderRadius: '4px', border: '1px solid #E8E6E0' }} />
+                    ))}
+                  </div>
+                </div>
+                <div style={{ height: '1px', background: '#E8E6E0', marginBottom: '18px' }} />
+              </>
+            )}
+
+            {/* 다음 수업 */}
+            {r.nextPlan && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <p style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.08em', margin: '0 0 4px', fontFamily: 'Montserrat, sans-serif' }}>NEXT CLASS</p>
+                  <p style={{ fontSize: '13px', fontWeight: 700, color: '#0D2D6B', margin: 0 }}>{r.nextPlan}</p>
+                  {r.nextPlanDetail && <p style={{ fontSize: '11px', color: '#5A6472', margin: '2px 0 0' }}>{r.nextPlanDetail}</p>}
+                </div>
+                <div style={{ width: '28px', height: '28px', background: '#EAF0F9', borderRadius: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1A5CB8', fontSize: '14px', flexShrink: 0 }}>→</div>
               </div>
-            </div>
-          )}
-
-          {/* 선생님 코멘트 */}
-          {r.teacherNote && (
-            <div style={{ background: '#F9FAFB', borderRadius: '14px', padding: '14px 16px', marginBottom: '12px', border: '1px solid #E5E7EB' }}>
-              <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 700, margin: '0 0 6px' }}>💬 선생님 한 마디</p>
-              <p style={{ fontSize: '13px', color: '#1A1A1A', margin: 0, lineHeight: 1.7, fontWeight: 500, whiteSpace: 'pre-wrap' }}>{r.teacherNote}</p>
-            </div>
-          )}
-
-          {/* 다음 수업 계획 */}
-          {r.nextPlan && (
-            <div style={{ background: '#E1F5EE', borderRadius: '14px', padding: '14px 16px', marginBottom: '12px' }}>
-              <p style={{ fontSize: '11px', color: '#0F6E56', fontWeight: 700, margin: '0 0 6px' }}>➡️ 다음 수업 계획</p>
-              <p style={{ fontSize: '14px', fontWeight: 700, color: '#085041', margin: 0 }}>{r.nextPlan}</p>
-              {r.nextPlanDetail && <p style={{ fontSize: '12px', color: '#0F6E56', margin: '3px 0 0' }}>{r.nextPlanDetail}</p>}
-            </div>
-          )}
-
-          {/* 하단 서명 */}
-          <div style={{ textAlign: 'center', padding: '10px 0 0', borderTop: '1px solid #E5E7EB', marginTop: '4px' }}>
-            <p style={{ fontSize: '11px', color: '#9CA3AF', margin: 0 }}>교현학원 · 031-707-0591</p>
+            )}
           </div>
+
+          {/* 푸터 */}
+          <div style={{ padding: '12px 20px', borderTop: '1px solid #E8E6E0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.12em', fontFamily: 'Montserrat, sans-serif' }}>교현학원</span>
+            <span style={{ fontSize: '9px', color: '#98A1AC' }}>031-707-0591</span>
+          </div>
+        </div>
         </div>
 
         {/* 수정/삭제 버튼 (이미지에 포함 안 됨) */}
