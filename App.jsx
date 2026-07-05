@@ -1783,7 +1783,8 @@ function MonthlyReportModal({ student, reports, allReports, periodLabel, onClose
 function ReviewView({ students }) {
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('today'); // today | upcoming | done | all
+  const [filter, setFilter] = useState('today');
+  const [expandedStudent, setExpandedStudent] = useState(null); // 펼쳐진 학생 ID
   const [editingId, setEditingId] = useState(null);
   const [scoreInput, setScoreInput] = useState('');
   const [noteInput, setNoteInput] = useState('');
@@ -1807,6 +1808,15 @@ function ReviewView({ students }) {
   });
 
   const todayCount = reviews.filter(r => r.status === 'pending' && r.dueDate <= today).length;
+
+  // 학생별 그룹핑
+  const grouped = filtered.reduce((acc, r) => {
+    const key = r.studentId || r.studentName;
+    if (!acc[key]) acc[key] = { studentName: r.studentName, studentId: r.studentId, items: [] };
+    acc[key].items.push(r);
+    return acc;
+  }, {});
+  const groupedList = Object.values(grouped);
 
   const handleDone = async (r) => {
     await updateDoc(doc(db, 'reviews', r.id), {
@@ -1833,30 +1843,24 @@ function ReviewView({ students }) {
     return `D-${diff}`;
   };
 
-  const roundLabel = (round) => [`1차 복습`, `2차 복습`, `3차 최종확인`][round - 1] || `${round}차`;
+  const roundLabel = (round) => [`1차`, `2차`, `3차 최종`][round - 1] || `${round}차`;
   const roundColor = (round) => ['#1A5CB8', '#8A5A00', '#0F6E56'][round - 1] || '#6B7280';
-
-  const DIAG_TAG = { calc: '계산 실수', concept: '개념 누락', apply: '응용 부족', time: '시간 부족' };
 
   return (
     <div style={{ maxWidth: '680px', margin: '0 auto', padding: '20px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>
 
       {/* 헤더 */}
-      <div style={{ marginBottom: '20px' }}>
-        <h2 style={{ fontSize: '20px', fontWeight: 700, margin: '0 0 4px', color: '#1A1A1A' }}>복습 관리</h2>
-        <p style={{ fontSize: '12px', color: '#6B7280', margin: 0 }}>망각곡선 기반 약점 복습 일정 — 7일 · 14일 · 30일 자동 생성</p>
-      </div>
-
-      {/* 오늘 복습 배너 */}
-      {todayCount > 0 && (
-        <div style={{ background: '#FFF8E7', border: '1.5px solid #F5A623', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ background: '#F5A623', color: '#fff', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 800, flexShrink: 0 }}>{todayCount}</div>
-          <div>
-            <p style={{ fontSize: '13px', fontWeight: 800, color: '#7A5200', margin: 0 }}>오늘 복습할 항목이 {todayCount}개 있습니다</p>
-            <p style={{ fontSize: '11px', color: '#9A6800', margin: '2px 0 0' }}>약점 유형 테스트 후 결과를 입력해 주세요</p>
-          </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+        <div>
+          <h2 style={{ fontSize: '20px', fontWeight: 700, margin: '0 0 2px', color: '#1A1A1A' }}>복습 관리</h2>
+          <p style={{ fontSize: '12px', color: '#6B7280', margin: 0 }}>망각곡선 7일 · 14일 · 30일 자동 생성</p>
         </div>
-      )}
+        {todayCount > 0 && (
+          <div style={{ background: '#F5A623', color: '#fff', borderRadius: '20px', padding: '5px 14px', fontSize: '12px', fontWeight: 700 }}>
+            오늘 {todayCount}건
+          </div>
+        )}
+      </div>
 
       {/* 필터 탭 */}
       <div style={{ display: 'flex', gap: '6px', marginBottom: '16px' }}>
@@ -1866,7 +1870,7 @@ function ReviewView({ students }) {
           { key: 'done', label: '완료' },
           { key: 'all', label: '전체' },
         ].map(f => (
-          <button key={f.key} onClick={() => setFilter(f.key)} style={{
+          <button key={f.key} onClick={() => { setFilter(f.key); setExpandedStudent(null); }} style={{
             padding: '6px 14px', fontSize: '12px', fontWeight: filter === f.key ? 700 : 500,
             borderRadius: '20px', border: `1.5px solid ${filter === f.key ? '#0D2D6B' : '#E5E7EB'}`,
             background: filter === f.key ? '#0D2D6B' : '#fff',
@@ -1876,121 +1880,153 @@ function ReviewView({ students }) {
         ))}
       </div>
 
-      {/* 목록 */}
+      {/* 학생별 그룹 */}
       {loading ? (
         <p style={{ color: '#9CA3AF', textAlign: 'center', padding: '40px 0' }}>불러오는 중...</p>
-      ) : filtered.length === 0 ? (
+      ) : groupedList.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '48px 20px', color: '#9CA3AF' }}>
-          <p style={{ fontSize: '32px', marginBottom: '8px' }}>✅</p>
+          <p style={{ fontSize: '28px', marginBottom: '8px' }}>✅</p>
           <p style={{ fontSize: '14px', fontWeight: 600, margin: '0 0 4px' }}>
             {filter === 'today' ? '오늘 복습할 항목이 없습니다' : '해당 항목이 없습니다'}
           </p>
-          <p style={{ fontSize: '12px', margin: 0 }}>리포트 작성 시 약점 태그를 입력하면 자동 생성됩니다</p>
+          <p style={{ fontSize: '12px', margin: 0 }}>리포트 작성 시 약점 태그를 선택하면 자동 생성됩니다</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {filtered.map(r => (
-            <div key={r.id} style={{
-              background: '#fff', border: `1px solid ${r.status === 'done' ? '#E5E7EB' : r.dueDate <= today ? '#F5A623' : '#E5E7EB'}`,
-              borderRadius: '12px', overflow: 'hidden',
-              opacity: r.status === 'done' ? 0.7 : 1,
-            }}>
-              {/* 카드 헤더 */}
-              <div style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                {/* 차수 배지 */}
-                <div style={{ background: roundColor(r.round), color: '#fff', fontSize: '10px', fontWeight: 700, padding: '3px 9px', borderRadius: '20px', flexShrink: 0 }}>
-                  {roundLabel(r.round)}
-                </div>
-                {/* 학생명 + 단원 */}
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A', margin: '0 0 2px' }}>
-                    {r.studentName}
-                    {r.unit && <span style={{ fontSize: '12px', color: '#6B7280', fontWeight: 500, marginLeft: '6px' }}>{r.unit}</span>}
-                  </p>
-                  {r.textbook && <p style={{ fontSize: '11px', color: '#9CA3AF', margin: 0 }}>{r.textbook}</p>}
-                </div>
-                {/* D-day */}
-                <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <p style={{ fontSize: '12px', fontWeight: 700, color: r.status === 'done' ? '#9CA3AF' : r.dueDate <= today ? '#F5A623' : '#6B7280', margin: 0 }}>
-                    {r.status === 'done' ? '완료' : daysUntil(r.dueDate)}
-                  </p>
-                  <p style={{ fontSize: '10px', color: '#9CA3AF', margin: '2px 0 0' }}>{r.dueDate}</p>
-                </div>
-              </div>
+          {groupedList.map(group => {
+            const isOpen = expandedStudent === group.studentId;
+            const urgentCount = group.items.filter(r => r.dueDate <= today && r.status === 'pending').length;
 
-              {/* 약점 유형 태그 */}
-              <div style={{ padding: '0 14px 10px', display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
-                {(r.weakTypes || []).map((t, i) => (
-                  <span key={i} style={{ background: '#FCEBEB', border: '1px solid #A32D2D', color: '#791F1F', fontSize: '11px', fontWeight: 700, padding: '3px 9px', borderRadius: '20px' }}>
-                    ⚠ {t.label}{t.unit ? ` · ${t.unit}단원` : ''}{t.detail ? ` — ${t.detail}` : ''}
-                  </span>
-                ))}
-              </div>
+            return (
+              <div key={group.studentId} style={{ background: '#fff', border: `1.5px solid ${urgentCount > 0 ? '#F5A623' : '#E5E7EB'}`, borderRadius: '14px', overflow: 'hidden' }}>
 
-              {/* 완료된 경우 결과 표시 */}
-              {r.status === 'done' && (
-                <div style={{ padding: '8px 14px 12px', borderTop: '1px solid #F3F4F6' }}>
-                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                    {r.testScore !== null && (
-                      <span style={{ fontSize: '18px', fontWeight: 800, color: r.testScore >= 80 ? '#0F6E56' : r.testScore >= 60 ? '#8A5A00' : '#A32D2D' }}>
-                        {r.testScore}점
-                      </span>
-                    )}
-                    {r.note && <p style={{ fontSize: '12px', color: '#6B7280', margin: 0 }}>{r.note}</p>}
+                {/* 학생 헤더 — 클릭으로 펼치기/접기 */}
+                <button
+                  onClick={() => setExpandedStudent(isOpen ? null : group.studentId)}
+                  style={{ width: '100%', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}
+                >
+                  {/* 학생 이니셜 */}
+                  <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#EAF0F9', color: '#0D2D6B', fontSize: '13px', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    {group.studentName?.[0]}
                   </div>
-                </div>
-              )}
-
-              {/* 입력 영역 (오늘 이하 pending) */}
-              {r.status === 'pending' && r.dueDate <= today && (
-                <div style={{ padding: '10px 14px 12px', borderTop: '1px solid #FEE9B2', background: '#FFFDF0' }}>
-                  {editingId === r.id ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        <input
-                          type="number" placeholder="테스트 점수" value={scoreInput}
-                          onChange={e => setScoreInput(e.target.value)}
-                          style={{ width: '110px', padding: '7px 10px', fontSize: '13px', border: '1px solid #E5E7EB', borderRadius: '8px', fontFamily: 'inherit' }}
-                        />
-                        <span style={{ fontSize: '12px', color: '#9CA3AF' }}>점</span>
-                        <input
-                          placeholder="메모 (선택)" value={noteInput}
-                          onChange={e => setNoteInput(e.target.value)}
-                          style={{ flex: 1, padding: '7px 10px', fontSize: '13px', border: '1px solid #E5E7EB', borderRadius: '8px', fontFamily: 'inherit' }}
-                        />
-                      </div>
-                      <div style={{ display: 'flex', gap: '6px' }}>
-                        <button onClick={() => handleDone(r)} style={{ flex: 1, padding: '8px', fontSize: '12px', fontWeight: 700, background: '#0D2D6B', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit' }}>
-                          복습 완료 저장
-                        </button>
-                        <button onClick={() => setEditingId(null)} style={{ padding: '8px 14px', fontSize: '12px', background: '#fff', border: '1px solid #E5E7EB', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit', color: '#6B7280' }}>
-                          취소
-                        </button>
-                      </div>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: '15px', fontWeight: 700, color: '#1A1A1A', margin: '0 0 2px' }}>{group.studentName}</p>
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                      {urgentCount > 0 && (
+                        <span style={{ fontSize: '11px', fontWeight: 700, color: '#F5A623' }}>오늘 {urgentCount}건</span>
+                      )}
+                      <span style={{ fontSize: '11px', color: '#9CA3AF' }}>총 {group.items.length}건</span>
+                      {/* 차수 미니 배지들 */}
+                      {group.items.map((item, i) => (
+                        <span key={i} style={{ fontSize: '10px', fontWeight: 700, color: '#fff', background: roundColor(item.round), padding: '1px 7px', borderRadius: '10px' }}>
+                          {roundLabel(item.round)}
+                        </span>
+                      ))}
                     </div>
-                  ) : (
-                    <div style={{ display: 'flex', gap: '6px' }}>
-                      <button onClick={() => setEditingId(r.id)} style={{ flex: 1, padding: '8px', fontSize: '12px', fontWeight: 700, background: '#0D2D6B', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit' }}>
-                        테스트 결과 입력
-                      </button>
-                      <button onClick={() => handleDelete(r.id)} style={{ padding: '8px 12px', fontSize: '12px', background: '#fff', border: '1px solid #FCA5A5', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit', color: '#DC2626' }}>
-                        삭제
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
+                  </div>
+                  <span style={{ fontSize: '18px', color: '#9CA3AF', transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>⌄</span>
+                </button>
 
-              {/* 예정 항목 삭제 */}
-              {r.status === 'pending' && r.dueDate > today && (
-                <div style={{ padding: '6px 14px 10px', display: 'flex', justifyContent: 'flex-end' }}>
-                  <button onClick={() => handleDelete(r.id)} style={{ padding: '4px 10px', fontSize: '11px', background: 'none', border: '1px solid #E5E7EB', borderRadius: '6px', cursor: 'pointer', color: '#9CA3AF', fontFamily: 'inherit' }}>
-                    일정 삭제
-                  </button>
-                </div>
-              )}
-            </div>
-          ))}
+                {/* 펼쳐진 복습 항목들 */}
+                {isOpen && (
+                  <div style={{ borderTop: '1px solid #F3F4F6' }}>
+                    {group.items.map((r, idx) => (
+                      <div key={r.id} style={{
+                        padding: '12px 16px',
+                        borderBottom: idx < group.items.length - 1 ? '1px solid #F9FAFB' : 'none',
+                        background: r.status === 'done' ? '#FAFAFA' : r.dueDate <= today ? '#FFFDF0' : '#fff',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                          {/* 차수 배지 */}
+                          <span style={{ background: roundColor(r.round), color: '#fff', fontSize: '10px', fontWeight: 700, padding: '3px 9px', borderRadius: '20px', flexShrink: 0, marginTop: '1px' }}>
+                            {roundLabel(r.round)}
+                          </span>
+                          <div style={{ flex: 1 }}>
+                            {/* 단원 + D-day */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                              <div>
+                                {r.unit && <p style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A', margin: '0 0 1px' }}>{r.unit}</p>}
+                                {r.textbook && <p style={{ fontSize: '11px', color: '#9CA3AF', margin: 0 }}>{r.textbook}</p>}
+                              </div>
+                              <div style={{ textAlign: 'right' }}>
+                                <p style={{ fontSize: '12px', fontWeight: 700, color: r.status === 'done' ? '#9CA3AF' : r.dueDate <= today ? '#F5A623' : '#6B7280', margin: 0 }}>
+                                  {r.status === 'done' ? '완료' : daysUntil(r.dueDate)}
+                                </p>
+                                <p style={{ fontSize: '10px', color: '#9CA3AF', margin: '1px 0 0' }}>{r.dueDate}</p>
+                              </div>
+                            </div>
+
+                            {/* 약점 태그 */}
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: '8px' }}>
+                              {(r.weakTypes || []).map((t, i) => (
+                                <span key={i} style={{ background: '#FCEBEB', border: '1px solid #A32D2D', color: '#791F1F', fontSize: '11px', fontWeight: 700, padding: '3px 9px', borderRadius: '20px' }}>
+                                  ⚠ {t.label}{t.unit ? ` · ${t.unit}단원` : ''}{t.detail ? ` — ${t.detail}` : ''}
+                                </span>
+                              ))}
+                            </div>
+
+                            {/* 완료 결과 */}
+                            {r.status === 'done' && (
+                              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                {r.testScore !== null && (
+                                  <span style={{ fontSize: '16px', fontWeight: 800, color: r.testScore >= 80 ? '#0F6E56' : r.testScore >= 60 ? '#8A5A00' : '#A32D2D' }}>
+                                    {r.testScore}점
+                                  </span>
+                                )}
+                                {r.note && <p style={{ fontSize: '12px', color: '#6B7280', margin: 0 }}>{r.note}</p>}
+                              </div>
+                            )}
+
+                            {/* 결과 입력 폼 (오늘 이하 pending) */}
+                            {r.status === 'pending' && r.dueDate <= today && (
+                              editingId === r.id ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                    <input type="number" placeholder="점수" value={scoreInput}
+                                      onChange={e => setScoreInput(e.target.value)}
+                                      style={{ width: '90px', padding: '7px 10px', fontSize: '13px', border: '1px solid #E5E7EB', borderRadius: '8px', fontFamily: 'inherit' }}
+                                    />
+                                    <input placeholder="메모 (선택)" value={noteInput}
+                                      onChange={e => setNoteInput(e.target.value)}
+                                      style={{ flex: 1, padding: '7px 10px', fontSize: '13px', border: '1px solid #E5E7EB', borderRadius: '8px', fontFamily: 'inherit' }}
+                                    />
+                                  </div>
+                                  <div style={{ display: 'flex', gap: '6px' }}>
+                                    <button onClick={() => handleDone(r)} style={{ flex: 1, padding: '7px', fontSize: '12px', fontWeight: 700, background: '#0D2D6B', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                                      완료 저장
+                                    </button>
+                                    <button onClick={() => setEditingId(null)} style={{ padding: '7px 12px', fontSize: '12px', background: '#fff', border: '1px solid #E5E7EB', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit', color: '#6B7280' }}>
+                                      취소
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div style={{ display: 'flex', gap: '6px' }}>
+                                  <button onClick={() => { setEditingId(r.id); setScoreInput(''); setNoteInput(''); }} style={{ flex: 1, padding: '7px', fontSize: '12px', fontWeight: 700, background: '#0D2D6B', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                                    테스트 결과 입력
+                                  </button>
+                                  <button onClick={() => handleDelete(r.id)} style={{ padding: '7px 10px', fontSize: '12px', background: '#fff', border: '1px solid #FCA5A5', borderRadius: '8px', cursor: 'pointer', color: '#DC2626', fontFamily: 'inherit' }}>
+                                    삭제
+                                  </button>
+                                </div>
+                              )
+                            )}
+
+                            {/* 예정 항목 삭제 */}
+                            {r.status === 'pending' && r.dueDate > today && (
+                              <button onClick={() => handleDelete(r.id)} style={{ padding: '4px 10px', fontSize: '11px', background: 'none', border: '1px solid #E5E7EB', borderRadius: '6px', cursor: 'pointer', color: '#9CA3AF', fontFamily: 'inherit' }}>
+                                일정 삭제
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
