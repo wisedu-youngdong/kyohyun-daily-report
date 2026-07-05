@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { db, auth } from './firebase';
 import {
   collection, addDoc, updateDoc, deleteDoc,
-  doc, onSnapshot, serverTimestamp, orderBy, query
+  doc, onSnapshot, serverTimestamp, orderBy, query, where, getDocs
 } from 'firebase/firestore';
 import {
   signInWithEmailAndPassword,
@@ -287,7 +287,13 @@ export default function App() {
       await Promise.all(schedules.map(s => addDoc(collection(db, 'reviews'), s)));
     }
   };
-  const handleDeleteReport = async (id) => await deleteDoc(doc(db, 'reports', id));
+  const handleDeleteReport = async (id) => {
+    await deleteDoc(doc(db, 'reports', id));
+    // 해당 리포트의 복습 일정도 함께 삭제
+    const q = query(collection(db, 'reviews'), where('reportId', '==', id));
+    const snap = await getDocs(q);
+    await Promise.all(snap.docs.map(d => deleteDoc(doc(db, 'reviews', d.id))));
+  };
 
   if (authLoading) return (
     <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Pretendard Variable', Pretendard, sans-serif", color: T.brand, fontSize: '14px', fontWeight: 600 }}>
