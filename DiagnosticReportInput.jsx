@@ -1170,28 +1170,31 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
         {/* 진단 */}
         {diagnosis.length > 0 && (
           <div style={{ marginBottom: '10px' }}>
-            <p style={{ fontSize: '9px', fontWeight: 800, color: s.cardSub, letterSpacing: '0.12em', margin: '0 0 7px', fontFamily: 'Montserrat, sans-serif' }}>DIAGNOSIS</p>
+            <p style={{ fontSize: '12px', fontWeight: 700, color: s.cardText, margin: '0 0 8px' }}>진단</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
               {diagnosis.map((d, idx) => {
-                const tagDef = DIAGNOSIS_TAGS.find(t => t.key === d.key);
-                const hasDetail = d.unit || d.pages || d.detail;
+                const DIAG_COLOR = {
+                  calc:    { label: '⚠ 계산 실수', bg: '#A32D2D' },
+                  concept: { label: '⚠ 개념 누락', bg: '#A32D2D' },
+                  apply:   { label: '⚠ 응용 부족', bg: '#A32D2D' },
+                  time:    { label: '△ 시간 부족', bg: '#8A5A00' },
+                  perfect: { label: '✓ 개념 완벽', bg: '#0F6E56' },
+                };
+                const tagDef = DIAG_COLOR[d.key] || { label: d.key, bg: '#8A5A00' };
                 return (
                   <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', background: s.tagBg, border: `1.5px solid ${s.tagBorder}`, color: s.tagText, fontSize: '11px', fontWeight: 700, padding: '5px 11px', borderRadius: '20px' }}>
-                      {tagDef?.label}
+                    <span style={{ display: 'inline-flex', alignItems: 'center', background: tagDef.bg, color: '#fff', fontSize: '13px', fontWeight: 700, padding: '5px 13px', borderRadius: '20px' }}>
+                      {tagDef.label}
                       {(d.unit || d.pages) && (
-                        <>
-                          <span style={{ width: '1px', height: '12px', background: s.tagBorder, margin: '0 8px', flexShrink: 0, display: 'inline-block' }} />
-                          <span style={{ fontSize: '11px', fontWeight: 700, color: s.tagText }}>
-                            {d.unit && `${d.unit}단원`}{d.unit && d.pages ? ' · ' : ''}{d.pages && `${d.pages}p`}
-                          </span>
-                        </>
+                        <span style={{ marginLeft: '6px', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.85)' }}>
+                          {d.unit && `${d.unit}단원`}{d.unit && d.pages ? ' · ' : ''}{d.pages && `${d.pages}p`}
+                        </span>
                       )}
                     </span>
                     {d.detail && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px', paddingLeft: '4px' }}>
-                        <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: s.tagBorder, flexShrink: 0 }} />
-                        <p style={{ fontSize: '12px', fontWeight: 700, color: s.tagText, margin: 0, lineHeight: 1.4 }}>{d.detail}</p>
+                        <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: tagDef.bg, flexShrink: 0 }} />
+                        <p style={{ fontSize: '12px', fontWeight: 700, color: s.cardText, margin: 0, lineHeight: 1.4 }}>{d.detail}</p>
                       </div>
                     )}
                   </div>

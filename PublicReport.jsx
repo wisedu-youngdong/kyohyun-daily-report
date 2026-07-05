@@ -157,14 +157,23 @@ export default function PublicReport() {
                   )}
                   {r.diagnosis?.length > 0 && (
                     <div>
-                      <p style={{ fontSize: '9px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 6px' }}>진단</p>
+                      <p style={{ fontSize: '12px', fontWeight: 700, color: '#1A1A1A', margin: '0 0 8px' }}>진단</p>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                        {r.diagnosis.map((d, i) => (
-                          <span key={i} style={{ display: 'inline-block', background: '#FAEEDA', border: `1.5px solid ${gold}`, color: '#8A5A00', fontSize: '11px', fontWeight: 700, padding: '4px 11px', borderRadius: '20px' }}>
-                            {DIAGNOSIS_LABELS[d.key] || d.key}
-                            {d.unit ? ` · ${d.unit}단원` : ''}{d.pages ? ` ${d.pages}` : ''}
-                          </span>
-                        ))}
+                        {r.diagnosis.map((d, i) => {
+                          const DIAG = {
+                            calc:    { label: '⚠ 계산 실수', bg: '#A32D2D' },
+                            concept: { label: '⚠ 개념 누락', bg: '#A32D2D' },
+                            apply:   { label: '⚠ 응용 부족', bg: '#A32D2D' },
+                            time:    { label: '△ 시간 부족', bg: '#8A5A00' },
+                            perfect: { label: '✓ 개념 완벽', bg: '#0F6E56' },
+                          };
+                          const tag = DIAG[d.key] || { label: d.key, bg: '#8A5A00' };
+                          return (
+                            <span key={i} style={{ display: 'inline-block', background: tag.bg, color: '#fff', fontSize: '13px', fontWeight: 700, padding: '5px 13px', borderRadius: '20px' }}>
+                              {tag.label}{d.unit ? ` · ${d.unit}` : ''}{d.pages ? ` ${d.pages}` : ''}
+                            </span>
+                          );
+                        })}
                       </div>
                     </div>
                   )}

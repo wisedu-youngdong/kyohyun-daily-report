@@ -607,11 +607,11 @@ const RATING_EMOJI = { 5: '🌟', 4: '😊', 3: '🙂', 2: '😐', 1: '😟' };
 const RATING_LEVELS_MAP = { 1: '노력 필요', 2: '조금 부족', 3: '보통', 4: '잘함', 5: '아주 잘함' };
 
 const DIAGNOSIS_TAGS_MAP = {
-  calc: { label: '계산 실수', color: '#854F0B', bg: '#FAEEDA', border: '#BA7517' },
-  concept: { label: '개념 누락', color: '#854F0B', bg: '#FAEEDA', border: '#BA7517' },
-  apply: { label: '응용 부족', color: '#791F1F', bg: '#FCEBEB', border: '#A32D2D' },
-  time: { label: '시간 부족', color: '#791F1F', bg: '#FCEBEB', border: '#A32D2D' },
-  perfect: { label: '개념 완벽', color: '#0F6E56', bg: '#E1F5EE', border: '#0F6E56' },
+  calc:    { label: '⚠ 계산 실수', bg: '#A32D2D', color: '#fff' },
+  concept: { label: '⚠ 개념 누락', bg: '#A32D2D', color: '#fff' },
+  apply:   { label: '⚠ 응용 부족', bg: '#A32D2D', color: '#fff' },
+  time:    { label: '△ 시간 부족', bg: '#8A5A00', color: '#fff' },
+  perfect: { label: '✓ 개념 완벽', bg: '#0F6E56', color: '#fff' },
 };
 
 function HistoryView({ reports, students, onDelete, onEdit }) {
@@ -868,12 +868,12 @@ function ReportPreviewModal({ report: r, allReports, onClose, onDelete, onEdit }
                   )}
                   {r.diagnosis?.length > 0 && (
                     <div>
-                      <p style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.08em', margin: '0 0 6px', fontFamily: 'Montserrat, sans-serif' }}>진단</p>
+                      <p style={{ fontSize: '12px', fontWeight: 700, color: '#1A1A1A', margin: '0 0 8px' }}>진단</p>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                         {r.diagnosis.map((d, i) => {
                           const tag = DIAGNOSIS_TAGS_MAP[d.key] || {};
                           return (
-                            <span key={i} style={{ display: 'inline-block', background: '#FAEEDA', border: '1.5px solid #C9A227', color: '#8A5A00', fontSize: '11px', fontWeight: 700, padding: '4px 11px', borderRadius: '20px' }}>
+                            <span key={i} style={{ display: 'inline-block', background: tag.bg || '#8A5A00', color: tag.color || '#fff', fontSize: '13px', fontWeight: 700, padding: '5px 13px', borderRadius: '20px' }}>
                               {tag.label}{d.unit ? ` · ${d.unit}` : ''}{d.pages ? ` ${d.pages}` : ''}
                             </span>
                           );
