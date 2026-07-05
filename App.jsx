@@ -1341,6 +1341,43 @@ function MonthlyReportModal({ student, reports, allReports, periodLabel, onClose
     if (worst) citedWeaknesses.push(`${fmtDate(worst)} 수업(${unitOf(worst)})에서 개념이해도 ${worst.conceptRating}점으로 이 기간 중 가장 어려워했습니다.`);
   }
 
+  // ── 유형별 약점 TOP3 (photoAnalysis 누적 집계) ──
+  const weakTypeMap = {};
+  sorted.forEach(r => {
+    if (!r.photoAnalysis?.sections) return;
+    r.photoAnalysis.sections.forEach(sec => {
+      (sec.problemTypes || []).forEach(pt => {
+        if (pt.result === '약점' || pt.result?.includes('부족') || pt.result?.includes('실수')) {
+          const key = pt.type || '기타';
+          if (!weakTypeMap[key]) weakTypeMap[key] = { count: 0, notes: [] };
+          weakTypeMap[key].count += 1;
+          if (pt.note) weakTypeMap[key].notes.push(pt.note);
+        }
+      });
+    });
+  });
+  const weakTop3 = Object.entries(weakTypeMap)
+    .sort((a, b) => b[1].count - a[1].count)
+    .slice(0, 3);
+
+  const strongTypeMap = {};
+  sorted.forEach(r => {
+    if (!r.photoAnalysis?.sections) return;
+    r.photoAnalysis.sections.forEach(sec => {
+      (sec.problemTypes || []).forEach(pt => {
+        if (pt.result === '잘함') {
+          const key = pt.type || '기타';
+          if (!strongTypeMap[key]) strongTypeMap[key] = 0;
+          strongTypeMap[key] += 1;
+        }
+      });
+    });
+  });
+  const strongTop3 = Object.entries(strongTypeMap)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3);
+  const hasPhotoData = weakTop3.length > 0 || strongTop3.length > 0;
+
   const handleDownload = async () => {
     if (!cardRef.current) return;
     setDownloading(true);
@@ -1612,7 +1649,65 @@ function MonthlyReportModal({ student, reports, allReports, periodLabel, onClose
             </div>
           )}
 
-          {/* 종합 피드백 — 배경 박스 대신 구분선 위 단순 텍스트 */}
+          {/* ★ 유형별 약점 TOP3 — 사진분석 누적 데이터 */}
+          {hasPhotoData && (
+            <div style={{ marginBottom: '28px' }}>
+              <SectionTitle>유형별 학습 분석</SectionTitle>
+              <p style={{ fontSize: '10px', color: DS.inkMute, margin: '0 0 14px', lineHeight: 1.6 }}>
+                이 기간 제출된 교재·시험지 사진 분석을 누적 집계한 결과입니다.
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: strongTop3.length > 0 && weakTop3.length > 0 ? '1fr 1fr' : '1fr', gap: '16px' }}>
+                {weakTop3.length > 0 && (
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                      <span style={{ background: '#A32D2D', color: '#fff', fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: '20px' }}>⚠ 보완 필요 유형</span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {weakTop3.map(([type, data], i) => (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div style={{ background: '#A32D2D', color: '#fff', fontSize: '11px', fontWeight: 800, width: '20px', height: '20px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{i + 1}</div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <p style={{ fontSize: '12px', fontWeight: 700, color: DS.ink, margin: 0 }}>{type}</p>
+                              <span style={{ fontSize: '11px', fontWeight: 700, color: '#A32D2D' }}>{data.count}회</span>
+                            </div>
+                            <div style={{ height: '4px', background: '#F5E5E5', borderRadius: '4px', marginTop: '4px', overflow: 'hidden' }}>
+                              <div style={{ height: '100%', width: `${Math.min(100, (data.count / (weakTop3[0][1].count)) * 100)}%`, background: '#A32D2D', borderRadius: '4px' }} />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {strongTop3.length > 0 && (
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                      <span style={{ background: '#0F6E56', color: '#fff', fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: '20px' }}>✓ 강점 유형</span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {strongTop3.map(([type, count], i) => (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div style={{ background: '#0F6E56', color: '#fff', fontSize: '11px', fontWeight: 800, width: '20px', height: '20px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{i + 1}</div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <p style={{ fontSize: '12px', fontWeight: 700, color: DS.ink, margin: 0 }}>{type}</p>
+                              <span style={{ fontSize: '11px', fontWeight: 700, color: '#0F6E56' }}>{count}회</span>
+                            </div>
+                            <div style={{ height: '4px', background: '#E1F5EE', borderRadius: '4px', marginTop: '4px', overflow: 'hidden' }}>
+                              <div style={{ height: '100%', width: `${Math.min(100, (count / (strongTop3[0][1])) * 100)}%`, background: '#0F6E56', borderRadius: '4px' }} />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 종합 피드백 */}
           <div style={{ borderTop: `1px solid ${DS.rule}`, paddingTop: '20px', marginBottom: '4px' }}>
             <SectionTitle>종합 피드백</SectionTitle>
             <p style={{ fontSize: '12px', color: DS.ink, margin: 0, lineHeight: 1.8 }}>
