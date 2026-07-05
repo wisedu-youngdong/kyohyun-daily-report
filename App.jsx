@@ -315,6 +315,7 @@ export default function App() {
     { key: 'write',     label: '리포트 작성', icon: <FileText size={20} /> },
     { key: 'history',   label: '기록 보관소', icon: <History size={20} /> },
     { key: 'review',    label: '복습 관리', icon: <span style={{fontSize:'20px'}}>🔁</span> },
+    { key: 'director',  label: '원장 보고서', icon: <span style={{fontSize:'20px'}}>📋</span> },
     { key: 'analysis',  label: '종합 분석', icon: <BarChart2 size={20} /> },
     { key: 'settings',  label: '설정', icon: <span style={{fontSize:'20px'}}>⚙️</span> },
   ];
@@ -350,6 +351,7 @@ export default function App() {
         )}
         {activeTab === 'history' && <HistoryView reports={reports} students={students} onDelete={handleDeleteReport} onEdit={(report) => { setEditingReport(report); setActiveTab('write'); }} />}
         {activeTab === 'review' && <ReviewView students={students} />}
+        {activeTab === 'director' && <DirectorView reports={reports} students={students} />}
         {activeTab === 'analysis' && <AnalysisView students={students} reports={reports} />}
       </main>
 
@@ -1792,6 +1794,243 @@ function MonthlyReportModal({ student, reports, allReports, periodLabel, onClose
 // ============================================================
 // 복습 관리 뷰 — 망각곡선 기반 약점 복습 일정
 // ============================================================
+// ============================================================
+// 원장 보고서 뷰
+// ============================================================
+function DirectorView({ reports, students }) {
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [expandedId, setExpandedId] = useState(null);
+  const [memos, setMemos] = useState({});
+  const [savingMemo, setSavingMemo] = useState(null);
+
+  const DIAG_MAP = {
+    calc:    { label: '계산 실수', bg: '#A32D2D', prefix: '⚠' },
+    concept: { label: '개념 누락', bg: '#A32D2D', prefix: '⚠' },
+    apply:   { label: '응용 부족', bg: '#A32D2D', prefix: '⚠' },
+    time:    { label: '시간 부족', bg: '#8A5A00', prefix: '△' },
+    perfect: { label: '개념 완벽', bg: '#0F6E56', prefix: '✓' },
+  };
+
+  // 선택 날짜 리포트 필터
+  const todayReports = reports.filter(r => {
+    if (!r.createdAt?.seconds) return false;
+    const d = new Date(r.createdAt.seconds * 1000).toISOString().split('T')[0];
+    return d === selectedDate;
+  });
+
+  // 오늘 수업한 학생 ID 목록
+  const reportedIds = new Set(todayReports.map(r => r.studentId));
+
+  // 진단 집계
+  const diagCount = {};
+  todayReports.forEach(r => (r.diagnosis || []).forEach(d => {
+    diagCount[d.key] = (diagCount[d.key] || 0) + 1;
+  }));
+  const diagEntries = Object.entries(diagCount).sort((a, b) => b[1] - a[1]);
+  const maxDiag = diagEntries[0]?.[1] || 1;
+
+  const totalOnTime = todayReports.filter(r => r.attendance === '정시').length;
+  const totalAbsent = todayReports.filter(r => r.attendance === '결석').length;
+
+  const handleMemoSave = async (reportId, memo) => {
+    setSavingMemo(reportId);
+    await updateDoc(doc(db, 'reports', reportId), { directorMemo: memo });
+    setSavingMemo(null);
+  };
+
+  const fmtDate = (dateStr) => {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' });
+  };
+
+  return (
+    <div style={{ maxWidth: '780px', margin: '0 auto', padding: '20px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>
+
+      {/* 헤더 */}
+      <div style={{ background: '#0D2D6B', borderRadius: '4px', padding: '16px 20px', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div>
+          <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)', letterSpacing: '0.15em', margin: '0 0 3px' }}>와이즈에듀 교현학원</p>
+          <p style={{ fontSize: '17px', fontWeight: 700, color: '#fff', margin: 0, fontFamily: "'Noto Serif KR', serif" }}>원장님 데일리 보고서</p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
+            style={{ padding: '6px 10px', fontSize: '12px', border: '1px solid rgba(201,162,39,0.5)', borderRadius: '6px', background: 'rgba(255,255,255,0.1)', color: '#C9A227', fontFamily: 'inherit', cursor: 'pointer' }}
+          />
+        </div>
+      </div>
+
+      <p style={{ fontSize: '13px', fontWeight: 600, color: '#5A6472', margin: '0 0 12px' }}>{fmtDate(selectedDate)}</p>
+
+      {/* 핵심 지표 */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '8px', marginBottom: '14px' }}>
+        {[
+          { label: '총 수업', value: `${todayReports.length}회`, color: '#0D2D6B' },
+          { label: '정시 출석', value: `${totalOnTime}명`, color: '#0F6E56' },
+          { label: '결석', value: `${totalAbsent}명`, color: totalAbsent > 0 ? '#A32D2D' : '#98A1AC' },
+          { label: '리포트 미작성', value: `${Math.max(0, students.length - todayReports.length)}건`, color: students.length - todayReports.length > 0 ? '#8A5A00' : '#98A1AC' },
+        ].map((item, i) => (
+          <div key={i} style={{ background: '#fff', border: '0.5px solid #E8E6E0', borderRadius: '10px', padding: '12px', textAlign: 'center' }}>
+            <p style={{ fontSize: '10px', color: '#98A1AC', margin: '0 0 3px', letterSpacing: '0.06em' }}>{item.label}</p>
+            <p style={{ fontSize: '22px', fontWeight: 800, color: item.color, margin: 0, fontVariantNumeric: 'tabular-nums' }}>{item.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* 학생 카드 목록 */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '14px' }}>
+        {todayReports.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '48px 20px', color: '#9CA3AF', background: '#fff', borderRadius: '10px', border: '0.5px solid #E8E6E0' }}>
+            <p style={{ fontSize: '28px', marginBottom: '8px' }}>📋</p>
+            <p style={{ fontSize: '14px', fontWeight: 600, margin: '0 0 4px' }}>이 날짜의 리포트가 없습니다</p>
+            <p style={{ fontSize: '12px', margin: 0 }}>다른 날짜를 선택해보세요</p>
+          </div>
+        ) : todayReports.map(r => {
+          const isOpen = expandedId === r.id;
+          const weakDiag = (r.diagnosis || []).filter(d => d.key !== 'perfect');
+          const goodDiag = (r.diagnosis || []).filter(d => d.key === 'perfect');
+          const mainDiag = r.diagnosis?.[0];
+          const borderColor = weakDiag.length > 0 ? '#A32D2D' : goodDiag.length > 0 ? '#0F6E56' : '#E8E6E0';
+
+          return (
+            <div key={r.id} style={{ background: '#fff', border: `0.5px solid ${borderColor}`, borderRadius: '10px', overflow: 'hidden' }}>
+
+              {/* 요약 행 — 클릭으로 펼치기 */}
+              <button onClick={() => setExpandedId(isOpen ? null : r.id)}
+                style={{ width: '100%', padding: '12px 14px', display: 'grid', gridTemplateColumns: '150px 1fr auto auto', gap: '12px', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
+
+                {/* 학생명 + 강사 */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#EAF0F9', color: '#0D2D6B', fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    {r.studentName?.[0]}
+                  </div>
+                  <div>
+                    <p style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>{r.studentName}</p>
+                    <p style={{ fontSize: '10px', color: '#98A1AC', margin: 0 }}>{r.teacherName}{/선생님?$/.test(r.teacherName || '') ? '' : ' 선생님'}</p>
+                  </div>
+                </div>
+
+                {/* 학습 단원 */}
+                <div style={{ textAlign: 'left' }}>
+                  {r.textbook && <p style={{ fontSize: '12px', fontWeight: 600, color: '#1A1A1A', margin: '0 0 1px', wordBreak: 'keep-all' }}>{r.textbook}{r.unit ? ` · ${r.unit}` : ''}</p>}
+                  {r.pages && <p style={{ fontSize: '11px', color: '#98A1AC', margin: 0 }}>{r.pages}</p>}
+                </div>
+
+                {/* 점수 */}
+                <p style={{ fontSize: '11px', color: '#5A6472', margin: 0, whiteSpace: 'nowrap' }}>
+                  과제 {r.homeworkRating}/5 · 개념 {r.conceptRating}/5
+                  {r.hasTest && r.testScore ? ` · 시험 ${r.testScore}점` : ''}
+                </p>
+
+                {/* 진단 태그 */}
+                {mainDiag && DIAG_MAP[mainDiag.key] && (
+                  <span style={{ background: DIAG_MAP[mainDiag.key].bg, color: '#fff', fontSize: '11px', fontWeight: 700, padding: '3px 9px', borderRadius: '20px', whiteSpace: 'nowrap' }}>
+                    {DIAG_MAP[mainDiag.key].prefix} {DIAG_MAP[mainDiag.key].label}
+                  </span>
+                )}
+              </button>
+
+              {/* 펼쳐진 상세 */}
+              {isOpen && (
+                <div style={{ borderTop: '0.5px solid #F3F4F6', background: '#FAFAFA', padding: '14px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '12px' }}>
+
+                    {/* 약점 상세 */}
+                    {r.diagnosis?.length > 0 && (
+                      <div>
+                        <p style={{ fontSize: '10px', color: '#98A1AC', margin: '0 0 6px', letterSpacing: '0.08em' }}>약점 상세</p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                          {r.diagnosis.map((d, i) => {
+                            const tag = DIAG_MAP[d.key];
+                            if (!tag) return null;
+                            return (
+                              <div key={i}>
+                                <span style={{ background: tag.bg, color: '#fff', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px' }}>
+                                  {tag.prefix} {tag.label}
+                                </span>
+                                {(d.unit || d.detail) && (
+                                  <p style={{ fontSize: '12px', color: '#5A6472', margin: '3px 0 0 2px', lineHeight: 1.5 }}>
+                                    {d.unit && `${d.unit}단원`}{d.unit && d.detail ? ' — ' : ''}{d.detail}
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 선생님 코멘트 */}
+                    {r.teacherNote && (
+                      <div>
+                        <p style={{ fontSize: '10px', color: '#98A1AC', margin: '0 0 6px', letterSpacing: '0.08em' }}>선생님 코멘트</p>
+                        <div style={{ borderLeft: '2px solid #C9A227', paddingLeft: '10px' }}>
+                          <p style={{ fontSize: '12px', color: '#5A6472', margin: 0, lineHeight: 1.7, fontStyle: 'italic' }}>"{r.teacherNote}"</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 다음 수업 계획 */}
+                  {r.nextPlan && (
+                    <div style={{ marginBottom: '12px', padding: '8px 12px', background: '#EAF0F9', borderRadius: '8px' }}>
+                      <p style={{ fontSize: '10px', color: '#1A5CB8', margin: '0 0 3px', letterSpacing: '0.08em' }}>다음 수업 계획</p>
+                      <p style={{ fontSize: '12px', fontWeight: 600, color: '#0D2D6B', margin: 0 }}>{r.nextPlan}{r.nextPlanDetail ? ` · ${r.nextPlanDetail}` : ''}</p>
+                    </div>
+                  )}
+
+                  {/* 원장님 메모 */}
+                  <div>
+                    <p style={{ fontSize: '10px', color: '#98A1AC', margin: '0 0 5px', letterSpacing: '0.08em' }}>원장님 메모</p>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <textarea
+                        value={memos[r.id] ?? (r.directorMemo || '')}
+                        onChange={e => setMemos(prev => ({ ...prev, [r.id]: e.target.value }))}
+                        placeholder="상담 포인트, 학부모 통화 내용, 학생 컨디션 등 원장님만 보는 메모"
+                        rows={2}
+                        style={{ flex: 1, padding: '8px 10px', fontSize: '12px', border: '0.5px solid #E8E6E0', borderRadius: '8px', fontFamily: 'inherit', resize: 'vertical', lineHeight: 1.6 }}
+                      />
+                      <button
+                        onClick={() => handleMemoSave(r.id, memos[r.id] ?? r.directorMemo ?? '')}
+                        disabled={savingMemo === r.id}
+                        style={{ padding: '8px 14px', fontSize: '12px', fontWeight: 700, background: '#0D2D6B', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit', alignSelf: 'flex-start' }}>
+                        {savingMemo === r.id ? '저장 중' : '저장'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* 진단 집계 */}
+      {diagEntries.length > 0 && (
+        <div style={{ background: '#fff', border: '0.5px solid #E8E6E0', borderRadius: '10px', padding: '14px' }}>
+          <p style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A', margin: '0 0 10px' }}>오늘 진단 집계</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {diagEntries.map(([key, count]) => {
+              const tag = DIAG_MAP[key];
+              if (!tag) return null;
+              return (
+                <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ background: tag.bg, color: '#fff', fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: '20px', minWidth: '90px', textAlign: 'center' }}>
+                    {tag.prefix} {tag.label}
+                  </span>
+                  <div style={{ flex: 1, height: '5px', background: '#F3F4F6', borderRadius: '4px', overflow: 'hidden' }}>
+                    <div style={{ width: `${(count / maxDiag) * 100}%`, height: '100%', background: tag.bg, borderRadius: '4px' }} />
+                  </div>
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: tag.bg, minWidth: '24px' }}>{count}건</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ReviewView({ students }) {
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
