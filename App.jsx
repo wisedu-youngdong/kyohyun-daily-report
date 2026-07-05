@@ -289,10 +289,16 @@ export default function App() {
   };
   const handleDeleteReport = async (id) => {
     await deleteDoc(doc(db, 'reports', id));
-    // 해당 리포트의 복습 일정도 함께 삭제
-    const q = query(collection(db, 'reviews'), where('reportId', '==', id));
-    const snap = await getDocs(q);
-    await Promise.all(snap.docs.map(d => deleteDoc(doc(db, 'reviews', d.id))));
+    // 연결된 복습 일정 삭제 (reportId 기준)
+    try {
+      const q = query(collection(db, 'reviews'), where('reportId', '==', id));
+      const snap = await getDocs(q);
+      if (snap.docs.length > 0) {
+        await Promise.all(snap.docs.map(d => deleteDoc(doc(db, 'reviews', d.id))));
+      }
+    } catch (e) {
+      console.warn('복습 일정 삭제 중 오류 (무시 가능):', e);
+    }
   };
 
   if (authLoading) return (
