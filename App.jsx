@@ -351,7 +351,12 @@ export default function App() {
         )}
         {activeTab === 'history' && <HistoryView reports={reports} students={students} onDelete={handleDeleteReport} onEdit={(report) => { setEditingReport(report); setActiveTab('write'); }} />}
         {activeTab === 'review' && <ReviewView students={students} />}
-        {activeTab === 'director' && <DirectorView reports={reports} students={students} />}
+        {activeTab === 'director' && (
+          <div>
+            <DirectorView reports={reports} students={students} />
+            <GrowthDashboard reports={reports} students={students} />
+          </div>
+        )}
         {activeTab === 'analysis' && <AnalysisView students={students} reports={reports} />}
       </main>
 
@@ -1787,6 +1792,408 @@ function MonthlyReportModal({ student, reports, allReports, periodLabel, onClose
           </div>{/* 내부 패딩 div 닫힘 */}
         </div>{/* cardRef 닫힘 */}
       </div>
+    </div>
+  );
+}
+
+// ============================================================
+// 성장 대시보드 — 전체 학생 개념이해도 추이
+// ============================================================
+function GrowthDashboard({ reports, students }) {
+  const [period, setPeriod] = React.useState('week');
+  const [sortMode, setSortMode] = React.useState('decline');
+  const [selId, setSelId] = React.useState(null);
+  const [drawerOpen, setDrawerOpen] = React.useState(false);
+  const [tooltip, setTooltip] = React.useState(null);
+  const svgRef = React.useRef(null);
+
+  const DIAG_MAP = {
+    calc:    { label: '계산 실수', bg: '#A32D2D', prefix: '⚠' },
+    concept: { label: '개념 누락', bg: '#A32D2D', prefix: '⚠' },
+    apply:   { label: '응용 부족', bg: '#A32D2D', prefix: '⚠' },
+    time:    { label: '시간 부족', bg: '#8A5A00', prefix: '△' },
+    perfect: { label: '개념 완벽', bg: '#0F6E56', prefix: '✓' },
+  };
+
+  const PERIODS = { week: 7, '2week': 14, month: 30, '3month': 90 };
+
+  const getStudentReports = React.useCallback((studentId) => {
+    const cutoff = Date.now() - PERIODS[period] * 24 * 60 * 60 * 1000;
+    return reports
+      .filter(r => r.studentId === studentId && r.createdAt?.seconds * 1000 >= cutoff && r.conceptRating > 0)
+      .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+  }, [reports, period]);
+
+  const avg = (arr) => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length * 10) / 10 : 0;
+
+  const getDecline = (sid) => {
+    const rs = getStudentReports(sid);
+    if (rs.length < 2) return null; // ① 결측치 → null
+    return Math.round((rs[rs.length - 1].conceptRating - rs[0].conceptRating) * 10) / 10;
+  };
+
+  const getTrend = (sid) => {
+    const rs = getStudentReports(sid);
+    if (rs.length < 2) return null;
+    return Math.round((rs[rs.length - 1].conceptRating - rs[rs.length - 2].conceptRating) * 10) / 10;
+  };
+
+  const getAvg = (sid) => avg(getStudentReports(sid).map(r => r.conceptRating));
+
+  const getStatus = (sid) => {
+    const rs = getStudentReports(sid);
+    if (!rs.length) return { label: '데이터없음', color: '#98A1AC', bg: '#F3F4F6', border: '#E5E7EB' };
+    const a = avg(rs.map(r => r.conceptRating));
+    const trend3 = rs.length >= 3 ? rs[rs.length - 1].conceptRating - rs[rs.length - 3].conceptRating
+      : rs.length >= 2 ? rs[rs.length - 1].conceptRating - rs[rs.length - 2].conceptRating : 0;
+    if (a >= 4 && trend3 >= 0) return { label: '안정', color: '#0F6E56', bg: '#E1F5EE', border: '#0F6E56' };
+    if (trend3 <= -1 || a < 2.5) return { label: '경고', color: '#A32D2D', bg: '#FCEBEB', border: '#A32D2D' };
+    if (trend3 < 0 || a < 3.5) return { label: '주의', color: '#8A5A00', bg: '#FAEEDA', border: '#EF9F27' };
+    return { label: '안정', color: '#0F6E56', bg: '#E1F5EE', border: '#0F6E56' };
+  };
+
+  // 탭 전환 시 완전 초기화
+  const handlePeriod = (p) => { setPeriod(p); setSelId(null); setDrawerOpen(false); };
+
+  // 정렬 — ① 결측치(null) 처리: 항상 맨 아래로
+  const sortedStudents = React.useMemo(() => {
+    const list = [...students];
+    if (sortMode === 'decline') {
+      return list.sort((a, b) => {
+        const da = getDecline(a.id), db = getDecline(b.id);
+        if (da === null && db === null) return 0;
+        if (da === null) return 1;  // null → 맨 뒤
+        if (db === null) return -1;
+        return da - db; // 가장 많이 떨어진 순
+      });
+    }
+    if (sortMode === 'score') return list.sort((a, b) => getAvg(b.id) - getAvg(a.id));
+    return list.sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+  }, [students, period, sortMode, getDecline, getAvg]);
+
+  // 전체 평균 데이터 포인트 생성
+  const globalPoints = React.useMemo(() => {
+    const allRs = reports.filter(r => {
+      const cutoff = Date.now() - PERIODS[period] * 24 * 60 * 60 * 1000;
+      return r.createdAt?.seconds * 1000 >= cutoff && r.conceptRating > 0;
+    }).sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+    if (!allRs.length) return [];
+    // 날짜별 그룹
+    const byDay = {};
+    allRs.forEach(r => {
+      const d = new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR');
+      if (!byDay[d]) byDay[d] = [];
+      byDay[d].push(r.conceptRating);
+    });
+    return Object.entries(byDay).map(([date, vals]) => ({ date, avg: avg(vals) }));
+  }, [reports, period]);
+
+  // SVG 차트 생성
+  const W = 540, H = 110, PL = 26, PR = 14, PT = 8, PB = 20;
+  const cW = W - PL - PR, cH = H - PT - PB;
+
+  const toXY = (i, v, len) => [
+    PL + (i / Math.max(len - 1, 1)) * cW,
+    PT + cH - ((v - 1) / 4) * cH
+  ];
+
+  const selStudentRs = selId ? getStudentReports(selId) : [];
+  const selStatus = selId ? getStatus(selId) : null;
+
+  const atRisk = students.filter(s => getStatus(s.id).label === '경고').length;
+  const caution = students.filter(s => getStatus(s.id).label === '주의').length;
+  const overallAvg = avg(students.map(s => getAvg(s.id)).filter(v => v > 0));
+  const bestStudent = students.length ? students.reduce((b, s) => getAvg(s.id) > getAvg(b.id) ? s : b) : null;
+
+  return (
+    <div style={{ maxWidth: '780px', margin: '0 auto', padding: '20px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>
+
+      {/* TOP 위젯 + 기간 필터 */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px', marginBottom: '12px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '8px', flex: 1, minWidth: '280px' }}>
+          {[
+            { label: '🚨 관심 필요', value: `${atRisk}명`, sub: `주의 ${caution}명 포함`, c: '#A32D2D', bg: '#FCEBEB', bd: '#A32D2D' },
+            { label: '전체 평균', value: `${overallAvg}점`, sub: '기간 평균', c: '#0D2D6B', bg: '#fff', bd: '#E8E6E0' },
+            { label: '총 학생', value: `${students.length}명`, sub: '등록', c: '#1A1A1A', bg: '#fff', bd: '#E8E6E0' },
+            { label: '최고 성취', value: bestStudent?.name || '-', sub: `${bestStudent ? getAvg(bestStudent.id) : 0}점`, c: bestStudent ? getStatus(bestStudent.id).color : '#98A1AC', bg: '#fff', bd: '#E8E6E0' },
+          ].map((w, i) => (
+            <div key={i} style={{ background: w.bg, border: `1px solid ${w.bd}`, borderRadius: '10px', padding: '10px 12px' }}>
+              <p style={{ fontSize: '10px', color: w.c, margin: '0 0 3px', fontWeight: 700 }}>{w.label}</p>
+              <p style={{ fontSize: '18px', fontWeight: 800, color: w.c, margin: 0, fontVariantNumeric: 'tabular-nums' }}>{w.value}</p>
+              <p style={{ fontSize: '10px', color: '#98A1AC', margin: '3px 0 0' }}>{w.sub}</p>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: '5px', flexShrink: 0 }}>
+          {[['week','1주'],['2week','2주'],['month','1개월'],['3month','3개월']].map(([k, l]) => (
+            <button key={k} onClick={() => handlePeriod(k)} style={{
+              padding: '5px 11px', fontSize: '11px', borderRadius: '20px', cursor: 'pointer', fontFamily: 'inherit',
+              border: `1.5px solid ${period === k ? '#0D2D6B' : '#E8E6E0'}`,
+              background: period === k ? '#0D2D6B' : '#fff',
+              color: period === k ? '#fff' : '#6B7280',
+            }}>{l}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* 메인 그래프 — 전체 평균 단일선 */}
+      <div style={{ background: '#fff', border: '0.5px solid #E8E6E0', borderRadius: '12px', padding: '14px', marginBottom: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px', flexWrap: 'wrap' }}>
+          <p style={{ fontSize: '12px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>학급 평균 추이</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <div style={{ width: '18px', height: '2.5px', background: '#0D2D6B', borderRadius: '2px' }} />
+            <span style={{ fontSize: '10px', color: '#98A1AC' }}>전체 평균</span>
+          </div>
+          {selId && selStatus && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <svg width="18" height="6"><line x1="0" y1="3" x2="18" y2="3" stroke={selStatus.color} strokeWidth="2" strokeDasharray="4,2" /></svg>
+              <span style={{ fontSize: '10px', color: '#98A1AC' }}>{students.find(s => s.id === selId)?.name}</span>
+            </div>
+          )}
+          {!selId && <p style={{ fontSize: '10px', color: '#98A1AC', margin: 0 }}>학생 클릭 시 비교선 추가</p>}
+        </div>
+        <div style={{ position: 'relative' }}>
+          <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ overflow: 'visible' }}>
+            {[1,2,3,4,5].map(v => {
+              const y = PT + cH - ((v-1)/4) * cH;
+              return (
+                <g key={v}>
+                  <line x1={PL} y1={y} x2={W-PR} y2={y} stroke="#E8E6E0" strokeWidth="0.5" strokeDasharray="3,4" />
+                  <text x={PL-4} y={y+4} fontSize="9" fill="#98A1AC" textAnchor="end">{v}</text>
+                </g>
+              );
+            })}
+            {/* 전체 평균선 */}
+            {globalPoints.length >= 2 && (
+              <>
+                <polyline
+                  points={globalPoints.map((p, i) => toXY(i, p.avg, globalPoints.length).join(',')).join(' ')}
+                  fill="none" stroke="#0D2D6B" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round"
+                />
+                {globalPoints.map((p, i) => {
+                  const [x, y] = toXY(i, p.avg, globalPoints.length);
+                  return (
+                    <circle key={i} cx={x} cy={y} r={i === globalPoints.length - 1 ? 4.5 : 8}
+                      fill={i === globalPoints.length - 1 ? '#0D2D6B' : 'transparent'}
+                      stroke="none"
+                      onMouseEnter={(e) => setTooltip({ x: e.clientX, y: e.clientY, text: `${p.date} · 평균 ${p.avg}점` })}
+                      onMouseLeave={() => setTooltip(null)}
+                      style={{ cursor: 'crosshair' }}
+                    />
+                  );
+                })}
+                {(() => {
+                  const last = globalPoints[globalPoints.length - 1];
+                  const [lx, ly] = toXY(globalPoints.length - 1, last.avg, globalPoints.length);
+                  return <text x={lx+7} y={ly+4} fontSize="10" fontWeight="700" fill="#0D2D6B">{last.avg}</text>;
+                })()}
+              </>
+            )}
+            {/* 선택 학생 비교선 */}
+            {selId && selStudentRs.length >= 2 && selStatus && (() => {
+              const pts = selStudentRs.map((r, i) => toXY(i, r.conceptRating, selStudentRs.length));
+              const last = pts[pts.length - 1];
+              return (
+                <>
+                  <polyline points={pts.map(p => p.join(',')).join(' ')}
+                    fill="none" stroke={selStatus.color} strokeWidth="2" strokeDasharray="6,3"
+                    strokeLinejoin="round" strokeLinecap="round" />
+                  <circle cx={last[0]} cy={last[1]} r="4" fill={selStatus.color} />
+                  <text x={last[0]+7} y={last[1]+4} fontSize="10" fontWeight="700" fill={selStatus.color}>
+                    {selStudentRs[selStudentRs.length-1].conceptRating}
+                  </text>
+                </>
+              );
+            })()}
+          </svg>
+          {globalPoints.length === 0 && (
+            <p style={{ textAlign: 'center', color: '#98A1AC', fontSize: '12px', padding: '20px 0' }}>이 기간에 기록된 수업이 없습니다</p>
+          )}
+        </div>
+      </div>
+
+      {/* 정렬 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+        <p style={{ fontSize: '11px', color: '#98A1AC', margin: 0 }}>정렬:</p>
+        {[['decline','하락 폭 큰 순'],['score','점수 높은 순'],['name','이름순']].map(([m, l]) => (
+          <button key={m} onClick={() => setSortMode(m)} style={{
+            padding: '4px 10px', fontSize: '11px', borderRadius: '20px', cursor: 'pointer', fontFamily: 'inherit',
+            border: `1.5px solid ${sortMode === m ? '#0D2D6B' : '#E8E6E0'}`,
+            background: sortMode === m ? '#0D2D6B' : '#fff',
+            color: sortMode === m ? '#fff' : '#6B7280',
+          }}>{l}</button>
+        ))}
+      </div>
+
+      {/* 학생 리스트 */}
+      <div style={{ background: '#fff', border: '0.5px solid #E8E6E0', borderRadius: '12px', overflow: 'hidden' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 65px 80px 70px 55px', padding: '8px 14px', borderBottom: '0.5px solid #E8E6E0', background: '#FAFAFA' }}>
+          {['학생', '현재', '변화량', '추이', '상태'].map((h, i) => (
+            <p key={i} style={{ fontSize: '10px', color: '#98A1AC', margin: 0, textAlign: i === 0 ? 'left' : 'center', letterSpacing: '0.06em' }}>{h}</p>
+          ))}
+        </div>
+        {sortedStudents.map(s => {
+          const rs = getStudentReports(s.id);
+          const a = getAvg(s.id);
+          const trend = getTrend(s.id);
+          const decline = getDecline(s.id);
+          const status = getStatus(s.id);
+          const isSel = selId === s.id;
+
+          const trendStr = trend === null ? '―' : trend > 0 ? `▲${Math.abs(trend)}` : trend < 0 ? `▼${Math.abs(trend)}` : '―';
+          const trendColor = trend === null ? '#98A1AC' : trend > 0 ? '#0F6E56' : trend < 0 ? '#A32D2D' : '#98A1AC';
+
+          // 스파크라인 — 상태 컬러 사용
+          const sparkW = 56, sparkH = 22;
+          const sparkPts = rs.map((r, i) => [
+            4 + (i / Math.max(rs.length - 1, 1)) * (sparkW - 8),
+            sparkH - 2 - ((r.conceptRating - 1) / 4) * (sparkH - 6)
+          ]);
+          const sparkPath = sparkPts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p[0]},${p[1]}`).join(' ');
+
+          // 주요 약점 태그
+          const diagCount = {};
+          rs.forEach(r => (r.diagnosis || []).forEach(d => {
+            if (d.key !== 'perfect') diagCount[d.key] = (diagCount[d.key] || 0) + 1;
+          }));
+          const topWeak = Object.entries(diagCount).sort((a, b) => b[1] - a[1])[0];
+
+          return (
+            <div key={s.id}
+              onClick={() => { setSelId(isSel ? null : s.id); setDrawerOpen(!isSel); }}
+              style={{
+                display: 'grid', gridTemplateColumns: '1fr 65px 80px 70px 55px',
+                padding: '10px 14px', borderBottom: '0.5px solid #F3F4F6', cursor: 'pointer',
+                background: isSel ? '#EAF0F9' : '#fff', transition: 'background 0.12s',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: status.border, flexShrink: 0 }} />
+                <span style={{ fontSize: '13px', fontWeight: isSel ? 700 : 400, color: '#1A1A1A' }}>{s.name}</span>
+                {topWeak && (
+                  <span style={{ fontSize: '10px', color: '#A32D2D', background: '#FCEBEB', padding: '1px 6px', borderRadius: '10px' }}>⚠</span>
+                )}
+              </div>
+              <div style={{ textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontSize: '15px', fontWeight: 700, color: status.color, fontVariantNumeric: 'tabular-nums' }}>{a || '-'}</span>
+              </div>
+              <div style={{ textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: trendColor }}>{trendStr}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {rs.length >= 2 ? (
+                  <svg viewBox={`0 0 ${sparkW} ${sparkH}`} width={sparkW} height={sparkH} style={{ overflow: 'visible' }}>
+                    <path d={sparkPath} fill="none" stroke={status.color} strokeWidth="1.8"
+                      strokeLinejoin="round" strokeLinecap="round" />
+                    {sparkPts.length > 0 && (
+                      <circle cx={sparkPts[sparkPts.length-1][0]} cy={sparkPts[sparkPts.length-1][1]}
+                        r="2.5" fill={status.color} />
+                    )}
+                  </svg>
+                ) : (
+                  <span style={{ fontSize: '10px', color: '#98A1AC' }}>데이터 없음</span>
+                )}
+              </div>
+              <div style={{ textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: status.color, background: status.bg, padding: '3px 8px', borderRadius: '20px', border: `1px solid ${status.border}` }}>
+                  {status.label}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+        {sortedStudents.length === 0 && (
+          <p style={{ textAlign: 'center', color: '#98A1AC', fontSize: '12px', padding: '32px 0' }}>등록된 학생이 없습니다</p>
+        )}
+      </div>
+
+      {/* 사이드 드로어 */}
+      {drawerOpen && selId && (() => {
+        const s = students.find(x => x.id === selId);
+        const rs = getStudentReports(selId);
+        const status = getStatus(selId);
+        const a = getAvg(selId);
+        const trend = getTrend(selId);
+        const trendStr = trend === null ? '―' : trend > 0 ? `▲${Math.abs(trend)}` : trend < 0 ? `▼${Math.abs(trend)}` : '―';
+        const trendColor = trend === null ? '#98A1AC' : trend > 0 ? '#0F6E56' : trend < 0 ? '#A32D2D' : '#98A1AC';
+
+        const diagCount = {};
+        rs.forEach(r => (r.diagnosis || []).forEach(d => {
+          if (d.key !== 'perfect') diagCount[d.key] = (diagCount[d.key] || 0) + 1;
+        }));
+        const topWeak = Object.entries(diagCount).sort((a, b) => b[1] - a[1])[0];
+
+        return (
+          <div style={{
+            position: 'fixed', top: 0, right: 0, bottom: 0, width: '290px',
+            background: '#fff', borderLeft: '0.5px solid #E8E6E0',
+            padding: '18px', overflowY: 'auto', zIndex: 200,
+            fontFamily: "'Pretendard Variable', Pretendard, sans-serif",
+            boxShadow: '-4px 0 20px rgba(0,0,0,0.08)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+              <p style={{ fontSize: '15px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>{s?.name}</p>
+              <button onClick={() => { setDrawerOpen(false); setSelId(null); }}
+                style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#98A1AC' }}>×</button>
+            </div>
+
+            {/* 상태 배지 */}
+            <div style={{ background: status.bg, border: `1px solid ${status.border}`, borderRadius: '8px', padding: '10px 12px', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '12px', fontWeight: 700, color: status.color }}>● {status.label}</span>
+              <span style={{ fontSize: '18px', fontWeight: 800, color: status.color, fontVariantNumeric: 'tabular-nums' }}>
+                {a}점 <span style={{ fontSize: '12px', color: trendColor }}>{trendStr}</span>
+              </span>
+            </div>
+
+            {/* 미니 바차트 */}
+            <p style={{ fontSize: '10px', color: '#98A1AC', margin: '0 0 6px', letterSpacing: '0.08em' }}>개념 이해도 추이</p>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px', height: '48px', marginBottom: '14px', borderBottom: '0.5px solid #E8E6E0', paddingBottom: '3px' }}>
+              {rs.map((r, i) => (
+                <div key={i} style={{ flex: 1, height: `${(r.conceptRating / 5) * 44}px`, background: status.color, borderRadius: '1px 1px 0 0', opacity: 0.75 }} />
+              ))}
+            </div>
+
+            {/* 주요 약점 */}
+            <p style={{ fontSize: '10px', color: '#98A1AC', margin: '0 0 6px', letterSpacing: '0.08em' }}>주요 약점</p>
+            <div style={{ marginBottom: '14px' }}>
+              {topWeak ? (
+                <span style={{ background: '#FCEBEB', border: '1px solid #A32D2D', color: '#791F1F', fontSize: '12px', fontWeight: 700, padding: '4px 11px', borderRadius: '20px' }}>
+                  ⚠ {DIAG_MAP[topWeak[0]]?.label || topWeak[0]} {topWeak[1]}회
+                </span>
+              ) : (
+                <span style={{ background: '#E1F5EE', border: '1px solid #0F6E56', color: '#085041', fontSize: '12px', fontWeight: 700, padding: '4px 11px', borderRadius: '20px' }}>
+                  ✓ 약점 없음
+                </span>
+              )}
+            </div>
+
+            {/* 액션 버튼 */}
+            <p style={{ fontSize: '10px', color: '#98A1AC', margin: '0 0 8px', letterSpacing: '0.08em' }}>액션</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {[
+                '링크 복사 — 학부모 전송',
+                '복습 일정 등록',
+                '종합 프로필 보기',
+              ].map((label, i) => (
+                <button key={i} style={{
+                  padding: '9px 12px', fontSize: '12px', borderRadius: '8px',
+                  border: '0.5px solid #E8E6E0', background: '#fff', color: '#1A1A1A',
+                  cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+                }}>{label}</button>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* 툴팁 */}
+      {tooltip && (
+        <div style={{
+          position: 'fixed', left: tooltip.x + 12, top: tooltip.y - 32,
+          background: '#1A1A1A', color: '#fff', fontSize: '11px', padding: '5px 9px',
+          borderRadius: '6px', pointerEvents: 'none', zIndex: 300, fontFamily: 'inherit',
+        }}>{tooltip.text}</div>
+      )}
     </div>
   );
 }
