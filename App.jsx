@@ -604,6 +604,8 @@ function StudentEditModal({ student, onClose, onSubmit }) {
 }
 const RATING_EMOJI = { 5: '🌟', 4: '😊', 3: '🙂', 2: '😐', 1: '😟' };
 
+const RATING_LEVELS_MAP = { 1: '노력 필요', 2: '조금 부족', 3: '보통', 4: '잘함', 5: '아주 잘함' };
+
 const DIAGNOSIS_TAGS_MAP = {
   calc: { label: '계산 실수', color: '#854F0B', bg: '#FAEEDA', border: '#BA7517' },
   concept: { label: '개념 누락', color: '#854F0B', bg: '#FAEEDA', border: '#BA7517' },
