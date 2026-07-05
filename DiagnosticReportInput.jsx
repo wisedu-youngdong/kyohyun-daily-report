@@ -528,7 +528,7 @@ setAiPolishedNote(data.result);
                     cursor: 'pointer', color: TOKENS.textSub, fontSize: '13px', fontWeight: 600, background: TOKENS.bgSoft
                   }}>
                     <FileText size={16} /> 사진 선택 / 촬영 (여러 장 가능)
-                    <input type="file" accept="image/*" multiple capture="environment" style={{ display: 'none' }}
+                    <input type="file" accept="image/*" multiple style={{ display: 'none' }}
                       onChange={(e) => { handlePhotoSelect(e.target.files); e.target.value = ''; }} />
                   </label>
                 )}
@@ -553,7 +553,7 @@ setAiPolishedNote(data.result);
                           cursor: 'pointer', color: TOKENS.textMute, background: TOKENS.bgSoft
                         }}>
                           <Plus size={20} />
-                          <input type="file" accept="image/*" multiple capture="environment" style={{ display: 'none' }}
+                          <input type="file" accept="image/*" multiple style={{ display: 'none' }}
                             onChange={(e) => { handlePhotoSelect(e.target.files); e.target.value = ''; }} />
                         </label>
                       )}
