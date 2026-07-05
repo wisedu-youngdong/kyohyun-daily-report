@@ -1576,7 +1576,7 @@ function MonthlyReportModal({ student, reports, allReports, periodLabel, onClose
                     <td style={{ padding: '7px 6px', color: DS.inkSub }}>{fmtDate(r)}</td>
                     <td style={{ padding: '7px 6px' }}>{r.attendance || '-'}</td>
                     <td style={{ padding: '7px 6px', fontWeight: 600 }}>{r.homeworkRating || 0}점</td>
-                    <td style={{ padding: '7px 6px', fontWeight: 600 }}>{r.conceptRating || 0}점</td>
+                    <td style={{ padding: '7px 6px', fontWeight: 700, color: (r.conceptRating >= 4) ? DS.positive : (r.conceptRating <= 2 && r.conceptRating > 0) ? '#A32D2D' : DS.ink }}>{r.conceptRating || 0}점</td>
                     {testReports.length > 0 && <td style={{ padding: '7px 6px', fontWeight: 600 }}>{r.hasTest && r.testScore ? `${r.testScore}점` : '-'}</td>}
                     <td style={{ padding: '7px 6px', color: DS.inkSub }}>{unitOf(r)}</td>
                   </tr>
@@ -1585,13 +1585,15 @@ function MonthlyReportModal({ student, reports, allReports, periodLabel, onClose
             </table>
           </div>
 
-          {/* 강점 / 보완 — 좌측 컬러 룰, 배경 박스 없음 */}
+          {/* 강점 / 보완 — 좌측 컬러 룰 + 진단 태그 색상 체계 통일 */}
           {(citedStrengths.length > 0 || citedWeaknesses.length > 0) && (
             <div style={{ marginBottom: '28px' }}>
               <SectionTitle>학습 분석</SectionTitle>
               {citedStrengths.length > 0 && (
                 <div style={{ borderLeft: `3px solid ${DS.positive}`, paddingLeft: '14px', marginBottom: '16px' }}>
-                  <p style={{ fontSize: '10px', fontWeight: 700, color: DS.positive, margin: '0 0 8px', letterSpacing: '0.06em' }}>강점</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                    <span style={{ background: '#0F6E56', color: '#fff', fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: '20px' }}>✓ 강점</span>
+                  </div>
                   {citedStrengths.map((s, i) => (
                     <p key={i} style={{ fontSize: '12px', color: DS.ink, margin: i > 0 ? '6px 0 0' : 0, lineHeight: 1.65 }}>{s}</p>
                   ))}
@@ -1599,7 +1601,9 @@ function MonthlyReportModal({ student, reports, allReports, periodLabel, onClose
               )}
               {citedWeaknesses.length > 0 && (
                 <div style={{ borderLeft: `3px solid ${DS.caution}`, paddingLeft: '14px' }}>
-                  <p style={{ fontSize: '10px', fontWeight: 700, color: DS.caution, margin: '0 0 8px', letterSpacing: '0.06em' }}>보완 포인트</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                    <span style={{ background: '#A32D2D', color: '#fff', fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: '20px' }}>⚠ 보완 포인트</span>
+                  </div>
                   {citedWeaknesses.map((s, i) => (
                     <p key={i} style={{ fontSize: '12px', color: DS.ink, margin: i > 0 ? '6px 0 0' : 0, lineHeight: 1.65 }}>{s}</p>
                   ))}
