@@ -1075,34 +1075,7 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
       {/* 바디 */}
       <div style={{ padding: '14px' }}>
 
-        {/* ★ 오늘 핵심 한 줄 — 결론 먼저 */}
-        {(attendance || homeworkRating || conceptRating || diagnosis?.length > 0) && (() => {
-          const parts = [];
-          if (attendance === '정시') parts.push('정시 등원');
-          else if (attendance === '지각') parts.push('지각 등원');
-          else if (attendance === '결석') parts.push('결석');
-          if (homeworkRating >= 4) parts.push('과제 완벽');
-          else if (homeworkRating === 3) parts.push('과제 양호');
-          else if (homeworkRating > 0 && homeworkRating < 3) parts.push('과제 미흡');
-          if (conceptRating >= 4) parts.push('개념 이해 우수');
-          else if (conceptRating === 3) parts.push('개념 이해 보통');
-          else if (conceptRating > 0 && conceptRating < 3) parts.push('개념 보강 필요');
-          if (diagnosis?.length > 0) {
-            const TAG_MAP = { calc: '계산 실수 확인', concept: '개념 누락 확인', apply: '응용 부족 확인', time: '시간 부족', perfect: '개념 완벽' };
-            parts.push(TAG_MAP[diagnosis[0].key] || diagnosis[0].key);
-          }
-          if (parts.length === 0) return null;
-          return (
-            <div style={{ borderLeft: `3px solid ${s.tagBorder}`, paddingLeft: '12px', marginBottom: '12px' }}>
-              <p style={{ fontSize: '9px', fontWeight: 700, color: s.cardSub, letterSpacing: '0.12em', margin: '0 0 4px', fontFamily: 'Montserrat, sans-serif' }}>TODAY'S SUMMARY</p>
-              <p style={{ fontSize: '13px', fontWeight: 800, color: s.cardText, margin: 0, lineHeight: 1.5, wordBreak: 'keep-all' }}>
-                {parts.join(' · ')}
-              </p>
-            </div>
-          );
-        })()}
-
-        {/* ★ TEACHER'S NOTE — 상단으로 이동 (가장 중요한 차별화 요소) */}
+        {/* ★ TEACHER'S NOTE — 상단 배치 (가장 중요한 차별화 요소) */}
         {teacherNote && (
           <div style={{ background: s.commentBg, borderRadius: '14px', padding: '13px 15px', marginBottom: '10px', borderLeft: `3px solid ${s.commentBorder}` }}>
             <p style={{ fontSize: '9px', fontWeight: 800, color: s.cardSub, letterSpacing: '0.14em', margin: '0 0 7px', fontFamily: 'Montserrat, sans-serif' }}>TEACHER'S NOTE</p>

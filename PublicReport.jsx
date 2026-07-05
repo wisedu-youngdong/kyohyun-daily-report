@@ -65,22 +65,6 @@ export default function PublicReport() {
   const stageInfo = getStageInfo(calculateTotalPoints(allStudentReports));
   const teacherSuffix = /선생님?$/.test(r.teacherName || '') ? '' : ' 선생님';
 
-  // TODAY'S SUMMARY
-  const summaryParts = [];
-  if (r.attendance === '정시') summaryParts.push('정시 등원');
-  else if (r.attendance === '지각') summaryParts.push('지각 등원');
-  else if (r.attendance === '결석') summaryParts.push('결석');
-  if (r.homeworkRating >= 4) summaryParts.push('과제 완벽');
-  else if (r.homeworkRating === 3) summaryParts.push('과제 양호');
-  else if (r.homeworkRating > 0 && r.homeworkRating < 3) summaryParts.push('과제 미흡');
-  if (r.conceptRating >= 4) summaryParts.push('개념 이해 우수');
-  else if (r.conceptRating === 3) summaryParts.push('개념 이해 보통');
-  else if (r.conceptRating > 0 && r.conceptRating < 3) summaryParts.push('개념 보강 필요');
-  if (r.diagnosis?.length > 0) {
-    const TAG_MAP = { calc: '계산 실수 확인', concept: '개념 누락 확인', apply: '응용 부족 확인', time: '시간 부족', perfect: '개념 완벽' };
-    summaryParts.push(TAG_MAP[r.diagnosis[0].key] || '');
-  }
-
   // DS 토큰
   const navy = '#0D2D6B';
   const gold = '#C9A227';
@@ -123,19 +107,7 @@ export default function PublicReport() {
           {/* 바디 */}
           <div style={{ padding: '18px 20px' }}>
 
-            {/* TODAY'S SUMMARY */}
-            {summaryParts.length > 0 && (
-              <div style={{ borderLeft: `3px solid ${gold}`, paddingLeft: '13px', marginBottom: '18px' }}>
-                <p style={{ fontSize: '9px', fontWeight: 700, color: gold, letterSpacing: '0.12em', margin: '0 0 4px' }}>TODAY'S SUMMARY</p>
-                <p style={{ fontSize: '14px', fontWeight: 800, color: navy, margin: 0, lineHeight: 1.5, wordBreak: 'keep-all' }}>
-                  {summaryParts.join(' · ')}
-                </p>
-              </div>
-            )}
-
-            <div style={{ height: '1px', background: rule, marginBottom: '18px' }} />
-
-            {/* 핵심 지표 — 수직선 구분 */}
+            {/* 핵심 지표 — B안: SUMMARY 제거, 수치 → TEACHER'S NOTE 바로 연결 */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', marginBottom: '18px' }}>
               <div style={{ borderRight: `1px solid ${rule}`, paddingRight: '14px', textAlign: 'center' }}>
                 <p style={{ fontSize: '9px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 4px' }}>과제 수행</p>

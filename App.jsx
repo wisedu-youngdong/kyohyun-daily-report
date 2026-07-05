@@ -818,34 +818,7 @@ function ReportPreviewModal({ report: r, allReports, onClose, onDelete, onEdit }
           {/* 바디 */}
           <div style={{ padding: '18px 20px' }}>
 
-            {/* TODAY'S SUMMARY */}
-            {(() => {
-              const parts = [];
-              if (r.attendance === '정시') parts.push('정시 등원');
-              else if (r.attendance === '지각') parts.push('지각 등원');
-              else if (r.attendance === '결석') parts.push('결석');
-              if (r.homeworkRating >= 4) parts.push('과제 완벽');
-              else if (r.homeworkRating === 3) parts.push('과제 양호');
-              else if (r.homeworkRating > 0 && r.homeworkRating < 3) parts.push('과제 미흡');
-              if (r.conceptRating >= 4) parts.push('개념 이해 우수');
-              else if (r.conceptRating === 3) parts.push('개념 이해 보통');
-              else if (r.conceptRating > 0 && r.conceptRating < 3) parts.push('개념 보강 필요');
-              if (r.diagnosis?.length > 0) {
-                const TAG_MAP = { calc: '계산 실수 확인', concept: '개념 누락 확인', apply: '응용 부족 확인', time: '시간 부족', perfect: '개념 완벽' };
-                parts.push(TAG_MAP[r.diagnosis[0].key] || '');
-              }
-              if (!parts.length) return null;
-              return (
-                <div style={{ borderLeft: '3px solid #C9A227', paddingLeft: '13px', marginBottom: '18px' }}>
-                  <p style={{ fontSize: '9px', fontWeight: 700, color: '#C9A227', letterSpacing: '0.12em', margin: '0 0 4px', fontFamily: 'Montserrat, sans-serif' }}>TODAY'S SUMMARY</p>
-                  <p style={{ fontSize: '14px', fontWeight: 800, color: '#0D2D6B', margin: 0, lineHeight: 1.5, wordBreak: 'keep-all' }}>{parts.join(' · ')}</p>
-                </div>
-              );
-            })()}
-
-            <div style={{ height: '1px', background: '#E8E6E0', marginBottom: '18px' }} />
-
-            {/* 핵심 지표 */}
+            {/* 핵심 지표 — 수치 그리드 바로 시작 (B안: SUMMARY 제거) */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', marginBottom: '18px' }}>
               <div style={{ borderRight: '1px solid #E8E6E0', paddingRight: '14px', textAlign: 'center' }}>
                 <p style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.08em', margin: '0 0 4px', fontFamily: 'Montserrat, sans-serif' }}>과제 수행</p>
