@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { db, auth } from './firebase';
 import {
   collection, addDoc, updateDoc, deleteDoc,
-  doc, onSnapshot, serverTimestamp
+  doc, onSnapshot, serverTimestamp, orderBy, query
 } from 'firebase/firestore';
 import {
   signInWithEmailAndPassword,
@@ -247,8 +247,45 @@ export default function App() {
   const handleDeleteTeacher = async (id) => await deleteDoc(doc(db, 'teachers', id));
 
   const handleSaveReport = async (d) => {
-    if (d.id) { const { id, ...data } = d; await updateDoc(doc(db, 'reports', id), { ...data, updatedAt: serverTimestamp() }); }
-    else await addDoc(collection(db, 'reports'), { ...d, createdAt: serverTimestamp() });
+    let reportId;
+    if (d.id) {
+      const { id, ...data } = d;
+      await updateDoc(doc(db, 'reports', id), { ...data, updatedAt: serverTimestamp() });
+      reportId = id;
+    } else {
+      const ref = await addDoc(collection(db, 'reports'), { ...d, createdAt: serverTimestamp() });
+      reportId = ref.id;
+    }
+
+    // ── 약점 태그 감지 → 복습 일정 자동 생성 ──
+    const weakTags = (d.diagnosis || []).filter(t => ['calc','concept','apply','time'].includes(t.key));
+    if (weakTags.length > 0 && !d.id) { // 신규 저장 시만 생성
+      const now = new Date();
+      const schedules = [7, 14, 30].map(days => {
+        const dueDate = new Date(now);
+        dueDate.setDate(dueDate.getDate() + days);
+        return {
+          studentId: d.studentId,
+          studentName: d.studentName,
+          reportId,
+          textbook: d.textbook || '',
+          unit: d.unit || '',
+          weakTypes: weakTags.map(t => ({
+            key: t.key,
+            label: { calc:'계산 실수', concept:'개념 누락', apply:'응용 부족', time:'시간 부족' }[t.key],
+            detail: t.detail || '',
+            unit: t.unit || '',
+          })),
+          round: [7,14,30].indexOf(days) + 1, // 1차/2차/3차
+          dueDate: dueDate.toISOString().split('T')[0],
+          status: 'pending', // pending | done
+          testScore: null,
+          note: '',
+          createdAt: serverTimestamp(),
+        };
+      });
+      await Promise.all(schedules.map(s => addDoc(collection(db, 'reviews'), s)));
+    }
   };
   const handleDeleteReport = async (id) => await deleteDoc(doc(db, 'reports', id));
 
@@ -265,6 +302,7 @@ export default function App() {
     { key: 'students',  label: '학생 관리', icon: <Users size={20} /> },
     { key: 'write',     label: '리포트 작성', icon: <FileText size={20} /> },
     { key: 'history',   label: '기록 보관소', icon: <History size={20} /> },
+    { key: 'review',    label: '복습 관리', icon: <span style={{fontSize:'20px'}}>🔁</span> },
     { key: 'analysis',  label: '종합 분석', icon: <BarChart2 size={20} /> },
     { key: 'settings',  label: '설정', icon: <span style={{fontSize:'20px'}}>⚙️</span> },
   ];
@@ -299,6 +337,7 @@ export default function App() {
           />
         )}
         {activeTab === 'history' && <HistoryView reports={reports} students={students} onDelete={handleDeleteReport} onEdit={(report) => { setEditingReport(report); setActiveTab('write'); }} />}
+        {activeTab === 'review' && <ReviewView students={students} />}
         {activeTab === 'analysis' && <AnalysisView students={students} reports={reports} />}
       </main>
 
@@ -1734,6 +1773,226 @@ function MonthlyReportModal({ student, reports, allReports, periodLabel, onClose
           </div>{/* 내부 패딩 div 닫힘 */}
         </div>{/* cardRef 닫힘 */}
       </div>
+    </div>
+  );
+}
+
+// ============================================================
+// 복습 관리 뷰 — 망각곡선 기반 약점 복습 일정
+// ============================================================
+function ReviewView({ students }) {
+  const [reviews, setReviews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('today'); // today | upcoming | done | all
+  const [editingId, setEditingId] = useState(null);
+  const [scoreInput, setScoreInput] = useState('');
+  const [noteInput, setNoteInput] = useState('');
+
+  useEffect(() => {
+    const q = query(collection(db, 'reviews'), orderBy('dueDate', 'asc'));
+    const unsub = onSnapshot(q, snap => {
+      setReviews(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setLoading(false);
+    });
+    return unsub;
+  }, []);
+
+  const today = new Date().toISOString().split('T')[0];
+
+  const filtered = reviews.filter(r => {
+    if (filter === 'today') return r.status === 'pending' && r.dueDate <= today;
+    if (filter === 'upcoming') return r.status === 'pending' && r.dueDate > today;
+    if (filter === 'done') return r.status === 'done';
+    return true;
+  });
+
+  const todayCount = reviews.filter(r => r.status === 'pending' && r.dueDate <= today).length;
+
+  const handleDone = async (r) => {
+    await updateDoc(doc(db, 'reviews', r.id), {
+      status: 'done',
+      testScore: scoreInput ? Number(scoreInput) : null,
+      note: noteInput,
+      doneAt: new Date().toISOString(),
+    });
+    setEditingId(null);
+    setScoreInput('');
+    setNoteInput('');
+  };
+
+  const handleDelete = async (id) => {
+    if (confirm('이 복습 일정을 삭제하시겠습니까?')) {
+      await deleteDoc(doc(db, 'reviews', id));
+    }
+  };
+
+  const daysUntil = (dateStr) => {
+    const diff = Math.ceil((new Date(dateStr) - new Date(today)) / (1000 * 60 * 60 * 24));
+    if (diff < 0) return `${Math.abs(diff)}일 지남`;
+    if (diff === 0) return '오늘';
+    return `D-${diff}`;
+  };
+
+  const roundLabel = (round) => [`1차 복습`, `2차 복습`, `3차 최종확인`][round - 1] || `${round}차`;
+  const roundColor = (round) => ['#1A5CB8', '#8A5A00', '#0F6E56'][round - 1] || '#6B7280';
+
+  const DIAG_TAG = { calc: '계산 실수', concept: '개념 누락', apply: '응용 부족', time: '시간 부족' };
+
+  return (
+    <div style={{ maxWidth: '680px', margin: '0 auto', padding: '20px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>
+
+      {/* 헤더 */}
+      <div style={{ marginBottom: '20px' }}>
+        <h2 style={{ fontSize: '20px', fontWeight: 700, margin: '0 0 4px', color: '#1A1A1A' }}>복습 관리</h2>
+        <p style={{ fontSize: '12px', color: '#6B7280', margin: 0 }}>망각곡선 기반 약점 복습 일정 — 7일 · 14일 · 30일 자동 생성</p>
+      </div>
+
+      {/* 오늘 복습 배너 */}
+      {todayCount > 0 && (
+        <div style={{ background: '#FFF8E7', border: '1.5px solid #F5A623', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ background: '#F5A623', color: '#fff', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 800, flexShrink: 0 }}>{todayCount}</div>
+          <div>
+            <p style={{ fontSize: '13px', fontWeight: 800, color: '#7A5200', margin: 0 }}>오늘 복습할 항목이 {todayCount}개 있습니다</p>
+            <p style={{ fontSize: '11px', color: '#9A6800', margin: '2px 0 0' }}>약점 유형 테스트 후 결과를 입력해 주세요</p>
+          </div>
+        </div>
+      )}
+
+      {/* 필터 탭 */}
+      <div style={{ display: 'flex', gap: '6px', marginBottom: '16px' }}>
+        {[
+          { key: 'today', label: `오늘 (${todayCount})` },
+          { key: 'upcoming', label: '예정' },
+          { key: 'done', label: '완료' },
+          { key: 'all', label: '전체' },
+        ].map(f => (
+          <button key={f.key} onClick={() => setFilter(f.key)} style={{
+            padding: '6px 14px', fontSize: '12px', fontWeight: filter === f.key ? 700 : 500,
+            borderRadius: '20px', border: `1.5px solid ${filter === f.key ? '#0D2D6B' : '#E5E7EB'}`,
+            background: filter === f.key ? '#0D2D6B' : '#fff',
+            color: filter === f.key ? '#fff' : '#6B7280',
+            cursor: 'pointer', fontFamily: 'inherit',
+          }}>{f.label}</button>
+        ))}
+      </div>
+
+      {/* 목록 */}
+      {loading ? (
+        <p style={{ color: '#9CA3AF', textAlign: 'center', padding: '40px 0' }}>불러오는 중...</p>
+      ) : filtered.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '48px 20px', color: '#9CA3AF' }}>
+          <p style={{ fontSize: '32px', marginBottom: '8px' }}>✅</p>
+          <p style={{ fontSize: '14px', fontWeight: 600, margin: '0 0 4px' }}>
+            {filter === 'today' ? '오늘 복습할 항목이 없습니다' : '해당 항목이 없습니다'}
+          </p>
+          <p style={{ fontSize: '12px', margin: 0 }}>리포트 작성 시 약점 태그를 입력하면 자동 생성됩니다</p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {filtered.map(r => (
+            <div key={r.id} style={{
+              background: '#fff', border: `1px solid ${r.status === 'done' ? '#E5E7EB' : r.dueDate <= today ? '#F5A623' : '#E5E7EB'}`,
+              borderRadius: '12px', overflow: 'hidden',
+              opacity: r.status === 'done' ? 0.7 : 1,
+            }}>
+              {/* 카드 헤더 */}
+              <div style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                {/* 차수 배지 */}
+                <div style={{ background: roundColor(r.round), color: '#fff', fontSize: '10px', fontWeight: 700, padding: '3px 9px', borderRadius: '20px', flexShrink: 0 }}>
+                  {roundLabel(r.round)}
+                </div>
+                {/* 학생명 + 단원 */}
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A', margin: '0 0 2px' }}>
+                    {r.studentName}
+                    {r.unit && <span style={{ fontSize: '12px', color: '#6B7280', fontWeight: 500, marginLeft: '6px' }}>{r.unit}</span>}
+                  </p>
+                  {r.textbook && <p style={{ fontSize: '11px', color: '#9CA3AF', margin: 0 }}>{r.textbook}</p>}
+                </div>
+                {/* D-day */}
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <p style={{ fontSize: '12px', fontWeight: 700, color: r.status === 'done' ? '#9CA3AF' : r.dueDate <= today ? '#F5A623' : '#6B7280', margin: 0 }}>
+                    {r.status === 'done' ? '완료' : daysUntil(r.dueDate)}
+                  </p>
+                  <p style={{ fontSize: '10px', color: '#9CA3AF', margin: '2px 0 0' }}>{r.dueDate}</p>
+                </div>
+              </div>
+
+              {/* 약점 유형 태그 */}
+              <div style={{ padding: '0 14px 10px', display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                {(r.weakTypes || []).map((t, i) => (
+                  <span key={i} style={{ background: '#FCEBEB', border: '1px solid #A32D2D', color: '#791F1F', fontSize: '11px', fontWeight: 700, padding: '3px 9px', borderRadius: '20px' }}>
+                    ⚠ {t.label}{t.unit ? ` · ${t.unit}단원` : ''}{t.detail ? ` — ${t.detail}` : ''}
+                  </span>
+                ))}
+              </div>
+
+              {/* 완료된 경우 결과 표시 */}
+              {r.status === 'done' && (
+                <div style={{ padding: '8px 14px 12px', borderTop: '1px solid #F3F4F6' }}>
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    {r.testScore !== null && (
+                      <span style={{ fontSize: '18px', fontWeight: 800, color: r.testScore >= 80 ? '#0F6E56' : r.testScore >= 60 ? '#8A5A00' : '#A32D2D' }}>
+                        {r.testScore}점
+                      </span>
+                    )}
+                    {r.note && <p style={{ fontSize: '12px', color: '#6B7280', margin: 0 }}>{r.note}</p>}
+                  </div>
+                </div>
+              )}
+
+              {/* 입력 영역 (오늘 이하 pending) */}
+              {r.status === 'pending' && r.dueDate <= today && (
+                <div style={{ padding: '10px 14px 12px', borderTop: '1px solid #FEE9B2', background: '#FFFDF0' }}>
+                  {editingId === r.id ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <input
+                          type="number" placeholder="테스트 점수" value={scoreInput}
+                          onChange={e => setScoreInput(e.target.value)}
+                          style={{ width: '110px', padding: '7px 10px', fontSize: '13px', border: '1px solid #E5E7EB', borderRadius: '8px', fontFamily: 'inherit' }}
+                        />
+                        <span style={{ fontSize: '12px', color: '#9CA3AF' }}>점</span>
+                        <input
+                          placeholder="메모 (선택)" value={noteInput}
+                          onChange={e => setNoteInput(e.target.value)}
+                          style={{ flex: 1, padding: '7px 10px', fontSize: '13px', border: '1px solid #E5E7EB', borderRadius: '8px', fontFamily: 'inherit' }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button onClick={() => handleDone(r)} style={{ flex: 1, padding: '8px', fontSize: '12px', fontWeight: 700, background: '#0D2D6B', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                          복습 완료 저장
+                        </button>
+                        <button onClick={() => setEditingId(null)} style={{ padding: '8px 14px', fontSize: '12px', background: '#fff', border: '1px solid #E5E7EB', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit', color: '#6B7280' }}>
+                          취소
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button onClick={() => setEditingId(r.id)} style={{ flex: 1, padding: '8px', fontSize: '12px', fontWeight: 700, background: '#0D2D6B', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                        테스트 결과 입력
+                      </button>
+                      <button onClick={() => handleDelete(r.id)} style={{ padding: '8px 12px', fontSize: '12px', background: '#fff', border: '1px solid #FCA5A5', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit', color: '#DC2626' }}>
+                        삭제
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 예정 항목 삭제 */}
+              {r.status === 'pending' && r.dueDate > today && (
+                <div style={{ padding: '6px 14px 10px', display: 'flex', justifyContent: 'flex-end' }}>
+                  <button onClick={() => handleDelete(r.id)} style={{ padding: '4px 10px', fontSize: '11px', background: 'none', border: '1px solid #E5E7EB', borderRadius: '6px', cursor: 'pointer', color: '#9CA3AF', fontFamily: 'inherit' }}>
+                    일정 삭제
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
