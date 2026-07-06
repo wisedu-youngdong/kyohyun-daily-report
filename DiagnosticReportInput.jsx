@@ -529,8 +529,8 @@ setAiPolishedNote(data.result);
                       cursor: 'pointer', color: TOKENS.textSub, fontSize: '13px', fontWeight: 600, background: TOKENS.bgSoft
                     }}>
                       <FileText size={16} /> 갤러리 선택
-                      <input type="file" accept="image/*" multiple style={{ display: 'none' }}
-                        onChange={(e) => { handlePhotoSelect(e.target.files); e.target.value = ''; }} />
+                      <input type="file" accept="image/*" style={{ display: 'none' }}
+                        onChange={(e) => { if (e.target.files?.length) { handlePhotoSelect(e.target.files); e.target.value = ''; } }} />
                     </label>
                     <label style={{
                       flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
@@ -538,8 +538,8 @@ setAiPolishedNote(data.result);
                       cursor: 'pointer', color: TOKENS.textSub, fontSize: '13px', fontWeight: 600, background: TOKENS.bgSoft
                     }}>
                       📷 카메라 촬영
-                      <input type="file" accept="image/*" multiple capture="environment" style={{ display: 'none' }}
-                        onChange={(e) => { handlePhotoSelect(e.target.files); e.target.value = ''; }} />
+                      <input type="file" accept="image/*" capture="environment" style={{ display: 'none' }}
+                        onChange={(e) => { if (e.target.files?.length) { handlePhotoSelect(e.target.files); e.target.value = ''; } }} />
                     </label>
                   </div>
                 )}
@@ -564,8 +564,8 @@ setAiPolishedNote(data.result);
                           cursor: 'pointer', color: TOKENS.textMute, background: TOKENS.bgSoft
                         }}>
                           <Plus size={20} />
-                          <input type="file" accept="image/*" multiple style={{ display: 'none' }}
-                            onChange={(e) => { handlePhotoSelect(e.target.files); e.target.value = ''; }} />
+                          <input type="file" accept="image/*" style={{ display: 'none' }}
+                            onChange={(e) => { if (e.target.files?.length) { handlePhotoSelect(e.target.files); e.target.value = ''; } }} />
                         </label>
                       )}
                     </div>
