@@ -354,7 +354,7 @@ export default function App() {
         {activeTab === 'director' && (
           <div>
             <DirectorView reports={reports} students={students} />
-            <GrowthDashboard reports={reports} students={students} />
+            <GrowthDashboard reports={reports} students={students} onSwitchTab={setActiveTab} />
           </div>
         )}
         {activeTab === 'analysis' && <AnalysisView students={students} reports={reports} />}
@@ -1799,7 +1799,7 @@ function MonthlyReportModal({ student, reports, allReports, periodLabel, onClose
 // ============================================================
 // 성장 대시보드 — 전체 학생 개념이해도 추이
 // ============================================================
-function GrowthDashboard({ reports, students }) {
+function GrowthDashboard({ reports, students, onSwitchTab }) {
   const [period, setPeriod] = React.useState('week');
   const [sortMode, setSortMode] = React.useState('decline');
   const [selId, setSelId] = React.useState(null);
@@ -2116,18 +2116,35 @@ function GrowthDashboard({ reports, students }) {
       {/* 사이드 드로어 */}
       {drawerOpen && selId && (() => {
         const s = students.find(x => x.id === selId);
-        const rs = getStudentReports(selId);
+        const rsAll = getStudentReports(selId);
+        const rs = rsAll.slice(-10); // 최대 10개
         const status = getStatus(selId);
         const a = getAvg(selId);
         const trend = getTrend(selId);
         const trendStr = trend === null ? '―' : trend > 0 ? `▲${Math.abs(trend)}` : trend < 0 ? `▼${Math.abs(trend)}` : '―';
         const trendColor = trend === null ? '#98A1AC' : trend > 0 ? '#0F6E56' : trend < 0 ? '#A32D2D' : '#98A1AC';
+        const latestReport = rsAll[rsAll.length - 1];
 
         const diagCount = {};
         rs.forEach(r => (r.diagnosis || []).forEach(d => {
           if (d.key !== 'perfect') diagCount[d.key] = (diagCount[d.key] || 0) + 1;
         }));
         const topWeak = Object.entries(diagCount).sort((a, b) => b[1] - a[1])[0];
+
+        const handleAction = (type) => {
+          if (type === 'link') {
+            if (latestReport?.id) {
+              const url = `${window.location.origin}/report/${latestReport.id}`;
+              navigator.clipboard.writeText(url).then(() => alert('링크 복사 완료!'));
+            } else { alert('최근 리포트가 없습니다.'); }
+          } else if (type === 'review') {
+            setDrawerOpen(false); setSelId(null);
+            if (onSwitchTab) onSwitchTab('review');
+          } else if (type === 'profile') {
+            setDrawerOpen(false); setSelId(null);
+            if (onSwitchTab) onSwitchTab('analysis');
+          }
+        };
 
         return (
           <div style={{
@@ -2210,20 +2227,24 @@ function GrowthDashboard({ reports, students }) {
               </div>
             </div>
 
-            {/* 액션 버튼 */}
+            {/* 액션 버튼 — 실제 동작 */}
             <p style={{ fontSize: '10px', color: '#98A1AC', margin: '0 0 8px', letterSpacing: '0.08em' }}>액션</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {[
-                '링크 복사 — 학부모 전송',
-                '복습 일정 등록',
-                '종합 프로필 보기',
-              ].map((label, i) => (
-                <button key={i} style={{
-                  padding: '9px 12px', fontSize: '12px', borderRadius: '8px',
-                  border: '0.5px solid #E8E6E0', background: '#fff', color: '#1A1A1A',
-                  cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
-                }}>{label}</button>
-              ))}
+              <button onClick={() => handleAction('link')} style={{
+                padding: '9px 12px', fontSize: '12px', fontWeight: 600, borderRadius: '8px',
+                border: '0.5px solid #1A5CB8', background: '#EAF0F9', color: '#0D2D6B',
+                cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+              }}>🔗 링크 복사 — 학부모 전송</button>
+              <button onClick={() => handleAction('review')} style={{
+                padding: '9px 12px', fontSize: '12px', fontWeight: 600, borderRadius: '8px',
+                border: '0.5px solid #E8E6E0', background: '#fff', color: '#1A1A1A',
+                cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+              }}>🔁 복습 관리 탭으로 이동</button>
+              <button onClick={() => handleAction('profile')} style={{
+                padding: '9px 12px', fontSize: '12px', fontWeight: 600, borderRadius: '8px',
+                border: '0.5px solid #E8E6E0', background: '#fff', color: '#1A1A1A',
+                cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+              }}>📊 종합 분석 탭으로 이동</button>
             </div>
           </div>
         );
