@@ -1564,33 +1564,63 @@ function MonthlyReportModal({ student, reports, allReports, periodLabel, onClose
     ? (quoteSource.teacherNote.split(/[.!?\n]/).map(s => s.trim()).find(s => s.length > 5) || quoteSource.teacherNote.slice(0, 40))
     : null;
 
-  // ── 강점 (구체적 인용 기반) ──
-  const citedStrengths = [];
+  // ── 날짜 단축형 포맷 (6/26) ──
+  const fmtShort = (r) => {
+    if (!r?.createdAt?.seconds) return '';
+    const d = new Date(r.createdAt.seconds * 1000);
+    return `${d.getMonth() + 1}/${d.getDate()}`;
+  };
+
+  // ── 진단명 철학적 고도화 매핑 ──
+  const DIAG_UPGRADED = {
+    calc:    { title: '연산 처리 자동화 미완성', sub: '계산 실수', strategy: '풀이 과정을 손으로 쓰는 습관이 정착되지 않은 단계입니다. 속도보다 정확성을 먼저 확보하는 훈련이 필요합니다.' },
+    concept: { title: '개념 구조 내면화 부족', sub: '개념 누락', strategy: '공식을 암기하는 수준을 넘어, 개념이 왜 성립하는지 근거를 설명할 수 있는 이해가 필요합니다.' },
+    apply:   { title: '판단 기준 부재형 응용 오류', sub: '응용 부족', strategy: '문제 상황은 인식하지만, 풀이 방향을 스스로 결정하는 단계에서 반복적으로 멈추는 패턴이 관찰됩니다. \'왜 이 방법을 선택하는가\'에 대한 판단 훈련이 집중적으로 필요한 시점입니다.' },
+    time:    { title: '풀이 우선순위 판단 훈련 필요', sub: '시간 부족', strategy: '문제를 푸는 능력보다 어떤 문제를 먼저 풀어야 하는지 판단하는 전략이 아직 형성되지 않은 단계입니다.' },
+  };
+
+  // ── 강점 stat 구조 ──
+  const strengthStats = [];
   if (bestConceptReport) {
-    citedStrengths.push(`${fmtDate(bestConceptReport)} 수업(${unitOf(bestConceptReport)})에서 개념이해도 ${bestConceptReport.conceptRating}점으로 이 기간 최고치를 기록했습니다.`);
+    strengthStats.push({ label: '최고 개념이해', value: `${bestConceptReport.conceptRating}점`, date: fmtShort(bestConceptReport) });
   }
   if (allAttended && sorted.length >= 2) {
-    citedStrengths.push(`${periodLabel} 동안 ${sorted.length}회 전 수업 정시 출석 — 학습 리듬을 흔들림 없이 유지했습니다.`);
-  }
-  if (perfectTag) {
-    const ex = tagFirstExample[perfectTag[0]];
-    citedStrengths.push(`${fmtDate(ex)} 수업(${unitOf(ex)})에서 '개념 완벽' 진단을 받는 등, 이 기간 ${perfectTag[1]}회 최상위 이해도를 보였습니다.`);
+    strengthStats.push({ label: '출석', value: `${sorted.length}회 전 정시`, date: '개근' });
   }
   if (homeworkAvg >= 4.5) {
-    citedStrengths.push(`과제 수행 평균 ${homeworkAvg}점 — ${unitsCovered[0] || ''} 등 배운 내용을 빠짐없이 소화하고 있습니다.`);
+    strengthStats.push({ label: '과제 수행 평균', value: `${homeworkAvg}점`, date: homeworkAvg >= 5 ? '아주 잘함' : '잘함' });
+  }
+  if (perfectTag) {
+    strengthStats.push({ label: '개념 완벽 진단', value: `${perfectTag[1]}회 달성`, date: fmtShort(tagFirstExample[perfectTag[0]]) });
   }
 
-  // ── 보완 포인트 (구체적 인용 기반) ──
-  const citedWeaknesses = [];
+  // ── 보완 포인트 고도화 ──
+  const weaknessItems = [];
   if (topTag) {
     const [key, count] = topTag;
-    const ex = tagFirstExample[key];
-    citedWeaknesses.push(`${fmtDate(ex)} 수업(${unitOf(ex)})에서 처음 관찰된 '${TAG_LABELS_LOCAL[key]}' 패턴이 이 기간 총 ${count}회로 가장 빈번했습니다 — ${unitOf(ex)} 유형 위주로 복습이 필요합니다.`);
+    const upgraded = DIAG_UPGRADED[key];
+    weaknessItems.push({
+      title: upgraded?.title || TAG_LABELS_LOCAL[key],
+      sub: `이 기간 ${count}회 반복 관찰`,
+      strategy: upgraded?.strategy || '',
+      count, maxCount: topTag[1],
+    });
   }
   if (conceptAvg < 3.5 && conceptAvg > 0) {
     const worst = sorted.reduce((w, r) => ((r.conceptRating ?? 5) < (w?.conceptRating ?? 5) ? r : w), null);
-    if (worst) citedWeaknesses.push(`${fmtDate(worst)} 수업(${unitOf(worst)})에서 개념이해도 ${worst.conceptRating}점으로 이 기간 중 가장 어려워했습니다.`);
+    if (worst) weaknessItems.push({
+      title: '개념 이해도 집중 보강 필요',
+      sub: `최저 ${worst.conceptRating}점 기록 (${fmtShort(worst)})`,
+      strategy: '이해가 충분하지 않은 상태에서 문제 풀이로 넘어가는 패턴이 반복될 수 있습니다. 개념 재정립 후 적용 단계로 진행하는 순서가 중요합니다.',
+      count: null,
+    });
   }
+
+  // ── 교재명 메타 (한 번만 표시용) ──
+  const metaTextbook = unitsCovered.length > 0 ? unitsCovered[0] : '';
+  const metaPeriod = sorted.length > 0
+    ? `${fmtShort(sorted[0])} – ${fmtShort(sorted[sorted.length - 1])} · ${sorted.length}회 수업`
+    : '';
 
   // ── 유형별 약점 TOP3 (photoAnalysis 누적 집계) ──
   // ── 누적 취약 유형 집계 (weakTypesSummary 우선, fallback → photoAnalysis.sections) ──
@@ -1896,30 +1926,57 @@ function MonthlyReportModal({ student, reports, allReports, periodLabel, onClose
             </table>
           </div>
 
-          {/* 강점 / 보완 — 좌측 컬러 룰 + 진단 태그 색상 체계 통일 */}
-          {(citedStrengths.length > 0 || citedWeaknesses.length > 0) && (
+          {/* 강점 / 보완 — 프리미엄 stat 구조 */}
+          {(strengthStats.length > 0 || weaknessItems.length > 0) && (
             <div style={{ marginBottom: '28px' }}>
               <SectionTitle>학습 분석</SectionTitle>
-              {citedStrengths.length > 0 && (
-                <div style={{ borderLeft: `3px solid ${DS.positive}`, paddingLeft: '14px', marginBottom: '16px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                    <span style={{ background: '#0F6E56', color: '#fff', fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: '20px' }}>✓ 강점</span>
-                  </div>
-                  {citedStrengths.map((s, i) => (
-                    <p key={i} style={{ fontSize: '12px', color: DS.ink, margin: i > 0 ? '6px 0 0' : 0, lineHeight: 1.65 }}>{s}</p>
+
+              {/* 교재명 + 기간 메타라인 — 1회만 */}
+              {(metaTextbook || metaPeriod) && (
+                <div style={{ fontSize: '10px', color: DS.inkMute, fontWeight: 500, padding: '6px 10px', background: '#F7F5F1', border: '1px solid #D8D5CF', borderRadius: '3px', marginBottom: '14px', letterSpacing: '0.02em' }}>
+                  {metaTextbook}{metaTextbook && metaPeriod ? ' \u00a0|\u00a0 ' : ''}{metaPeriod}
+                </div>
+              )}
+
+              {/* 강점 */}
+              {strengthStats.length > 0 && (
+                <div style={{ borderLeft: '2px solid #0F6E56', paddingLeft: '14px', marginBottom: '14px', background: '#F4FAF7', borderRadius: '0 3px 3px 0', padding: '13px 15px', borderLeft: '2px solid #0F6E56' }}>
+                  <span style={{ display: 'inline-block', background: '#0F6E56', color: '#fff', fontSize: '9px', fontWeight: 700, padding: '3px 9px', borderRadius: '2px', letterSpacing: '0.14em', marginBottom: '12px' }}>✓ STRENGTH</span>
+                  {strengthStats.map((s, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'baseline', padding: '7px 0', borderBottom: i < strengthStats.length - 1 ? '1px solid rgba(0,0,0,0.06)' : 'none' }}>
+                      <span style={{ fontSize: '10px', color: '#8A8A8A', fontWeight: 600, letterSpacing: '0.06em', width: '90px', flexShrink: 0 }}>{s.label}</span>
+                      <span style={{ fontSize: '13px', fontWeight: 700, color: '#2C2C2C', flex: 1 }}>{s.value}</span>
+                      <span style={{ fontSize: '10px', color: '#8A8A8A', marginLeft: 'auto', whiteSpace: 'nowrap' }}>{s.date}</span>
+                    </div>
                   ))}
                 </div>
               )}
-              {citedWeaknesses.length > 0 && (
-                <div style={{ borderLeft: `3px solid ${DS.caution}`, paddingLeft: '14px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                    <span style={{ background: '#A32D2D', color: '#fff', fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: '20px' }}>⚠ 보완 포인트</span>
-                  </div>
-                  {citedWeaknesses.map((s, i) => (
-                    <p key={i} style={{ fontSize: '12px', color: DS.ink, margin: i > 0 ? '6px 0 0' : 0, lineHeight: 1.65 }}>{s}</p>
-                  ))}
+
+              {/* 보완 포인트 */}
+              {weaknessItems.map((w, i) => (
+                <div key={i} style={{ borderLeft: '2px solid #8B2020', background: '#FAF4F4', borderRadius: '0 3px 3px 0', padding: '13px 15px', marginBottom: i < weaknessItems.length - 1 ? '10px' : 0 }}>
+                  <span style={{ display: 'inline-block', background: '#8B2020', color: '#fff', fontSize: '9px', fontWeight: 700, padding: '3px 9px', borderRadius: '2px', letterSpacing: '0.14em', marginBottom: '10px' }}>⚠ FOCUS POINT</span>
+                  <p style={{ fontSize: '12px', fontWeight: 700, color: '#2C2C2C', margin: '0 0 3px' }}>{w.title}</p>
+                  <p style={{ fontSize: '11px', color: '#8B2020', fontWeight: 600, margin: '0 0 8px', lineHeight: 1.6 }}>{w.sub}</p>
+                  {w.count !== null && (
+                    <div style={{ height: '3px', background: 'rgba(0,0,0,0.08)', borderRadius: '3px', marginBottom: '12px' }}>
+                      <div style={{ height: '100%', width: '100%', background: '#8B2020', borderRadius: '3px' }} />
+                    </div>
+                  )}
+                  {w.strategy && (
+                    <div style={{ fontSize: '12px', color: '#4A4A4A', lineHeight: 2.0, padding: '13px 14px', background: '#fff', border: '1px solid rgba(139,32,32,0.15)', borderRadius: '3px', wordBreak: 'keep-all', letterSpacing: '0.01em' }}>
+                      {w.strategy.split('\'왜').length > 1 ? (
+                        <>
+                          {w.strategy.split('\'왜')[0]}
+                          <span style={{ display: 'block', marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed rgba(139,32,32,0.15)', fontSize: '11px', color: '#8A8A8A', lineHeight: 1.9 }}>
+                            <strong style={{ color: '#8B2020' }}>→ </strong>{'\'왜' + w.strategy.split('\'왜')[1]}
+                          </span>
+                        </>
+                      ) : w.strategy}
+                    </div>
+                  )}
                 </div>
-              )}
+              ))}
             </div>
           )}
 
