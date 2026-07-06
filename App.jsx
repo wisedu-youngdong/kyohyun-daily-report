@@ -270,13 +270,44 @@ export default function App() {
   const handleDeleteTeacher = async (id) => await deleteDoc(doc(db, 'teachers', id));
 
   const handleSaveReport = async (d) => {
+    // ── photoAnalysis → weakTypesSummary 자동 추출 ──
+    const extractWeakTypes = (photoAnalysis) => {
+      if (!photoAnalysis?.sections) return [];
+      const typeMap = {};
+      photoAnalysis.sections.forEach(sec => {
+        // concept 섹션: 문항별 유형
+        (sec.problemTypes || []).forEach(pt => {
+          if (pt.result === '약점') {
+            const key = pt.type || '기타';
+            if (!typeMap[key]) typeMap[key] = { type: key, count: 0, sectionType: 'concept' };
+            typeMap[key].count += 1;
+          }
+        });
+        // mock_exam 섹션: weakDetail 유형
+        (sec.weakDetail || []).forEach(wd => {
+          const key = wd.type || '기타';
+          if (!typeMap[key]) typeMap[key] = { type: key, count: 0, sectionType: 'mock_exam' };
+          typeMap[key].count += 1;
+        });
+        // calculation 섹션: wrong 횟수를 '연산 실수'로 집계
+        if (sec.sectionType === 'calculation' && sec.summary?.wrong > 0) {
+          const key = '연산 실수';
+          if (!typeMap[key]) typeMap[key] = { type: key, count: 0, sectionType: 'calculation' };
+          typeMap[key].count += sec.summary.wrong;
+        }
+      });
+      return Object.values(typeMap).sort((a, b) => b.count - a.count);
+    };
+
+    const weakTypesSummary = d.photoAnalysis ? extractWeakTypes(d.photoAnalysis) : [];
+
     let reportId;
     if (d.id) {
       const { id, ...data } = d;
-      await updateDoc(doc(db, 'reports', id), { ...data, updatedAt: serverTimestamp() });
+      await updateDoc(doc(db, 'reports', id), { ...data, weakTypesSummary, updatedAt: serverTimestamp() });
       reportId = id;
     } else {
-      const ref = await addDoc(collection(db, 'reports'), { ...d, createdAt: serverTimestamp() });
+      const ref = await addDoc(collection(db, 'reports'), { ...d, weakTypesSummary, createdAt: serverTimestamp() });
       reportId = ref.id;
     }
 
@@ -1562,23 +1593,46 @@ function MonthlyReportModal({ student, reports, allReports, periodLabel, onClose
   }
 
   // ── 유형별 약점 TOP3 (photoAnalysis 누적 집계) ──
+  // ── 누적 취약 유형 집계 (weakTypesSummary 우선, fallback → photoAnalysis.sections) ──
   const weakTypeMap = {};
   sorted.forEach(r => {
+    // 신규: weakTypesSummary 필드 우선 사용
+    if (r.weakTypesSummary?.length > 0) {
+      r.weakTypesSummary.forEach(wt => {
+        const key = wt.type || '기타';
+        if (!weakTypeMap[key]) weakTypeMap[key] = { count: 0, dates: [] };
+        weakTypeMap[key].count += wt.count || 1;
+        if (r.createdAt?.seconds) weakTypeMap[key].dates.push(r.createdAt.seconds);
+      });
+      return;
+    }
+    // fallback: 구버전 photoAnalysis.sections 직접 파싱
     if (!r.photoAnalysis?.sections) return;
     r.photoAnalysis.sections.forEach(sec => {
       (sec.problemTypes || []).forEach(pt => {
-        if (pt.result === '약점' || pt.result?.includes('부족') || pt.result?.includes('실수')) {
+        if (pt.result === '약점') {
           const key = pt.type || '기타';
-          if (!weakTypeMap[key]) weakTypeMap[key] = { count: 0, notes: [] };
+          if (!weakTypeMap[key]) weakTypeMap[key] = { count: 0, dates: [] };
           weakTypeMap[key].count += 1;
-          if (pt.note) weakTypeMap[key].notes.push(pt.note);
         }
       });
+      (sec.weakDetail || []).forEach(wd => {
+        const key = wd.type || '기타';
+        if (!weakTypeMap[key]) weakTypeMap[key] = { count: 0, dates: [] };
+        weakTypeMap[key].count += 1;
+      });
+      if (sec.sectionType === 'calculation' && sec.summary?.wrong > 0) {
+        const key = '연산 실수';
+        if (!weakTypeMap[key]) weakTypeMap[key] = { count: 0, dates: [] };
+        weakTypeMap[key].count += sec.summary.wrong;
+      }
     });
   });
-  const weakTop3 = Object.entries(weakTypeMap)
+  const weakTop5 = Object.entries(weakTypeMap)
     .sort((a, b) => b[1].count - a[1].count)
-    .slice(0, 3);
+    .slice(0, 5);
+  const weakTop3 = weakTop5.slice(0, 3);
+  const maxWeakCount = weakTop5[0]?.[1]?.count || 1;
 
   const strongTypeMap = {};
   sorted.forEach(r => {
@@ -1869,61 +1923,68 @@ function MonthlyReportModal({ student, reports, allReports, periodLabel, onClose
             </div>
           )}
 
-          {/* ★ 유형별 약점 TOP3 — 사진분석 누적 데이터 */}
+          {/* ★ 유형별 학습 분석 — 누적 취약 유형 바차트 */}
           {hasPhotoData && (
             <div style={{ marginBottom: '28px' }}>
               <SectionTitle>유형별 학습 분석</SectionTitle>
-              <p style={{ fontSize: '10px', color: DS.inkMute, margin: '0 0 14px', lineHeight: 1.6 }}>
-                이 기간 제출된 교재·시험지 사진 분석을 누적 집계한 결과입니다.
+              <p style={{ fontSize: '10px', color: DS.inkMute, margin: '0 0 16px', lineHeight: 1.6 }}>
+                교재·시험지 사진 분석을 누적 집계한 결과입니다. 반복 등장하는 유형일수록 집중 보완이 필요합니다.
               </p>
-              <div style={{ display: 'grid', gridTemplateColumns: strongTop3.length > 0 && weakTop3.length > 0 ? '1fr 1fr' : '1fr', gap: '16px' }}>
-                {weakTop3.length > 0 && (
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-                      <span style={{ background: '#A32D2D', color: '#fff', fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: '20px' }}>⚠ 보완 필요 유형</span>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {weakTop3.map(([type, data], i) => (
-                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <div style={{ background: '#A32D2D', color: '#fff', fontSize: '11px', fontWeight: 800, width: '20px', height: '20px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{i + 1}</div>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                              <p style={{ fontSize: '12px', fontWeight: 700, color: DS.ink, margin: 0 }}>{type}</p>
-                              <span style={{ fontSize: '11px', fontWeight: 700, color: '#A32D2D' }}>{data.count}회</span>
+
+              {weakTop5.length > 0 && (
+                <div style={{ marginBottom: '20px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
+                    <span style={{ background: '#A32D2D', color: '#fff', fontSize: '10px', fontWeight: 700, padding: '3px 10px', borderRadius: '20px' }}>⚠ 보완 필요 유형 TOP{weakTop5.length}</span>
+                    <span style={{ fontSize: '10px', color: DS.inkMute }}>누적 오답 기준</span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {weakTop5.map(([type, data], i) => {
+                      const barWidth = Math.max(4, Math.round((data.count / maxWeakCount) * 100));
+                      const colors = ['#A32D2D', '#B84A2A', '#8A5A00', '#6B4E00', '#5A4400'];
+                      const bgColors = ['#F5E5E5', '#FBF0EA', '#FAEEDA', '#FBF5E5', '#F8F5E0'];
+                      return (
+                        <div key={i} style={{ background: bgColors[i] || '#F9F9F9', borderRadius: '10px', padding: '10px 14px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <div style={{ background: colors[i] || '#8A5A00', color: '#fff', fontSize: '10px', fontWeight: 800, width: '18px', height: '18px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{i + 1}</div>
+                              <p style={{ fontSize: '13px', fontWeight: 700, color: DS.ink, margin: 0 }}>{type}</p>
                             </div>
-                            <div style={{ height: '4px', background: '#F5E5E5', borderRadius: '4px', marginTop: '4px', overflow: 'hidden' }}>
-                              <div style={{ height: '100%', width: `${Math.min(100, (data.count / (weakTop3[0][1].count)) * 100)}%`, background: '#A32D2D', borderRadius: '4px' }} />
-                            </div>
+                            <span style={{ fontSize: '13px', fontWeight: 800, color: colors[i] || '#8A5A00' }}>{data.count}회</span>
+                          </div>
+                          <div style={{ height: '6px', background: 'rgba(0,0,0,0.08)', borderRadius: '6px', overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${barWidth}%`, background: colors[i] || '#8A5A00', borderRadius: '6px', transition: 'width 0.4s ease' }} />
                           </div>
                         </div>
-                      ))}
-                    </div>
+                      );
+                    })}
                   </div>
-                )}
-                {strongTop3.length > 0 && (
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-                      <span style={{ background: '#0F6E56', color: '#fff', fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: '20px' }}>✓ 강점 유형</span>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {strongTop3.map(([type, count], i) => (
-                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <div style={{ background: '#0F6E56', color: '#fff', fontSize: '11px', fontWeight: 800, width: '20px', height: '20px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{i + 1}</div>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                              <p style={{ fontSize: '12px', fontWeight: 700, color: DS.ink, margin: 0 }}>{type}</p>
-                              <span style={{ fontSize: '11px', fontWeight: 700, color: '#0F6E56' }}>{count}회</span>
-                            </div>
-                            <div style={{ height: '4px', background: '#E1F5EE', borderRadius: '4px', marginTop: '4px', overflow: 'hidden' }}>
-                              <div style={{ height: '100%', width: `${Math.min(100, (count / (strongTop3[0][1])) * 100)}%`, background: '#0F6E56', borderRadius: '4px' }} />
-                            </div>
+                </div>
+              )}
+
+              {strongTop3.length > 0 && (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
+                    <span style={{ background: '#0F6E56', color: '#fff', fontSize: '10px', fontWeight: 700, padding: '3px 10px', borderRadius: '20px' }}>✓ 강점 유형 TOP{strongTop3.length}</span>
+                    <span style={{ fontSize: '10px', color: DS.inkMute }}>정답 기준</span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {strongTop3.map(([type, count], i) => (
+                      <div key={i} style={{ background: '#F0FAF5', borderRadius: '10px', padding: '10px 14px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ background: '#0F6E56', color: '#fff', fontSize: '10px', fontWeight: 800, width: '18px', height: '18px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{i + 1}</div>
+                            <p style={{ fontSize: '13px', fontWeight: 700, color: DS.ink, margin: 0 }}>{type}</p>
                           </div>
+                          <span style={{ fontSize: '13px', fontWeight: 800, color: '#0F6E56' }}>{count}회</span>
                         </div>
-                      ))}
-                    </div>
+                        <div style={{ height: '6px', background: 'rgba(0,0,0,0.08)', borderRadius: '6px', overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${Math.round((count / strongTop3[0][1]) * 100)}%`, background: '#0F6E56', borderRadius: '6px' }} />
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           )}
 
