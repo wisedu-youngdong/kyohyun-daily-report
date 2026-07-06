@@ -2534,12 +2534,12 @@ function DirectorView({ reports, students }) {
           return (
             <div key={r.id} style={{ background: '#fff', border: `0.5px solid ${borderColor}`, borderRadius: '10px', overflow: 'hidden' }}>
 
-              {/* 요약 행 — 클릭으로 펼치기 */}
-              <div style={{ padding: '12px 14px', display: 'grid', gridTemplateColumns: '150px 1fr auto auto auto', gap: '10px', alignItems: 'center' }}>
+              {/* 요약 행 */}
+              <div style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
+                onClick={() => setExpandedId(expandedId === r.id ? null : r.id)}>
 
-                {/* 학생명 + 강사 — 클릭으로 펼치기 */}
-                <button onClick={() => setExpandedId(expandedId === r.id ? null : r.id)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', padding: 0 }}>
+                {/* 학생명 + 강사 */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '130px' }}>
                   <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#EAF0F9', color: '#0D2D6B', fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     {r.studentName?.[0]}
                   </div>
@@ -2547,31 +2547,31 @@ function DirectorView({ reports, students }) {
                     <p style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>{r.studentName}</p>
                     <p style={{ fontSize: '10px', color: '#98A1AC', margin: 0 }}>{r.teacherName}{/선생님?$/.test(r.teacherName || '') ? '' : ' 선생님'}</p>
                   </div>
-                </button>
+                </div>
 
                 {/* 학습 단원 */}
-                <div style={{ textAlign: 'left', cursor: 'pointer' }} onClick={() => setExpandedId(expandedId === r.id ? null : r.id)}>
+                <div style={{ flex: 1, textAlign: 'left' }}>
                   {r.textbook && <p style={{ fontSize: '12px', fontWeight: 600, color: '#1A1A1A', margin: '0 0 1px', wordBreak: 'keep-all' }}>{r.textbook}{r.unit ? ` · ${r.unit}` : ''}</p>}
                   {r.pages && <p style={{ fontSize: '11px', color: '#98A1AC', margin: 0 }}>{r.pages}</p>}
                 </div>
 
                 {/* 점수 */}
-                <p style={{ fontSize: '11px', color: '#5A6472', margin: 0, whiteSpace: 'nowrap' }}>
+                <p style={{ fontSize: '11px', color: '#5A6472', margin: 0, whiteSpace: 'nowrap', flexShrink: 0 }}>
                   과제 {r.homeworkRating}/5 · 개념 {r.conceptRating}/5
                   {r.hasTest && r.testScore ? ` · 시험 ${r.testScore}점` : ''}
                 </p>
 
                 {/* 진단 태그 */}
                 {mainDiag && DIAG_MAP[mainDiag.key] && (
-                  <span style={{ background: DIAG_MAP[mainDiag.key].bg, color: '#fff', fontSize: '11px', fontWeight: 700, padding: '3px 9px', borderRadius: '20px', whiteSpace: 'nowrap' }}>
+                  <span style={{ background: DIAG_MAP[mainDiag.key].bg, color: '#fff', fontSize: '11px', fontWeight: 700, padding: '3px 9px', borderRadius: '20px', whiteSpace: 'nowrap', flexShrink: 0 }}>
                     {DIAG_MAP[mainDiag.key].prefix} {DIAG_MAP[mainDiag.key].label}
                   </span>
                 )}
 
-                {/* 종합 프로필 버튼 */}
+                {/* 종합 프로필 버튼 — 이벤트 버블링 차단 */}
                 <button
-                  onClick={() => setProfileStudent({ id: r.studentId, name: r.studentName })}
-                  style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 700, background: '#EAF0F9', color: '#1A5CB8', border: '1px solid #1A5CB8', borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                  onClick={(e) => { e.stopPropagation(); setProfileStudent({ id: r.studentId, name: r.studentName }); }}
+                  style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 700, background: '#EAF0F9', color: '#1A5CB8', border: '1px solid #1A5CB8', borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0 }}>
                   종합 프로필
                 </button>
               </div>
