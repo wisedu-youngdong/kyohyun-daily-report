@@ -2436,10 +2436,11 @@ function DirectorView({ reports, students }) {
     perfect: { label: '개념 완벽', bg: '#0F6E56', prefix: '✓' },
   };
 
-  // 선택 날짜 리포트 필터
+  // 선택 날짜 리포트 필터 (KST 기준)
   const todayReports = reports.filter(r => {
     if (!r.createdAt?.seconds) return false;
-    const d = new Date(r.createdAt.seconds * 1000).toISOString().split('T')[0];
+    const kst = new Date(r.createdAt.seconds * 1000 + 9 * 60 * 60 * 1000);
+    const d = kst.toISOString().split('T')[0];
     return d === selectedDate;
   });
 
@@ -2525,6 +2526,10 @@ function DirectorView({ reports, students }) {
           const goodDiag = (r.diagnosis || []).filter(d => d.key === 'perfect');
           const mainDiag = r.diagnosis?.[0];
           const borderColor = weakDiag.length > 0 ? '#A32D2D' : goodDiag.length > 0 ? '#0F6E56' : '#E8E6E0';
+          // KST 기준 날짜 문자열
+          const dateStr = r.createdAt?.seconds
+            ? new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })
+            : '';
 
           return (
             <div key={r.id} style={{ background: '#fff', border: `0.5px solid ${borderColor}`, borderRadius: '10px', overflow: 'hidden' }}>
