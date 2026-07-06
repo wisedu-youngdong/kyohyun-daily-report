@@ -2640,30 +2640,64 @@ function DirectorView({ reports, students }) {
                     </div>
                   </div>
 
-                  {/* 링크 복사 — 날짜 명시 */}
+                  {/* 링크 복사 — 미리보기 카드 */}
                   <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '0.5px solid #E8E6E0' }}>
+                    <p style={{ fontSize: '10px', color: '#98A1AC', margin: '0 0 7px', letterSpacing: '0.08em' }}>학부모 전송 미리보기</p>
+                    {/* 미리보기 카드 */}
+                    <div style={{ background: '#F5F8FF', border: '1px solid #C5D5F0', borderRadius: '10px', padding: '12px 14px', marginBottom: '8px' }}>
+                      <p style={{ fontSize: '11px', color: '#1A5CB8', fontWeight: 700, margin: '0 0 6px' }}>📋 교현학원 수업 리포트</p>
+                      <p style={{ fontSize: '13px', fontWeight: 800, color: '#0D2D6B', margin: '0 0 4px' }}>{r.studentName} 학생 · {dateStr}</p>
+                      <div style={{ display: 'flex', gap: '10px', margin: '0 0 6px', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '11px', color: '#5A6472' }}>과제 {r.homeworkRating}/5</span>
+                        <span style={{ fontSize: '11px', color: '#5A6472' }}>개념 {r.conceptRating}/5</span>
+                        <span style={{ fontSize: '11px', color: r.attendance === '정시' ? '#0F6E56' : '#A32D2D' }}>{r.attendance}</span>
+                        {r.hasTest && r.testScore && <span style={{ fontSize: '11px', color: '#5A6472' }}>시험 {r.testScore}점</span>}
+                      </div>
+                      {(r.diagnosis || []).length > 0 && (
+                        <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginBottom: '6px' }}>
+                          {r.diagnosis.slice(0, 2).map((d, i) => {
+                            const tag = DIAG_MAP[d.key];
+                            return tag ? (
+                              <span key={i} style={{ background: tag.bg, color: '#fff', fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '20px' }}>
+                                {tag.prefix} {tag.label}
+                              </span>
+                            ) : null;
+                          })}
+                        </div>
+                      )}
+                      <p style={{ fontSize: '10px', color: '#98A1AC', margin: 0 }}>👉 자세한 리포트 보기 →</p>
+                    </div>
+                    {/* 복사 버튼 */}
                     <button
                       onClick={() => {
                         const url = `${window.location.origin}/report/${r.id}`;
-                        const copyText = `📋 ${r.studentName} 학생 · ${dateStr} 수업 리포트\n${url}`;
+                        const RATING_LABEL = { 1: '노력 필요', 2: '조금 부족', 3: '보통', 4: '잘함', 5: '아주 잘함' };
+                        const diagText = (r.diagnosis || []).map(d => DIAG_MAP[d.key] ? `${DIAG_MAP[d.key].prefix} ${DIAG_MAP[d.key].label}${d.detail ? ` (${d.detail})` : ''}` : '').filter(Boolean).join(', ');
+                        const copyText = [
+                          `📋 교현학원 수업 리포트`,
+                          ``,
+                          `안녕하세요, ${r.studentName} 학생 ${dateStr} 수업 리포트입니다.`,
+                          ``,
+                          `▸ 과제 수행: ${r.homeworkRating}/5 (${RATING_LABEL[r.homeworkRating] || ''})`,
+                          `▸ 개념 이해: ${r.conceptRating}/5 (${RATING_LABEL[r.conceptRating] || ''})`,
+                          `▸ 출결: ${r.attendance}`,
+                          r.hasTest && r.testScore ? `▸ 시험: ${r.testName || ''} ${r.testScore}점` : '',
+                          diagText ? `▸ 진단: ${diagText}` : '',
+                          ``,
+                          `👉 자세한 리포트 보기`,
+                          url,
+                        ].filter(line => line !== '').join('\n');
                         navigator.clipboard.writeText(copyText).then(() =>
-                          alert(`복사 완료!\n\n카톡에 그대로 붙여넣기 하세요.`)
+                          alert(`복사 완료! 카톡에 그대로 붙여넣기 하세요. ✅`)
                         );
                       }}
                       style={{
-                        width: '100%', padding: '9px 14px', fontSize: '12px', fontWeight: 700,
-                        background: '#EAF0F9', border: '1px solid #1A5CB8', color: '#0D2D6B',
-                        borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
-                        display: 'flex', alignItems: 'center', gap: '8px',
+                        width: '100%', padding: '10px 14px', fontSize: '12px', fontWeight: 700,
+                        background: '#0D2D6B', border: 'none', color: '#fff',
+                        borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit',
                       }}>
-                      🔗 <span>학부모 링크 복사</span>
-                      <span style={{ fontSize: '11px', color: '#1A5CB8', fontWeight: 500, marginLeft: 'auto' }}>
-                        {r.studentName} · {dateStr} 수업
-                      </span>
+                      🔗 위 내용 카톡으로 복사하기
                     </button>
-                    <p style={{ fontSize: '10px', color: '#98A1AC', margin: '5px 0 0 2px' }}>
-                      복사 내용: 📋 {r.studentName} 학생 · {dateStr} 수업 리포트 + 링크
-                    </p>
                   </div>
                 </div>
               )}
