@@ -1004,11 +1004,6 @@ function ReportPreviewModal({ report: r, allReports, onClose, onDelete, onEdit }
             )}
           </div>
 
-          {/* 푸터 */}
-          <div style={{ padding: '12px 20px', borderTop: '1px solid #E8E6E0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.12em', fontFamily: 'Montserrat, sans-serif' }}>교현학원</span>
-            <span style={{ fontSize: '9px', color: '#98A1AC' }}>031-707-0591</span>
-          </div>
         </div>
         </div>
 
