@@ -2639,6 +2639,28 @@ function DirectorView({ reports, students }) {
                       </button>
                     </div>
                   </div>
+
+                  {/* 링크 복사 — 날짜 명시 */}
+                  <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '0.5px solid #E8E6E0' }}>
+                    <button
+                      onClick={() => {
+                        const url = `${window.location.origin}/report/${r.id}`;
+                        navigator.clipboard.writeText(url).then(() =>
+                          alert(`복사 완료!\n${r.studentName} · ${dateStr} 수업 리포트\n\n${url}`)
+                        );
+                      }}
+                      style={{
+                        width: '100%', padding: '9px 14px', fontSize: '12px', fontWeight: 700,
+                        background: '#EAF0F9', border: '1px solid #1A5CB8', color: '#0D2D6B',
+                        borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+                        display: 'flex', alignItems: 'center', gap: '8px',
+                      }}>
+                      🔗 <span>학부모 링크 복사</span>
+                      <span style={{ fontSize: '11px', color: '#1A5CB8', fontWeight: 500, marginLeft: 'auto' }}>
+                        {r.studentName} · {dateStr} 수업
+                      </span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
