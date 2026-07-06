@@ -132,19 +132,6 @@ export default function PublicReport() {
 
             <div style={{ height: '1px', background: rule, marginBottom: '18px' }} />
 
-            {/* TEACHER'S NOTE */}
-            {r.teacherNote && (
-              <>
-                <div style={{ borderLeft: `3px solid ${gold}`, paddingLeft: '13px', marginBottom: '18px' }}>
-                  <p style={{ fontSize: '9px', fontWeight: 700, color: gold, letterSpacing: '0.12em', margin: '0 0 7px' }}>TEACHER'S NOTE</p>
-                  {r.teacherNote.split('\n').filter(Boolean).map((para, i) => (
-                    <p key={i} style={{ fontSize: '13px', color: ink, margin: i === 0 ? '0 0 10px' : '0', lineHeight: 1.9, fontWeight: 500 }}>{para}</p>
-                  ))}
-                </div>
-                <div style={{ height: '1px', background: rule, marginBottom: '18px' }} />
-              </>
-            )}
-
             {/* 학습 범위 */}
             {(r.textbook || r.unit || r.pages) && (
               <>
@@ -158,7 +145,7 @@ export default function PublicReport() {
               </>
             )}
 
-            {/* 시험 + 진단 배지 */}
+            {/* TEST RESULT + 진단 배지 (시험 있는 경우) */}
             {r.hasTest && r.testName && (
               <>
                 <div style={{ marginBottom: '18px' }}>
@@ -193,7 +180,7 @@ export default function PublicReport() {
               </>
             )}
 
-            {/* 진단만 있고 시험 없는 경우 */}
+            {/* 진단 배지 (시험 없는 경우 — 독립 섹션) */}
             {(!r.hasTest || !r.testName) && r.diagnosis?.length > 0 && (
               <>
                 <div style={{ marginBottom: '18px' }}>
@@ -215,6 +202,19 @@ export default function PublicReport() {
                       );
                     })}
                   </div>
+                </div>
+                <div style={{ height: '1px', background: rule, marginBottom: '18px' }} />
+              </>
+            )}
+
+            {/* TEACHER'S NOTE */}
+            {r.teacherNote && (
+              <>
+                <div style={{ borderLeft: `3px solid ${gold}`, paddingLeft: '13px', marginBottom: '18px' }}>
+                  <p style={{ fontSize: '9px', fontWeight: 700, color: gold, letterSpacing: '0.12em', margin: '0 0 7px' }}>TEACHER'S NOTE</p>
+                  {r.teacherNote.split('\n').filter(Boolean).map((para, i) => (
+                    <p key={i} style={{ fontSize: '13px', color: ink, margin: i === 0 ? '0 0 10px' : '0', lineHeight: 1.9, fontWeight: 500 }}>{para}</p>
+                  ))}
                 </div>
                 <div style={{ height: '1px', background: rule, marginBottom: '18px' }} />
               </>
