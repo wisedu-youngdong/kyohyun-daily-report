@@ -2048,10 +2048,41 @@ function MonthlyReportModal({ student, reports, allReports, periodLabel, onClose
           {/* 종합 피드백 */}
           <div style={{ borderTop: `1px solid ${DS.rule}`, paddingTop: '20px', marginBottom: '4px' }}>
             <SectionTitle>종합 피드백</SectionTitle>
-            <p style={{ fontSize: '12px', color: DS.ink, margin: 0, lineHeight: 1.8 }}>
-              {periodLabel} 동안 {unitsCovered.slice(0, 3).join(', ')}{unitsCovered.length > 3 ? ' 등' : ''}을 학습했습니다.
-              {bestConceptReport && ` 특히 ${fmtDate(bestConceptReport)} 수업(${unitOf(bestConceptReport)})에서 가장 높은 이해도를 보였습니다.`}
-              {topTag && ` 다만 '${TAG_LABELS_LOCAL[topTag[0]]}' 패턴이 반복 관찰되어 ${unitOf(tagFirstExample[topTag[0]])} 관련 복습이 필요합니다.`}
+            <p style={{ fontSize: '12px', color: DS.ink, margin: 0, lineHeight: 2.0, wordBreak: 'keep-all' }}>
+              {(() => {
+                // 교재명 중복 제거 — 공통 교재 추출 후 단원명만 나열
+                const textbooks = [...new Set(sorted.map(r => r.textbook).filter(Boolean))];
+                const units = [...new Set(sorted.map(r => r.unit).filter(Boolean))];
+                const mainTextbook = textbooks[0] || '';
+                // 오타 수정: 디돔돌 → 디딤돌
+                const fixedTextbook = mainTextbook.replace(/디돔돌/g, '디딤돌');
+                // 교재명 공통 부분 (6-2까지) 추출
+                const textbookBase = fixedTextbook.replace(/\s*·?\s*\d+단원.*$/, '').trim();
+                const unitNames = units.map(u => u.replace(/디돔돌|디딤돌[^\s]*\s*·?\s*/g, '').trim()).filter(Boolean);
+                const uniqueUnits = [...new Set(unitNames)].slice(0, 3);
+
+                const part1 = textbookBase
+                  ? `이번 학습 기간에는 '${textbookBase}' 과정을 통해 ${uniqueUnits.length > 0 ? uniqueUnits.join(', ') + '의 핵심 개념을 다졌습니다.' : '핵심 개념을 다졌습니다.'}`
+                  : `이번 학습 기간 동안 ${sorted.length}회 수업을 진행했습니다.`;
+
+                const bestUnit = bestConceptReport ? unitOf(bestConceptReport).replace(/디돔돌|디딤돌[^\s]*\s*·?\s*/g, '').trim() : '';
+                const part2 = bestConceptReport
+                  ? ` 특히 ${fmtShort(bestConceptReport)} 수업${bestUnit ? `(${bestUnit})` : ''}에서는 개념을 스펀지처럼 흡수하며 기간 내 가장 높은 이해도를 보여주었습니다. 학습 리듬을 타기 시작했다는 긍정적인 신호입니다.`
+                  : '';
+
+                const weakUnit = topTag ? unitOf(tagFirstExample[topTag[0]]).replace(/디돔돌|디딤돌[^\s]*\s*·?\s*/g, '').trim() : '';
+                const DIAG_FEEDBACK = {
+                  calc: `다만 ${weakUnit ? `${weakUnit}` : '일부 문항'}을 다룰 때, 풀이 과정을 손으로 정리하는 습관이 아직 정착되지 않아 연산 처리 단계에서 실수가 반복되고 있습니다. 속도보다 정확성을 먼저 확보하는 훈련을 집중적으로 진행하겠습니다.`,
+                  concept: `다만 ${weakUnit ? `${weakUnit}` : '일부 개념'}을 다룰 때, 공식을 암기하는 수준을 넘어 개념이 왜 성립하는지 근거를 스스로 설명할 수 있는 내면화가 아직 진행 중입니다. 개념 재정립 후 적용 단계로 이어지는 흐름을 집중 훈련하겠습니다.`,
+                  apply: `다만 ${weakUnit ? `${weakUnit}` : '응용 문항'}을 다룰 때, 문제 상황은 잘 인지하면서도 풀이의 판단 기준을 스스로 세우는 과정에서 주춤하는 모습이 관찰되었습니다. 단순한 공식 암기를 지양하고, 아이 스스로 왜 이 방법을 써야 하는지 해결 전략을 도출할 수 있도록${weakUnit ? ` ${weakUnit} 단원의` : ''} 밀착 복습을 진행하겠습니다.`,
+                  time: `다만 ${weakUnit ? `${weakUnit}` : '일부 문항'}에서 어떤 문제를 먼저 풀어야 하는지 판단하는 전략이 아직 형성되지 않아 시간 배분에 어려움이 관찰되었습니다. 풀이 우선순위 훈련을 체계적으로 진행하겠습니다.`,
+                };
+                const part3 = topTag
+                  ? ` ${DIAG_FEEDBACK[topTag[0]] || `다만 '${TAG_LABELS_LOCAL[topTag[0]]}' 패턴이 반복 관찰되어${weakUnit ? ` ${weakUnit}` : ''} 관련 복습이 필요합니다.`}`
+                  : '';
+
+                return part1 + part2 + part3;
+              })()}
             </p>
             {/* 선생님 코멘트 발췌 — 골드 룰 인용구 */}
             {quoteSentence && (
