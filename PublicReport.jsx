@@ -248,11 +248,7 @@ export default function PublicReport() {
             )}
           </div>
 
-          {/* 푸터 */}
-          <div style={{ padding: '12px 20px', borderTop: `1px solid ${rule}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '9px', fontWeight: 700, color: inkMute, letterSpacing: '0.12em' }}>교현학원</span>
-            <span style={{ fontSize: '9px', color: inkMute }}>031-707-0591</span>
-          </div>
+
         </div>
       </div>
     </div>
