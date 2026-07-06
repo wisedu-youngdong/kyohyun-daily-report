@@ -6,6 +6,7 @@ import {
 } from 'firebase/firestore';
 import {
   signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
   signOut,
   onAuthStateChanged
 } from 'firebase/auth';
@@ -188,6 +189,8 @@ function LoginScreen() {
 export default function App() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [userRole, setUserRole] = useState(null); // 'director' | 'teacher'
+  const [userTeacherId, setUserTeacherId] = useState(null); // teachers 컬렉션 ID
   const [activeTab, setActiveTab] = useState('write');
   const [editingReport, setEditingReport] = useState(null);
   const [students, setStudents] = useState([]);
@@ -195,8 +198,28 @@ export default function App() {
   const [reports, setReports] = useState([]);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => {
+    const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u);
+      if (u) {
+        // users 컬렉션에서 role 조회
+        try {
+          const userSnap = await getDocs(query(collection(db, 'users'), where('uid', '==', u.uid)));
+          if (!userSnap.empty) {
+            const userData = userSnap.docs[0].data();
+            setUserRole(userData.role || 'director');
+            setUserTeacherId(userData.teacherId || null);
+          } else {
+            // users 문서 없으면 director (기존 원장님 계정)
+            setUserRole('director');
+            setUserTeacherId(null);
+          }
+        } catch (e) {
+          setUserRole('director');
+        }
+      } else {
+        setUserRole(null);
+        setUserTeacherId(null);
+      }
       setAuthLoading(false);
     });
     return unsub;
@@ -309,16 +332,29 @@ export default function App() {
 
   if (!user) return <LoginScreen />;
 
-  const tabs = [
-    { key: 'dashboard', label: '대시보드', icon: <LayoutDashboard size={20} /> },
-    { key: 'students',  label: '학생 관리', icon: <Users size={20} /> },
-    { key: 'write',     label: '리포트 작성', icon: <FileText size={20} /> },
-    { key: 'history',   label: '기록 보관소', icon: <History size={20} /> },
-    { key: 'review',    label: '복습 관리', icon: <span style={{fontSize:'20px'}}>🔁</span> },
-    { key: 'director',  label: '원장 보고서', icon: <span style={{fontSize:'20px'}}>📋</span> },
-    { key: 'analysis',  label: '종합 분석', icon: <BarChart2 size={20} /> },
-    { key: 'settings',  label: '설정', icon: <span style={{fontSize:'20px'}}>⚙️</span> },
+  const isDirector = userRole === 'director';
+
+  // 강사는 담당 학생만, 원장은 전체
+  const visibleStudents = isDirector
+    ? students
+    : students.filter(s => s.assignedTeacherId === userTeacherId);
+
+  // 강사는 본인 작성 리포트만, 원장은 전체
+  const visibleReports = isDirector
+    ? reports
+    : reports.filter(r => r.teacherId === userTeacherId);
+
+  const allTabs = [
+    { key: 'dashboard', label: '대시보드',   icon: <LayoutDashboard size={20} />, roles: ['director', 'teacher'] },
+    { key: 'students',  label: '학생 관리',   icon: <Users size={20} />,           roles: ['director'] },
+    { key: 'write',     label: '리포트 작성', icon: <FileText size={20} />,        roles: ['director', 'teacher'] },
+    { key: 'history',   label: '기록 보관소', icon: <History size={20} />,         roles: ['director', 'teacher'] },
+    { key: 'review',    label: '복습 관리',   icon: <span style={{fontSize:'20px'}}>🔁</span>, roles: ['director', 'teacher'] },
+    { key: 'director',  label: '원장 보고서', icon: <span style={{fontSize:'20px'}}>📋</span>, roles: ['director'] },
+    { key: 'analysis',  label: '종합 분석',   icon: <BarChart2 size={20} />,       roles: ['director'] },
+    { key: 'settings',  label: '설정',        icon: <span style={{fontSize:'20px'}}>⚙️</span>, roles: ['director'] },
   ];
+  const tabs = allTabs.filter(t => t.roles.includes(userRole || 'director'));
 
   return (
     <div style={{ minHeight: '100vh', background: T.bgSoft, paddingBottom: '80px' }}>
@@ -330,17 +366,20 @@ export default function App() {
         <span style={{ marginLeft: 'auto', fontSize: '10px', color: T.textMute, fontWeight: 500, background: T.bgSoft, padding: '3px 8px', borderRadius: '6px', border: `1px solid ${T.border}` }}>
           {new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
         </span>
+        <span style={{ fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '6px', background: isDirector ? '#EAF0F9' : '#E1F5EE', color: isDirector ? '#0D2D6B' : '#0F6E56' }}>
+          {isDirector ? '원장' : (teachers.find(t => t.id === userTeacherId)?.name || '강사')}
+        </span>
         <button onClick={() => signOut(auth)} style={{ background: 'none', border: 'none', color: T.textMute, cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }} title="로그아웃">
           <LogOut size={16} />
         </button>
       </header>
 
       <main>
-        {activeTab === 'dashboard' && <DashboardView students={students} reports={reports} onTabChange={setActiveTab} />}
-        {activeTab === 'students' && <StudentsView students={students} reports={reports} onSave={handleSaveStudent} onDelete={handleDeleteStudent} />}
+        {activeTab === 'dashboard' && <DashboardView students={visibleStudents} reports={visibleReports} onTabChange={setActiveTab} />}
+        {activeTab === 'students' && <StudentsView students={students} reports={reports} onSave={handleSaveStudent} onDelete={handleDeleteStudent} teachers={teachers} />}
         {activeTab === 'write' && (
           <DiagnosticReportInput
-            students={students} teachers={teachers}
+            students={visibleStudents} teachers={teachers}
             onSaveStudent={handleSaveStudent}
             onSaveTeacher={handleSaveTeacher}
             onDeleteTeacher={handleDeleteTeacher}
@@ -349,8 +388,8 @@ export default function App() {
             onEditDone={() => setEditingReport(null)}
           />
         )}
-        {activeTab === 'history' && <HistoryView reports={reports} students={students} onDelete={handleDeleteReport} onEdit={(report) => { setEditingReport(report); setActiveTab('write'); }} />}
-        {activeTab === 'review' && <ReviewView students={students} />}
+        {activeTab === 'history' && <HistoryView reports={visibleReports} students={visibleStudents} onDelete={handleDeleteReport} onEdit={(report) => { setEditingReport(report); setActiveTab('write'); }} />}
+        {activeTab === 'review' && <ReviewView students={visibleStudents} />}
         {activeTab === 'director' && (
           <div>
             <DirectorView reports={reports} students={students} />
@@ -358,6 +397,7 @@ export default function App() {
           </div>
         )}
         {activeTab === 'analysis' && <AnalysisView students={students} reports={reports} />}
+        {activeTab === 'settings' && <SettingsView students={students} onSaveStudent={handleSaveStudent} teachers={teachers} onSaveTeacher={handleSaveTeacher} onDeleteTeacher={handleDeleteTeacher} />}
       </main>
 
       <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: T.bg, borderTop: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', padding: '8px 0', zIndex: 100, boxShadow: '0 -4px 20px rgba(0,0,0,0.04)' }}>
@@ -422,7 +462,7 @@ function StatCard({ label, value, unit }) {
   );
 }
 
-function StudentsView({ students, reports, onSave, onDelete }) {
+function StudentsView({ students, reports, onSave, onDelete, teachers = [] }) {
   const [editingStudent, setEditingStudent] = useState(null);
 
   return (
@@ -433,6 +473,7 @@ function StudentsView({ students, reports, onSave, onDelete }) {
         : <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {students.map(s => {
             const sReports = reports.filter(r => r.studentId === s.id);
+            const assignedTeacher = teachers.find(t => t.id === s.assignedTeacherId);
             return (
               <div key={s.id} style={{ background: '#fff', borderRadius: '16px', padding: '16px 18px', border: `1px solid #E5E7EB` }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -446,6 +487,11 @@ function StudentsView({ students, reports, onSave, onDelete }) {
                     <p style={{ fontSize: '15px', fontWeight: 700, margin: 0 }}>{s.name}</p>
                     <p style={{ fontSize: '11px', color: '#6B7280', margin: '2px 0 0', fontWeight: 500 }}>{s.school} · 리포트 {sReports.length}건</p>
                   </div>
+                  {assignedTeacher && (
+                    <span style={{ fontSize: '10px', fontWeight: 700, color: '#0F6E56', background: '#E1F5EE', padding: '3px 8px', borderRadius: '6px', flexShrink: 0 }}>
+                      {assignedTeacher.name}
+                    </span>
+                  )}
                   <button
                     onClick={() => setEditingStudent(s)}
                     style={{ background: '#E6F1FB', border: 'none', color: '#185FA5', fontSize: '12px', fontWeight: 700, padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', marginRight: '6px' }}>
@@ -468,6 +514,7 @@ function StudentsView({ students, reports, onSave, onDelete }) {
       {editingStudent && (
         <StudentEditModal
           student={editingStudent}
+          teachers={teachers}
           onClose={() => setEditingStudent(null)}
           onSubmit={async (updated) => {
             await onSave({ id: editingStudent.id, ...updated });
@@ -478,7 +525,7 @@ function StudentsView({ students, reports, onSave, onDelete }) {
     </div>
   );
 }
-function StudentEditModal({ student, onClose, onSubmit }) {
+function StudentEditModal({ student, onClose, onSubmit, teachers = [] }) {
   const [name, setName] = useState(student.name || '');
   const [school, setSchool] = useState(student.school || '');
   const [parentPhone, setParentPhone] = useState(student.parentPhone || '');
@@ -489,6 +536,7 @@ function StudentEditModal({ student, onClose, onSubmit }) {
   const [avatar, setAvatar] = useState(student.avatar || '');
   const [skinColor, setSkinColor] = useState(student.skinColor || '');
   const [useCustomSkin, setUseCustomSkin] = useState(!!student.skinColor);
+  const [assignedTeacherId, setAssignedTeacherId] = useState(student.assignedTeacherId || '');
   const [saving, setSaving] = useState(false);
 
   const isValid = name.trim() && school.trim();
@@ -508,6 +556,7 @@ function StudentEditModal({ student, onClose, onSubmit }) {
       textbooks: textbooks.filter(t => t.name.trim()),
       avatar: avatar,
       skinColor: useCustomSkin ? skinColor : '',
+      assignedTeacherId: assignedTeacherId || '',
     });
     setSaving(false);
   };
@@ -564,6 +613,16 @@ function StudentEditModal({ student, onClose, onSubmit }) {
             <label style={labelStyle}>학부모 연락처</label>
             <input type="tel" value={parentPhone} onChange={(e) => setParentPhone(e.target.value)} placeholder="010-0000-0000" style={inputStyle} />
           </div>
+
+          {teachers.length > 0 && (
+            <div>
+              <label style={labelStyle}>담당 강사</label>
+              <select value={assignedTeacherId} onChange={e => setAssignedTeacherId(e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
+                <option value="">미배정 (원장님 직접 관리)</option>
+                {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            </div>
+          )}
 
           <div>
             <label style={labelStyle}>관리 메모 (내부용)</label>
@@ -1030,12 +1089,53 @@ function ReportPreviewModal({ report: r, allReports, onClose, onDelete, onEdit }
 // ============================================================
 // 설정 뷰
 // ============================================================
-function SettingsView({ students, onSaveStudent }) {
+function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDeleteTeacher }) {
   const [globalColor, setGlobalColor] = React.useState(() => {
     return localStorage.getItem('globalSkinColor') || DEFAULT_SKIN_COLOR;
   });
   const [saving, setSaving] = React.useState(false);
   const [saved, setSaved] = React.useState(false);
+
+  // 강사 이름 수정
+  const [editingTeacherId, setEditingTeacherId] = React.useState(null);
+  const [editingTeacherName, setEditingTeacherName] = React.useState('');
+
+  // 강사 계정 생성
+  const [newTeacherEmail, setNewTeacherEmail] = React.useState('');
+  const [newTeacherPassword, setNewTeacherPassword] = React.useState('');
+  const [newTeacherName, setNewTeacherName] = React.useState('');
+  const [accountCreating, setAccountCreating] = React.useState(false);
+  const [accountResult, setAccountResult] = React.useState('');
+
+  const handleTeacherNameSave = async (teacher) => {
+    if (!editingTeacherName.trim()) return;
+    await onSaveTeacher({ ...teacher, name: editingTeacherName.trim() });
+    setEditingTeacherId(null);
+    setEditingTeacherName('');
+  };
+
+  const handleCreateTeacherAccount = async () => {
+    if (!newTeacherEmail || !newTeacherPassword || !newTeacherName) {
+      setAccountResult('이름, 이메일, 비밀번호를 모두 입력해주세요.');
+      return;
+    }
+    setAccountCreating(true);
+    setAccountResult('');
+    try {
+      // 1. Firebase Auth 계정 생성
+      const cred = await createUserWithEmailAndPassword(auth, newTeacherEmail, newTeacherPassword);
+      // 2. teachers 컬렉션에 강사 추가
+      const teacherRef = await addDoc(collection(db, 'teachers'), { name: newTeacherName, createdAt: serverTimestamp() });
+      // 3. users 컬렉션에 role 저장
+      await addDoc(collection(db, 'users'), { uid: cred.user.uid, role: 'teacher', teacherId: teacherRef.id, email: newTeacherEmail, createdAt: serverTimestamp() });
+      setAccountResult(`✅ ${newTeacherName} 강사 계정 생성 완료!`);
+      setNewTeacherEmail(''); setNewTeacherPassword(''); setNewTeacherName('');
+    } catch (e) {
+      const msg = e.code === 'auth/email-already-in-use' ? '이미 사용 중인 이메일입니다.' : e.message;
+      setAccountResult(`❌ 오류: ${msg}`);
+    }
+    setAccountCreating(false);
+  };
 
   const saveGlobalColor = () => {
     localStorage.setItem('globalSkinColor', globalColor);
@@ -1118,6 +1218,56 @@ function SettingsView({ students, onSaveStudent }) {
           style={{ width: '100%', background: saved ? '#2E7D32' : '#185FA5', color: '#fff', border: 'none', borderRadius: '12px', padding: '12px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.2s' }}>
           {saved ? '✓ 저장됐습니다!' : '학원 기본 스킨 저장'}
         </button>
+      </div>
+
+      {/* 강사 관리 */}
+      <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB', marginBottom: '14px' }}>
+        <p style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>👩‍🏫 강사 관리</p>
+        <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 500, marginBottom: '14px' }}>강사 이름 수정 및 로그인 계정을 생성합니다.</p>
+
+        {/* 강사 목록 + 이름 수정 */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
+          {teachers.map(t => (
+            <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#F9FAFB', borderRadius: '10px', padding: '10px 12px' }}>
+              <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#E1F5EE', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: '#0F6E56' }}>{t.name?.[0]}</span>
+              </div>
+              {editingTeacherId === t.id ? (
+                <>
+                  <input
+                    value={editingTeacherName}
+                    onChange={e => setEditingTeacherName(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleTeacherNameSave(t)}
+                    style={{ flex: 1, padding: '6px 10px', fontSize: '13px', border: '1px solid #185FA5', borderRadius: '8px', fontFamily: 'inherit', outline: 'none' }}
+                    autoFocus
+                  />
+                  <button onClick={() => handleTeacherNameSave(t)} style={{ background: '#185FA5', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 12px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>저장</button>
+                  <button onClick={() => setEditingTeacherId(null)} style={{ background: '#F3F4F6', color: '#6B7280', border: 'none', borderRadius: '8px', padding: '6px 10px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>취소</button>
+                </>
+              ) : (
+                <>
+                  <span style={{ flex: 1, fontSize: '13px', fontWeight: 600, color: '#1A1A1A' }}>{t.name}</span>
+                  <button onClick={() => { setEditingTeacherId(t.id); setEditingTeacherName(t.name); }} style={{ background: '#E6F1FB', color: '#185FA5', border: 'none', borderRadius: '8px', padding: '5px 10px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>수정</button>
+                  <button onClick={() => { if (window.confirm(`${t.name}을 삭제할까요?`)) onDeleteTeacher(t.id); }} style={{ background: '#FEF2F2', color: '#DC2626', border: 'none', borderRadius: '8px', padding: '5px 10px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>삭제</button>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* 강사 계정 생성 */}
+        <div style={{ borderTop: '1px dashed #E5E7EB', paddingTop: '14px' }}>
+          <p style={{ fontSize: '11px', fontWeight: 700, color: '#374151', marginBottom: '10px' }}>새 강사 계정 생성</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <input value={newTeacherName} onChange={e => setNewTeacherName(e.target.value)} placeholder="강사 이름 (예: 영동 선생님)" style={{ padding: '9px 12px', fontSize: '13px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
+            <input value={newTeacherEmail} onChange={e => setNewTeacherEmail(e.target.value)} placeholder="이메일" type="email" style={{ padding: '9px 12px', fontSize: '13px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
+            <input value={newTeacherPassword} onChange={e => setNewTeacherPassword(e.target.value)} placeholder="비밀번호 (6자 이상)" type="password" style={{ padding: '9px 12px', fontSize: '13px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
+            <button onClick={handleCreateTeacherAccount} disabled={accountCreating} style={{ background: accountCreating ? '#E5E7EB' : '#0F6E56', color: '#fff', border: 'none', borderRadius: '10px', padding: '11px', fontSize: '13px', fontWeight: 700, cursor: accountCreating ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+              {accountCreating ? '생성 중...' : '강사 계정 생성'}
+            </button>
+            {accountResult && <p style={{ fontSize: '12px', margin: 0, padding: '8px 12px', borderRadius: '8px', background: accountResult.startsWith('✅') ? '#E1F5EE' : '#FEF2F2', color: accountResult.startsWith('✅') ? '#0F6E56' : '#DC2626', fontWeight: 600 }}>{accountResult}</p>}
+          </div>
+        </div>
       </div>
 
       {/* 학생별 스킨 */}
