@@ -2645,8 +2645,9 @@ function DirectorView({ reports, students }) {
                     <button
                       onClick={() => {
                         const url = `${window.location.origin}/report/${r.id}`;
-                        navigator.clipboard.writeText(url).then(() =>
-                          alert(`복사 완료!\n${r.studentName} · ${dateStr} 수업 리포트\n\n${url}`)
+                        const copyText = `📋 ${r.studentName} 학생 · ${dateStr} 수업 리포트\n${url}`;
+                        navigator.clipboard.writeText(copyText).then(() =>
+                          alert(`복사 완료!\n\n카톡에 그대로 붙여넣기 하세요.`)
                         );
                       }}
                       style={{
@@ -2660,6 +2661,9 @@ function DirectorView({ reports, students }) {
                         {r.studentName} · {dateStr} 수업
                       </span>
                     </button>
+                    <p style={{ fontSize: '10px', color: '#98A1AC', margin: '5px 0 0 2px' }}>
+                      복사 내용: 📋 {r.studentName} 학생 · {dateStr} 수업 리포트 + 링크
+                    </p>
                   </div>
                 </div>
               )}
