@@ -1826,21 +1826,21 @@ function GrowthDashboard({ reports, students }) {
 
   const avg = (arr) => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length * 10) / 10 : 0;
 
-  const getDecline = (sid) => {
+  const getDecline = React.useCallback((sid) => {
     const rs = getStudentReports(sid);
-    if (rs.length < 2) return null; // ① 결측치 → null
+    if (rs.length < 2) return null;
     return Math.round((rs[rs.length - 1].conceptRating - rs[0].conceptRating) * 10) / 10;
-  };
+  }, [getStudentReports]);
 
-  const getTrend = (sid) => {
+  const getTrend = React.useCallback((sid) => {
     const rs = getStudentReports(sid);
     if (rs.length < 2) return null;
     return Math.round((rs[rs.length - 1].conceptRating - rs[rs.length - 2].conceptRating) * 10) / 10;
-  };
+  }, [getStudentReports]);
 
-  const getAvg = (sid) => avg(getStudentReports(sid).map(r => r.conceptRating));
+  const getAvg = React.useCallback((sid) => avg(getStudentReports(sid).map(r => r.conceptRating)), [getStudentReports]);
 
-  const getStatus = (sid) => {
+  const getStatus = React.useCallback((sid) => {
     const rs = getStudentReports(sid);
     if (!rs.length) return { label: '데이터없음', color: '#98A1AC', bg: '#F3F4F6', border: '#E5E7EB' };
     const a = avg(rs.map(r => r.conceptRating));
@@ -1850,26 +1850,26 @@ function GrowthDashboard({ reports, students }) {
     if (trend3 <= -1 || a < 2.5) return { label: '경고', color: '#A32D2D', bg: '#FCEBEB', border: '#A32D2D' };
     if (trend3 < 0 || a < 3.5) return { label: '주의', color: '#8A5A00', bg: '#FAEEDA', border: '#EF9F27' };
     return { label: '안정', color: '#0F6E56', bg: '#E1F5EE', border: '#0F6E56' };
-  };
+  }, [getStudentReports]);
 
   // 탭 전환 시 완전 초기화
   const handlePeriod = (p) => { setPeriod(p); setSelId(null); setDrawerOpen(false); };
 
-  // 정렬 — ① 결측치(null) 처리: 항상 맨 아래로
+  // 정렬 — 화면 표시(getTrend)와 정렬 기준 통일 + null → 맨 뒤
   const sortedStudents = React.useMemo(() => {
     const list = [...students];
     if (sortMode === 'decline') {
       return list.sort((a, b) => {
-        const da = getDecline(a.id), db = getDecline(b.id);
+        const da = getTrend(a.id), db = getTrend(b.id);
         if (da === null && db === null) return 0;
-        if (da === null) return 1;  // null → 맨 뒤
+        if (da === null) return 1;   // 데이터 없음 → 맨 뒤
         if (db === null) return -1;
-        return da - db; // 가장 많이 떨어진 순
+        return da - db; // 하락 폭 큰 순 (음수가 클수록 위)
       });
     }
     if (sortMode === 'score') return list.sort((a, b) => getAvg(b.id) - getAvg(a.id));
     return list.sort((a, b) => a.name.localeCompare(b.name, 'ko'));
-  }, [students, period, sortMode, getDecline, getAvg]);
+  }, [students, period, sortMode, getTrend, getAvg]);
 
   // 전체 평균 데이터 포인트 생성
   const globalPoints = React.useMemo(() => {
@@ -1888,7 +1888,13 @@ function GrowthDashboard({ reports, students }) {
     return Object.entries(byDay).map(([date, vals]) => ({ date, avg: avg(vals) }));
   }, [reports, period]);
 
-  // SVG 차트 생성
+  // 기간 날짜 계산
+  const periodLabel = React.useMemo(() => {
+    const end = new Date();
+    const start = new Date(Date.now() - PERIODS[period] * 24 * 60 * 60 * 1000);
+    const fmt = (d) => `${d.getMonth()+1}/${d.getDate()}`;
+    return `${fmt(start)} ~ ${fmt(end)}`;
+  }, [period]);
   const W = 540, H = 110, PL = 26, PR = 14, PT = 8, PB = 20;
   const cW = W - PL - PR, cH = H - PT - PB;
 
@@ -1913,7 +1919,7 @@ function GrowthDashboard({ reports, students }) {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '8px', flex: 1, minWidth: '280px' }}>
           {[
             { label: '🚨 관심 필요', value: `${atRisk}명`, sub: `주의 ${caution}명 포함`, c: '#A32D2D', bg: '#FCEBEB', bd: '#A32D2D' },
-            { label: '전체 평균', value: `${overallAvg}점`, sub: '기간 평균', c: '#0D2D6B', bg: '#fff', bd: '#E8E6E0' },
+            { label: '전체 평균', value: `${overallAvg}점`, sub: periodLabel, c: '#0D2D6B', bg: '#fff', bd: '#E8E6E0' },
             { label: '총 학생', value: `${students.length}명`, sub: '등록', c: '#1A1A1A', bg: '#fff', bd: '#E8E6E0' },
             { label: '최고 성취', value: bestStudent?.name || '-', sub: `${bestStudent ? getAvg(bestStudent.id) : 0}점`, c: bestStudent ? getStatus(bestStudent.id).color : '#98A1AC', bg: '#fff', bd: '#E8E6E0' },
           ].map((w, i) => (
@@ -2147,10 +2153,24 @@ function GrowthDashboard({ reports, students }) {
 
             {/* 미니 바차트 */}
             <p style={{ fontSize: '10px', color: '#98A1AC', margin: '0 0 6px', letterSpacing: '0.08em' }}>개념 이해도 추이</p>
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px', height: '48px', marginBottom: '14px', borderBottom: '0.5px solid #E8E6E0', paddingBottom: '3px' }}>
-              {rs.map((r, i) => (
-                <div key={i} style={{ flex: 1, height: `${(r.conceptRating / 5) * 44}px`, background: status.color, borderRadius: '1px 1px 0 0', opacity: 0.75 }} />
-              ))}
+            <div style={{ marginBottom: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px', height: '60px', borderBottom: '1px solid #E8E6E0', paddingBottom: '2px' }}>
+                {rs.map((r, i) => (
+                  <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
+                    <span style={{ fontSize: '9px', fontWeight: 700, color: status.color, marginBottom: '2px' }}>{r.conceptRating}</span>
+                    <div style={{ width: '100%', height: `${(r.conceptRating / 5) * 44}px`, background: status.color, borderRadius: '2px 2px 0 0', opacity: 0.8 }} />
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: '4px', marginTop: '3px' }}>
+                {rs.map((r, i) => (
+                  <div key={i} style={{ flex: 1, textAlign: 'center' }}>
+                    <span style={{ fontSize: '8px', color: '#98A1AC' }}>
+                      {r.createdAt?.seconds ? `${new Date(r.createdAt.seconds*1000).getMonth()+1}/${new Date(r.createdAt.seconds*1000).getDate()}` : ''}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* 주요 약점 */}
