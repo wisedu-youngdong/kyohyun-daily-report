@@ -901,58 +901,75 @@ function ReportPreviewModal({ report: r, allReports, onClose, onDelete, onEdit }
 
             <div style={{ height: '1px', background: '#E8E6E0', marginBottom: '18px' }} />
 
-            {/* TEACHER'S NOTE */}
-            {r.teacherNote && (
+            {/* 학습 범위 */}
+            {(r.textbook || r.unit || r.pages) && (
               <>
-                <div style={{ borderLeft: '3px solid #C9A227', paddingLeft: '13px', marginBottom: '18px' }}>
-                  <p style={{ fontSize: '9px', fontWeight: 700, color: '#C9A227', letterSpacing: '0.12em', margin: '0 0 7px', fontFamily: 'Montserrat, sans-serif' }}>TEACHER'S NOTE</p>
-                  <p style={{ fontSize: '13px', color: '#1A1A1A', margin: 0, lineHeight: 1.9, fontWeight: 500, whiteSpace: 'pre-wrap' }}>{r.teacherNote}</p>
+                <div style={{ marginBottom: '18px' }}>
+                  <p style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.08em', margin: '0 0 6px', fontFamily: 'Montserrat, sans-serif' }}>학습 범위</p>
+                  {r.textbook && <p style={{ fontSize: '12px', fontWeight: 700, color: '#0D2D6B', margin: '0 0 2px', wordBreak: 'keep-all' }}>{r.textbook}</p>}
+                  {r.unit && <p style={{ fontSize: '11px', color: '#5A6472', margin: '0 0 1px' }}>{r.unit}</p>}
+                  {r.pages && <p style={{ fontSize: '11px', color: '#98A1AC', margin: 0 }}>{r.pages}</p>}
                 </div>
                 <div style={{ height: '1px', background: '#E8E6E0', marginBottom: '18px' }} />
               </>
             )}
 
-            {/* 학습 범위 + 진단 */}
-            {(r.textbook || r.unit || r.pages || r.diagnosis?.length > 0) && (
+            {/* TEST RESULT + 진단 배지 (시험 있는 경우) */}
+            {r.hasTest && r.testName && (
               <>
-                <div style={{ display: 'grid', gridTemplateColumns: r.diagnosis?.length > 0 ? '1fr 1fr' : '1fr', gap: '16px', marginBottom: '18px' }}>
-                  {(r.textbook || r.unit || r.pages) && (
-                    <div>
-                      <p style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.08em', margin: '0 0 6px', fontFamily: 'Montserrat, sans-serif' }}>학습 범위</p>
-                      {r.textbook && <p style={{ fontSize: '12px', fontWeight: 700, color: '#0D2D6B', margin: '0 0 2px', wordBreak: 'keep-all' }}>{r.textbook}</p>}
-                      {r.unit && <p style={{ fontSize: '11px', color: '#5A6472', margin: '0 0 1px' }}>{r.unit}</p>}
-                      {r.pages && <p style={{ fontSize: '11px', color: '#98A1AC', margin: 0 }}>{r.pages}</p>}
+                <div style={{ marginBottom: '18px' }}>
+                  <p style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.08em', margin: '0 0 8px', fontFamily: 'Montserrat, sans-serif' }}>TEST RESULT</p>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
+                      {r.testScore && <p style={{ fontSize: '28px', fontWeight: 800, color: '#0D2D6B', margin: 0, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{r.testScore}<span style={{ fontSize: '13px', fontWeight: 600, color: '#98A1AC', marginLeft: '2px' }}>점</span></p>}
+                      <p style={{ fontSize: '12px', color: '#5A6472', margin: 0 }}>{r.testName}</p>
                     </div>
-                  )}
-                  {r.diagnosis?.length > 0 && (
-                    <div>
-                      <p style={{ fontSize: '12px', fontWeight: 700, color: '#1A1A1A', margin: '0 0 8px' }}>진단</p>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                    {r.diagnosis?.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
                         {r.diagnosis.map((d, i) => {
                           const tag = DIAGNOSIS_TAGS_MAP[d.key] || {};
                           return (
-                            <span key={i} style={{ display: 'inline-block', background: tag.bg || '#8A5A00', color: tag.color || '#fff', fontSize: '13px', fontWeight: 700, padding: '5px 13px', borderRadius: '20px' }}>
+                            <span key={i} style={{ display: 'inline-block', background: tag.bg || '#8A5A00', color: tag.color || '#fff', fontSize: '11px', fontWeight: 700, padding: '4px 10px', borderRadius: '20px' }}>
                               {tag.label}{d.unit ? ` · ${d.unit}` : ''}{d.pages ? ` ${d.pages}` : ''}
                             </span>
                           );
                         })}
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
                 <div style={{ height: '1px', background: '#E8E6E0', marginBottom: '18px' }} />
               </>
             )}
 
-            {/* 시험 */}
-            {r.hasTest && r.testName && (
+            {/* 진단 배지 (시험 없는 경우 — 독립 섹션) */}
+            {(!r.hasTest || !r.testName) && r.diagnosis?.length > 0 && (
               <>
                 <div style={{ marginBottom: '18px' }}>
-                  <p style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.08em', margin: '0 0 8px', fontFamily: 'Montserrat, sans-serif' }}>TEST RESULT</p>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
-                    {r.testScore && <p style={{ fontSize: '28px', fontWeight: 800, color: '#0D2D6B', margin: 0, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{r.testScore}<span style={{ fontSize: '13px', fontWeight: 600, color: '#98A1AC', marginLeft: '2px' }}>점</span></p>}
-                    <p style={{ fontSize: '12px', color: '#5A6472', margin: 0 }}>{r.testName}</p>
+                  <p style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.08em', margin: '0 0 8px', fontFamily: 'Montserrat, sans-serif' }}>진단</p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                    {r.diagnosis.map((d, i) => {
+                      const tag = DIAGNOSIS_TAGS_MAP[d.key] || {};
+                      return (
+                        <span key={i} style={{ display: 'inline-block', background: tag.bg || '#8A5A00', color: tag.color || '#fff', fontSize: '13px', fontWeight: 700, padding: '5px 13px', borderRadius: '20px' }}>
+                          {tag.label}{d.unit ? ` · ${d.unit}` : ''}{d.pages ? ` ${d.pages}` : ''}
+                        </span>
+                      );
+                    })}
                   </div>
+                </div>
+                <div style={{ height: '1px', background: '#E8E6E0', marginBottom: '18px' }} />
+              </>
+            )}
+
+            {/* TEACHER'S NOTE */}
+            {r.teacherNote && (
+              <>
+                <div style={{ borderLeft: '3px solid #C9A227', paddingLeft: '13px', marginBottom: '18px' }}>
+                  <p style={{ fontSize: '9px', fontWeight: 700, color: '#C9A227', letterSpacing: '0.12em', margin: '0 0 7px', fontFamily: 'Montserrat, sans-serif' }}>TEACHER'S NOTE</p>
+                  {r.teacherNote.split('\n').filter(Boolean).map((para, i) => (
+                    <p key={i} style={{ fontSize: '13px', color: '#1A1A1A', margin: i === 0 ? '0 0 10px' : '0', lineHeight: 1.9, fontWeight: 500 }}>{para}</p>
+                  ))}
                 </div>
                 <div style={{ height: '1px', background: '#E8E6E0', marginBottom: '18px' }} />
               </>
