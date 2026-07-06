@@ -2151,18 +2151,24 @@ function GrowthDashboard({ reports, students }) {
               </span>
             </div>
 
-            {/* 미니 바차트 */}
-            <p style={{ fontSize: '10px', color: '#98A1AC', margin: '0 0 6px', letterSpacing: '0.08em' }}>개념 이해도 추이</p>
+            {/* 미니 바차트 + 진단 태그 연결 */}
+            <p style={{ fontSize: '10px', color: '#98A1AC', margin: '0 0 6px', letterSpacing: '0.08em' }}>개념 이해도 추이 · 진단</p>
             <div style={{ marginBottom: '14px' }}>
+              {/* 바차트 */}
               <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px', height: '60px', borderBottom: '1px solid #E8E6E0', paddingBottom: '2px' }}>
-                {rs.map((r, i) => (
-                  <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
-                    <span style={{ fontSize: '9px', fontWeight: 700, color: status.color, marginBottom: '2px' }}>{r.conceptRating}</span>
-                    <div style={{ width: '100%', height: `${(r.conceptRating / 5) * 44}px`, background: status.color, borderRadius: '2px 2px 0 0', opacity: 0.8 }} />
-                  </div>
-                ))}
+                {rs.map((r, i) => {
+                  const hasWeak = (r.diagnosis || []).some(d => d.key !== 'perfect');
+                  const barColor = hasWeak ? '#A32D2D' : status.color;
+                  return (
+                    <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
+                      <span style={{ fontSize: '9px', fontWeight: 700, color: barColor, marginBottom: '2px' }}>{r.conceptRating}</span>
+                      <div style={{ width: '100%', height: `${(r.conceptRating / 5) * 44}px`, background: barColor, borderRadius: '2px 2px 0 0', opacity: 0.85 }} />
+                    </div>
+                  );
+                })}
               </div>
-              <div style={{ display: 'flex', gap: '4px', marginTop: '3px' }}>
+              {/* 날짜 */}
+              <div style={{ display: 'flex', gap: '4px', marginTop: '3px', marginBottom: '8px' }}>
                 {rs.map((r, i) => (
                   <div key={i} style={{ flex: 1, textAlign: 'center' }}>
                     <span style={{ fontSize: '8px', color: '#98A1AC' }}>
@@ -2171,20 +2177,37 @@ function GrowthDashboard({ reports, students }) {
                   </div>
                 ))}
               </div>
-            </div>
-
-            {/* 주요 약점 */}
-            <p style={{ fontSize: '10px', color: '#98A1AC', margin: '0 0 6px', letterSpacing: '0.08em' }}>주요 약점</p>
-            <div style={{ marginBottom: '14px' }}>
-              {topWeak ? (
-                <span style={{ background: '#FCEBEB', border: '1px solid #A32D2D', color: '#791F1F', fontSize: '12px', fontWeight: 700, padding: '4px 11px', borderRadius: '20px' }}>
-                  ⚠ {DIAG_MAP[topWeak[0]]?.label || topWeak[0]} {topWeak[1]}회
-                </span>
-              ) : (
-                <span style={{ background: '#E1F5EE', border: '1px solid #0F6E56', color: '#085041', fontSize: '12px', fontWeight: 700, padding: '4px 11px', borderRadius: '20px' }}>
-                  ✓ 약점 없음
-                </span>
-              )}
+              {/* 수업일별 진단 태그 + 상세 */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {rs.filter(r => (r.diagnosis || []).some(d => d.key !== 'perfect')).slice(-3).reverse().map((r, i) => {
+                  const dateStr = r.createdAt?.seconds
+                    ? `${new Date(r.createdAt.seconds*1000).getMonth()+1}/${new Date(r.createdAt.seconds*1000).getDate()}`
+                    : '';
+                  const weakDiags = (r.diagnosis || []).filter(d => d.key !== 'perfect');
+                  return (
+                    <div key={i} style={{ background: '#FAFAFA', border: '0.5px solid #E8E6E0', borderRadius: '8px', padding: '8px 10px' }}>
+                      <p style={{ fontSize: '10px', color: '#98A1AC', margin: '0 0 5px', fontWeight: 600 }}>{dateStr} · 개념 {r.conceptRating}/5</p>
+                      {weakDiags.map((d, j) => (
+                        <div key={j} style={{ marginBottom: j < weakDiags.length - 1 ? '4px' : 0 }}>
+                          <span style={{ background: '#FCEBEB', border: '1px solid #A32D2D', color: '#791F1F', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px' }}>
+                            ⚠ {DIAG_MAP[d.key]?.label || d.key}
+                            {d.unit ? ` · ${d.unit}단원` : ''}
+                            {d.pages ? ` ${d.pages}` : ''}
+                          </span>
+                          {d.detail && (
+                            <p style={{ fontSize: '11px', color: '#5A6472', margin: '3px 0 0 4px', lineHeight: 1.5 }}>
+                              └ {d.detail}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+                {rs.every(r => !(r.diagnosis || []).some(d => d.key !== 'perfect')) && (
+                  <p style={{ fontSize: '11px', color: '#98A1AC', margin: 0, textAlign: 'center', padding: '4px 0' }}>이 기간 진단된 약점 없음</p>
+                )}
+              </div>
             </div>
 
             {/* 액션 버튼 */}

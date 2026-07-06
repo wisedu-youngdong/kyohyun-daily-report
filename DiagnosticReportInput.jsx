@@ -699,7 +699,11 @@ setAiPolishedNote(data.result);
                 </div>
                 {selectedTags.length > 0 && (
                   <div style={{ background: TOKENS.warnBg, borderRadius: '12px', padding: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <p style={{ fontSize: '11px', color: TOKENS.warn, fontWeight: 700, margin: 0 }}>선택된 진단 상세 입력</p>
+                    <p style={{ fontSize: '11px', color: TOKENS.warn, fontWeight: 700, margin: '0 0 2px' }}>선택된 진단 상세 입력</p>
+                    <p style={{ fontSize: '10px', color: '#8A5A00', margin: '0 0 4px', lineHeight: 1.5 }}>
+                      💡 구체적으로 적을수록 원장 보고서에서 바로 확인됩니다<br/>
+                      예: <strong>4단원 · 111p · 비례식 문장제 — 식 세우기 단계에서 막힘</strong>
+                    </p>
                     {selectedTags.map((tag, idx) => {
                       const tagDef = DIAGNOSIS_TAGS.find(t => t.key === tag.key);
                       return (
@@ -709,10 +713,12 @@ setAiPolishedNote(data.result);
                             <button onClick={() => toggleTag(tag.key)} style={{ background: 'none', border: 'none', color: TOKENS.textMute, cursor: 'pointer' }}><X size={13} /></button>
                           </div>
                           <div style={{ display: 'flex', gap: '5px', marginBottom: '5px' }}>
-                            <input value={tag.unit} onChange={(e) => updateTagDetail(idx, 'unit', e.target.value)} placeholder="단원" style={{ ...inputStyle, fontSize: '12px', padding: '6px 10px' }} />
-                            <input value={tag.pages} onChange={(e) => updateTagDetail(idx, 'pages', e.target.value)} placeholder="페이지 (예: p.28)" style={{ ...inputStyle, fontSize: '12px', padding: '6px 10px' }} />
+                            <input value={tag.unit} onChange={(e) => updateTagDetail(idx, 'unit', e.target.value)} placeholder="단원 (예: 4단원)" style={{ ...inputStyle, fontSize: '12px', padding: '6px 10px' }} />
+                            <input value={tag.pages} onChange={(e) => updateTagDetail(idx, 'pages', e.target.value)} placeholder="페이지 (예: 111, 114p)" style={{ ...inputStyle, fontSize: '12px', padding: '6px 10px' }} />
                           </div>
-                          <input value={tag.detail} onChange={(e) => updateTagDetail(idx, 'detail', e.target.value)} placeholder="상세 설명 (예: 자릿수 표기 2회 실수)" style={{ ...inputStyle, fontSize: '12px', padding: '6px 10px' }} />
+                          <input value={tag.detail} onChange={(e) => updateTagDetail(idx, 'detail', e.target.value)}
+                            placeholder="구체적 개념명 (예: 비례식 문장제 — 식 세우기 단계에서 막힘)"
+                            style={{ ...inputStyle, fontSize: '12px', padding: '6px 10px' }} />
                         </div>
                       );
                     })}
