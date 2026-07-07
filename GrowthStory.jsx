@@ -97,7 +97,8 @@ export default function GrowthStory() {
   const unitScoreMap = {};
   sorted.forEach(r => {
     if (!r.hasTest || !r.testScore) return;
-    const unit = r.unit || '기타';
+    // unit → testName → textbook → '단원평가' 순으로 fallback
+    const unit = (r.unit && r.unit.trim()) || (r.testName && r.testName.trim()) || (r.textbook && r.textbook.trim()) || '단원평가';
     const round = r.testRound || '';
     const score = Number(r.testScore);
     if (!unitScoreMap[unit]) unitScoreMap[unit] = [];
@@ -285,16 +286,25 @@ export default function GrowthStory() {
               </div>
             );
           })}
-          {/* 전체 요약 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', background: '#F7F5F1', borderRadius: '4px', borderLeft: '2px solid #C9A227', marginTop: '12px' }}>
-            <span style={{ fontSize: '10px', color: '#8A8A8A', fontWeight: 600, flexShrink: 0 }}>전체 범위</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1 }}>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: '#2C2C2C' }}>{minScore}점</span>
-              <span style={{ fontSize: '12px', color: '#C9A227' }}>→</span>
-              <span style={{ fontSize: '16px', fontWeight: 800, color: '#0D2D6B' }}>{maxScore}점</span>
+          {/* 전체 요약 — 2회 이상 평가 시만 표시 */}
+          {allScores.length >= 2 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', background: '#F7F5F1', borderRadius: '4px', borderLeft: '2px solid #C9A227', marginTop: '12px' }}>
+              <span style={{ fontSize: '10px', color: '#8A8A8A', fontWeight: 600, flexShrink: 0 }}>전체 범위</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1 }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: '#2C2C2C' }}>{minScore}점</span>
+                <span style={{ fontSize: '12px', color: '#C9A227' }}>→</span>
+                <span style={{ fontSize: '16px', fontWeight: 800, color: '#0D2D6B' }}>{maxScore}점</span>
+              </div>
+              <span style={{ fontSize: '10px', color: '#8A8A8A' }}>100점 만점</span>
             </div>
-            <span style={{ fontSize: '10px', color: '#8A8A8A' }}>100점 만점</span>
-          </div>
+          )}
+          {allScores.length === 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', background: '#F7F5F1', borderRadius: '4px', borderLeft: '2px solid #C9A227', marginTop: '12px' }}>
+              <span style={{ fontSize: '10px', color: '#8A8A8A', fontWeight: 600 }}>이번 평가</span>
+              <span style={{ fontSize: '16px', fontWeight: 800, color: '#0D2D6B', marginLeft: 'auto' }}>{maxScore}점</span>
+              <span style={{ fontSize: '10px', color: '#8A8A8A' }}>/ 100점 만점</span>
+            </div>
+          )}
         </div>
       )}
 
