@@ -995,10 +995,7 @@ function ReportPreviewModal({ report: r, allReports, onClose, onDelete, onEdit }
                 <p style={{ fontFamily: "'Noto Serif KR', serif", fontSize: '26px', fontWeight: 700, color: '#fff', margin: '0 0 4px', letterSpacing: '-0.5px' }}>{r.studentName}</p>
                 <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.55)', margin: 0 }}>{date} · {r.teacherName}{/선생님?$/.test(r.teacherName || '') ? '' : ' 선생님'}</p>
               </div>
-              <div style={{ border: '1px solid rgba(201,162,39,0.5)', padding: '6px 12px', textAlign: 'center', borderRadius: '2px', flexShrink: 0 }}>
-                <p style={{ fontSize: '9px', color: '#C9A227', margin: '0 0 2px', letterSpacing: '0.08em', fontWeight: 700 }}>성장 단계</p>
-                <p style={{ fontSize: '13px', fontWeight: 800, color: '#fff', margin: 0 }}>{stageInfo.current.label} · {stageInfo.totalPoints}P</p>
-              </div>
+
             </div>
           </div>
 
@@ -1372,33 +1369,7 @@ function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDele
   );
 }
 
-// ── 성장 단계 카드 ──
-function GrowthStageCard({ reports }) {
-  const { current, next, pct, totalPoints } = getStageInfo(calculateTotalPoints(reports));
-  return (
-    <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '32px' }}>{current.icon}</span>
-          <div>
-            <p style={{ fontSize: '16px', fontWeight: 800, margin: 0 }}>{current.label}</p>
-            <p style={{ fontSize: '11px', color: '#9B6FD4', fontWeight: 600, margin: '2px 0 0' }}>누적 {totalPoints}P</p>
-          </div>
-        </div>
-        {next && (
-          <span style={{ background: '#F0E8FF', color: '#6B3FA0', fontSize: '11px', fontWeight: 700, padding: '5px 12px', borderRadius: '20px', border: '1.5px solid rgba(107,63,160,0.2)' }}>
-            다음: {next.icon} {next.label}
-          </span>
-        )}
-      </div>
-      <div style={{ height: '10px', background: '#F0E8FF', borderRadius: '20px', overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: `${pct}%`, borderRadius: '20px', background: 'linear-gradient(90deg, #6B3FA0, #9B6FD4)' }} />
-      </div>
-      {next && <p style={{ fontSize: '10px', color: '#B0A0C8', marginTop: '6px', textAlign: 'right' }}>{next.min - totalPoints}P 남음</p>}
-      {!next && <p style={{ fontSize: '10px', color: '#B0A0C8', marginTop: '6px', textAlign: 'right' }}>최고 단계 달성 🎉</p>}
-    </div>
-  );
-}
+
 
 // ── 과제/시험 성취 추이 차트 ──
 function HomeworkTestChart({ reports }) {
@@ -1553,7 +1524,6 @@ function MonthlyReportModal({ student, reports, allReports, periodLabel, onClose
   // ── 포인트/단계는 동기부여용 소형 배지로만 사용 (증명 그래프 역할에서 제외) ──
   const fullSorted = [...(allReports || reports)].sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
   const totalPoints = fullSorted.reduce((sum, r) => sum + (r.points ?? calculateReportPoints(r)), 0);
-  const stageInfo = getStageInfo(totalPoints);
 
   // ── ② 기준선: 이전 기간(선택 기간 시작 전) 본인 평균 — "지난 기간의 나"와 비교 ──
   const periodStartTs = sorted[0]?.createdAt?.seconds || 0;
@@ -1820,15 +1790,7 @@ function MonthlyReportModal({ student, reports, allReports, periodLabel, onClose
             </p>
             <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', margin: 0 }}>{student?.school} · {periodLabel}</p>
             <div style={{ width: '100%', height: '1px', background: `rgba(201,162,39,0.35)`, marginTop: '16px' }} />
-            {/* 성장 단계 배지 */}
-            <div style={{
-              position: 'absolute', top: '20px', right: '28px',
-              border: `1px solid rgba(201,162,39,0.5)`, borderRadius: '2px',
-              padding: '5px 12px', textAlign: 'center'
-            }}>
-              <p style={{ fontSize: '9px', color: DS.gold, margin: '0 0 1px', letterSpacing: '0.1em', fontWeight: 700 }}>성장 단계</p>
-              <p style={{ fontSize: '12px', fontWeight: 700, color: '#fff', margin: 0 }}>{stageInfo.current.label} · {stageInfo.totalPoints}P</p>
-            </div>
+
           </div>
 
           <div style={{ padding: '0 28px' }}>
@@ -3432,7 +3394,6 @@ function AnalysisView({ students, reports }) {
             )}
           </div>
 
-          <GrowthStageCard reports={studentReports} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
             <StatCard label={`리포트 (${periodLabel})`} value={periodReports.length} unit="건" />
             <StatCard label="과제 평균" value={periodAvg('homeworkRating')} unit="점" />
