@@ -389,8 +389,7 @@ export default function App() {
   ];
   const tabs = mainTabs.filter(t => t.roles.includes(userRole || 'director'));
 
-  // 서브탭 세그먼트 컴포넌트
-  const SubTabBar = ({ group, items }) => (
+  const renderSubTabBar = (group, items) => (
     <div style={{ display: 'flex', background: '#F3F4F6', borderRadius: '10px', padding: '3px', margin: '16px 20px 0', gap: '2px' }}>
       {items.map(item => {
         const active = activeSubTab[group] === item.key;
@@ -442,10 +441,10 @@ export default function App() {
         {/* 학습 기록 — 기록 보관소 + 복습 관리 */}
         {activeTab === 'record' && (
           <div>
-            <SubTabBar group="record" items={[
+            {renderSubTabBar('record', [
               { key: 'history', label: '기록 보관소' },
               { key: 'review',  label: '복습 관리' },
-            ]} />
+            ])}
             <div style={{ marginTop: '12px' }}>
               {activeSubTab.record === 'history' && <HistoryView reports={visibleReports} students={visibleStudents} onDelete={handleDeleteReport} onEdit={(report) => { setEditingReport(report); setActiveTab('write'); }} />}
               {activeSubTab.record === 'review'  && <ReviewView students={visibleStudents} />}
@@ -456,10 +455,10 @@ export default function App() {
         {/* 원장 분석 — 원장 보고서 + 종합 분석 (원장만) */}
         {activeTab === 'insight' && isDirector && (
           <div>
-            <SubTabBar group="insight" items={[
+            {renderSubTabBar('insight', [
               { key: 'director',  label: '원장 보고서' },
               { key: 'analysis',  label: '종합 분석' },
-            ]} />
+            ])}
             <div style={{ marginTop: '12px' }}>
               {activeSubTab.insight === 'director' && (
                 <div>
@@ -475,10 +474,10 @@ export default function App() {
         {/* 관리 — 학생 관리 + 설정 (원장만) */}
         {activeTab === 'manage' && isDirector && (
           <div>
-            <SubTabBar group="manage" items={[
+            {renderSubTabBar('manage', [
               { key: 'students', label: '학생 관리' },
               { key: 'settings', label: '설정' },
-            ]} />
+            ])}
             <div style={{ marginTop: '12px' }}>
               {activeSubTab.manage === 'students' && <StudentsView students={students} reports={reports} onSave={handleSaveStudent} onDelete={handleDeleteStudent} teachers={teachers} />}
               {activeSubTab.manage === 'settings' && <SettingsView students={students} onSaveStudent={handleSaveStudent} teachers={teachers} onSaveTeacher={handleSaveTeacher} onDeleteTeacher={handleDeleteTeacher} />}
