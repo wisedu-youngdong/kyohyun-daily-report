@@ -192,6 +192,8 @@ export default function App() {
   const [userRole, setUserRole] = useState(null); // 'director' | 'teacher'
   const [userTeacherId, setUserTeacherId] = useState(null); // teachers 컬렉션 ID
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeSubTab, setActiveSubTab] = useState({ record: 'history', insight: 'director', manage: 'students' });
+  const setSubTab = (group, key) => setActiveSubTab(prev => ({ ...prev, [group]: key }));
   const [editingReport, setEditingReport] = useState(null);
   const [students, setStudents] = useState([]);
   const [teachers, setTeachers] = useState([]);
@@ -363,12 +365,6 @@ export default function App() {
 
   if (!user) return <LoginScreen />;
 
-  if (userRole === null) return (
-    <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Pretendard Variable', Pretendard, sans-serif", color: T.brand, fontSize: '14px', fontWeight: 600 }}>
-      권한 확인 중...
-    </div>
-  );
-
   const isDirector = userRole === 'director';
 
   // 강사는 담당 학생만, 원장은 전체
@@ -381,27 +377,21 @@ export default function App() {
     ? reports
     : reports.filter(r => r.teacherId === userTeacherId);
 
-  // ── 통합 5탭 구조 ──
-  const [activeSubTab, setActiveSubTab] = useState({ record: 'history', insight: 'director', manage: 'students' });
-
-  const setSubTab = (group, key) => setActiveSubTab(prev => ({ ...prev, [group]: key }));
-
   const mainTabs = [
     { key: 'dashboard', label: '대시보드', icon: <LayoutDashboard size={20} />, roles: ['director', 'teacher'] },
     { key: 'write',     label: '리포트',   icon: <FileText size={20} />,        roles: ['director', 'teacher'] },
-    { key: 'record',    label: '학습 기록', icon: <History size={20} />,         roles: ['director', 'teacher'] },
-    { key: 'insight',   label: '원장 분석', icon: <BarChart2 size={20} />,       roles: ['director'] },
+    { key: 'record',    label: '학습기록',  icon: <History size={20} />,         roles: ['director', 'teacher'] },
+    { key: 'insight',   label: '원장분석',  icon: <BarChart2 size={20} />,       roles: ['director'] },
     { key: 'manage',    label: '관리',      icon: <Users size={20} />,           roles: ['director'] },
   ];
   const tabs = mainTabs.filter(t => t.roles.includes(userRole || 'director'));
-
   const renderSubTabBar = (group, items) => (
     <div style={{ display: 'flex', background: '#F3F4F6', borderRadius: '10px', padding: '3px', margin: '16px 20px 0', gap: '2px' }}>
       {items.map(item => {
-        const active = activeSubTab[group] === item.key;
+        const isActive = activeSubTab[group] === item.key;
         return (
           <button key={item.key} onClick={() => setSubTab(group, item.key)}
-            style={{ flex: 1, padding: '8px 4px', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: active ? 700 : 500, cursor: 'pointer', transition: 'all 0.15s', background: active ? '#fff' : 'transparent', color: active ? '#0D2D6B' : '#8A8A8A', boxShadow: active ? '0 1px 4px rgba(0,0,0,0.10)' : 'none', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>
+            style={{ flex: 1, padding: '8px 4px', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: isActive ? 700 : 500, cursor: 'pointer', transition: 'all 0.15s', background: isActive ? '#fff' : 'transparent', color: isActive ? '#0D2D6B' : '#8A8A8A', boxShadow: isActive ? '0 1px 4px rgba(0,0,0,0.10)' : 'none', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>
             {item.label}
           </button>
         );
@@ -428,10 +418,7 @@ export default function App() {
       </header>
 
       <main>
-        {/* 대시보드 */}
         {activeTab === 'dashboard' && <DashboardView students={visibleStudents} reports={visibleReports} onTabChange={setActiveTab} />}
-
-        {/* 리포트 작성 */}
         {activeTab === 'write' && (
           <DiagnosticReportInput
             students={visibleStudents} teachers={teachers}
@@ -443,8 +430,6 @@ export default function App() {
             onEditDone={() => setEditingReport(null)}
           />
         )}
-
-        {/* 학습 기록 — 기록 보관소 + 복습 관리 */}
         {activeTab === 'record' && (
           <div>
             {renderSubTabBar('record', [
@@ -453,32 +438,23 @@ export default function App() {
             ])}
             <div style={{ marginTop: '12px' }}>
               {activeSubTab.record === 'history' && <HistoryView reports={visibleReports} students={visibleStudents} onDelete={handleDeleteReport} onEdit={(report) => { setEditingReport(report); setActiveTab('write'); }} />}
-              {activeSubTab.record === 'review'  && <ReviewView students={visibleStudents} />}
+              {activeSubTab.record === 'review' && <ReviewView students={visibleStudents} />}
             </div>
           </div>
         )}
-
-        {/* 원장 분석 — 원장 보고서 + 종합 분석 (원장만) */}
-        {activeTab === 'insight' && isDirector && (
+        {activeTab === 'insight' && (
           <div>
             {renderSubTabBar('insight', [
-              { key: 'director',  label: '원장 보고서' },
-              { key: 'analysis',  label: '종합 분석' },
+              { key: 'director', label: '원장 보고서' },
+              { key: 'analysis', label: '종합 분석' },
             ])}
             <div style={{ marginTop: '12px' }}>
-              {activeSubTab.insight === 'director' && (
-                <div>
-                  <DirectorView reports={reports} students={students} />
-                  <GrowthDashboard reports={reports} students={students} onSwitchTab={setActiveTab} />
-                </div>
-              )}
+              {activeSubTab.insight === 'director' && <div><DirectorView reports={reports} students={students} /><GrowthDashboard reports={reports} students={students} onSwitchTab={setActiveTab} /></div>}
               {activeSubTab.insight === 'analysis' && <AnalysisView students={students} reports={reports} />}
             </div>
           </div>
         )}
-
-        {/* 관리 — 학생 관리 + 설정 (원장만) */}
-        {activeTab === 'manage' && isDirector && (
+        {activeTab === 'manage' && (
           <div>
             {renderSubTabBar('manage', [
               { key: 'students', label: '학생 관리' },
@@ -500,7 +476,7 @@ export default function App() {
               style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', padding: '6px 2px', border: 'none', background: 'none', cursor: 'pointer', color: active ? T.brand : T.textMute, fontFamily: "'Pretendard Variable', Pretendard, sans-serif", position: 'relative' }}>
               {active && <span style={{ position: 'absolute', top: '-6px', left: '50%', transform: 'translateX(-50%)', width: '24px', height: '2px', background: T.brand, borderRadius: '0 0 2px 2px' }} />}
               {tab.icon}
-              <span style={{ fontSize: '10px', fontWeight: active ? 700 : 400, letterSpacing: '-0.01em' }}>{tab.label}</span>
+              <span style={{ fontSize: '10px', fontWeight: active ? 700 : 400 }}>{tab.label}</span>
             </button>
           );
         })}
@@ -2003,7 +1979,7 @@ function MonthlyReportModal({ student, reports, allReports, periodLabel, onClose
 
               {/* 강점 */}
               {strengthStats.length > 0 && (
-                <div style={{ borderLeft: '2px solid #0F6E56', background: '#F4FAF7', borderRadius: '0 3px 3px 0', padding: '13px 15px' }}>
+                <div style={{ borderLeft: '2px solid #0F6E56', paddingLeft: '14px', marginBottom: '14px', background: '#F4FAF7', borderRadius: '0 3px 3px 0', padding: '13px 15px', borderLeft: '2px solid #0F6E56' }}>
                   <span style={{ display: 'inline-block', background: '#0F6E56', color: '#fff', fontSize: '9px', fontWeight: 700, padding: '3px 9px', borderRadius: '2px', letterSpacing: '0.14em', marginBottom: '12px' }}>✓ STRENGTH</span>
                   {strengthStats.map((s, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'baseline', padding: '7px 0', borderBottom: i < strengthStats.length - 1 ? '1px solid rgba(0,0,0,0.06)' : 'none' }}>
