@@ -355,13 +355,19 @@ export default function App() {
     }
   };
 
-  if (authLoading || (user && userRole === null)) return (
+  if (authLoading) return (
     <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Pretendard Variable', Pretendard, sans-serif", color: T.brand, fontSize: '14px', fontWeight: 600 }}>
       교현학원 연결 중...
     </div>
   );
 
   if (!user) return <LoginScreen />;
+
+  if (userRole === null) return (
+    <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Pretendard Variable', Pretendard, sans-serif", color: T.brand, fontSize: '14px', fontWeight: 600 }}>
+      권한 확인 중...
+    </div>
+  );
 
   const isDirector = userRole === 'director';
 
