@@ -152,11 +152,12 @@ export default function DiagnosticReportInput({
   const [nextPlan, setNextPlan] = useState('');
   const [nextPlanDetail, setNextPlanDetail] = useState('');
   const [saving, setSaving] = useState(false);
-  const [toast, setToast] = useState(null); // { msg, type: 'success'|'error'|'warn' }
+  const [toast, setToast] = useState(null);
+  const [savedReportId, setSavedReportId] = useState(null); // 저장 직후 링크 복사용
 
-  const showToast = (msg, type = 'success') => {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 3000);
+  const showToast = (msg, type = 'success', reportId = null) => {
+    setToast({ msg, type, reportId });
+    setTimeout(() => setToast(null), type === 'success' ? 5000 : 3000);
   };
 
   // 사진 분석 (다중 업로드 — 최대 6장)
@@ -197,6 +198,18 @@ export default function DiagnosticReportInput({
       setTeacherId(teachers[0].id);
     }
   }, [teachers]);
+
+  // 작성 중 이탈 방지 — 데이터 입력 시작 후 탭 닫기/뒤로가기 경고
+  const isDirty = !!(studentId || teacherNote || homeworkRating || conceptRating || selectedTags.length);
+  useEffect(() => {
+    const handler = (e) => {
+      if (!isDirty) return;
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
 
   const student = useMemo(() => students.find(s => s.id === studentId), [students, studentId]);
   const teacher = useMemo(() => teachers.find(t => t.id === teacherId), [teachers, teacherId]);
@@ -364,7 +377,7 @@ setAiPolishedNote(data.result);
         photoAnalysis: photoAnalysis || null,
       };
       reportPayload.points = calculateReportPoints(reportPayload);
-      await onSave(reportPayload);
+      const savedId = await onSave(reportPayload);
       setStudentId(''); setHomeworkRating(0); setConceptRating(0);
       setHasTest(false); setTestName(''); setTestScore(''); setTestRound('');
       setTextbook(''); setUnit(''); setPages('');
@@ -375,7 +388,7 @@ setAiPolishedNote(data.result);
         onEditDone();
         showToast('리포트가 수정됐습니다!', 'success');
       } else {
-        showToast('리포트가 저장됐습니다!', 'success');
+        showToast('저장 완료! 링크를 복사해서 카카오톡으로 전송하세요.', 'success', savedId);
       }
     } catch (e) {
       console.error('리포트 저장 오류:', e);
@@ -400,14 +413,28 @@ setAiPolishedNote(data.result);
           background: toastColors[toast.type]?.bg || '#0F6E56',
           color: '#fff', padding: '12px 20px', borderRadius: '10px',
           fontSize: '13px', fontWeight: 600, zIndex: 9999,
-          display: 'flex', alignItems: 'center', gap: '8px',
+          display: 'flex', alignItems: 'center', gap: '10px',
           boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
-          maxWidth: '320px', textAlign: 'center', wordBreak: 'keep-all',
+          maxWidth: '360px', wordBreak: 'keep-all',
           animation: 'fadeInUp 0.2s ease',
           fontFamily: "'Pretendard Variable', Pretendard, sans-serif",
         }}>
-          <span style={{ fontSize: '14px', fontWeight: 800 }}>{toastColors[toast.type]?.icon}</span>
-          {toast.msg}
+          <span style={{ fontSize: '14px', fontWeight: 800, flexShrink: 0 }}>{toastColors[toast.type]?.icon}</span>
+          <span style={{ flex: 1 }}>{toast.msg}</span>
+          {toast.reportId && (
+            <button onClick={() => {
+              const url = `${window.location.origin}/report/${toast.reportId}`;
+              navigator.clipboard.writeText(url).then(() => {
+                setToast(prev => prev ? { ...prev, msg: '링크 복사 완료! 카카오톡에 붙여넣기 하세요.' } : null);
+              });
+            }} style={{
+              background: 'rgba(255,255,255,0.25)', border: 'none', color: '#fff',
+              fontSize: '11px', fontWeight: 700, padding: '5px 10px', borderRadius: '6px',
+              cursor: 'pointer', flexShrink: 0, fontFamily: 'inherit'
+            }}>
+              링크 복사
+            </button>
+          )}
         </div>
       )}
       <style>{`@keyframes fadeInUp { from { opacity:0; transform:translateX(-50%) translateY(10px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }`}</style>
