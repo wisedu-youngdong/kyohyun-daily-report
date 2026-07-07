@@ -31,6 +31,27 @@ export default function PublicReport() {
         if (!rSnap.exists()) { setError('리포트를 찾을 수 없습니다.'); setLoading(false); return; }
         const r = { id: rSnap.id, ...rSnap.data() };
         setReport(r);
+
+        // 동적 OG 메타 태그 — 학생 이름 반영
+        if (r.studentName) {
+          const title = `${r.studentName} 학생의 성장 리포트`;
+          const sub   = `교현학원 · 매 수업 후 데이터와 선생님의 시선이 담긴 리포트`;
+          const ogImg = `https://kyohyun-daily-report.vercel.app/api/og?title=${encodeURIComponent(title)}&sub=${encodeURIComponent(sub)}`;
+
+          document.title = title;
+          const setMeta = (prop, val, isName) => {
+            const sel = isName ? `meta[name="${prop}"]` : `meta[property="${prop}"]`;
+            let el = document.querySelector(sel);
+            if (!el) { el = document.createElement('meta'); isName ? el.setAttribute('name', prop) : el.setAttribute('property', prop); document.head.appendChild(el); }
+            el.setAttribute('content', val);
+          };
+          setMeta('og:title', title);
+          setMeta('og:description', sub);
+          setMeta('og:image', ogImg);
+          setMeta('twitter:title', title, true);
+          setMeta('twitter:image', ogImg, true);
+        }
+
         if (r.studentId) {
           const q = query(collection(db, 'reports'), where('studentId', '==', r.studentId));
           const snap = await getDocs(q);
