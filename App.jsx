@@ -534,9 +534,29 @@ function StatCard({ label, value, unit }) {
 
 function StudentsView({ students, reports, onSave, onDelete, teachers = [] }) {
   const [editingStudent, setEditingStudent] = useState(null);
+  const [profileStudent, setProfileStudent] = useState(null);
+
+  const DIAG_MAP = {
+    calc:    { label: '계산 실수', bg: '#A32D2D', prefix: '⚠' },
+    concept: { label: '개념 누락', bg: '#A32D2D', prefix: '⚠' },
+    apply:   { label: '응용 부족', bg: '#A32D2D', prefix: '⚠' },
+    time:    { label: '시간 부족', bg: '#8A5A00', prefix: '△' },
+    perfect: { label: '개념 완벽', bg: '#0F6E56', prefix: '✓' },
+  };
 
   return (
     <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
+
+      {/* 학생 프로필 모달 */}
+      {profileStudent && (
+        <StudentProfileModal
+          student={profileStudent}
+          reports={reports.filter(r => r.studentId === profileStudent.id)}
+          onClose={() => setProfileStudent(null)}
+          DIAG_MAP={DIAG_MAP}
+        />
+      )}
+
       <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '16px', letterSpacing: '-0.02em' }}>학생 관리</h2>
       {students.length === 0
         ? <div style={{ background: '#fff', borderRadius: '16px', border: `1px solid #E5E7EB`, padding: '60px 20px', textAlign: 'center', color: '#9CA3AF', fontSize: '13px' }}>리포트 작성 화면에서 학생을 추가하세요</div>
@@ -545,7 +565,8 @@ function StudentsView({ students, reports, onSave, onDelete, teachers = [] }) {
             const sReports = reports.filter(r => r.studentId === s.id);
             const assignedTeacher = teachers.find(t => t.id === s.assignedTeacherId);
             return (
-              <div key={s.id} style={{ background: '#fff', borderRadius: '16px', padding: '16px 18px', border: `1px solid #E5E7EB` }}>
+              <div key={s.id} style={{ background: '#fff', borderRadius: '16px', padding: '16px 18px', border: `1px solid #E5E7EB`, cursor: 'pointer' }}
+                onClick={() => setProfileStudent(s)}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: '#E6F1FB', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     {s.avatar
@@ -563,11 +584,11 @@ function StudentsView({ students, reports, onSave, onDelete, teachers = [] }) {
                     </span>
                   )}
                   <button
-                    onClick={() => setEditingStudent(s)}
+                    onClick={(e) => { e.stopPropagation(); setEditingStudent(s); }}
                     style={{ background: '#E6F1FB', border: 'none', color: '#185FA5', fontSize: '12px', fontWeight: 700, padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', marginRight: '6px' }}>
                     ✏️ 수정
                   </button>
-                  <button onClick={() => { if (confirm(`${s.name} 학생을 삭제하시겠습니까?`)) onDelete(s.id); }} style={{ background: 'none', border: 'none', color: '#D1D5DB', fontSize: '18px', cursor: 'pointer', padding: '4px' }}>×</button>
+                  <button onClick={(e) => { e.stopPropagation(); if (confirm(`${s.name} 학생을 삭제하시겠습니까?`)) onDelete(s.id); }} style={{ background: 'none', border: 'none', color: '#D1D5DB', fontSize: '18px', cursor: 'pointer', padding: '4px' }}>×</button>
                 </div>
                 {s.textbooks?.length > 0 && (
                   <div style={{ marginTop: '10px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
