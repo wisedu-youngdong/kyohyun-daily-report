@@ -1591,13 +1591,13 @@ function MonthlyReportModal({ student, reports, allReports, periodLabel, onClose
   // ── 강점 stat 구조 ──
   const strengthStats = [];
   if (bestConceptReport) {
-    strengthStats.push({ label: '최고 개념이해', value: `${bestConceptReport.conceptRating}점`, date: fmtShort(bestConceptReport) });
+    strengthStats.push({ label: '최고 개념이해', value: `${bestConceptReport.conceptRating}점`, date: `${fmtShort(bestConceptReport)} · 5점 만점` });
   }
   if (allAttended && sorted.length >= 2) {
     strengthStats.push({ label: '출석', value: `${sorted.length}회 전 정시`, date: '개근' });
   }
   if (homeworkAvg >= 4.5) {
-    strengthStats.push({ label: '과제 수행 평균', value: `${homeworkAvg}점`, date: homeworkAvg >= 5 ? '아주 잘함' : '잘함' });
+    strengthStats.push({ label: '과제 수행 평균', value: `${homeworkAvg}점`, date: `5점 만점 · ${homeworkAvg >= 5 ? '아주 잘함' : '잘함'}` });
   }
   if (perfectTag) {
     strengthStats.push({ label: '개념 완벽 진단', value: `${perfectTag[1]}회 달성`, date: fmtShort(tagFirstExample[perfectTag[0]]) });
