@@ -375,17 +375,34 @@ export default function App() {
     ? reports
     : reports.filter(r => r.teacherId === userTeacherId);
 
-  const allTabs = [
-    { key: 'dashboard', label: '대시보드',   icon: <LayoutDashboard size={20} />, roles: ['director', 'teacher'] },
-    { key: 'students',  label: '학생 관리',   icon: <Users size={20} />,           roles: ['director'] },
-    { key: 'write',     label: '리포트 작성', icon: <FileText size={20} />,        roles: ['director', 'teacher'] },
-    { key: 'history',   label: '기록 보관소', icon: <History size={20} />,         roles: ['director', 'teacher'] },
-    { key: 'review',    label: '복습 관리',   icon: <span style={{fontSize:'20px'}}>🔁</span>, roles: ['director', 'teacher'] },
-    { key: 'director',  label: '원장 보고서', icon: <span style={{fontSize:'20px'}}>📋</span>, roles: ['director'] },
-    { key: 'analysis',  label: '종합 분석',   icon: <BarChart2 size={20} />,       roles: ['director'] },
-    { key: 'settings',  label: '설정',        icon: <span style={{fontSize:'20px'}}>⚙️</span>, roles: ['director'] },
+  // ── 통합 5탭 구조 ──
+  const [activeSubTab, setActiveSubTab] = useState({ record: 'history', insight: 'director', manage: 'students' });
+
+  const setSubTab = (group, key) => setActiveSubTab(prev => ({ ...prev, [group]: key }));
+
+  const mainTabs = [
+    { key: 'dashboard', label: '대시보드', icon: <LayoutDashboard size={20} />, roles: ['director', 'teacher'] },
+    { key: 'write',     label: '리포트',   icon: <FileText size={20} />,        roles: ['director', 'teacher'] },
+    { key: 'record',    label: '학습 기록', icon: <History size={20} />,         roles: ['director', 'teacher'] },
+    { key: 'insight',   label: '원장 분석', icon: <BarChart2 size={20} />,       roles: ['director'] },
+    { key: 'manage',    label: '관리',      icon: <Users size={20} />,           roles: ['director'] },
   ];
-  const tabs = allTabs.filter(t => t.roles.includes(userRole || 'director'));
+  const tabs = mainTabs.filter(t => t.roles.includes(userRole || 'director'));
+
+  // 서브탭 세그먼트 컴포넌트
+  const SubTabBar = ({ group, items }) => (
+    <div style={{ display: 'flex', background: '#F3F4F6', borderRadius: '10px', padding: '3px', margin: '16px 20px 0', gap: '2px' }}>
+      {items.map(item => {
+        const active = activeSubTab[group] === item.key;
+        return (
+          <button key={item.key} onClick={() => setSubTab(group, item.key)}
+            style={{ flex: 1, padding: '8px 4px', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: active ? 700 : 500, cursor: 'pointer', transition: 'all 0.15s', background: active ? '#fff' : 'transparent', color: active ? '#0D2D6B' : '#8A8A8A', boxShadow: active ? '0 1px 4px rgba(0,0,0,0.10)' : 'none', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>
+            {item.label}
+          </button>
+        );
+      })}
+    </div>
+  );
 
   return (
     <div style={{ minHeight: '100vh', background: T.bgSoft, paddingBottom: '80px' }}>
@@ -406,8 +423,10 @@ export default function App() {
       </header>
 
       <main>
+        {/* 대시보드 */}
         {activeTab === 'dashboard' && <DashboardView students={visibleStudents} reports={visibleReports} onTabChange={setActiveTab} />}
-        {activeTab === 'students' && <StudentsView students={students} reports={reports} onSave={handleSaveStudent} onDelete={handleDeleteStudent} teachers={teachers} />}
+
+        {/* 리포트 작성 */}
         {activeTab === 'write' && (
           <DiagnosticReportInput
             students={visibleStudents} teachers={teachers}
@@ -419,25 +438,64 @@ export default function App() {
             onEditDone={() => setEditingReport(null)}
           />
         )}
-        {activeTab === 'history' && <HistoryView reports={visibleReports} students={visibleStudents} onDelete={handleDeleteReport} onEdit={(report) => { setEditingReport(report); setActiveTab('write'); }} />}
-        {activeTab === 'review' && <ReviewView students={visibleStudents} />}
-        {activeTab === 'director' && (
+
+        {/* 학습 기록 — 기록 보관소 + 복습 관리 */}
+        {activeTab === 'record' && (
           <div>
-            <DirectorView reports={reports} students={students} />
-            <GrowthDashboard reports={reports} students={students} onSwitchTab={setActiveTab} />
+            <SubTabBar group="record" items={[
+              { key: 'history', label: '기록 보관소' },
+              { key: 'review',  label: '복습 관리' },
+            ]} />
+            <div style={{ marginTop: '12px' }}>
+              {activeSubTab.record === 'history' && <HistoryView reports={visibleReports} students={visibleStudents} onDelete={handleDeleteReport} onEdit={(report) => { setEditingReport(report); setActiveTab('write'); }} />}
+              {activeSubTab.record === 'review'  && <ReviewView students={visibleStudents} />}
+            </div>
           </div>
         )}
-        {activeTab === 'analysis' && <AnalysisView students={students} reports={reports} />}
-        {activeTab === 'settings' && <SettingsView students={students} onSaveStudent={handleSaveStudent} teachers={teachers} onSaveTeacher={handleSaveTeacher} onDeleteTeacher={handleDeleteTeacher} />}
+
+        {/* 원장 분석 — 원장 보고서 + 종합 분석 (원장만) */}
+        {activeTab === 'insight' && isDirector && (
+          <div>
+            <SubTabBar group="insight" items={[
+              { key: 'director',  label: '원장 보고서' },
+              { key: 'analysis',  label: '종합 분석' },
+            ]} />
+            <div style={{ marginTop: '12px' }}>
+              {activeSubTab.insight === 'director' && (
+                <div>
+                  <DirectorView reports={reports} students={students} />
+                  <GrowthDashboard reports={reports} students={students} onSwitchTab={setActiveTab} />
+                </div>
+              )}
+              {activeSubTab.insight === 'analysis' && <AnalysisView students={students} reports={reports} />}
+            </div>
+          </div>
+        )}
+
+        {/* 관리 — 학생 관리 + 설정 (원장만) */}
+        {activeTab === 'manage' && isDirector && (
+          <div>
+            <SubTabBar group="manage" items={[
+              { key: 'students', label: '학생 관리' },
+              { key: 'settings', label: '설정' },
+            ]} />
+            <div style={{ marginTop: '12px' }}>
+              {activeSubTab.manage === 'students' && <StudentsView students={students} reports={reports} onSave={handleSaveStudent} onDelete={handleDeleteStudent} teachers={teachers} />}
+              {activeSubTab.manage === 'settings' && <SettingsView students={students} onSaveStudent={handleSaveStudent} teachers={teachers} onSaveTeacher={handleSaveTeacher} onDeleteTeacher={handleDeleteTeacher} />}
+            </div>
+          </div>
+        )}
       </main>
 
-      <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: T.bg, borderTop: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', padding: '8px 0', zIndex: 100, boxShadow: '0 -4px 20px rgba(0,0,0,0.04)' }}>
+      <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: T.bg, borderTop: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', padding: '6px 0 8px', zIndex: 100, boxShadow: '0 -4px 20px rgba(0,0,0,0.04)' }}>
         {tabs.map(tab => {
           const active = activeTab === tab.key;
           return (
-            <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', padding: '6px 4px', border: 'none', background: 'none', color: active ? T.brand : T.textMute, fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>
+            <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+              style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', padding: '6px 2px', border: 'none', background: 'none', cursor: 'pointer', color: active ? T.brand : T.textMute, fontFamily: "'Pretendard Variable', Pretendard, sans-serif", position: 'relative' }}>
+              {active && <span style={{ position: 'absolute', top: '-6px', left: '50%', transform: 'translateX(-50%)', width: '24px', height: '2px', background: T.brand, borderRadius: '0 0 2px 2px' }} />}
               {tab.icon}
-              <span style={{ fontSize: '10px', fontWeight: active ? 700 : 500 }}>{tab.label}</span>
+              <span style={{ fontSize: '10px', fontWeight: active ? 700 : 400, letterSpacing: '-0.01em' }}>{tab.label}</span>
             </button>
           );
         })}
