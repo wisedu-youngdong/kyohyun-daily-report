@@ -35,7 +35,7 @@ export default function PublicReport() {
         // 동적 OG 메타 태그 — 학생 이름 반영
         if (r.studentName) {
           const title = `${r.studentName} 학생의 성장 리포트`;
-          const sub   = `교현학원 · 매 수업 후 데이터와 선생님의 시선이 담긴 리포트`;
+          const sub   = `교현학원 · 숫자를 넘어선 아이의 노력, 매 수업 진심으로 기록합니다.`;
           const ogImg = `https://kyohyun-daily-report.vercel.app/api/og?title=${encodeURIComponent(title)}&sub=${encodeURIComponent(sub)}`;
 
           document.title = title;
