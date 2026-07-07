@@ -142,6 +142,7 @@ export default function DiagnosticReportInput({
   const [hasTest, setHasTest] = useState(false);
   const [testName, setTestName] = useState('');
   const [testScore, setTestScore] = useState('');
+  const [testRound, setTestRound] = useState(''); // 1차/2차/3차
   const [textbook, setTextbook] = useState('');
   const [unit, setUnit] = useState('');
   const [pages, setPages] = useState('');
@@ -171,6 +172,7 @@ export default function DiagnosticReportInput({
     setHasTest(editingReport.hasTest || false);
     setTestName(editingReport.testName || '');
     setTestScore(editingReport.testScore || '');
+    setTestRound(editingReport.testRound || '');
     setTextbook(editingReport.textbook || '');
     setUnit(editingReport.unit || '');
     setPages(editingReport.pages || '');
@@ -341,6 +343,7 @@ setAiPolishedNote(data.result);
         hasTest,
         testName: hasTest ? testName : null,
         testScore: hasTest ? testScore : null,
+        testRound: hasTest ? testRound : null,
         textbook, unit, pages,
         diagnosis: selectedTags,
         teacherNote: aiPolishedNote || teacherNote,
@@ -491,11 +494,21 @@ setAiPolishedNote(data.result);
                         <button key={n} onClick={() => setTestName(n)} style={suggestionStyle}>{n}</button>
                       ))}
                     </div>
+                    <FieldLabel>차수</FieldLabel>
+                    <div style={{ display: 'flex', gap: '5px', marginBottom: '12px' }}>
+                      {['1차', '2차', '3차'].map(r => (
+                        <button key={r} onClick={() => setTestRound(prev => prev === r ? '' : r)}
+                          style={{ ...suggestionStyle, background: testRound === r ? '#0D2D6B' : undefined, color: testRound === r ? '#fff' : undefined, borderColor: testRound === r ? '#0D2D6B' : undefined }}>
+                          {r}
+                        </button>
+                      ))}
+                    </div>
                     <FieldLabel>점수</FieldLabel>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                       <input type="number" value={testScore} onChange={(e) => setTestScore(e.target.value)} placeholder="84"
                         style={{ ...inputStyle, width: '90px', textAlign: 'center' }} />
                       <span style={{ fontSize: '12px', color: TOKENS.textSub, fontWeight: 500 }}>점 / 100점</span>
+                      {testRound && <span style={{ fontSize: '11px', fontWeight: 700, color: '#0D2D6B', background: '#EAF0F9', padding: '3px 8px', borderRadius: '4px' }}>{testRound}</span>}
                     </div>
                   </>
                 )}
