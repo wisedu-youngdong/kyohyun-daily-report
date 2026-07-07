@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { db } from './firebase';
-import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 
 // ── Claude API 서사 생성 ──
 async function generateNarrative(studentName, milestones, unitScores) {
@@ -60,10 +60,11 @@ export default function GrowthStory() {
         const since = new Date(); since.setDate(since.getDate() - 90);
         const rSnap = await getDocs(query(
           collection(db, 'reports'),
-          where('studentId', '==', studentId),
-          orderBy('createdAt', 'asc')
+          where('studentId', '==', studentId)
         ));
-        const rList = rSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const rList = rSnap.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
         setReports(rList);
       } catch (e) {
         console.error(e);
