@@ -3,6 +3,12 @@ import { useParams } from 'react-router-dom';
 import { db } from './firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 
+const FONT_STYLE = `
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', sans-serif; }
+`;
+
 // ── Claude API 서사 생성 ──
 async function generateNarrative(studentName, milestones, unitScores) {
   try {
@@ -144,10 +150,17 @@ export default function GrowthStory() {
       active: false,
     });
   }
-  if (bestReport) {
+  // PHASE 4 — PHASE 1,2,3과 다른 날짜의 리포트 중 최고 이해도
+  const phase4Report = [...sorted]
+    .filter(r => {
+      const d = fmtDate(r);
+      return !milestones.some(m => m.date === d) || r === bestReport;
+    })
+    .sort((a, b) => (b.conceptRating || 0) - (a.conceptRating || 0))[0] || bestReport;
+  if (phase4Report) {
     milestones.push({
       phase: 'PHASE 4 · 전략 완성',
-      date: fmtDate(bestReport),
+      date: fmtDate(phase4Report),
       title: '역대 최고 이해도 기록' + (maxScore ? ` · 단원평가 최고 ${maxScore}점` : ''),
       desc: '왜 이 방법을 써야 하는가를 스스로 말하기 시작했습니다.',
       badge: '해결 전략 완성 단계',
@@ -180,8 +193,11 @@ export default function GrowthStory() {
     </div>
   );
 
+  const teacherName = sorted[sorted.length - 1]?.teacherName || '';
+  const teacherDisplay = teacherName.replace(/선생님?$/, '').trim() + ' 선생님';
+
   const S = {
-    wrap: { maxWidth: '420px', margin: '0 auto', fontFamily: "'Apple SD Gothic Neo', 'Pretendard', -apple-system, sans-serif", background: '#F5F5F0', minHeight: '100vh' },
+    wrap: { maxWidth: '420px', margin: '0 auto', fontFamily: "'Noto Sans KR', 'Apple SD Gothic Neo', sans-serif", background: '#F5F5F0', minHeight: '100vh' },
     header: { background: '#0D2D6B', padding: '32px 24px 28px', position: 'relative', overflow: 'hidden' },
     section: { background: '#fff', padding: '22px', borderBottom: '1px solid #EEECEA' },
     label: { fontSize: '9px', fontWeight: 700, color: '#0D2D6B', letterSpacing: '0.14em', marginBottom: '16px' },
@@ -189,6 +205,7 @@ export default function GrowthStory() {
 
   return (
     <div style={S.wrap}>
+      <style>{FONT_STYLE}</style>
 
       {/* 헤더 */}
       <div style={S.header}>
@@ -319,7 +336,7 @@ export default function GrowthStory() {
             : `${student.name}이(가) 바뀐 건 점수가 아닙니다. 문제를 스스로 바라보는 시선이 바뀌었습니다.`)}
         </p>
         <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', textAlign: 'right' }}>
-          {sorted[sorted.length - 1]?.teacherName || ''} 선생님
+          {teacherDisplay}
         </p>
       </div>
 
