@@ -4,9 +4,13 @@ import { db } from './firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 
 const FONT_STYLE = `
-  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', sans-serif; }
+  body { 
+    font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 
+    'Pretendard Variable', Pretendard, 'Noto Sans KR', 
+    'Malgun Gothic', '맑은 고딕', sans-serif; 
+  }
+  * { word-break: keep-all; }
 `;
 
 // ── Claude API 서사 생성 ──
