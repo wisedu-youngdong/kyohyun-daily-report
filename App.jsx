@@ -2742,6 +2742,80 @@ function StudentProfileModal({ student, reports, onClose, DIAG_MAP }) {
               )}
             </div>
           </div>
+
+          {/* 성장 스토리 공유 */}
+          <div style={{ marginTop: '24px', paddingTop: '20px', borderTop: '1px solid #EEECEA' }}>
+            <p style={{ fontFamily: "'Noto Serif KR', serif", fontSize: '14px', fontWeight: 700, margin: '0 0 6px', color: '#1A1A1A' }}>성장 스토리 공유</p>
+            <div style={{ width: '32px', height: '2px', background: '#C9A227', marginBottom: '14px' }} />
+
+            {/* 링크 생성 */}
+            {(() => {
+              const baseUrl = `${window.location.origin}/story/${student.id}`;
+              const kakaoUrl = `${baseUrl}?src=kakao`;
+              const copyUrl = `${baseUrl}?src=copy`;
+
+              const handleCopy = () => {
+                navigator.clipboard.writeText(copyUrl).then(() => {
+                  alert('링크가 복사되었습니다. 카카오톡에 붙여넣기 하세요.');
+                });
+              };
+
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+
+                  {/* 카카오톡 공유 */}
+                  <button onClick={handleCopy}
+                    style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '13px 16px', background: '#FEE500', border: 'none', borderRadius: '10px', cursor: 'pointer', textAlign: 'left', width: '100%' }}>
+                    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
+                      <path d="M11 2C6.03 2 2 5.36 2 9.5c0 2.67 1.63 5.02 4.07 6.44l-.88 3.25 3.8-1.98A10.8 10.8 0 0011 17c4.97 0 9-3.36 9-7.5S15.97 2 11 2z" fill="#3A1D1D"/>
+                    </svg>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontSize: '13px', fontWeight: 700, color: '#3A1D1D', margin: '0 0 2px' }}>카카오톡으로 공유</p>
+                      <p style={{ fontSize: '11px', color: '#5A3D3D', margin: 0 }}>링크 복사 → 카카오톡 붙여넣기</p>
+                    </div>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
+                      <path d="M6 3l5 5-5 5" stroke="#3A1D1D" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+
+                  {/* 링크 복사 */}
+                  <button onClick={() => navigator.clipboard.writeText(copyUrl).then(() => alert('링크 복사 완료!'))}
+                    style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '13px 16px', background: '#F7F5F1', border: '0.5px solid #E5E5E5', borderRadius: '10px', cursor: 'pointer', textAlign: 'left', width: '100%' }}>
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
+                      <path d="M8 4H5a1 1 0 00-1 1v10a1 1 0 001 1h10a1 1 0 001-1v-3M12 3h5v5M10 10L17 3" stroke="#4A4A4A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontSize: '13px', fontWeight: 600, color: '#2C2C2C', margin: '0 0 2px' }}>링크 복사</p>
+                      <p style={{ fontSize: '11px', color: '#8A8A8A', margin: 0 }}>/story/{student.id.slice(0, 8)}...</p>
+                    </div>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
+                      <rect x="5" y="5" width="8" height="8" rx="1" stroke="#8A8A8A" strokeWidth="1.2"/>
+                      <path d="M3 11V3h8" stroke="#8A8A8A" strokeWidth="1.2" strokeLinecap="round"/>
+                    </svg>
+                  </button>
+
+                  {/* 퀵 링크 */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '4px' }}>
+                    <a href={`/story/${student.id}?src=direct`} target="_blank" rel="noopener noreferrer"
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px', background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: '8px', textDecoration: 'none' }}>
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 8h12M8 2v12" stroke="#0D2D6B" strokeWidth="1.5" strokeLinecap="round"/><rect x="2" y="2" width="12" height="12" rx="2" stroke="#0D2D6B" strokeWidth="1.2"/></svg>
+                      <span style={{ fontSize: '12px', color: '#0D2D6B', fontWeight: 600 }}>성장 스토리</span>
+                    </a>
+                    <a href={`/award/${student.id}?src=direct`} target="_blank" rel="noopener noreferrer"
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px', background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: '8px', textDecoration: 'none' }}>
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="6" r="4" stroke="#C9A227" strokeWidth="1.2"/><path d="M5 10l-2 5h10l-2-5" stroke="#C9A227" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      <span style={{ fontSize: '12px', color: '#8A6500', fontWeight: 600 }}>시상식 화면</span>
+                    </a>
+                  </div>
+
+                  <p style={{ fontSize: '10px', color: '#B0B0B0', margin: '4px 0 0', textAlign: 'center' }}>
+                    링크 열람 시 ?src 파라미터로 유입 경로 추적 가능
+                  </p>
+                </div>
+              );
+            })()}
+          </div>
+
         </div>
       </div>
     </div>
