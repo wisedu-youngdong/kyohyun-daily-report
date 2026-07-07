@@ -152,6 +152,12 @@ export default function DiagnosticReportInput({
   const [nextPlan, setNextPlan] = useState('');
   const [nextPlanDetail, setNextPlanDetail] = useState('');
   const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState(null); // { msg, type: 'success'|'error'|'warn' }
+
+  const showToast = (msg, type = 'success') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   // 사진 분석 (다중 업로드 — 최대 6장)
   const [photos, setPhotos] = useState([]); // [{ preview, blob }]
@@ -195,6 +201,7 @@ export default function DiagnosticReportInput({
   const student = useMemo(() => students.find(s => s.id === studentId), [students, studentId]);
   const teacher = useMemo(() => teachers.find(t => t.id === teacherId), [teachers, teacherId]);
   const isValid = studentId && homeworkRating && conceptRating && teacherId;
+  const isReadyToSend = isValid && (teacherNote.trim() || aiPolishedNote.trim()); // 선생님 코멘트까지 있어야 완전한 리포트
 
   // 학생 등록 — Firebase에 저장
   const handleAddStudent = async (newStudent) => {
@@ -320,8 +327,13 @@ setAiPolishedNote(data.result);
     setPhotos([]);
     setPhotoAnalysis(null); setPhotoError('');
   };
-     const handleSubmit = async () => {
-    if (!isValid) return alert('학생, 강사, 평가를 모두 입력해주세요.');
+  const handleSubmit = async () => {
+    // 단계별 검증
+    if (!studentId) return showToast('학생을 먼저 선택해주세요.', 'warn');
+    if (!teacherId) return showToast('담당 강사를 선택해주세요.', 'warn');
+    if (!homeworkRating || !conceptRating) return showToast('과제 수행과 개념 이해 평가를 입력해주세요.', 'warn');
+    if (!teacherNote.trim() && !aiPolishedNote.trim()) return showToast('선생님 코멘트를 입력해주세요. 학부모에게 전달되는 핵심 내용입니다.', 'warn');
+
     setSaving(true);
     try {
       let photoUrls = [];
@@ -354,24 +366,51 @@ setAiPolishedNote(data.result);
       reportPayload.points = calculateReportPoints(reportPayload);
       await onSave(reportPayload);
       setStudentId(''); setHomeworkRating(0); setConceptRating(0);
-      setHasTest(false); setTestName(''); setTestScore('');
+      setHasTest(false); setTestName(''); setTestScore(''); setTestRound('');
       setTextbook(''); setUnit(''); setPages('');
       setSelectedTags([]); setTeacherNote(''); setAiPolishedNote('');
       setNextPlan(''); setNextPlanDetail('');
       removeAllPhotos();
       if (editingReport) {
         onEditDone();
-        alert('리포트가 수정됐습니다!');
+        showToast('리포트가 수정됐습니다!', 'success');
       } else {
-        alert('리포트가 저장됐습니다!');
+        showToast('리포트가 저장됐습니다!', 'success');
       }
     } catch (e) {
       console.error('리포트 저장 오류:', e);
-      alert('저장 중 오류가 발생했습니다.');
+      showToast('저장 중 오류가 발생했습니다. 다시 시도해주세요.', 'error');
     }
     setSaving(false);
   };
+
+  // 토스트 색상
+  const toastColors = {
+    success: { bg: '#0F6E56', icon: '✓' },
+    error:   { bg: '#8B2020', icon: '✕' },
+    warn:    { bg: '#8A5A00', icon: '!' },
+  };
+
   return (
+    <>
+      {/* 토스트 알림 */}
+      {toast && (
+        <div style={{
+          position: 'fixed', bottom: '80px', left: '50%', transform: 'translateX(-50%)',
+          background: toastColors[toast.type]?.bg || '#0F6E56',
+          color: '#fff', padding: '12px 20px', borderRadius: '10px',
+          fontSize: '13px', fontWeight: 600, zIndex: 9999,
+          display: 'flex', alignItems: 'center', gap: '8px',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+          maxWidth: '320px', textAlign: 'center', wordBreak: 'keep-all',
+          animation: 'fadeInUp 0.2s ease',
+          fontFamily: "'Pretendard Variable', Pretendard, sans-serif",
+        }}>
+          <span style={{ fontSize: '14px', fontWeight: 800 }}>{toastColors[toast.type]?.icon}</span>
+          {toast.msg}
+        </div>
+      )}
+      <style>{`@keyframes fadeInUp { from { opacity:0; transform:translateX(-50%) translateY(10px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }`}</style>
     <div style={{
       fontFamily: "'Pretendard Variable', Pretendard, -apple-system, sans-serif",
       letterSpacing: '-0.02em',
@@ -857,6 +896,7 @@ setAiPolishedNote(data.result);
         />
       )}
     </div>
+    </>
   );
 }
 
