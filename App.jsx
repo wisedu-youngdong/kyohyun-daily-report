@@ -342,6 +342,7 @@ export default function App() {
       });
       await Promise.all(schedules.map(s => addDoc(collection(db, 'reviews'), s)));
     }
+    return reportId;
   };
   const handleDeleteReport = async (id) => {
     await deleteDoc(doc(db, 'reports', id));
