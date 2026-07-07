@@ -1997,7 +1997,7 @@ function MonthlyReportModal({ student, reports, allReports, periodLabel, onClose
 
               {/* 강점 */}
               {strengthStats.length > 0 && (
-                <div style={{ borderLeft: '2px solid #0F6E56', paddingLeft: '14px', marginBottom: '14px', background: '#F4FAF7', borderRadius: '0 3px 3px 0', padding: '13px 15px', borderLeft: '2px solid #0F6E56' }}>
+                <div style={{ borderLeft: '2px solid #0F6E56', background: '#F4FAF7', borderRadius: '0 3px 3px 0', padding: '13px 15px' }}>
                   <span style={{ display: 'inline-block', background: '#0F6E56', color: '#fff', fontSize: '9px', fontWeight: 700, padding: '3px 9px', borderRadius: '2px', letterSpacing: '0.14em', marginBottom: '12px' }}>✓ STRENGTH</span>
                   {strengthStats.map((s, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'baseline', padding: '7px 0', borderBottom: i < strengthStats.length - 1 ? '1px solid rgba(0,0,0,0.06)' : 'none' }}>
