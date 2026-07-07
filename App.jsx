@@ -191,7 +191,7 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [userRole, setUserRole] = useState(null); // 'director' | 'teacher'
   const [userTeacherId, setUserTeacherId] = useState(null); // teachers 컬렉션 ID
-  const [activeTab, setActiveTab] = useState('write');
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [editingReport, setEditingReport] = useState(null);
   const [students, setStudents] = useState([]);
   const [teachers, setTeachers] = useState([]);
@@ -355,7 +355,7 @@ export default function App() {
     }
   };
 
-  if (authLoading) return (
+  if (authLoading || (user && userRole === null)) return (
     <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Pretendard Variable', Pretendard, sans-serif", color: T.brand, fontSize: '14px', fontWeight: 600 }}>
       교현학원 연결 중...
     </div>
