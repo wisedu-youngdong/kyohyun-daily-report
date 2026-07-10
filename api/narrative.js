@@ -1,59 +1,46 @@
-// Vercel Serverless — AI 서사 자동 생성 (Gemini)
+// Vercel Serverless — AI 서사 자동 생성 (Gemini Flash)
+export const maxDuration = 30; // Vercel 타임아웃 30초
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const { studentName, milestones, unitScores, teacherNotes } = req.body;
 
-  const prompt = `당신은 20년 경력의 교육 전문가입니다. 아래 학생 데이터를 바탕으로 학부모에게 전달할 성장 스토리를 작성하세요.
+  const prompt = `교육 전문가로서 아래 학생의 성장 스토리를 학부모에게 전달할 JSON으로 작성하세요.
 
-학생명: ${studentName}
-성장 마일스톤:
-${milestones.map((m, i) => `PHASE ${i+1}: ${m.date} — ${m.title}`).join('\n')}
-단원별 점수:
-${unitScores.length > 0 ? unitScores.map(u => `${u.unit}: ${u.scores.map(s => `${s.round || ''} ${s.score}점`).join(' → ')}`).join('\n') : '데이터 없음'}
-${teacherNotes?.length > 0 ? `\n선생님 코멘트:\n${teacherNotes.slice(-3).join('\n')}` : ''}
+학생: ${studentName}
+마일스톤: ${milestones.map((m,i) => `${i+1}. ${m.date} ${m.title}`).join(' / ')}
+점수: ${unitScores.length > 0 ? unitScores.map(u => `${u.unit} ${u.scores.map(s=>`${s.score}점`).join('→')}`).join(', ') : '없음'}
+코멘트: ${teacherNotes?.slice(-2).join(' | ') || '없음'}
 
-아래 JSON 형식으로만 반환하세요 (마크다운, 코드블록 없이 순수 JSON만):
-{
-  "chapter1": "성장의 출발점 서사 — 2~3문장, 따뜻하고 구체적으로, 사람 냄새 나는 문체",
-  "chapter2": "결정적 전환점 서사 — 2~3문장, 인지적 변화 중심, 판단 기준 수립 과정",
-  "teacherWord": "선생님 한마디 — 1~2문장, 핵심 성장 포인트, 진심이 담긴 문장",
-  "nextChapter": "앞으로의 여정 — 2문장, 구체적 목표 포함"
-}`;
+JSON만 반환 (다른 텍스트 없이):
+{"chapter1":"출발점 서사 2문장","chapter2":"전환점 서사 2문장","teacherWord":"선생님 한마디","nextChapter":"다음 목표 1문장"}`;
 
   try {
-    // analyze-photo.js와 동일한 모델 사용
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${process.env.GEMINI_API_KEY}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.7, maxOutputTokens: 1000 }
+        generationConfig: { temperature: 0.7, maxOutputTokens: 500 }
       })
     });
 
     const data = await response.json();
 
-    // 상세 오류 로깅
     if (!response.ok) {
-      console.error('Gemini API 오류:', JSON.stringify(data));
-      return res.status(500).json({ error: data?.error?.message || 'Gemini API 오류' });
+      return res.status(500).json({ error: data?.error?.message || 'Gemini 오류' });
     }
 
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    console.log('Gemini 응답 텍스트:', text.slice(0, 200));
-
-    // JSON 추출 — 마크다운 코드블록, 앞뒤 텍스트 제거
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      console.error('JSON 추출 실패, 원본:', text);
-      return res.status(500).json({ error: 'JSON 파싱 실패: ' + text.slice(0, 100) });
+      return res.status(500).json({ error: 'JSON 없음: ' + text.slice(0, 100) });
     }
     const parsed = JSON.parse(jsonMatch[0]);
     res.status(200).json(parsed);
   } catch (e) {
-    console.error('서사 생성 오류:', e.message);
     res.status(500).json({ error: e.message });
   }
 }
