@@ -189,8 +189,8 @@ function LoginScreen() {
 export default function App() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [userRole, setUserRole] = useState(null); // 'director' | 'teacher'
-  const [userTeacherId, setUserTeacherId] = useState(null); // teachers 컬렉션 ID
+  const [userRole, setUserRole] = useState(null);
+  const [userTeacherId, setUserTeacherId] = useState(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [activeSubTab, setActiveSubTab] = useState({ record: 'history', insight: 'director', manage: 'students' });
   const setSubTab = (group, key) => setActiveSubTab(prev => ({ ...prev, [group]: key }));
@@ -198,6 +198,26 @@ export default function App() {
   const [students, setStudents] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [reports, setReports] = useState([]);
+
+  // 앱 이탈 방지 — 브라우저 밖으로 나갈 때 경고
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = '교현학원 리포트 앱을 나가시겠습니까?';
+    };
+    // 모바일 뒤로가기로 앱 밖 이탈 방지
+    const handlePopState = () => {
+      history.pushState(null, '', window.location.href);
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('popstate', handlePopState);
+    // 초기 진입 시 history 스택 확보
+    history.pushState(null, '', window.location.href);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
