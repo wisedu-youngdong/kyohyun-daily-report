@@ -1023,8 +1023,12 @@ function HistoryView({ reports, students, onDelete, onEdit }) {
 
 function ReportPreviewModal({ report: r, allReports, onClose, onDelete, onEdit }) {
   useEffect(() => {
-    history.pushState({ modal: true }, '');
-    const handlePop = () => onClose();
+    history.pushState(null, '', window.location.href);
+    history.pushState({ modal: 'report' }, '', window.location.href);
+    const handlePop = () => {
+      history.pushState(null, '', window.location.href);
+      onClose();
+    };
     window.addEventListener('popstate', handlePop);
     return () => window.removeEventListener('popstate', handlePop);
   }, []);
@@ -1630,8 +1634,12 @@ function InsightCard({ reports }) {
 // ── 기간별 종합 리포트 (이미지 내보내기) ──
 function MonthlyReportModal({ student, reports, allReports, periodLabel, onClose }) {
   useEffect(() => {
-    history.pushState({ modal: true }, '');
-    const handlePop = () => onClose();
+    history.pushState(null, '', window.location.href);
+    history.pushState({ modal: 'monthly' }, '', window.location.href);
+    const handlePop = () => {
+      history.pushState(null, '', window.location.href);
+      onClose();
+    };
     window.addEventListener('popstate', handlePop);
     return () => window.removeEventListener('popstate', handlePop);
   }, []);
@@ -2728,10 +2736,16 @@ function GrowthDashboard({ reports, students, onSwitchTab }) {
 // 학생 종합 프로필 모달 — 상담용
 // ============================================================
 function StudentProfileModal({ student, reports, onClose, DIAG_MAP }) {
-  // 모바일 뒤로가기 지원
+  // 모바일 뒤로가기 지원 — SPA history 보호
   useEffect(() => {
-    history.pushState({ modal: true }, '');
-    const handlePop = () => onClose();
+    // 현재 페이지를 history에 한 번 더 쌓아서 뒤로가기가 앱 밖으로 안 나가게
+    history.pushState(null, '', window.location.href);
+    history.pushState({ modal: 'profile' }, '', window.location.href);
+    const handlePop = (e) => {
+      // 모달 닫고 앱 내 페이지로 복귀
+      history.pushState(null, '', window.location.href);
+      onClose();
+    };
     window.addEventListener('popstate', handlePop);
     return () => window.removeEventListener('popstate', handlePop);
   }, []);
