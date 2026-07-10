@@ -1116,12 +1116,12 @@ function ReportPreviewModal({ report: r, allReports, onClose, onDelete, onEdit }
           <div style={{ background: '#0D2D6B', padding: '20px 22px 18px', position: 'relative' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
               <div style={{ width: '4px', height: '20px', background: '#C9A227', borderRadius: '1px', flexShrink: 0 }} />
-              <span style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.15em', fontFamily: 'Montserrat, sans-serif' }}>와이즈에듀 교현학원</span>
+              <span style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.15em', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>와이즈에듀 교현학원</span>
             </div>
             <div style={{ height: '1px', background: 'rgba(201,162,39,0.3)', marginBottom: '14px' }} />
             <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
               <div>
-                <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.45)', letterSpacing: '0.15em', margin: '0 0 4px', fontWeight: 600, fontFamily: 'Montserrat, sans-serif' }}>LEARNING REPORT</p>
+                <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.45)', letterSpacing: '0.15em', margin: '0 0 4px', fontWeight: 600, fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>LEARNING REPORT</p>
                 <p style={{ fontFamily: "'Noto Serif KR', serif", fontSize: '26px', fontWeight: 700, color: '#fff', margin: '0 0 4px', letterSpacing: '-0.5px' }}>{r.studentName}</p>
                 <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.55)', margin: 0 }}>{date} · {r.teacherName}{/선생님?$/.test(r.teacherName || '') ? '' : ' 선생님'}</p>
               </div>
@@ -1135,21 +1135,21 @@ function ReportPreviewModal({ report: r, allReports, onClose, onDelete, onEdit }
             {/* 핵심 지표 — 수치 그리드 바로 시작 (B안: SUMMARY 제거) */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', marginBottom: '18px' }}>
               <div style={{ borderRight: '1px solid #E8E6E0', paddingRight: '14px', textAlign: 'center' }}>
-                <p style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.08em', margin: '0 0 4px', fontFamily: 'Montserrat, sans-serif' }}>과제 수행</p>
+                <p style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.08em', margin: '0 0 4px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>과제 수행</p>
                 <p style={{ fontSize: '24px', fontWeight: 800, color: '#0D2D6B', margin: 0, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
                   {r.homeworkRating || '-'}<span style={{ fontSize: '12px', fontWeight: 500, color: '#98A1AC' }}>/5</span>
                 </p>
                 <p style={{ fontSize: '10px', fontWeight: 600, color: '#5A6472', margin: '3px 0 0' }}>{RATING_LEVELS_MAP[r.homeworkRating] || ''}</p>
               </div>
               <div style={{ borderRight: '1px solid #E8E6E0', padding: '0 14px', textAlign: 'center' }}>
-                <p style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.08em', margin: '0 0 4px', fontFamily: 'Montserrat, sans-serif' }}>개념 이해</p>
+                <p style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.08em', margin: '0 0 4px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>개념 이해</p>
                 <p style={{ fontSize: '24px', fontWeight: 800, color: '#0D2D6B', margin: 0, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
                   {r.conceptRating || '-'}<span style={{ fontSize: '12px', fontWeight: 500, color: '#98A1AC' }}>/5</span>
                 </p>
                 <p style={{ fontSize: '10px', fontWeight: 600, color: '#5A6472', margin: '3px 0 0' }}>{RATING_LEVELS_MAP[r.conceptRating] || ''}</p>
               </div>
               <div style={{ paddingLeft: '14px', textAlign: 'center' }}>
-                <p style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.08em', margin: '0 0 4px', fontFamily: 'Montserrat, sans-serif' }}>출결</p>
+                <p style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.08em', margin: '0 0 4px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>출결</p>
                 <p style={{ fontSize: '16px', fontWeight: 800, color: r.attendance === '정시' ? '#1E6B4E' : '#0D2D6B', margin: '4px 0', lineHeight: 1 }}>{r.attendance}</p>
                 <p style={{ fontSize: '10px', fontWeight: 600, color: '#5A6472', margin: '3px 0 0' }}>{r.arrivalTime} 등원</p>
               </div>
@@ -1161,7 +1161,7 @@ function ReportPreviewModal({ report: r, allReports, onClose, onDelete, onEdit }
             {(r.textbook || r.unit || r.pages) && (
               <>
                 <div style={{ marginBottom: '18px' }}>
-                  <p style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.08em', margin: '0 0 6px', fontFamily: 'Montserrat, sans-serif' }}>학습 범위</p>
+                  <p style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.08em', margin: '0 0 6px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>학습 범위</p>
                   {r.textbook && <p style={{ fontSize: '12px', fontWeight: 700, color: '#0D2D6B', margin: '0 0 2px', wordBreak: 'keep-all' }}>{r.textbook}</p>}
                   {r.unit && <p style={{ fontSize: '11px', color: '#5A6472', margin: '0 0 1px' }}>{r.unit}</p>}
                   {r.pages && <p style={{ fontSize: '11px', color: '#98A1AC', margin: 0 }}>{r.pages}</p>}
@@ -1174,7 +1174,7 @@ function ReportPreviewModal({ report: r, allReports, onClose, onDelete, onEdit }
             {r.hasTest && r.testName && (
               <>
                 <div style={{ marginBottom: '18px' }}>
-                  <p style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.08em', margin: '0 0 8px', fontFamily: 'Montserrat, sans-serif' }}>TEST RESULT</p>
+                  <p style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.08em', margin: '0 0 8px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>TEST RESULT</p>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
                       {r.testScore && <p style={{ fontSize: '28px', fontWeight: 800, color: '#0D2D6B', margin: 0, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{r.testScore}<span style={{ fontSize: '13px', fontWeight: 600, color: '#98A1AC', marginLeft: '2px' }}>점</span></p>}
@@ -1202,7 +1202,7 @@ function ReportPreviewModal({ report: r, allReports, onClose, onDelete, onEdit }
             {(!r.hasTest || !r.testName) && r.diagnosis?.length > 0 && (
               <>
                 <div style={{ marginBottom: '18px' }}>
-                  <p style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.08em', margin: '0 0 8px', fontFamily: 'Montserrat, sans-serif' }}>진단</p>
+                  <p style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.08em', margin: '0 0 8px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>진단</p>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                     {r.diagnosis.map((d, i) => {
                       const tag = DIAGNOSIS_TAGS_MAP[d.key] || {};
@@ -1222,7 +1222,7 @@ function ReportPreviewModal({ report: r, allReports, onClose, onDelete, onEdit }
             {r.teacherNote && (
               <>
                 <div style={{ borderLeft: '3px solid #C9A227', paddingLeft: '13px', marginBottom: '18px' }}>
-                  <p style={{ fontSize: '9px', fontWeight: 700, color: '#C9A227', letterSpacing: '0.12em', margin: '0 0 7px', fontFamily: 'Montserrat, sans-serif' }}>TEACHER'S NOTE</p>
+                  <p style={{ fontSize: '9px', fontWeight: 700, color: '#C9A227', letterSpacing: '0.12em', margin: '0 0 7px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>TEACHER'S NOTE</p>
                   {r.teacherNote.split('\n').filter(Boolean).map((para, i) => (
                     <p key={i} style={{ fontSize: '13px', color: '#1A1A1A', margin: i === 0 ? '0 0 10px' : '0', lineHeight: 1.9, fontWeight: 500 }}>{para}</p>
                   ))}
@@ -1235,7 +1235,7 @@ function ReportPreviewModal({ report: r, allReports, onClose, onDelete, onEdit }
             {r.photoUrls?.length > 0 && (
               <>
                 <div style={{ marginBottom: '18px' }}>
-                  <p style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.08em', margin: '0 0 8px', fontFamily: 'Montserrat, sans-serif' }}>TODAY'S WORK</p>
+                  <p style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.08em', margin: '0 0 8px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>TODAY'S WORK</p>
                   <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(r.photoUrls.length, 2)}, 1fr)`, gap: '6px' }}>
                     {r.photoUrls.map((url, i) => (
                       <img key={i} src={url} alt={`문제집 ${i+1}`} crossOrigin="anonymous"
@@ -1251,7 +1251,7 @@ function ReportPreviewModal({ report: r, allReports, onClose, onDelete, onEdit }
             {r.nextPlan && (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
-                  <p style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.08em', margin: '0 0 4px', fontFamily: 'Montserrat, sans-serif' }}>NEXT CLASS</p>
+                  <p style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.08em', margin: '0 0 4px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>NEXT CLASS</p>
                   <p style={{ fontSize: '13px', fontWeight: 700, color: '#0D2D6B', margin: 0 }}>{r.nextPlan}</p>
                   {r.nextPlanDetail && <p style={{ fontSize: '11px', color: '#5A6472', margin: '2px 0 0' }}>{r.nextPlanDetail}</p>}
                 </div>
@@ -1394,7 +1394,7 @@ function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDele
 
         {/* 파생 색상 미리보기 */}
         <div style={{ background: '#F8F6FC', borderRadius: '12px', padding: '12px', marginBottom: '14px' }}>
-          <p style={{ fontSize: '9px', fontWeight: 700, color: '#B0A0C8', letterSpacing: '0.1em', marginBottom: '8px', fontFamily: 'Montserrat, sans-serif' }}>자동 파생 색상</p>
+          <p style={{ fontSize: '9px', fontWeight: 700, color: '#B0A0C8', letterSpacing: '0.1em', marginBottom: '8px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>자동 파생 색상</p>
           {[
             { label: '헤더 배경', color: globalColor },
             { label: '다크 카드', color: globalColor },
