@@ -1,6 +1,17 @@
 {
   "rewrites": [
     {
+      "source": "/report/:id",
+      "destination": "/api/report-og?id=:id",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(Kakaotalk|kakaotalk|facebookexternalhit|twitterbot|LinkedInBot|Slackbot|TelegramBot|WhatsApp|Naverbot|Yeti|DaumMoaBot).*"
+        }
+      ]
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
