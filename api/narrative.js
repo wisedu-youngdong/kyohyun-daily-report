@@ -19,7 +19,7 @@ JSON만 반환:
 {"chapter1":"출발점 2문장","chapter2":"전환점 2문장","teacherWord":"교사 한마디","nextChapter":"다음 목표 1문장"}`;
 
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${process.env.GEMINI_API_KEY}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -27,10 +27,9 @@ JSON만 반환:
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 0.7,
-          maxOutputTokens: 300,
+          maxOutputTokens: 500,
           responseMimeType: 'application/json'
-        },
-        thinkingConfig: { thinkingBudget: 0 }
+        }
       })
     });
 
