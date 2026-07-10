@@ -58,7 +58,7 @@ export default function GrowthAward() {
     : '';
 
   if (loading) return (
-    <div style={{ height: '100vh', background: '#060E1F', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#C9A227', fontSize: '14px', fontFamily: 'Apple SD Gothic Neo, sans-serif' }}>
+    <div style={{ height: '100vh', background: '#060E1F', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#C9A227', fontSize: '14px', fontFamily: "'Pretendard Variable', Pretendard, -apple-system, sans-serif" }}>
       성장 기록 불러오는 중...
     </div>
   );
@@ -72,7 +72,7 @@ export default function GrowthAward() {
   return (
     <div style={{
       minHeight: '100vh', background: '#060E1F',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif',
+      fontFamily: "'Pretendard Variable', Pretendard, -apple-system, sans-serif",
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       padding: '40px 32px', position: 'relative', overflow: 'hidden'
     }}>
