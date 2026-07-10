@@ -1,4 +1,4 @@
-// Vercel Serverless — AI 서사 자동 생성 (Gemini Flash)
+// Vercel Serverless — AI 서사 자동 생성 (Gemini)
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
@@ -22,7 +22,8 @@ ${teacherNotes?.length > 0 ? `\n선생님 코멘트:\n${teacherNotes.slice(-3).j
 }`;
 
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
+    // analyze-photo.js와 동일한 모델 사용
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${process.env.GEMINI_API_KEY}`;
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -33,13 +34,19 @@ ${teacherNotes?.length > 0 ? `\n선생님 코멘트:\n${teacherNotes.slice(-3).j
     });
 
     const data = await response.json();
-    if (!response.ok) return res.status(500).json({ error: data });
+
+    // 상세 오류 로깅
+    if (!response.ok) {
+      console.error('Gemini API 오류:', JSON.stringify(data));
+      return res.status(500).json({ error: data?.error?.message || 'Gemini API 오류' });
+    }
 
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     const clean = text.replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(clean);
     res.status(200).json(parsed);
   } catch (e) {
+    console.error('서사 생성 오류:', e.message);
     res.status(500).json({ error: e.message });
   }
 }
