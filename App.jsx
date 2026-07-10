@@ -2966,18 +2966,11 @@ function StudentProfileModal({ student, reports, onClose, DIAG_MAP }) {
                   </button>
 
                   {/* 퀵 링크 */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '4px' }}>
-                    <a href={`/story/${student.id}?src=direct`} target="_blank" rel="noopener noreferrer"
-                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px', background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: '8px', textDecoration: 'none' }}>
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 8h12M8 2v12" stroke="#0D2D6B" strokeWidth="1.5" strokeLinecap="round"/><rect x="2" y="2" width="12" height="12" rx="2" stroke="#0D2D6B" strokeWidth="1.2"/></svg>
-                      <span style={{ fontSize: '12px', color: '#0D2D6B', fontWeight: 600 }}>성장 스토리</span>
-                    </a>
-                    <a href={`/award/${student.id}?src=direct`} target="_blank" rel="noopener noreferrer"
-                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px', background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: '8px', textDecoration: 'none' }}>
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="6" r="4" stroke="#C9A227" strokeWidth="1.2"/><path d="M5 10l-2 5h10l-2-5" stroke="#C9A227" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                      <span style={{ fontSize: '12px', color: '#8A6500', fontWeight: 600 }}>시상식 화면</span>
-                    </a>
-                  </div>
+                  <a href={`/story/${student.id}?src=direct`} target="_blank" rel="noopener noreferrer"
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px', background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: '8px', textDecoration: 'none', marginTop: '4px' }}>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 8h12M8 2v12" stroke="#0D2D6B" strokeWidth="1.5" strokeLinecap="round"/><rect x="2" y="2" width="12" height="12" rx="2" stroke="#0D2D6B" strokeWidth="1.2"/></svg>
+                    <span style={{ fontSize: '12px', color: '#0D2D6B', fontWeight: 600 }}>성장 스토리 보기</span>
+                  </a>
 
                   <p style={{ fontSize: '10px', color: '#B0B0B0', margin: '4px 0 0', textAlign: 'center' }}>
                     링크 열람 시 ?src 파라미터로 유입 경로 추적 가능
