@@ -27,18 +27,7 @@ JSON만 반환:
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 0.7,
-          maxOutputTokens: 1024,
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: 'object',
-            properties: {
-              chapter1:    { type: 'string' },
-              chapter2:    { type: 'string' },
-              teacherWord: { type: 'string' },
-              nextChapter: { type: 'string' }
-            },
-            required: ['chapter1', 'chapter2', 'teacherWord', 'nextChapter']
-          }
+          maxOutputTokens: 2048
         }
       })
     });
