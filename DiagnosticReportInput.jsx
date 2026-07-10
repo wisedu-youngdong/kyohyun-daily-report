@@ -1145,7 +1145,7 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
 
   // 텍스트 계층 헬퍼 — 라벨/본문/서브 3단계
   const cardLabel = (text, dark=false) => (
-    <p style={{ fontSize: '9px', fontWeight: 800, color: dark ? 'rgba(255,255,255,0.55)' : s.cardSub, letterSpacing: '0.1em', margin: '0 0 5px', fontFamily: 'Montserrat, sans-serif', textTransform: 'uppercase' }}>{text}</p>
+    <p style={{ fontSize: '9px', fontWeight: 800, color: dark ? 'rgba(255,255,255,0.55)' : s.cardSub, letterSpacing: '0.1em', margin: '0 0 5px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif", textTransform: 'uppercase' }}>{text}</p>
   );
   const cardValue = (text, dark=false, size='13px') => (
     <p style={{ fontSize: size, fontWeight: 700, color: dark ? '#ffffff' : s.cardText, margin: 0, lineHeight: 1.35, wordBreak: 'keep-all' }}>{text}</p>
@@ -1162,11 +1162,11 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
         <div style={{ position: 'absolute', top: '-30px', right: '-30px', width: '110px', height: '110px', borderRadius: '50%', background: 'rgba(255,255,255,0.07)' }} />
         <div style={{ position: 'absolute', top: '20px', right: '10px', width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', position: 'relative', zIndex: 1 }}>
-          <span style={{ fontFamily: 'Montserrat, sans-serif', fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.18em' }}>교현학원</span>
+          <span style={{ fontFamily: "'Pretendard Variable', Pretendard, sans-serif", fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.18em' }}>교현학원</span>
           <span style={{ fontSize: '10px', fontWeight: 600, color: 'rgba(255,255,255,0.85)', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', padding: '3px 10px', borderRadius: '20px' }}>{dateStr}</span>
         </div>
         <div style={{ position: 'relative', zIndex: 1 }}>
-          <p style={{ fontFamily: 'Montserrat, sans-serif', fontSize: '9px', fontWeight: 700, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.2em', margin: '0 0 8px' }}>LEARNING REPORT</p>
+          <p style={{ fontFamily: "'Pretendard Variable', Pretendard, sans-serif", fontSize: '9px', fontWeight: 700, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.2em', margin: '0 0 8px' }}>LEARNING REPORT</p>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
             {student.avatar && (
               <div style={{ width: '52px', height: '52px', borderRadius: '16px', background: 'rgba(255,255,255,0.15)', border: '2px solid rgba(255,255,255,0.25)', overflow: 'hidden', flexShrink: 0 }}>
@@ -1189,7 +1189,7 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
         {/* ★ TEACHER'S NOTE — 상단 배치 (가장 중요한 차별화 요소) */}
         {teacherNote && (
           <div style={{ background: s.commentBg, borderRadius: '14px', padding: '13px 15px', marginBottom: '10px', borderLeft: `3px solid ${s.commentBorder}` }}>
-            <p style={{ fontSize: '9px', fontWeight: 800, color: s.cardSub, letterSpacing: '0.14em', margin: '0 0 7px', fontFamily: 'Montserrat, sans-serif' }}>TEACHER'S NOTE</p>
+            <p style={{ fontSize: '9px', fontWeight: 800, color: s.cardSub, letterSpacing: '0.14em', margin: '0 0 7px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>TEACHER'S NOTE</p>
             <p style={{ fontSize: '13px', fontWeight: 700, color: s.commentText, margin: 0, lineHeight: 1.9, letterSpacing: '0.01em' }}>{teacherNote}</p>
           </div>
         )}
@@ -1268,10 +1268,10 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
         {/* 시험 */}
         {hasTest && testName && (
           <div style={{ background: '#FFFBEB', borderRadius: '14px', padding: '12px 14px', marginBottom: '10px', border: '1.5px solid #F5D76E' }}>
-            <p style={{ fontSize: '9px', fontWeight: 800, color: '#B8860B', margin: '0 0 5px', fontFamily: 'Montserrat, sans-serif', letterSpacing: '0.1em' }}>TEST RESULT</p>
+            <p style={{ fontSize: '9px', fontWeight: 800, color: '#B8860B', margin: '0 0 5px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif", letterSpacing: '0.1em' }}>TEST RESULT</p>
             <p style={{ fontSize: '12px', fontWeight: 700, color: '#7A5500', margin: '0 0 4px' }}>{testName}</p>
             {testScore && (
-              <p style={{ fontSize: '26px', fontWeight: 800, color: '#7A5500', margin: 0, fontFamily: 'Montserrat, sans-serif', letterSpacing: '-1px', lineHeight: 1 }}>
+              <p style={{ fontSize: '26px', fontWeight: 800, color: '#7A5500', margin: 0, fontFamily: "'Pretendard Variable', Pretendard, sans-serif", letterSpacing: '-1px', lineHeight: 1 }}>
                 {testScore}<span style={{ fontSize: '13px', fontWeight: 600, marginLeft: '2px' }}>점</span>
               </p>
             )}
@@ -1319,7 +1319,7 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
         {nextPlan && (
           <div style={{ background: s.nextBg, borderRadius: '14px', padding: '12px 14px', marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ flex: 1, marginRight: '10px' }}>
-              <p style={{ fontSize: '9px', fontWeight: 800, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.14em', margin: '0 0 6px', fontFamily: 'Montserrat, sans-serif' }}>NEXT CLASS</p>
+              <p style={{ fontSize: '9px', fontWeight: 800, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.14em', margin: '0 0 6px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>NEXT CLASS</p>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', marginBottom: nextPlanDetail ? '4px' : '0' }}>
                 <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(255,255,255,0.55)', flexShrink: 0, marginTop: '5px' }} />
                 <p style={{ fontSize: '12px', fontWeight: 700, color: '#ffffff', margin: 0, lineHeight: 1.4 }}>{nextPlan}</p>
@@ -1337,8 +1337,8 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
 
         {/* 푸터 */}
         <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '10px', borderTop: `1px solid rgba(0,0,0,0.06)` }}>
-          <span style={{ fontSize: '9px', fontWeight: 700, color: s.footerText, fontFamily: 'Montserrat, sans-serif', letterSpacing: '0.12em' }}>교현학원</span>
-          <span style={{ fontSize: '9px', fontWeight: 500, color: s.footerText, fontFamily: 'Montserrat, sans-serif' }}>031-707-0591</span>
+          <span style={{ fontSize: '9px', fontWeight: 700, color: s.footerText, fontFamily: "'Pretendard Variable', Pretendard, sans-serif", letterSpacing: '0.12em' }}>교현학원</span>
+          <span style={{ fontSize: '9px', fontWeight: 500, color: s.footerText, fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>031-707-0591</span>
         </div>
       </div>
     </div>
