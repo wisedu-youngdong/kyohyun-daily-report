@@ -25,14 +25,25 @@ JSON만 반환:
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.7, maxOutputTokens: 300 }
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 300,
+          responseMimeType: 'application/json'
+        },
+        thinkingConfig: { thinkingBudget: 0 }
       })
     });
 
     const data = await response.json();
     if (!response.ok) return res.status(500).json({ error: data?.error?.message || 'API 오류' });
 
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    // thinking 모드 대응 — parts 중 text 타입만 추출
+    const parts = data.candidates?.[0]?.content?.parts || [];
+    const textPart = parts.find(p => p.text && !p.thought);
+    const text = textPart?.text || parts.map(p => p.text || '').join('');
+
+    if (!text) return res.status(500).json({ error: '응답 없음' });
+
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return res.status(500).json({ error: 'JSON 없음: ' + text.slice(0, 100) });
 
