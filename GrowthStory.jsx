@@ -36,6 +36,12 @@ export default function GrowthStory() {
   const [narrative, setNarrative] = useState(null);
   const [loading, setLoading] = useState(true);
   const [narLoading, setNarLoading] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [editText, setEditText] = useState('');
+
+  const startEdit = (field) => { setEditing(field); setEditText(narrative[field] || ''); };
+  const saveEdit = () => { setNarrative(prev => ({ ...prev, [editing]: editText })); setEditing(null); };
+  const cancelEdit = () => setEditing(null);
 
   useEffect(() => {
     async function load() {
@@ -342,12 +348,31 @@ export default function GrowthStory() {
 
       {/* 선생님 한마디 */}
       <div style={{ background: '#0D2D6B', padding: '24px 22px' }}>
-        <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.14em', fontWeight: 600, marginBottom: '12px' }}>TEACHER'S WORD</p>
-        <p style={{ fontSize: '14px', color: '#fff', lineHeight: 2.0, fontWeight: 500, wordBreak: 'keep-all', borderLeft: '2px solid #C9A227', paddingLeft: '14px', marginBottom: '12px' }}>
-          {narrative?.teacherWord || (bestReport?.teacherNote
-            ? `"${bestReport.teacherNote.slice(0, 60)}${bestReport.teacherNote.length > 60 ? '...' : ''}"`
-            : `${student.name}이(가) 바뀐 건 점수가 아닙니다. 문제를 스스로 바라보는 시선이 바뀌었습니다.`)}
-        </p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+          <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.14em', fontWeight: 600 }}>TEACHER'S WORD</p>
+          {narrative && (
+            <button onClick={() => startEdit('teacherWord')}
+              style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '6px', cursor: 'pointer' }}>
+              ✏️ 편집
+            </button>
+          )}
+        </div>
+        {editing === 'teacherWord' ? (
+          <div>
+            <textarea value={editText} onChange={e => setEditText(e.target.value)}
+              style={{ width: '100%', minHeight: '100px', padding: '12px', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '8px', color: '#fff', fontSize: '13px', lineHeight: 1.8, fontFamily: 'inherit', resize: 'vertical', outline: 'none' }} />
+            <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+              <button onClick={saveEdit} style={{ flex: 1, padding: '8px', background: '#C9A227', border: 'none', borderRadius: '6px', color: '#fff', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>저장</button>
+              <button onClick={cancelEdit} style={{ flex: 1, padding: '8px', background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '6px', color: 'rgba(255,255,255,0.6)', fontSize: '12px', cursor: 'pointer' }}>취소</button>
+            </div>
+          </div>
+        ) : (
+          <p style={{ fontSize: '14px', color: '#fff', lineHeight: 2.0, fontWeight: 500, wordBreak: 'keep-all', borderLeft: '2px solid #C9A227', paddingLeft: '14px', marginBottom: '12px' }}>
+            {narrative?.teacherWord || (bestReport?.teacherNote
+              ? `"${bestReport.teacherNote.slice(0, 60)}${bestReport.teacherNote.length > 60 ? '...' : ''}"`
+              : `${student.name}이(가) 바뀐 건 점수가 아닙니다. 문제를 스스로 바라보는 시선이 바뀌었습니다.`)}
+          </p>
+        )}
         <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', textAlign: 'right' }}>
           {teacherDisplay}
         </p>
@@ -355,24 +380,43 @@ export default function GrowthStory() {
 
       {/* 다음 목표 */}
       <div style={S.section}>
-        <p style={S.label}>NEXT CHAPTER</p>
-        <p style={{ fontSize: '12px', color: '#4A4A4A', lineHeight: 1.9, wordBreak: 'keep-all', marginBottom: '14px' }}>
-          {narrative?.nextChapter || '판단 기준을 세우는 힘이 생기기 시작했습니다. 이제는 그 힘을 더 단단하게 만들 차례입니다.'}
-        </p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+          <p style={S.label}>NEXT CHAPTER</p>
+          {narrative && (
+            <button onClick={() => startEdit('nextChapter')}
+              style={{ background: '#F0EDE8', border: 'none', color: '#8A8A8A', fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '6px', cursor: 'pointer' }}>
+              ✏️ 편집
+            </button>
+          )}
+        </div>
+        {editing === 'nextChapter' ? (
+          <div style={{ marginBottom: '14px' }}>
+            <textarea value={editText} onChange={e => setEditText(e.target.value)}
+              style={{ width: '100%', minHeight: '80px', padding: '12px', border: '1px solid #E5E5E5', borderRadius: '8px', color: '#2C2C2C', fontSize: '12px', lineHeight: 1.8, fontFamily: 'inherit', resize: 'vertical', outline: 'none' }} />
+            <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+              <button onClick={saveEdit} style={{ flex: 1, padding: '8px', background: '#0D2D6B', border: 'none', borderRadius: '6px', color: '#fff', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>저장</button>
+              <button onClick={cancelEdit} style={{ flex: 1, padding: '8px', background: '#F3F4F6', border: 'none', borderRadius: '6px', color: '#6B7280', fontSize: '12px', cursor: 'pointer' }}>취소</button>
+            </div>
+          </div>
+        ) : (
+          <p style={{ fontSize: '12px', color: '#4A4A4A', lineHeight: 1.9, wordBreak: 'keep-all', marginBottom: '14px' }}>
+            {narrative?.nextChapter || '판단 기준을 세우는 힘이 생기기 시작했습니다. 이제는 그 힘을 더 단단하게 만들 차례입니다.'}
+          </p>
+        )}
         <div style={{ padding: '14px 16px', background: '#F7F5F1', borderRadius: '6px', borderLeft: '2px solid #C9A227' }}>
           <p style={{ fontSize: '10px', color: '#8A8A8A', fontWeight: 600, marginBottom: '3px' }}>다음 목표 단계</p>
           <p style={{ fontSize: '13px', fontWeight: 700, color: '#0D2D6B' }}>PHASE 5 · 전략 고도화</p>
         </div>
       </div>
 
-      {/* AI 서사 생성 버튼 (원장님용) */}
+      {/* AI 서사 생성 버튼 */}
       <div style={{ padding: '16px 22px', background: '#F7F5F1', borderBottom: '1px solid #EEECEA' }}>
         <button onClick={handleGenNarrative} disabled={narLoading}
           style={{ width: '100%', padding: '13px', background: narLoading ? '#E5E7EB' : '#0D2D6B', color: narLoading ? '#9CA3AF' : '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: narLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
-          {narLoading ? 'AI 서사 생성 중...' : '✨ AI 서사 자동 생성'}
+          {narLoading ? 'AI 서사 생성 중...' : narrative ? '🔄 서사 재생성' : '✨ AI 서사 자동 생성'}
         </button>
         <p style={{ fontSize: '10px', color: '#B0B0B0', textAlign: 'center', marginTop: '8px' }}>
-          Claude AI가 데이터 기반 성장 서사를 자동으로 작성합니다
+          {narrative ? '생성된 서사를 직접 편집하거나 재생성할 수 있습니다' : 'Gemini AI가 데이터 기반 성장 서사를 자동으로 작성합니다'}
         </p>
       </div>
 
