@@ -1022,6 +1022,12 @@ function HistoryView({ reports, students, onDelete, onEdit }) {
 }
 
 function ReportPreviewModal({ report: r, allReports, onClose, onDelete, onEdit }) {
+  useEffect(() => {
+    history.pushState({ modal: true }, '');
+    const handlePop = () => onClose();
+    window.addEventListener('popstate', handlePop);
+    return () => window.removeEventListener('popstate', handlePop);
+  }, []);
   const date = r.createdAt?.seconds
     ? new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })
     : '날짜 없음';
@@ -1623,6 +1629,12 @@ function InsightCard({ reports }) {
 
 // ── 기간별 종합 리포트 (이미지 내보내기) ──
 function MonthlyReportModal({ student, reports, allReports, periodLabel, onClose }) {
+  useEffect(() => {
+    history.pushState({ modal: true }, '');
+    const handlePop = () => onClose();
+    window.addEventListener('popstate', handlePop);
+    return () => window.removeEventListener('popstate', handlePop);
+  }, []);
   const cardRef = React.useRef(null);
   const [downloading, setDownloading] = React.useState(false);
 
@@ -2716,6 +2728,14 @@ function GrowthDashboard({ reports, students, onSwitchTab }) {
 // 학생 종합 프로필 모달 — 상담용
 // ============================================================
 function StudentProfileModal({ student, reports, onClose, DIAG_MAP }) {
+  // 모바일 뒤로가기 지원
+  useEffect(() => {
+    history.pushState({ modal: true }, '');
+    const handlePop = () => onClose();
+    window.addEventListener('popstate', handlePop);
+    return () => window.removeEventListener('popstate', handlePop);
+  }, []);
+
   const sorted = [...reports].sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
   const recent = sorted.slice(-10); // 최근 10회
 
