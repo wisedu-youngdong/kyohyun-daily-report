@@ -162,9 +162,26 @@ export default function GrowthStory() {
     const teacherNotes = sorted
       .filter(r => r.teacherNote)
       .map(r => r.teacherNote);
-    const result = await generateNarrative(student?.name || '학생', milestones, unitScores, teacherNotes);
-    if (result) setNarrative(result);
-    else alert('서사 생성에 실패했습니다. 잠시 후 다시 시도해주세요.');
+    try {
+      const response = await fetch('/api/narrative', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          studentName: student?.name || '학생', 
+          milestones, 
+          unitScores, 
+          teacherNotes 
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        alert(`오류: ${JSON.stringify(data)}`);
+      } else {
+        setNarrative(data);
+      }
+    } catch (e) {
+      alert(`오류: ${e.message}`);
+    }
     setNarLoading(false);
   };
 
