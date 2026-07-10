@@ -536,6 +536,8 @@ function StatCard({ label, value, unit }) {
 function StudentsView({ students, reports, onSave, onDelete, teachers = [] }) {
   const [editingStudent, setEditingStudent] = useState(null);
   const [profileStudent, setProfileStudent] = useState(null);
+  const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState('name'); // 'name' | 'recent' | 'reports'
 
   const DIAG_MAP = {
     calc:    { label: '계산 실수', bg: '#A32D2D', prefix: '⚠' },
@@ -544,6 +546,26 @@ function StudentsView({ students, reports, onSave, onDelete, teachers = [] }) {
     time:    { label: '시간 부족', bg: '#8A5A00', prefix: '△' },
     perfect: { label: '개념 완벽', bg: '#0F6E56', prefix: '✓' },
   };
+
+  // 검색 + 정렬
+  const filtered = students
+    .filter(s => {
+      const q = search.trim().toLowerCase();
+      if (!q) return true;
+      return s.name?.toLowerCase().includes(q) || s.school?.toLowerCase().includes(q);
+    })
+    .sort((a, b) => {
+      if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '');
+      if (sortBy === 'reports') {
+        return reports.filter(r => r.studentId === b.id).length - reports.filter(r => r.studentId === a.id).length;
+      }
+      if (sortBy === 'recent') {
+        const aLast = reports.filter(r => r.studentId === a.id).sort((x,y) => (y.createdAt?.seconds||0)-(x.createdAt?.seconds||0))[0]?.createdAt?.seconds || 0;
+        const bLast = reports.filter(r => r.studentId === b.id).sort((x,y) => (y.createdAt?.seconds||0)-(x.createdAt?.seconds||0))[0]?.createdAt?.seconds || 0;
+        return bLast - aLast;
+      }
+      return 0;
+    });
 
   return (
     <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
@@ -558,11 +580,43 @@ function StudentsView({ students, reports, onSave, onDelete, teachers = [] }) {
         />
       )}
 
-      <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '16px', letterSpacing: '-0.02em' }}>학생 관리</h2>
+      <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '14px', letterSpacing: '-0.02em' }}>학생 관리</h2>
+
+      {/* 검색 + 정렬 */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
+        <div style={{ flex: 1, position: 'relative' }}>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+            <circle cx="6" cy="6" r="4.5" stroke="#9CA3AF" strokeWidth="1.5"/>
+            <path d="M9.5 9.5L12 12" stroke="#9CA3AF" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+          <input
+            value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="이름 또는 학교 검색"
+            style={{ width: '100%', padding: '9px 12px 9px 32px', border: '1px solid #E5E7EB', borderRadius: '10px', fontSize: '13px', fontFamily: 'inherit', outline: 'none', background: '#fff' }}
+          />
+          {search && (
+            <button onClick={() => setSearch('')} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer', fontSize: '16px', lineHeight: 1 }}>×</button>
+          )}
+        </div>
+        <select value={sortBy} onChange={e => setSortBy(e.target.value)}
+          style={{ padding: '9px 12px', border: '1px solid #E5E7EB', borderRadius: '10px', fontSize: '12px', fontFamily: 'inherit', background: '#fff', color: '#374151', cursor: 'pointer', outline: 'none' }}>
+          <option value="name">이름순</option>
+          <option value="recent">최근 수업순</option>
+          <option value="reports">리포트 많은순</option>
+        </select>
+      </div>
+
+      {/* 검색 결과 없음 */}
+      {search && filtered.length === 0 && (
+        <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #E5E7EB', padding: '40px 20px', textAlign: 'center', color: '#9CA3AF', fontSize: '13px' }}>
+          "{search}"에 해당하는 학생이 없습니다
+        </div>
+      )}
+
       {students.length === 0
         ? <div style={{ background: '#fff', borderRadius: '16px', border: `1px solid #E5E7EB`, padding: '60px 20px', textAlign: 'center', color: '#9CA3AF', fontSize: '13px' }}>리포트 작성 화면에서 학생을 추가하세요</div>
         : <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {students.map(s => {
+          {filtered.map(s => {
             const sReports = reports.filter(r => r.studentId === s.id);
             const assignedTeacher = teachers.find(t => t.id === s.assignedTeacherId);
             return (
