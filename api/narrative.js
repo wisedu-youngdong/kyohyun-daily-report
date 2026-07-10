@@ -42,8 +42,15 @@ ${teacherNotes?.length > 0 ? `\n선생님 코멘트:\n${teacherNotes.slice(-3).j
     }
 
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    const clean = text.replace(/```json|```/g, '').trim();
-    const parsed = JSON.parse(clean);
+    console.log('Gemini 응답 텍스트:', text.slice(0, 200));
+
+    // JSON 추출 — 마크다운 코드블록, 앞뒤 텍스트 제거
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.error('JSON 추출 실패, 원본:', text);
+      return res.status(500).json({ error: 'JSON 파싱 실패: ' + text.slice(0, 100) });
+    }
+    const parsed = JSON.parse(jsonMatch[0]);
     res.status(200).json(parsed);
   } catch (e) {
     console.error('서사 생성 오류:', e.message);
