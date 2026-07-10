@@ -537,7 +537,8 @@ function StudentsView({ students, reports, onSave, onDelete, teachers = [] }) {
   const [editingStudent, setEditingStudent] = useState(null);
   const [profileStudent, setProfileStudent] = useState(null);
   const [search, setSearch] = useState('');
-  const [sortBy, setSortBy] = useState('name'); // 'name' | 'recent' | 'reports'
+  const [sortBy, setSortBy] = useState('name');
+  const [deleteConfirm, setDeleteConfirm] = useState(null); // studentId
 
   const DIAG_MAP = {
     calc:    { label: '계산 실수', bg: '#A32D2D', prefix: '⚠' },
@@ -643,7 +644,21 @@ function StudentsView({ students, reports, onSave, onDelete, teachers = [] }) {
                     style={{ background: '#E6F1FB', border: 'none', color: '#185FA5', fontSize: '12px', fontWeight: 700, padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', marginRight: '6px' }}>
                     ✏️ 수정
                   </button>
-                  <button onClick={(e) => { e.stopPropagation(); if (confirm(`${s.name} 학생을 삭제하시겠습니까?`)) onDelete(s.id); }} style={{ background: 'none', border: 'none', color: '#D1D5DB', fontSize: '18px', cursor: 'pointer', padding: '4px' }}>×</button>
+                  {deleteConfirm === s.id ? (
+                    <div style={{ display: 'flex', gap: '4px' }} onClick={e => e.stopPropagation()}>
+                      <button onClick={() => { onDelete(s.id); setDeleteConfirm(null); }}
+                        style={{ background: '#DC2626', border: 'none', color: '#fff', fontSize: '11px', fontWeight: 700, padding: '5px 10px', borderRadius: '6px', cursor: 'pointer' }}>
+                        삭제 확인
+                      </button>
+                      <button onClick={() => setDeleteConfirm(null)}
+                        style={{ background: '#F3F4F6', border: 'none', color: '#6B7280', fontSize: '11px', fontWeight: 600, padding: '5px 10px', borderRadius: '6px', cursor: 'pointer' }}>
+                        취소
+                      </button>
+                    </div>
+                  ) : (
+                    <button onClick={(e) => { e.stopPropagation(); setDeleteConfirm(s.id); setTimeout(() => setDeleteConfirm(null), 3000); }}
+                      style={{ background: 'none', border: 'none', color: '#D1D5DB', fontSize: '18px', cursor: 'pointer', padding: '4px' }}>×</button>
+                  )}
                 </div>
                 {s.textbooks?.length > 0 && (
                   <div style={{ marginTop: '10px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
@@ -879,6 +894,7 @@ const DIAGNOSIS_TAGS_MAP = {
 
 function HistoryView({ reports, students, onDelete, onEdit }) {
   const [previewReport, setPreviewReport] = useState(null);
+  const [deleteConfirmReport, setDeleteConfirmReport] = useState(null);
   const [studentFilter, setStudentFilter] = useState('');
   const [searchText, setSearchText] = useState('');
   const [periodFilter, setPeriodFilter] = useState('all'); // all | week | month
@@ -963,11 +979,19 @@ function HistoryView({ reports, students, onDelete, onEdit }) {
                       {r.photoUrls?.length > 0 && <span style={{ fontSize: '11px' }}>📷{r.photoUrls.length}</span>}
                     </div>
                     <p style={{ fontSize: '11px', color: '#6B7280', margin: '2px 0 0', fontWeight: 500 }}>{date} · {r.teacherName}</p>                  </div>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                     <span style={{ fontSize: '20px' }}>{RATING_EMOJI[r.homeworkRating] || ''}</span>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); if (confirm('삭제하시겠습니까?')) onDelete(r.id); }}
-                      style={{ background: 'none', border: 'none', color: '#D1D5DB', fontSize: '18px', cursor: 'pointer' }}>×</button>
+                    {deleteConfirmReport === r.id ? (
+                      <div style={{ display: 'flex', gap: '4px' }} onClick={e => e.stopPropagation()}>
+                        <button onClick={() => { onDelete(r.id); setDeleteConfirmReport(null); }}
+                          style={{ background: '#DC2626', border: 'none', color: '#fff', fontSize: '10px', fontWeight: 700, padding: '4px 8px', borderRadius: '6px', cursor: 'pointer' }}>삭제</button>
+                        <button onClick={() => setDeleteConfirmReport(null)}
+                          style={{ background: '#F3F4F6', border: 'none', color: '#6B7280', fontSize: '10px', fontWeight: 600, padding: '4px 8px', borderRadius: '6px', cursor: 'pointer' }}>취소</button>
+                      </div>
+                    ) : (
+                      <button onClick={(e) => { e.stopPropagation(); setDeleteConfirmReport(r.id); setTimeout(() => setDeleteConfirmReport(null), 3000); }}
+                        style={{ background: 'none', border: 'none', color: '#D1D5DB', fontSize: '18px', cursor: 'pointer' }}>×</button>
+                    )}
                   </div>
                 </div>
                 {r.textbook && <p style={{ fontSize: '12px', color: '#6B7280', margin: '0 0 4px', fontWeight: 500 }}>{r.textbook} · {r.unit}</p>}
@@ -1219,7 +1243,9 @@ function ReportPreviewModal({ report: r, allReports, onClose, onDelete, onEdit }
             </button>
           )}
           <button
-            onClick={() => { if (confirm(`${r.studentName} 리포트를 삭제하시겠습니까?`)) onDelete(r.id); }}
+            onClick={() => { if (window.__confirmDelete) { onDelete(r.id); onClose(); window.__confirmDelete = false; } else { window.__confirmDelete = true; setTimeout(() => { window.__confirmDelete = false; }, 3000); } }}
+            onMouseEnter={e => { if (!window.__confirmDelete) e.target.textContent = '한번 더 클릭 시 삭제'; }}
+            onMouseLeave={e => { if (!window.__confirmDelete) e.target.textContent = '🗑 리포트 삭제'; }}
             style={{ flex: 1, padding: '12px', fontSize: '13px', fontWeight: 700, borderRadius: '12px', border: '1px solid #FCA5A5', background: '#FEF2F2', color: '#DC2626', cursor: 'pointer', fontFamily: 'inherit' }}>
             삭제
           </button>
@@ -1391,7 +1417,22 @@ function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDele
                 <>
                   <span style={{ flex: 1, fontSize: '13px', fontWeight: 600, color: '#1A1A1A' }}>{t.name}</span>
                   <button onClick={() => { setEditingTeacherId(t.id); setEditingTeacherName(t.name); }} style={{ background: '#E6F1FB', color: '#185FA5', border: 'none', borderRadius: '8px', padding: '5px 10px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>수정</button>
-                  <button onClick={() => { if (window.confirm(`${t.name}을 삭제할까요?`)) onDeleteTeacher(t.id); }} style={{ background: '#FEF2F2', color: '#DC2626', border: 'none', borderRadius: '8px', padding: '5px 10px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>삭제</button>
+                  <button onClick={(e) => { 
+                    if (window.__confirmTeacher === t.id) { 
+                      onDeleteTeacher(t.id); window.__confirmTeacher = null; 
+                    } else { 
+                      window.__confirmTeacher = t.id; 
+                      e.target.textContent = '확인 (재클릭)';
+                      e.target.style.background = '#DC2626';
+                      e.target.style.color = '#fff';
+                      setTimeout(() => { 
+                        window.__confirmTeacher = null;
+                        e.target.textContent = '삭제';
+                        e.target.style.background = '#FEF2F2';
+                        e.target.style.color = '#DC2626';
+                      }, 3000); 
+                    } 
+                  }} style={{ background: '#FEF2F2', color: '#DC2626', border: 'none', borderRadius: '8px', padding: '5px 10px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>삭제</button>
                 </>
               )}
             </div>
@@ -3266,9 +3307,7 @@ function ReviewView({ students }) {
   };
 
   const handleDelete = async (id) => {
-    if (confirm('이 복습 일정을 삭제하시겠습니까?')) {
-      await deleteDoc(doc(db, 'reviews', id));
-    }
+    await deleteDoc(doc(db, 'reviews', id));
   };
 
   const daysUntil = (dateStr) => {
