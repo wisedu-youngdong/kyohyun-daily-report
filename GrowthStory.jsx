@@ -6,9 +6,7 @@ import { collection, getDocs, query, where } from 'firebase/firestore';
 const FONT_STYLE = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { 
-    font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 
-    'Pretendard Variable', Pretendard, 'Noto Sans KR', 
-    'Malgun Gothic', '맑은 고딕', sans-serif; 
+    font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, sans-serif; 
   }
   * { word-break: keep-all; }
 `;
@@ -192,13 +190,13 @@ export default function GrowthStory() {
   };
 
   if (loading) return (
-    <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Apple SD Gothic Neo, sans-serif', color: '#0D2D6B', fontSize: '14px', fontWeight: 600 }}>
+    <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Pretendard Variable', Pretendard, -apple-system, sans-serif", color: '#0D2D6B', fontSize: '14px', fontWeight: 600 }}>
       성장 기록을 불러오는 중...
     </div>
   );
 
   if (!student) return (
-    <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Apple SD Gothic Neo, sans-serif', color: '#8A8A8A', fontSize: '14px' }}>
+    <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Pretendard Variable', Pretendard, -apple-system, sans-serif", color: '#8A8A8A', fontSize: '14px' }}>
       학생 정보를 찾을 수 없습니다.
     </div>
   );
@@ -207,7 +205,7 @@ export default function GrowthStory() {
   const teacherDisplay = teacherName.replace(/선생님?$/, '').trim() + ' 선생님';
 
   const S = {
-    wrap: { maxWidth: '420px', margin: '0 auto', fontFamily: "'Noto Sans KR', 'Apple SD Gothic Neo', sans-serif", background: '#F5F5F0', minHeight: '100vh' },
+    wrap: { maxWidth: '420px', margin: '0 auto', fontFamily: "'Noto Sans KR', 'Pretendard Variable', Pretendard, sans-serif", background: '#F5F5F0', minHeight: '100vh' },
     header: { background: '#0D2D6B', padding: '32px 24px 28px', position: 'relative', overflow: 'hidden' },
     section: { background: '#fff', padding: '22px', borderBottom: '1px solid #EEECEA' },
     label: { fontSize: '9px', fontWeight: 700, color: '#0D2D6B', letterSpacing: '0.14em', marginBottom: '16px' },
