@@ -3060,6 +3060,71 @@ function DirectorView({ reports, students }) {
         />
       )}
 
+      {/* 이번 주 현황 위젯 */}
+      {(() => {
+        const now = new Date();
+        const weekStart = new Date(now);
+        weekStart.setDate(now.getDate() - now.getDay() + 1); // 월요일
+        weekStart.setHours(0, 0, 0, 0);
+        const weekNum = Math.ceil((now.getDate() - now.getDay() + 1) / 7);
+        const weekLabel = `${now.getMonth() + 1}월 ${weekNum}주차`;
+
+        const weekReports = reports.filter(r => {
+          const ts = r.createdAt?.seconds * 1000 || 0;
+          return ts >= weekStart.getTime();
+        });
+
+        const weekStudentIds = [...new Set(weekReports.map(r => r.studentId))];
+        const attendRate = weekReports.length > 0
+          ? Math.round(weekReports.filter(r => r.attendance === '정시').length / weekReports.length * 100)
+          : 0;
+
+        // 미제출 — 이번 주 리포트 없는 학생
+        const noReportStudents = students.filter(s => !weekStudentIds.includes(s.id));
+
+        return (
+          <div style={{ background: 'linear-gradient(135deg, #0D2D6B, #1A4A8A)', borderRadius: '12px', padding: '16px 20px', marginBottom: '14px', color: '#fff' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px' }}>
+              <div>
+                <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)', letterSpacing: '0.15em', margin: '0 0 2px' }}>이번 주 현황</p>
+                <p style={{ fontSize: '15px', fontWeight: 700, color: '#fff', margin: 0 }}>{weekLabel}</p>
+              </div>
+              <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', marginTop: '4px' }}>
+                {weekStart.getMonth() + 1}/{weekStart.getDate()} 기준
+              </span>
+            </div>
+
+            {/* 수치 3개 */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: noReportStudents.length > 0 ? '12px' : 0 }}>
+              {[
+                { label: '리포트', value: `${weekReports.length}건` },
+                { label: '출석률', value: `${attendRate}%` },
+                { label: '미제출', value: `${noReportStudents.length}명`, warn: noReportStudents.length > 0 },
+              ].map((s, i) => (
+                <div key={i} style={{ background: 'rgba(255,255,255,0.08)', borderRadius: '8px', padding: '10px 12px', textAlign: 'center' }}>
+                  <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)', margin: '0 0 4px' }}>{s.label}</p>
+                  <p style={{ fontSize: '20px', fontWeight: 700, color: s.warn ? '#F87171' : '#fff', margin: 0 }}>{s.value}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* 미제출 학생 알림 */}
+            {noReportStudents.length > 0 && (
+              <div style={{ background: 'rgba(248,113,113,0.15)', border: '1px solid rgba(248,113,113,0.3)', borderRadius: '8px', padding: '10px 14px' }}>
+                <p style={{ fontSize: '10px', color: '#F87171', fontWeight: 700, margin: '0 0 6px', letterSpacing: '0.08em' }}>⚠ 이번 주 리포트 미작성</p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {noReportStudents.map(s => (
+                    <span key={s.id} style={{ fontSize: '11px', background: 'rgba(255,255,255,0.1)', padding: '3px 10px', borderRadius: '10px', color: '#fff' }}>
+                      {s.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
       {/* 헤더 */}
       <div style={{ background: '#0D2D6B', borderRadius: '4px', padding: '16px 20px', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
