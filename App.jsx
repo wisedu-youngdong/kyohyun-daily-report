@@ -719,6 +719,7 @@ function StudentEditModal({ student, onClose, onSubmit, teachers = [] }) {
   const [skinColor, setSkinColor] = useState(student.skinColor || '');
   const [useCustomSkin, setUseCustomSkin] = useState(!!student.skinColor);
   const [assignedTeacherId, setAssignedTeacherId] = useState(student.assignedTeacherId || '');
+  const [studentType, setStudentType] = useState(student.studentType || 'returning');
   const [saving, setSaving] = useState(false);
 
   const isValid = name.trim() && school.trim();
@@ -739,6 +740,7 @@ function StudentEditModal({ student, onClose, onSubmit, teachers = [] }) {
       avatar: avatar,
       skinColor: useCustomSkin ? skinColor : '',
       assignedTeacherId: assignedTeacherId || '',
+      studentType,
     });
     setSaving(false);
   };
@@ -762,6 +764,28 @@ function StudentEditModal({ student, onClose, onSubmit, teachers = [] }) {
 
         {/* 입력 */}
         <div style={{ padding: '18px 22px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+
+          {/* 학생 구분 토글 */}
+          <div>
+            <label style={labelStyle}>학생 구분</label>
+            <div style={{ display: 'flex', borderRadius: '8px', overflow: 'hidden', border: '1px solid #E5E7EB' }}>
+              {[
+                { key: 'new', label: '🌱 신규생' },
+                { key: 'returning', label: '📚 재학생' },
+              ].map(({ key, label }) => (
+                <button key={key} onClick={() => setStudentType(key)}
+                  style={{
+                    flex: 1, padding: '9px', border: 'none', cursor: 'pointer',
+                    background: studentType === key ? '#0D2D6B' : '#fff',
+                    color: studentType === key ? '#fff' : '#6B7280',
+                    fontSize: '12px', fontWeight: 700, fontFamily: 'inherit',
+                    borderRight: key === 'new' ? '1px solid #E5E7EB' : 'none',
+                    transition: 'all 0.15s',
+                  }}>{label}</button>
+              ))}
+            </div>
+          </div>
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             <div>
               <label style={labelStyle}>이름 *</label>
