@@ -112,6 +112,15 @@ export default function GrowthStory() {
     ? student.studentType === 'new'
     : sorted.length <= 5;
 
+  console.log('🔍 GrowthStory 디버그:', {
+    studentName: student?.name,
+    studentType: student?.studentType,
+    isNewStudent,
+    sortedLength: sorted.length,
+    firstPerfect: !!firstPerfect,
+    over70: !!over70,
+  });
+
   // PHASE 마일스톤 자동 생성
   const milestones = [];
 
