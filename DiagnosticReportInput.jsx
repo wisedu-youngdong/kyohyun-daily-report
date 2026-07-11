@@ -602,11 +602,17 @@ setAiPolishedNote(data.result);
                 </div>
 
                 <FieldLabel>교재</FieldLabel>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: '12px' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: '8px' }}>
                   {(student?.textbooks || []).map(t => (
                     <button key={t.id} onClick={() => setTextbook(prev => prev === t.name ? '' : t.name)} style={chipStyle(textbook === t.name)}>{t.name}</button>
                   ))}
                 </div>
+                <input
+                  value={textbook}
+                  onChange={(e) => setTextbook(e.target.value)}
+                  placeholder="직접 입력 또는 위에서 선택"
+                  style={{ ...inputStyle, marginBottom: '12px' }}
+                />
                 <FieldLabel>단원</FieldLabel>
                 <input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="예: 3단원 소수의 나눗셈" style={inputStyle} />
                 <div style={{ height: '8px' }} />
