@@ -4215,7 +4215,7 @@ function WeeklySummaryCard({ student, reports, teachers }) {
             <div style={{ padding: '16px 22px', borderBottom: '0.5px solid #E5E7EB', background: '#FAFAF8' }}>
               <p style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: 600, letterSpacing: '0.1em', margin: '0 0 8px' }}>선생님 한마디</p>
               <p style={{ fontSize: '12px', color: '#1A1A1A', lineHeight: 1.8, margin: 0 }}>
-                {lastNote.length > 100 ? lastNote.slice(0, 100) + '...' : lastNote}
+                {lastNote}
               </p>
               {teacherName && <p style={{ fontSize: '10px', color: '#9CA3AF', margin: '8px 0 0', textAlign: 'right' }}>— {teacherName}</p>}
             </div>
