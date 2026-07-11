@@ -469,10 +469,12 @@ export default function App() {
             {renderSubTabBar('insight', [
               { key: 'director', label: '원장 보고서' },
               { key: 'analysis', label: '종합 분석' },
+              { key: 'units', label: '단원 오답' },
             ])}
             <div style={{ marginTop: '12px' }}>
               {activeSubTab.insight === 'director' && <div><DirectorView reports={reports} students={students} /><GrowthDashboard reports={reports} students={students} onSwitchTab={setActiveTab} /></div>}
               {activeSubTab.insight === 'analysis' && <AnalysisView students={students} reports={reports} />}
+              {activeSubTab.insight === 'units' && <UnitErrorDashboard reports={visibleReports} />}
             </div>
           </div>
         )}
@@ -3711,6 +3713,165 @@ function AnalysisView({ students, reports }) {
           periodLabel={periodLabel}
           onClose={() => setShowMonthlyReport(false)}
         />
+      )}
+    </div>
+  );
+}
+
+// ── 단원별 오답 대시보드 ──
+function UnitErrorDashboard({ reports }) {
+  const [tab, setTab] = useState('week');
+
+  const TARGET = 80;
+  const DIAG_COLORS = {
+    calc:    { label: '계산 실수', color: '#7A4F00' },
+    concept: { label: '개념 누락', color: '#0D2D6B' },
+    apply:   { label: '응용 부족', color: '#8A2020' },
+    time:    { label: '시간 부족', color: '#4A3080' },
+  };
+
+  const now = Date.now();
+  const cutoffs = { week: 7, month: 30, all: 99999 };
+
+  const filtered = reports.filter(r => {
+    const ts = r.createdAt?.seconds * 1000 || 0;
+    return now - ts <= cutoffs[tab] * 24 * 60 * 60 * 1000;
+  });
+
+  // 단원별 집계
+  const unitMap = {};
+  filtered.forEach(r => {
+    const key = [r.unit, r.textbook].filter(Boolean).join(' ');
+    if (!key) return;
+    if (!unitMap[key]) unitMap[key] = { name: key, correct: 0, total: 0, diags: {} };
+    if (r.hasTest && r.testScore) {
+      unitMap[key].correct += Number(r.testScore);
+      unitMap[key].total += 100;
+    }
+    (r.diagnosis || []).forEach(d => {
+      if (!unitMap[key].diags[d.key]) unitMap[key].diags[d.key] = 0;
+      unitMap[key].diags[d.key]++;
+    });
+  });
+
+  const units = Object.values(unitMap)
+    .filter(u => u.total > 0)
+    .map(u => ({ ...u, pct: Math.round(u.correct / u.total * 100) }))
+    .sort((a, b) => a.pct - b.pct);
+
+  // 오답 유형 집계
+  const diagMap = {};
+  filtered.forEach(r => {
+    (r.diagnosis || []).forEach(d => {
+      if (!diagMap[d.key]) diagMap[d.key] = { key: d.key, count: 0 };
+      diagMap[d.key].count++;
+    });
+  });
+  const diagList = Object.values(diagMap).sort((a, b) => b.count - a.count).slice(0, 3);
+  const maxDiag = diagList[0]?.count || 1;
+
+  // 요약
+  const totalCount = filtered.length;
+  const avgPct = units.length ? Math.round(units.reduce((s, u) => s + u.pct, 0) / units.length) : 0;
+  const worstUnit = units[0];
+
+  return (
+    <div style={{ padding: '16px', maxWidth: '700px', margin: '0 auto' }}>
+      <p style={{ fontSize: '16px', fontWeight: 700, margin: '0 0 14px', letterSpacing: '-0.02em' }}>단원별 오답 분석</p>
+
+      {/* 탭 */}
+      <div style={{ display: 'flex', borderBottom: '1px solid #E5E7EB', marginBottom: '16px' }}>
+        {[['week', '이번 주'], ['month', '이번 달'], ['all', '전체']].map(([key, label]) => (
+          <button key={key} onClick={() => setTab(key)} style={{
+            padding: '8px 18px', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit',
+            fontSize: '13px', fontWeight: tab === key ? 700 : 500,
+            color: tab === key ? '#0D2D6B' : '#9CA3AF',
+            borderBottom: `2px solid ${tab === key ? '#0D2D6B' : 'transparent'}`,
+            marginBottom: '-1px'
+          }}>{label}</button>
+        ))}
+      </div>
+
+      {filtered.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '40px 20px', color: '#9CA3AF', fontSize: '13px' }}>
+          해당 기간 리포트가 없습니다
+        </div>
+      ) : (
+        <>
+          {/* 요약 카드 */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '14px' }}>
+            {[
+              { label: '수업 횟수', value: `${totalCount}회`, color: '#1A1A1A' },
+              { label: '평균 정답률', value: `${avgPct}%`, color: '#0D2D6B' },
+              { label: '즉시 점검', value: worstUnit?.name?.slice(0, 8) || '—', color: '#8A2020' },
+            ].map((s, i) => (
+              <div key={i} style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px' }}>
+                <p style={{ fontSize: '10px', color: '#9CA3AF', margin: '0 0 5px', fontWeight: 500 }}>{s.label}</p>
+                <p style={{ fontSize: '16px', fontWeight: 700, color: s.color, margin: 0, wordBreak: 'keep-all', lineHeight: 1.3 }}>{s.value}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* 단원별 정답률 */}
+          {units.length > 0 && (
+            <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '16px 18px', marginBottom: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <p style={{ fontSize: '13px', fontWeight: 700, margin: 0 }}>단원별 정답률</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <div style={{ width: '1px', height: '10px', background: '#0D2D6B', opacity: 0.3 }} />
+                  <span style={{ fontSize: '10px', color: '#9CA3AF' }}>목표 {TARGET}%</span>
+                </div>
+              </div>
+              <div style={{ position: 'relative' }}>
+                <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${TARGET}%`, width: '1px', background: '#0D2D6B', opacity: 0.12, pointerEvents: 'none' }} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {units.map((u, i) => {
+                    const isWorst = i === 0;
+                    const barColor = isWorst ? '#8A2020' : '#0D2D6B';
+                    const trackBg = isWorst ? '#FDF0F0' : '#F3F4F6';
+                    return (
+                      <div key={u.name}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            {isWorst && <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#8A2020', flexShrink: 0 }} />}
+                            <span style={{ fontSize: '12px', color: '#1A1A1A', fontWeight: isWorst ? 600 : 400 }}>{u.name}</span>
+                            {isWorst && <span style={{ fontSize: '9px', background: '#8A202018', color: '#8A2020', padding: '1px 6px', borderRadius: '8px', fontWeight: 700 }}>즉시 점검</span>}
+                          </div>
+                          <span style={{ fontSize: '12px', fontWeight: 700, color: barColor }}>{u.pct}%{u.pct >= TARGET ? ' ✓' : ''}</span>
+                        </div>
+                        <div style={{ height: '8px', background: trackBg, borderRadius: '4px', overflow: 'hidden' }}>
+                          <div style={{ width: `${u.pct}%`, height: '100%', background: barColor, borderRadius: '4px', transition: 'width 0.5s ease' }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 오답 유형 */}
+          {diagList.length > 0 && (
+            <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '16px 18px', marginBottom: '12px' }}>
+              <p style={{ fontSize: '13px', fontWeight: 700, margin: '0 0 12px' }}>반복 오답 유형</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {diagList.map((d, i) => {
+                  const info = DIAG_COLORS[d.key] || { label: d.key, color: '#4A4A4A' };
+                  return (
+                    <div key={d.key} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ width: '18px', height: '18px', borderRadius: '50%', background: info.color, color: '#fff', fontSize: '9px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{i + 1}</span>
+                      <span style={{ fontSize: '12px', color: '#1A1A1A', minWidth: '72px' }}>{info.label}</span>
+                      <div style={{ flex: 1, height: '6px', background: '#F3F4F6', borderRadius: '3px', overflow: 'hidden' }}>
+                        <div style={{ width: `${Math.round(d.count / maxDiag * 100)}%`, height: '100%', background: info.color, borderRadius: '3px' }} />
+                      </div>
+                      <span style={{ fontSize: '12px', color: '#9CA3AF', minWidth: '28px', textAlign: 'right' }}>{d.count}회</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
