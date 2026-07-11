@@ -2757,6 +2757,8 @@ function GrowthDashboard({ reports, students, onSwitchTab }) {
 // 학생 종합 프로필 모달 — 상담용
 // ============================================================
 function StudentProfileModal({ student, reports, onClose, DIAG_MAP }) {
+  const [showWeekly, setShowWeekly] = useState(false);
+
   // 모바일 뒤로가기 지원 — SPA history 보호
   useEffect(() => {
     // 현재 페이지를 history에 한 번 더 쌓아서 뒤로가기가 앱 밖으로 안 나가게
@@ -2972,6 +2974,27 @@ function StudentProfileModal({ student, reports, onClose, DIAG_MAP }) {
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 8h12M8 2v12" stroke="#0D2D6B" strokeWidth="1.5" strokeLinecap="round"/><rect x="2" y="2" width="12" height="12" rx="2" stroke="#0D2D6B" strokeWidth="1.2"/></svg>
                     <span style={{ fontSize: '12px', color: '#0D2D6B', fontWeight: 600 }}>성장 스토리 보기</span>
                   </a>
+
+                  {/* 주간 요약 카드 */}
+                  <button onClick={() => setShowWeekly(true)}
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px', background: '#0D2D6B', border: 'none', borderRadius: '8px', cursor: 'pointer', marginTop: '6px' }}>
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><rect x="1" y="2" width="12" height="10" rx="2" stroke="#fff" strokeWidth="1.2"/><path d="M4 5h6M4 7.5h4" stroke="#fff" strokeWidth="1.2" strokeLinecap="round"/></svg>
+                    <span style={{ fontSize: '12px', color: '#fff', fontWeight: 600 }}>이번 주 요약 카드</span>
+                  </button>
+
+                  {/* 주간 요약 카드 모달 */}
+                  {showWeekly && (
+                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: '20px' }}
+                      onClick={() => setShowWeekly(false)}>
+                      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: '420px', maxHeight: '90vh', overflowY: 'auto', borderRadius: '16px' }}>
+                        <WeeklySummaryCard student={student} reports={reports} />
+                        <button onClick={() => setShowWeekly(false)}
+                          style={{ width: '100%', marginTop: '8px', padding: '12px', background: 'rgba(255,255,255,0.9)', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', color: '#374151' }}>
+                          닫기
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   <p style={{ fontSize: '10px', color: '#B0B0B0', margin: '4px 0 0', textAlign: 'center' }}>
                     링크 열람 시 ?src 파라미터로 유입 경로 추적 가능
@@ -4039,6 +4062,185 @@ function UnitErrorDashboard({ reports }) {
               </div>
             </div>
           )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── 주간 요약 카드 ──
+function WeeklySummaryCard({ student, reports, teachers }) {
+  const [copied, setCopied] = useState(false);
+
+  const now = new Date();
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - now.getDay() + 1);
+  weekStart.setHours(0, 0, 0, 0);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+
+  const fmt = (d) => `${d.getMonth()+1}/${d.getDate()}`;
+  const weekNum = Math.ceil((now.getDate() - now.getDay() + 1) / 7);
+  const weekLabel = `${now.getMonth()+1}월 ${weekNum}주차`;
+
+  const weekReports = reports
+    .filter(r => r.studentId === student?.id && r.createdAt?.seconds * 1000 >= weekStart.getTime())
+    .sort((a, b) => (a.createdAt?.seconds||0) - (b.createdAt?.seconds||0));
+
+  const avg = (key) => weekReports.length
+    ? (weekReports.reduce((s, r) => s + (r[key]||0), 0) / weekReports.length).toFixed(1)
+    : '—';
+
+  const attendRate = weekReports.length
+    ? Math.round(weekReports.filter(r => r.attendance === '정시').length / weekReports.length * 100)
+    : 0;
+
+  // 단원별 집계
+  const unitMap = {};
+  weekReports.forEach(r => {
+    const key = [r.unit, r.textbook].filter(Boolean).join(' · ');
+    if (!key) return;
+    if (!unitMap[key]) unitMap[key] = { name: key, scores: [], teacher: r.teacherName };
+    if (r.hasTest && r.testScore) unitMap[key].scores.push(Number(r.testScore));
+  });
+  const units = Object.values(unitMap);
+
+  // 오답 유형 집계
+  const diagMap = {};
+  weekReports.forEach(r => (r.diagnosis||[]).forEach(d => {
+    if (d.key === 'perfect') return;
+    if (!diagMap[d.key]) diagMap[d.key] = { key: d.key, count: 0 };
+    diagMap[d.key].count++;
+  }));
+  const DIAG = { calc: { label: '계산 실수', color: '#7A4F00', bg: '#FFF8EC' }, concept: { label: '개념 누락', color: '#0D2D6B', bg: '#EAF1FB' }, apply: { label: '응용 부족', color: '#8A2020', bg: '#FDF0F0' }, time: { label: '시간 부족', color: '#4A3080', bg: '#F3F0FA' } };
+  const diagList = Object.values(diagMap).sort((a,b) => b.count - a.count).slice(0, 3);
+
+  // 선생님 코멘트 — 가장 최근
+  const lastNote = [...weekReports].reverse().find(r => r.teacherNote)?.teacherNote || '';
+  const teacherName = weekReports[weekReports.length-1]?.teacherName || '';
+
+  // 다음 주 계획
+  const nextPlan = [...weekReports].reverse().find(r => r.nextPlan)?.nextPlan || '';
+
+  const handleCopy = () => {
+    const url = `${window.location.origin}/story/${student?.id}?src=weekly`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  if (!student) return null;
+
+  return (
+    <div style={{ background: '#fff', border: '0.5px solid #E5E7EB', borderRadius: '16px', overflow: 'hidden', maxWidth: '420px', margin: '0 auto', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>
+
+      {/* 헤더 */}
+      <div style={{ background: '#0D2D6B', padding: '20px 22px 18px' }}>
+        <div style={{ width: '32px', height: '3px', background: '#C9A227', borderRadius: '2px', marginBottom: '12px' }} />
+        <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.45)', letterSpacing: '0.14em', margin: '0 0 3px' }}>
+          {weekLabel} · {fmt(weekStart)} ~ {fmt(weekEnd)}
+        </p>
+        <p style={{ fontSize: '18px', fontWeight: 700, color: '#fff', margin: 0 }}>{student.name} 학생 주간 리포트</p>
+        <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)', margin: '4px 0 0' }}>와이즈에듀 교현학원</p>
+      </div>
+
+      {weekReports.length === 0 ? (
+        <div style={{ padding: '40px 22px', textAlign: 'center', color: '#9CA3AF', fontSize: '13px' }}>
+          이번 주 수업 기록이 없습니다
+        </div>
+      ) : (
+        <>
+          {/* 핵심 수치 */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', borderBottom: '0.5px solid #E5E7EB' }}>
+            {[
+              { label: '수업 횟수', value: `${weekReports.length}회`, color: '#0D2D6B' },
+              { label: '과제 평균', value: `${avg('homeworkRating')}점`, color: '#0D2D6B' },
+              { label: '출석률', value: `${attendRate}%`, color: attendRate === 100 ? '#0F6E56' : '#7A4F00' },
+            ].map((s, i) => (
+              <div key={i} style={{ padding: '14px 12px', textAlign: 'center', borderRight: i < 2 ? '0.5px solid #E5E7EB' : 'none' }}>
+                <p style={{ fontSize: '10px', color: '#9CA3AF', margin: '0 0 4px', fontWeight: 500 }}>{s.label}</p>
+                <p style={{ fontSize: '20px', fontWeight: 700, color: s.color, margin: 0 }}>{s.value}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* 이번 주 학습 단원 */}
+          {units.length > 0 && (
+            <div style={{ padding: '16px 22px', borderBottom: '0.5px solid #E5E7EB' }}>
+              <p style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: 600, letterSpacing: '0.1em', margin: '0 0 10px' }}>이번 주 학습 단원</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {units.map((u, i) => {
+                  const avgScore = u.scores.length ? Math.round(u.scores.reduce((a,b)=>a+b,0)/u.scores.length) : null;
+                  const achieved = avgScore && avgScore >= 80;
+                  const barColor = achieved ? '#0F6E56' : avgScore ? '#7A4F00' : '#0D2D6B';
+                  return (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ width: '3px', height: '34px', background: barColor, borderRadius: '2px', flexShrink: 0 }} />
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontSize: '12px', fontWeight: 600, color: '#1A1A1A', margin: '0 0 1px' }}>{u.name}</p>
+                        <p style={{ fontSize: '11px', color: '#9CA3AF', margin: 0 }}>{avgScore ? `${avgScore}점` : '점수 없음'}</p>
+                      </div>
+                      {avgScore && (
+                        <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '8px', background: achieved ? '#F0FAF5' : '#FFF8EC', color: achieved ? '#0F6E56' : '#7A4F00', flexShrink: 0 }}>
+                          {achieved ? '✓ 목표달성' : '점검 필요'}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* 집중 포인트 */}
+          {diagList.length > 0 && (
+            <div style={{ padding: '14px 22px', borderBottom: '0.5px solid #E5E7EB' }}>
+              <p style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: 600, letterSpacing: '0.1em', margin: '0 0 8px' }}>이번 주 집중 포인트</p>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {diagList.map(d => {
+                  const info = DIAG[d.key] || { label: d.key, color: '#4A4A4A', bg: '#F3F4F6' };
+                  return (
+                    <span key={d.key} style={{ fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '12px', background: info.bg, color: info.color }}>
+                      {info.label} {d.count}회
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* 선생님 한마디 */}
+          {lastNote && (
+            <div style={{ padding: '16px 22px', borderBottom: '0.5px solid #E5E7EB', background: '#FAFAF8' }}>
+              <p style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: 600, letterSpacing: '0.1em', margin: '0 0 8px' }}>선생님 한마디</p>
+              <p style={{ fontSize: '12px', color: '#1A1A1A', lineHeight: 1.8, margin: 0 }}>
+                {lastNote.length > 100 ? lastNote.slice(0, 100) + '...' : lastNote}
+              </p>
+              {teacherName && <p style={{ fontSize: '10px', color: '#9CA3AF', margin: '8px 0 0', textAlign: 'right' }}>— {teacherName}</p>}
+            </div>
+          )}
+
+          {/* 다음 주 예고 */}
+          {nextPlan && (
+            <div style={{ padding: '12px 22px', borderBottom: '0.5px solid #E5E7EB' }}>
+              <p style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: 600, letterSpacing: '0.1em', margin: '0 0 4px' }}>다음 주 학습 예정</p>
+              <p style={{ fontSize: '12px', color: '#1A1A1A', margin: 0 }}>{nextPlan}</p>
+            </div>
+          )}
+
+          {/* 공유 버튼 */}
+          <div style={{ padding: '14px 22px', display: 'flex', gap: '8px' }}>
+            <button onClick={handleCopy}
+              style={{ flex: 1, background: '#FEE500', border: 'none', borderRadius: '8px', padding: '11px', fontSize: '12px', fontWeight: 700, color: '#3A1D1D', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M7 1C3.96 1 1.5 3.13 1.5 5.75c0 1.64.91 3.09 2.33 4.01l-.52 1.94 2.3-1.2c.42.08.85.12 1.39.12 3.04 0 5.5-2.13 5.5-4.75S10.04 1 7 1z" fill="#3A1D1D"/></svg>
+              {copied ? '복사 완료!' : '카카오톡 공유'}
+            </button>
+            <button onClick={handleCopy}
+              style={{ flex: 1, background: '#F9FAFB', border: '0.5px solid #E5E7EB', borderRadius: '8px', padding: '11px', fontSize: '12px', fontWeight: 600, color: '#374151', cursor: 'pointer' }}>
+              링크 복사
+            </button>
+          </div>
         </>
       )}
     </div>
