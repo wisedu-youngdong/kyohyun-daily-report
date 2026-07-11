@@ -103,8 +103,10 @@ export default function GrowthStory() {
   // 개근 여부
   const allAttended = sorted.length > 0 && sorted.every(r => r.attendance === '출석');
 
-  // 신규생/재학생 분기 (5회 기준)
-  const isNewStudent = sorted.length <= 5;
+  // 신규생/재학생 분기 — 학생 프로필 studentType 우선, 없으면 리포트 수로 판단
+  const isNewStudent = student?.studentType
+    ? student.studentType === 'new'
+    : sorted.length <= 5;
 
   // PHASE 마일스톤 자동 생성
   const milestones = [];
