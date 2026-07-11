@@ -1,4 +1,4 @@
-function buildPrompt(mode, hintTextbook, hintUnit, pageCount = 1) {
+function buildPrompt(mode, hintTextbook, hintUnit, pageCount = 1, hintSubject = '') {
   const modeInstruction = {
     auto: `## 0단계: 페이지 유형 자동 분류
 먼저 사진 전체를 훑어보고 pageType을 판단하라:
@@ -59,6 +59,7 @@ ${modeInstruction}
 - weakDetail: result가 "약점"인 문항만 {number, type, mark, note}로 상세 기록. 잘한 문항은 상세 기록하지 않는다.
 
 ## 참고 정보 (선생님이 입력, 없으면 무시)
+- 과목: ${hintSubject || '수학'}
 - 교재/시험지명 힌트: ${hintTextbook || '없음'}
 - 단원 힌트: ${hintUnit || '없음'}
 
@@ -95,7 +96,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
   try {
-    const { images, imageBase64, mimeType, hintTextbook, hintUnit, mode } = req.body;
+    const { images, imageBase64, mimeType, hintTextbook, hintUnit, hintSubject, mode } = req.body;
     // images: [{ imageBase64, mimeType }] 배열 (신규, 다중 업로드). 없으면 구버전 단일 imageBase64로 fallback.
     const imageList = Array.isArray(images) && images.length > 0
       ? images
@@ -104,7 +105,7 @@ export default async function handler(req, res) {
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${process.env.GEMINI_API_KEY}`;
 
-    const prompt = buildPrompt(mode || 'auto', hintTextbook, hintUnit, imageList.length);
+    const prompt = buildPrompt(mode || 'auto', hintTextbook, hintUnit, imageList.length, hintSubject);
 
     const response = await fetch(url, {
       method: 'POST',
