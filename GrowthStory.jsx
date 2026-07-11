@@ -103,6 +103,10 @@ export default function GrowthStory() {
   // 개근 여부
   const allAttended = sorted.length > 0 && sorted.every(r => r.attendance === '출석');
 
+  // 공통 변수 — 신규생/재학생 모두 사용
+  const firstPerfect = sorted.find(r => r.homeworkRating >= 5);
+  const over70 = sorted.find(r => r.hasTest && Number(r.testScore) >= 70);
+
   // 신규생/재학생 분기 — 학생 프로필 studentType 우선, 없으면 리포트 수로 판단
   const isNewStudent = student?.studentType
     ? student.studentType === 'new'
@@ -123,7 +127,6 @@ export default function GrowthStory() {
         active: false,
       });
     }
-    const firstPerfect = sorted.find(r => r.homeworkRating >= 5);
     if (firstPerfect) {
       milestones.push({
         phase: 'PHASE 2 · 개념 흡수',
@@ -134,7 +137,6 @@ export default function GrowthStory() {
         active: false,
       });
     }
-    const over70 = sorted.find(r => r.hasTest && Number(r.testScore) >= 70);
     if (over70) {
       milestones.push({
         phase: 'PHASE 3 · 첫 성취',
