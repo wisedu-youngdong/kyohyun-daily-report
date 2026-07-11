@@ -191,8 +191,19 @@ export default function DiagnosticReportInput({
     setAiPolishedNote('');
     setNextPlan(editingReport.nextPlan || '');
     setNextPlanDetail(editingReport.nextPlanDetail || '');
-    setPhotos([]);
     setPhotoAnalysis(editingReport.photoAnalysis || null);
+
+    // 기존 사진 유지 — photoUrls → photos 변환
+    if (editingReport.photoUrls?.length > 0) {
+      const existingPhotos = editingReport.photoUrls.map(url => ({
+        preview: url,
+        blob: null,      // 기존 사진은 blob 없음 (이미 Storage에 있음)
+        existingUrl: url // 기존 URL 표시
+      }));
+      setPhotos(existingPhotos);
+    } else {
+      setPhotos([]);
+    }
   }, [editingReport]);
 
   // 강사 1명이면 자동 선택
@@ -355,6 +366,9 @@ setAiPolishedNote(data.result);
       let photoUrls = [];
       if (photos.length > 0) {
         photoUrls = await Promise.all(photos.map(async (p, i) => {
+          // 기존 사진 (blob 없음) → URL 그대로 유지
+          if (!p.blob && p.existingUrl) return p.existingUrl;
+          // 새로 추가한 사진 → Storage 업로드
           const path = `students/${studentId}/photos/${Date.now()}_${i}.jpg`;
           const storageRef = ref(storage, path);
           await uploadBytes(storageRef, p.blob);
