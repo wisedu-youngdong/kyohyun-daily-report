@@ -42,24 +42,28 @@ export default function GrowthStory() {
   const cancelEdit = () => setEditing(null);
 
   useEffect(() => {
+    console.log('🔍 studentId:', studentId);
     async function load() {
       try {
         // 학생 정보
+        console.log('📡 학생 쿼리 시작:', studentId);
         const stuSnap = await getDocs(query(collection(db, 'students'), where('__name__', '==', studentId)));
+        console.log('📡 학생 쿼리 결과:', stuSnap.size, '개');
         if (!stuSnap.empty) setStudent({ id: stuSnap.docs[0].id, ...stuSnap.docs[0].data() });
 
-        // 리포트 (최근 90일)
-        const since = new Date(); since.setDate(since.getDate() - 90);
+        // 리포트
+        console.log('📡 리포트 쿼리 시작');
         const rSnap = await getDocs(query(
           collection(db, 'reports'),
           where('studentId', '==', studentId)
         ));
+        console.log('📡 리포트 쿼리 결과:', rSnap.size, '개');
         const rList = rSnap.docs
           .map(d => ({ id: d.id, ...d.data() }))
           .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
         setReports(rList);
       } catch (e) {
-        console.error(e);
+        console.error('❌ Firebase 오류:', e);
       } finally {
         setLoading(false);
       }
