@@ -160,12 +160,12 @@ export default function DiagnosticReportInput({
     setTimeout(() => setToast(null), type === 'success' ? 5000 : 3000);
   };
 
-  // 사진 분석 (다중 업로드 — 최대 6장)
+  // 사진 분석 (다중 업로드 — 최대 10장)
   const [photos, setPhotos] = useState([]); // [{ preview, blob }]
   const [analyzingPhoto, setAnalyzingPhoto] = useState(false);
   const [photoAnalysis, setPhotoAnalysis] = useState(null);
   const [photoError, setPhotoError] = useState('');
-  const MAX_PHOTOS = 6;
+  const MAX_PHOTOS = 10;
 
   // ── 수정 모드: editingReport가 들어오면 폼 pre-fill ──
   useEffect(() => {
@@ -607,8 +607,8 @@ setAiPolishedNote(data.result);
                       border: `1.5px dashed ${TOKENS.border}`, borderRadius: '12px', padding: '16px',
                       cursor: 'pointer', color: TOKENS.textSub, fontSize: '13px', fontWeight: 600, background: TOKENS.bgSoft
                     }}>
-                      <FileText size={16} /> 갤러리 선택
-                      <input type="file" accept="image/*" style={{ display: 'none' }}
+                      <FileText size={16} /> 갤러리 선택 (최대 10장)
+                      <input type="file" accept="image/*" multiple style={{ display: 'none' }}
                         onChange={(e) => { if (e.target.files?.length) { handlePhotoSelect(e.target.files); e.target.value = ''; } }} />
                     </label>
                     <label style={{
@@ -643,7 +643,7 @@ setAiPolishedNote(data.result);
                           cursor: 'pointer', color: TOKENS.textMute, background: TOKENS.bgSoft
                         }}>
                           <Plus size={20} />
-                          <input type="file" accept="image/*" style={{ display: 'none' }}
+                          <input type="file" accept="image/*" multiple style={{ display: 'none' }}
                             onChange={(e) => { if (e.target.files?.length) { handlePhotoSelect(e.target.files); e.target.value = ''; } }} />
                         </label>
                       )}
