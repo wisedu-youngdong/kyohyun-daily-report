@@ -3732,36 +3732,61 @@ function AnalysisView({ students, reports }) {
                 apply:   { label: '응용 부족', color: '#8A2020' },
                 time:    { label: '시간 부족', color: '#4A3080' },
               };
+
+              // 오답 유형별 집계 + 단원 매핑
               const diagMap = {};
               periodReports.forEach(r => {
+                const unitName = [r.unit, r.textbook].filter(Boolean).join(' ') || '';
                 (r.diagnosis || []).forEach(d => {
-                  if (!diagMap[d.key]) diagMap[d.key] = 0;
-                  diagMap[d.key]++;
+                  if (!diagMap[d.key]) diagMap[d.key] = { count: 0, units: {} };
+                  diagMap[d.key].count++;
+                  if (unitName) {
+                    diagMap[d.key].units[unitName] = (diagMap[d.key].units[unitName] || 0) + 1;
+                  }
                 });
               });
+
               const diagList = Object.entries(diagMap)
-                .sort((a, b) => b[1] - a[1])
+                .sort((a, b) => b[1].count - a[1].count)
                 .slice(0, 4);
-              const maxCount = diagList[0]?.[1] || 1;
+              const maxCount = diagList[0]?.[1].count || 1;
               if (diagList.length === 0) return null;
+
               return (
                 <div style={{ background: '#fff', borderRadius: '12px', padding: '14px 16px', border: '1px solid #E5E7EB' }}>
                   <p style={{ fontSize: '12px', fontWeight: 700, margin: '0 0 12px' }}>반복 오답 유형</p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {diagList.map(([key, count], i) => {
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    {diagList.map(([key, val], i) => {
                       const info = DIAG_COLORS[key] || { label: key, color: '#4A4A4A' };
+                      // 단원별 TOP 2
+                      const topUnits = Object.entries(val.units)
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, 2);
                       return (
                         <div key={key}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                               <span style={{ width: '14px', height: '14px', borderRadius: '50%', background: info.color, color: '#fff', fontSize: '8px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{i + 1}</span>
-                              <span style={{ fontSize: '11px', color: '#1A1A1A' }}>{info.label}</span>
+                              <span style={{ fontSize: '11px', color: '#1A1A1A', fontWeight: 600 }}>{info.label}</span>
                             </div>
-                            <span style={{ fontSize: '11px', color: '#9CA3AF' }}>{count}회</span>
+                            <span style={{ fontSize: '11px', color: '#9CA3AF' }}>{val.count}회</span>
                           </div>
-                          <div style={{ height: '6px', background: '#F3F4F6', borderRadius: '3px', overflow: 'hidden' }}>
-                            <div style={{ width: `${Math.round(count / maxCount * 100)}%`, height: '100%', background: info.color, borderRadius: '3px' }} />
+                          <div style={{ height: '6px', background: '#F3F4F6', borderRadius: '3px', overflow: 'hidden', marginBottom: '6px' }}>
+                            <div style={{ width: `${Math.round(val.count / maxCount * 100)}%`, height: '100%', background: info.color, borderRadius: '3px' }} />
                           </div>
+                          {/* 단원 서브 태그 */}
+                          {topUnits.length > 0 && (
+                            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                              {topUnits.map(([uName, uCnt]) => (
+                                <span key={uName} style={{
+                                  fontSize: '9px', padding: '2px 7px', borderRadius: '10px',
+                                  background: `${info.color}12`,
+                                  border: `0.5px solid ${info.color}40`,
+                                  color: info.color, fontWeight: 600,
+                                }}>{uName} {uCnt}회</span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
