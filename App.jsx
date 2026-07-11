@@ -443,6 +443,7 @@ export default function App() {
         {activeTab === 'write' && (
           <DiagnosticReportInput
             students={visibleStudents} teachers={teachers}
+            reports={visibleReports}
             onSaveStudent={handleSaveStudent}
             onSaveTeacher={handleSaveTeacher}
             onDeleteTeacher={handleDeleteTeacher}
