@@ -142,7 +142,8 @@ export default function DiagnosticReportInput({
   const [hasTest, setHasTest] = useState(false);
   const [testName, setTestName] = useState('');
   const [testScore, setTestScore] = useState('');
-  const [testRound, setTestRound] = useState(''); // 1차/2차/3차
+  const [testRound, setTestRound] = useState('');
+  const [subject, setSubject] = useState('수학'); // 과목 선택
   const [textbook, setTextbook] = useState('');
   const [unit, setUnit] = useState('');
   const [pages, setPages] = useState('');
@@ -181,6 +182,7 @@ export default function DiagnosticReportInput({
     setTestScore(editingReport.testScore || '');
     setTestRound(editingReport.testRound || '');
     setTextbook(editingReport.textbook || '');
+    setSubject(editingReport.subject || '수학');
     setUnit(editingReport.unit || '');
     setPages(editingReport.pages || '');
     setSelectedTags(editingReport.diagnosis || []);
@@ -315,7 +317,7 @@ setAiPolishedNote(data.result);
       const response = await fetch('/api/analyze-photo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ images, hintTextbook: textbook, hintUnit: unit, mode: modeOverride || 'auto' }),
+        body: JSON.stringify({ images, hintTextbook: textbook, hintUnit: unit, hintSubject: subject, mode: modeOverride || 'auto' }),
       });
       const data = await response.json();
       if (data.error) {
@@ -369,7 +371,7 @@ setAiPolishedNote(data.result);
         testName: hasTest ? testName : null,
         testScore: hasTest ? testScore : null,
         testRound: hasTest ? testRound : null,
-        textbook, unit, pages,
+        textbook, subject, unit, pages,
         diagnosis: selectedTags,
         teacherNote: aiPolishedNote || teacherNote,
         nextPlan, nextPlanDetail,
@@ -380,7 +382,7 @@ setAiPolishedNote(data.result);
       const savedId = await onSave(reportPayload);
       setStudentId(''); setHomeworkRating(0); setConceptRating(0);
       setHasTest(false); setTestName(''); setTestScore(''); setTestRound('');
-      setTextbook(''); setUnit(''); setPages('');
+      setTextbook(''); setSubject('수학'); setUnit(''); setPages('');
       setSelectedTags([]); setTeacherNote(''); setAiPolishedNote('');
       setNextPlan(''); setNextPlanDetail('');
       removeAllPhotos();
@@ -582,6 +584,23 @@ setAiPolishedNote(data.result);
 
               {/* 5. 오늘 학습 */}
               <FormSection number="5" title="오늘 학습">
+
+                {/* 과목 선택 */}
+                <FieldLabel>과목</FieldLabel>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '14px' }}>
+                  {['수학', '영어', '국어', '과학', '사회', '역사', '기타'].map(s => (
+                    <button key={s} onClick={() => setSubject(s)}
+                      style={{
+                        padding: '6px 14px', borderRadius: '20px', border: 'none',
+                        fontSize: '12px', fontWeight: 700, cursor: 'pointer',
+                        background: subject === s ? '#0D2D6B' : '#F0F0F0',
+                        color: subject === s ? '#fff' : '#6B7280',
+                        fontFamily: 'inherit',
+                        transition: 'all 0.15s'
+                      }}>{s}</button>
+                  ))}
+                </div>
+
                 <FieldLabel>교재</FieldLabel>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: '12px' }}>
                   {(student?.textbooks || []).map(t => (
