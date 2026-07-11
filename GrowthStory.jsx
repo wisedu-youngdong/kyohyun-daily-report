@@ -343,6 +343,11 @@ export default function GrowthStory() {
       {/* GROWTH MILESTONE */}
       <div style={S.section}>
         <p style={S.label}>GROWTH MILESTONE</p>
+        {milestones.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '24px 0', color: '#9CA3AF', fontSize: '13px' }}>
+            리포트가 쌓이면 성장 마일스톤이 자동으로 생성됩니다
+          </div>
+        ) : (
         <div style={{ position: 'relative', paddingLeft: '28px' }}>
           <div style={{ position: 'absolute', left: '7px', top: '8px', bottom: '8px', width: '2px', background: 'linear-gradient(to bottom, #0D2D6B, #C9A227)', borderRadius: '2px' }} />
           {milestones.map((m, i) => {
@@ -394,6 +399,7 @@ export default function GrowthStory() {
             );
           })}
         </div>
+        )}
       </div>
 
       {/* 단원별 평가 추이 */}
