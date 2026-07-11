@@ -103,56 +103,165 @@ export default function GrowthStory() {
   // 개근 여부
   const allAttended = sorted.length > 0 && sorted.every(r => r.attendance === '출석');
 
+  // 신규생/재학생 분기 (5회 기준)
+  const isNewStudent = sorted.length <= 5;
+
   // PHASE 마일스톤 자동 생성
   const milestones = [];
-  if (sorted.length > 0) {
-    milestones.push({
-      phase: 'PHASE 1 · 태도 형성',
-      date: fmtDate(sorted[0]),
-      title: '첫 수업 시작 및 학습 리듬 안착',
-      desc: '낯선 개념 앞에서도 스스로 해결의 실마리를 찾으려는 의지로 시작했습니다.',
-      badge: '문제 상황 인지 단계 진입',
-      active: false,
+
+  if (isNewStudent) {
+    // ── 신규생 템플릿 — 적응 + 흥미 유발 ──
+    if (sorted.length > 0) {
+      milestones.push({
+        phase: 'PHASE 1 · 시작',
+        date: fmtDate(sorted[0]),
+        title: '첫 수업 시작 및 학습 리듬 안착',
+        desc: '낯선 개념 앞에서도 스스로 해결의 실마리를 찾으려는 의지로 시작했습니다.',
+        badge: '문제 상황 인지 단계 진입',
+        active: false,
+      });
+    }
+    const firstPerfect = sorted.find(r => r.homeworkRating >= 5);
+    if (firstPerfect) {
+      milestones.push({
+        phase: 'PHASE 2 · 개념 흡수',
+        date: fmtDate(firstPerfect),
+        title: '첫 만점 과제 달성',
+        desc: '단순 암기를 넘어 개념의 구조를 이해하기 시작한 첫 번째 신호였습니다.',
+        badge: '개념 내면화 시작',
+        active: false,
+      });
+    }
+    const over70 = sorted.find(r => r.hasTest && Number(r.testScore) >= 70);
+    if (over70) {
+      milestones.push({
+        phase: 'PHASE 3 · 첫 성취',
+        date: fmtDate(over70),
+        title: `단원평가 ${over70.testScore}점 달성 · 응용 문항 자력 해결 시작`,
+        desc: '풀이 방향을 스스로 결정하는 과정에서 자신만의 판단 기준을 세우기 시작했습니다.',
+        badge: '판단 기준 형성 확인',
+        active: false,
+      });
+    }
+    const phase4Report = [...sorted]
+      .filter(r => {
+        const d = fmtDate(r);
+        return !milestones.some(m => m.date === d) || r === bestReport;
+      })
+      .sort((a, b) => (b.conceptRating || 0) - (a.conceptRating || 0))[0] || bestReport;
+    if (phase4Report) {
+      milestones.push({
+        phase: 'PHASE 4 · 가능성 확인',
+        date: fmtDate(phase4Report),
+        title: '역대 최고 이해도 기록' + (maxScore ? ` · 단원평가 최고 ${maxScore}점` : ''),
+        desc: '왜 이 방법을 써야 하는가를 스스로 말하기 시작했습니다.',
+        badge: '해결 전략 완성 단계',
+        active: true,
+      });
+    }
+
+  } else {
+    // ── 재학생 템플릿 — 약점 극복 + 사고력 고도화 ──
+
+    // 가장 많이 나온 취약 단원
+    const unitErrorMap = {};
+    sorted.forEach(r => {
+      const unit = r.unit || r.textbook || '';
+      if (unit) {
+        (r.diagnosis || []).forEach(d => {
+          if (d.key !== 'perfect') {
+            unitErrorMap[unit] = (unitErrorMap[unit] || 0) + 1;
+          }
+        });
+      }
     });
-  }
-  const firstPerfect = sorted.find(r => r.homeworkRating >= 5);
-  if (firstPerfect) {
-    milestones.push({
-      phase: 'PHASE 2 · 개념 흡수',
-      date: fmtDate(firstPerfect),
-      title: '첫 만점 과제 달성',
-      desc: '단순 암기를 넘어 개념의 구조를 이해하기 시작한 첫 번째 신호였습니다.',
-      badge: '개념 내면화 시작',
-      active: false,
-    });
-  }
-  const over70 = sorted.find(r => r.hasTest && Number(r.testScore) >= 70);
-  if (over70) {
-    milestones.push({
-      phase: 'PHASE 3 · 판단 기준 수립',
-      date: fmtDate(over70),
-      title: `단원평가 ${over70.testScore}점 달성 · 응용 문항 자력 해결 시작`,
-      desc: '풀이 방향을 스스로 결정하는 과정에서 자신만의 판단 기준을 세우기 시작했습니다.',
-      badge: '판단 기준 형성 확인',
-      active: false,
-    });
-  }
-  // PHASE 4 — PHASE 1,2,3과 다른 날짜의 리포트 중 최고 이해도
-  const phase4Report = [...sorted]
-    .filter(r => {
-      const d = fmtDate(r);
-      return !milestones.some(m => m.date === d) || r === bestReport;
-    })
-    .sort((a, b) => (b.conceptRating || 0) - (a.conceptRating || 0))[0] || bestReport;
-  if (phase4Report) {
-    milestones.push({
-      phase: 'PHASE 4 · 전략 완성',
-      date: fmtDate(phase4Report),
-      title: '역대 최고 이해도 기록' + (maxScore ? ` · 단원평가 최고 ${maxScore}점` : ''),
-      desc: '왜 이 방법을 써야 하는가를 스스로 말하기 시작했습니다.',
-      badge: '해결 전략 완성 단계',
-      active: true,
-    });
+    const weakestUnit = Object.entries(unitErrorMap).sort((a,b) => b[1]-a[1])[0]?.[0] || '취약 단원';
+
+    // 오답률 변화 (전반부 vs 후반부)
+    const half = Math.floor(sorted.length / 2);
+    const firstHalf = sorted.slice(0, half);
+    const secondHalf = sorted.slice(half);
+    const errorRate = (arr) => {
+      const total = arr.reduce((s, r) => s + (r.diagnosis||[]).filter(d=>d.key!=='perfect').length, 0);
+      return arr.length ? (total / arr.length).toFixed(1) : 0;
+    };
+    const firstErr = errorRate(firstHalf);
+    const secondErr = errorRate(secondHalf);
+    const improved = Number(secondErr) < Number(firstErr);
+
+    // 최고 점수 vs 초기 점수
+    const testReports = sorted.filter(r => r.hasTest && r.testScore);
+    const firstScore = testReports[0]?.testScore;
+    const bestScoreVal = testReports.length ? Math.max(...testReports.map(r => Number(r.testScore))) : null;
+
+    if (sorted.length > 0) {
+      milestones.push({
+        phase: 'PHASE 1 · 도전 설정',
+        date: fmtDate(sorted[0]),
+        title: `${weakestUnit} 취약점 극복 프로젝트 시작`,
+        desc: `${weakestUnit} 단원에서 반복되는 오답 패턴을 정확히 파악하고, 체계적인 극복 전략을 수립했습니다.`,
+        badge: '약점 분석 완료',
+        active: false,
+      });
+    }
+
+    // 오답률 개선 마일스톤
+    if (improved && firstHalf.length > 0) {
+      milestones.push({
+        phase: 'PHASE 2 · 패턴 교정',
+        date: fmtDate(firstHalf[firstHalf.length - 1]),
+        title: `오답 패턴 개선 — 회당 오답 ${firstErr}개 → ${secondErr}개`,
+        desc: '반복되던 실수 유형이 줄어들기 시작했습니다. 같은 실수를 두 번 하지 않겠다는 고집이 데이터로 확인됩니다.',
+        badge: `오답률 ${Math.round((1 - Number(secondErr)/Number(firstErr))*100)}% 감소`,
+        active: false,
+      });
+    } else if (firstPerfect) {
+      milestones.push({
+        phase: 'PHASE 2 · 개념 완성',
+        date: fmtDate(firstPerfect),
+        title: '개념 이해도 최고점 달성',
+        desc: '꾸준한 학습이 개념의 완전한 내면화로 이어졌습니다.',
+        badge: '개념 숙달 확인',
+        active: false,
+      });
+    }
+
+    // 점수 성장 마일스톤
+    if (firstScore && bestScoreVal && bestScoreVal > Number(firstScore)) {
+      const growth = bestScoreVal - Number(firstScore);
+      milestones.push({
+        phase: 'PHASE 3 · 성장 증명',
+        date: fmtDate(testReports.find(r => Number(r.testScore) === bestScoreVal)),
+        title: `단원평가 ${firstScore}점 → ${bestScoreVal}점 (+${growth}점 상승)`,
+        desc: '단순히 점수가 오른 것이 아니라, 문제를 대하는 판단 기준 자체가 달라진 결과입니다.',
+        badge: `${growth}점 성장 달성`,
+        active: false,
+      });
+    } else if (over70) {
+      milestones.push({
+        phase: 'PHASE 3 · 판단 기준 수립',
+        date: fmtDate(over70),
+        title: `단원평가 ${over70.testScore}점 달성`,
+        desc: '풀이 방향을 스스로 결정하는 과정에서 자신만의 판단 기준을 세우기 시작했습니다.',
+        badge: '판단 기준 형성 확인',
+        active: false,
+      });
+    }
+
+    // PHASE 4 — 현재 상태
+    const phase4Report = [...sorted]
+      .filter(r => !milestones.some(m => m.date === fmtDate(r)) || r === bestReport)
+      .sort((a, b) => (b.conceptRating || 0) - (a.conceptRating || 0))[0] || bestReport;
+    if (phase4Report) {
+      milestones.push({
+        phase: 'PHASE 4 · 전략 고도화',
+        date: fmtDate(phase4Report),
+        title: '사고력 고도화 — 응용 문제 자력 해결 체계 완성',
+        desc: '이제 낯선 문제 유형에서도 스스로 판단 기준을 세우고 전략을 선택할 수 있습니다. 다음 단원에서 이 고집이 더 빛을 발할 것입니다.',
+        badge: '해결 전략 완성 단계',
+        active: true,
+      });
+    }
   }
 
   // 기간 표시
@@ -174,7 +283,9 @@ export default function GrowthStory() {
           studentName: student?.name || '학생', 
           milestones, 
           unitScores, 
-          teacherNotes 
+          teacherNotes,
+          isNewStudent,
+          totalReports: sorted.length,
         })
       });
       const data = await response.json();
