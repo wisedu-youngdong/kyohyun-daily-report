@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 import { db } from './firebase';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 import { calculateTotalPoints, getStageInfo } from './growth.js';
 
 const RATING_LEVELS = [
@@ -19,6 +19,7 @@ const DIAGNOSIS_LABELS = {
 
 export default function PublicReport() {
   const { reportId } = useParams();
+  const location = useLocation();
   const [report, setReport] = useState(null);
   const [allStudentReports, setAllStudentReports] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,6 +32,20 @@ export default function PublicReport() {
         if (!rSnap.exists()) { setError('리포트를 찾을 수 없습니다.'); setLoading(false); return; }
         const r = { id: rSnap.id, ...rSnap.data() };
         setReport(r);
+
+        // 열람 기록 저장
+        const params = new URLSearchParams(location.search);
+        const src = params.get('src') || 'direct';
+        try {
+          await addDoc(collection(db, 'reportViews'), {
+            reportId,
+            studentId: r.studentId,
+            studentName: r.studentName,
+            src,
+            viewedAt: serverTimestamp(),
+            ua: navigator.userAgent.slice(0, 100),
+          });
+        } catch (e) { /* 열람 기록 실패해도 리포트 표시는 계속 */ }
 
         // 동적 OG 메타 태그 — 학생 이름 반영
         if (r.studentName) {
