@@ -2992,7 +2992,19 @@ function DirectorView({ reports, students }) {
   const [expandedId, setExpandedId] = useState(null);
   const [memos, setMemos] = useState({});
   const [savingMemo, setSavingMemo] = useState(null);
-  const [profileStudent, setProfileStudent] = useState(null); // 종합 프로필 모달
+  const [profileStudent, setProfileStudent] = useState(null);
+  const [reportViews, setReportViews] = useState([]); // 열람 기록
+
+  // 열람 기록 로드
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'reportViews'));
+        setReportViews(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      } catch (e) { console.error('열람 기록 로드 실패:', e); }
+    };
+    load();
+  }, []);
 
   const DIAG_MAP = {
     calc:    { label: '계산 실수', bg: '#A32D2D', prefix: '⚠' },
@@ -3092,10 +3104,18 @@ function DirectorView({ reports, students }) {
           const goodDiag = (r.diagnosis || []).filter(d => d.key === 'perfect');
           const mainDiag = r.diagnosis?.[0];
           const borderColor = weakDiag.length > 0 ? '#A32D2D' : goodDiag.length > 0 ? '#0F6E56' : '#E8E6E0';
-          // KST 기준 날짜 문자열
           const dateStr = r.createdAt?.seconds
             ? new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })
             : '';
+
+          // 열람 여부 확인
+          const views = reportViews.filter(v => v.reportId === r.id);
+          const isViewed = views.length > 0;
+          const lastView = isViewed ? views.sort((a, b) => (b.viewedAt?.seconds || 0) - (a.viewedAt?.seconds || 0))[0] : null;
+          const lastViewTime = lastView?.viewedAt?.seconds
+            ? new Date(lastView.viewedAt.seconds * 1000).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+            : '';
+          const viewSrc = lastView?.src === 'kakao' ? '카카오' : lastView?.src === 'copy' ? '링크복사' : '직접';
 
           return (
             <div key={r.id} style={{ background: '#fff', border: `0.5px solid ${borderColor}`, borderRadius: '10px', overflow: 'hidden' }}>
@@ -3113,6 +3133,18 @@ function DirectorView({ reports, students }) {
                     <p style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>{r.studentName}</p>
                     <p style={{ fontSize: '10px', color: '#98A1AC', margin: 0 }}>{r.teacherName}{/선생님?$/.test(r.teacherName || '') ? '' : ' 선생님'}</p>
                   </div>
+                </div>
+
+                {/* 열람 배지 */}
+                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                  {isViewed ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                      <span style={{ fontSize: '10px', fontWeight: 700, color: '#0F6E56', background: '#F0FAF5', padding: '2px 8px', borderRadius: '10px' }}>✓ 열람완료</span>
+                      <span style={{ fontSize: '9px', color: '#98A1AC', marginTop: '2px' }}>{viewSrc} · {lastViewTime}</span>
+                    </div>
+                  ) : (
+                    <span style={{ fontSize: '10px', fontWeight: 700, color: '#8A5A00', background: '#FFF8EC', padding: '2px 8px', borderRadius: '10px' }}>미열람</span>
+                  )}
                 </div>
 
                 {/* 학습 단원 */}
