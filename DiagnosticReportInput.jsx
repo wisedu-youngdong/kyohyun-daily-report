@@ -617,16 +617,32 @@ setAiPolishedNote(data.result);
                 {/* 과목 선택 */}
                 <FieldLabel>과목</FieldLabel>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '14px' }}>
-                  {['수학', '영어', '국어', '과학', '사회', '역사', '기타'].map(s => (
-                    <button key={s} onClick={() => setSubject(s)}
+                  {[
+                    { label: '과학', color: '#7A4F00' },
+                    { label: '국어', color: '#8A2020' },
+                    { label: '사회', color: '#4A3080' },
+                    { label: '수학', color: '#0D2D6B' },
+                    { label: '역사', color: '#1A5C3A' },
+                    { label: '영어', color: '#0F6E56' },
+                    { label: '기타', color: '#4A4A4A' },
+                  ].map(({ label, color }) => (
+                    <button key={label} onClick={() => setSubject(label)}
                       style={{
-                        padding: '6px 14px', borderRadius: '20px', border: 'none',
-                        fontSize: '12px', fontWeight: 700, cursor: 'pointer',
-                        background: subject === s ? '#0D2D6B' : '#F0F0F0',
-                        color: subject === s ? '#fff' : '#6B7280',
-                        fontFamily: 'inherit',
-                        transition: 'all 0.15s'
-                      }}>{s}</button>
+                        display: 'flex', alignItems: 'center', gap: 0,
+                        padding: 0, border: `1px solid ${subject === label ? color : '#E5E7EB'}`,
+                        borderRadius: '8px', cursor: 'pointer', overflow: 'hidden',
+                        background: subject === label ? color : '#fff',
+                        fontFamily: 'inherit', transition: 'all 0.15s'
+                      }}>
+                      <span style={{
+                        width: '4px', minHeight: '34px', display: 'block', flexShrink: 0,
+                        background: subject === label ? 'rgba(255,255,255,0.4)' : color,
+                      }} />
+                      <span style={{
+                        padding: '6px 12px', fontSize: '12px', fontWeight: 600,
+                        color: subject === label ? '#fff' : '#374151',
+                      }}>{label}</span>
+                    </button>
                   ))}
                 </div>
 
