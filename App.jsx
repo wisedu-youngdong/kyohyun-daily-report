@@ -4179,7 +4179,7 @@ function WeeklySummaryCard({ student, reports, teachers }) {
                       <div style={{ width: '3px', height: '34px', background: barColor, borderRadius: '2px', flexShrink: 0 }} />
                       <div style={{ flex: 1 }}>
                         <p style={{ fontSize: '12px', fontWeight: 600, color: '#1A1A1A', margin: '0 0 1px' }}>{u.name}</p>
-                        <p style={{ fontSize: '11px', color: '#9CA3AF', margin: 0 }}>{avgScore ? `${avgScore}점` : '점수 없음'}</p>
+                        {avgScore && <p style={{ fontSize: '11px', color: '#9CA3AF', margin: 0 }}>{avgScore}점</p>}
                       </div>
                       {avgScore && (
                         <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '8px', background: achieved ? '#F0FAF5' : '#FFF8EC', color: achieved ? '#0F6E56' : '#7A4F00', flexShrink: 0 }}>
