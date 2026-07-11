@@ -121,6 +121,7 @@ export const SKINS = {
 export default function DiagnosticReportInput({
   students = [],
   teachers = [],
+  reports = [],
   onSaveStudent = async () => {},
   onSaveTeacher = async () => {},
   onDeleteTeacher = async () => {},
@@ -515,7 +516,21 @@ setAiPolishedNote(data.result);
 
           {/* 1. 학생 선택 */}
           <FormSection number="1" title="대상 학생">
-            <select value={studentId} onChange={(e) => setStudentId(e.target.value)} style={selectStyle}>
+            <select value={studentId} onChange={(e) => {
+              const newId = e.target.value;
+              setStudentId(newId);
+              // 최근 리포트 자동 불러오기
+              if (newId && !editingReport) {
+                const lastReport = [...reports]
+                  .filter(r => r.studentId === newId)
+                  .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))[0];
+                if (lastReport) {
+                  if (lastReport.textbook) setTextbook(lastReport.textbook);
+                  if (lastReport.subject) setSubject(lastReport.subject);
+                  if (lastReport.unit) setUnit(lastReport.unit);
+                }
+              }
+            }} style={selectStyle}>
               <option value="">학생을 선택해주세요</option>
               {students.map(s => <option key={s.id} value={s.id}>{s.name} · {s.school}</option>)}
             </select>
