@@ -469,12 +469,10 @@ export default function App() {
             {renderSubTabBar('insight', [
               { key: 'director', label: '원장 보고서' },
               { key: 'analysis', label: '종합 분석' },
-              { key: 'units', label: '단원 오답' },
             ])}
             <div style={{ marginTop: '12px' }}>
               {activeSubTab.insight === 'director' && <div><DirectorView reports={reports} students={students} /><GrowthDashboard reports={reports} students={students} onSwitchTab={setActiveTab} /></div>}
               {activeSubTab.insight === 'analysis' && <AnalysisView students={students} reports={reports} />}
-              {activeSubTab.insight === 'units' && <UnitErrorDashboard reports={visibleReports} />}
             </div>
           </div>
         )}
@@ -3665,31 +3663,111 @@ function AnalysisView({ students, reports }) {
             )}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             <StatCard label={`리포트 (${periodLabel})`} value={periodReports.length} unit="건" />
             <StatCard label="과제 평균" value={periodAvg('homeworkRating')} unit="점" />
             <StatCard label="개념 평균" value={periodAvg('conceptRating')} unit="점" />
+            <StatCard label="정시 출석" value={periodReports.length > 0 ? Math.round(periodReports.filter(r => r.attendance === '정시').length / periodReports.length * 100) : 0} unit="%" />
           </div>
           <HomeworkTestChart reports={periodReports} />
           <InsightCard reports={periodReports} />
-          <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: `1px solid #E5E7EB` }}>
-            <h3 style={{ fontSize: '13px', fontWeight: 700, marginBottom: '12px' }}>진단 태그 분포 ({periodLabel})</h3>
+
+          {/* 단원별 오답 + 진단 태그 — 2단 그리드 */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+
+            {/* 단원별 정답률 */}
             {(() => {
-              const tagCount = {};
-              periodReports.forEach(r => (r.diagnosis || []).forEach(d => { tagCount[d.key] = (tagCount[d.key] || 0) + 1; }));
-              const tagLabels = { calc: '계산 실수', concept: '개념 누락', apply: '응용 부족', time: '시간 부족', perfect: '개념 완벽' };
-              const entries = Object.entries(tagCount).sort((a, b) => b[1] - a[1]);
-              return entries.length === 0
-                ? <p style={{ fontSize: '12px', color: '#9CA3AF', textAlign: 'center' }}>진단 데이터 없음</p>
-                : entries.map(([key, count]) => (
-                  <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 600, width: '80px', flexShrink: 0 }}>{tagLabels[key]}</span>
-                    <div style={{ flex: 1, background: '#F3F4F6', borderRadius: '4px', height: '8px', overflow: 'hidden' }}>
-                      <div style={{ height: '100%', background: '#185FA5', borderRadius: '4px', width: `${Math.min(100, count * 20)}%` }} />
-                    </div>
-                    <span style={{ fontSize: '12px', color: '#6B7280', fontWeight: 600, width: '20px', textAlign: 'right' }}>{count}</span>
+              const TARGET = 80;
+              const unitMap = {};
+              periodReports.forEach(r => {
+                const key = [r.unit, r.textbook].filter(Boolean).join(' ');
+                if (!key) return;
+                if (!unitMap[key]) unitMap[key] = { name: key, correct: 0, total: 0 };
+                if (r.hasTest && r.testScore) {
+                  unitMap[key].correct += Number(r.testScore);
+                  unitMap[key].total += 100;
+                }
+              });
+              const units = Object.values(unitMap)
+                .filter(u => u.total > 0)
+                .map(u => ({ ...u, pct: Math.round(u.correct / u.total * 100) }))
+                .sort((a, b) => a.pct - b.pct);
+              if (units.length === 0) return null;
+              return (
+                <div style={{ background: '#fff', borderRadius: '12px', padding: '14px 16px', border: '1px solid #E5E7EB' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <p style={{ fontSize: '12px', fontWeight: 700, margin: 0 }}>단원별 정답률</p>
+                    <span style={{ fontSize: '9px', color: '#9CA3AF' }}>목표 {TARGET}%</span>
                   </div>
-                ));
+                  <div style={{ position: 'relative' }}>
+                    <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${TARGET}%`, width: '1px', background: '#0D2D6B', opacity: 0.12 }} />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {units.map((u, i) => {
+                        const isWorst = i === 0;
+                        const barColor = isWorst ? '#8A2020' : '#0D2D6B';
+                        return (
+                          <div key={u.name}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                              <span style={{ fontSize: '11px', color: '#1A1A1A', fontWeight: isWorst ? 700 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>{u.name}</span>
+                              <span style={{ fontSize: '11px', fontWeight: 700, color: barColor, flexShrink: 0 }}>{u.pct}%{u.pct >= TARGET ? ' ✓' : ''}</span>
+                            </div>
+                            <div style={{ height: '6px', background: isWorst ? '#FDF0F0' : '#F3F4F6', borderRadius: '3px', overflow: 'hidden' }}>
+                              <div style={{ width: `${u.pct}%`, height: '100%', background: barColor, borderRadius: '3px' }} />
+                            </div>
+                            {isWorst && <span style={{ fontSize: '9px', color: '#8A2020', fontWeight: 700 }}>즉시 점검</span>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* 오답 유형 */}
+            {(() => {
+              const DIAG_COLORS = {
+                calc:    { label: '계산 실수', color: '#7A4F00' },
+                concept: { label: '개념 누락', color: '#0D2D6B' },
+                apply:   { label: '응용 부족', color: '#8A2020' },
+                time:    { label: '시간 부족', color: '#4A3080' },
+              };
+              const diagMap = {};
+              periodReports.forEach(r => {
+                (r.diagnosis || []).forEach(d => {
+                  if (!diagMap[d.key]) diagMap[d.key] = 0;
+                  diagMap[d.key]++;
+                });
+              });
+              const diagList = Object.entries(diagMap)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 4);
+              const maxCount = diagList[0]?.[1] || 1;
+              if (diagList.length === 0) return null;
+              return (
+                <div style={{ background: '#fff', borderRadius: '12px', padding: '14px 16px', border: '1px solid #E5E7EB' }}>
+                  <p style={{ fontSize: '12px', fontWeight: 700, margin: '0 0 12px' }}>반복 오답 유형</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {diagList.map(([key, count], i) => {
+                      const info = DIAG_COLORS[key] || { label: key, color: '#4A4A4A' };
+                      return (
+                        <div key={key}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                              <span style={{ width: '14px', height: '14px', borderRadius: '50%', background: info.color, color: '#fff', fontSize: '8px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{i + 1}</span>
+                              <span style={{ fontSize: '11px', color: '#1A1A1A' }}>{info.label}</span>
+                            </div>
+                            <span style={{ fontSize: '11px', color: '#9CA3AF' }}>{count}회</span>
+                          </div>
+                          <div style={{ height: '6px', background: '#F3F4F6', borderRadius: '3px', overflow: 'hidden' }}>
+                            <div style={{ width: `${Math.round(count / maxCount * 100)}%`, height: '100%', background: info.color, borderRadius: '3px' }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
             })()}
           </div>
 
