@@ -42,7 +42,7 @@ JSON만 반환 (코드블록 없이, 순수 JSON만): {"chapter1":"...","chapter
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 0.7,
-          maxOutputTokens: 2048
+          maxOutputTokens: 4096,
         }
       })
     });
@@ -64,7 +64,16 @@ JSON만 반환 (코드블록 없이, 순수 JSON만): {"chapter1":"...","chapter
       .trim();
 
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return res.status(500).json({ error: 'JSON 없음: ' + text.slice(0, 100) });
+    if (!jsonMatch) {
+      // fallback — 필드 개별 추출 시도
+      const fallback = {};
+      ['chapter1','chapter2','teacherWord','nextChapter'].forEach(key => {
+        const m = cleaned.match(new RegExp(`"${key}"\\s*:\\s*"([^"]*)"`, 's'));
+        if (m) fallback[key] = m[1];
+      });
+      if (Object.keys(fallback).length > 0) return res.status(200).json(fallback);
+      return res.status(500).json({ error: 'JSON 없음: ' + cleaned.slice(0, 150) });
+    }
 
     try {
       res.status(200).json(JSON.parse(jsonMatch[0]));
