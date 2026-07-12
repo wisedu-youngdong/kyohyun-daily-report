@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { db } from './firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 
@@ -29,6 +29,7 @@ async function generateNarrative(studentName, milestones, unitScores, teacherNot
 
 export default function GrowthStory() {
   const { studentId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [student, setStudent] = useState(null);
   const [reports, setReports] = useState([]);
   const [narrative, setNarrative] = useState(null);
@@ -36,6 +37,16 @@ export default function GrowthStory() {
   const [narLoading, setNarLoading] = useState(false);
   const [editing, setEditing] = useState(null);
   const [editText, setEditText] = useState('');
+
+  // 기간 토글 — URL 파라미터 연동
+  const periodParam = searchParams.get('period');
+  const [period, setPeriod] = useState(periodParam === '3m' ? '3m' : 'all');
+
+  const handlePeriodChange = (val) => {
+    setPeriod(val);
+    if (val === '3m') setSearchParams({ period: '3m' });
+    else setSearchParams({});
+  };
 
   const startEdit = (field) => { setEditing(field); setEditText(narrative[field] || ''); };
   const saveEdit = () => { setNarrative(prev => ({ ...prev, [editing]: editText })); setEditing(null); };
@@ -74,7 +85,15 @@ export default function GrowthStory() {
   }, [studentId]);
 
   // 데이터 가공
-  const sorted = [...reports].sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+  // 기간 필터 적용
+  const allSorted = [...reports].sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+  const sorted = period === '3m'
+    ? allSorted.filter(r => {
+        const ts = r.createdAt?.seconds || 0;
+        const cutoff = Date.now() / 1000 - 90 * 86400; // 90일
+        return ts >= cutoff;
+      })
+    : allSorted;
   const fmtDate = (r) => {
     if (!r?.createdAt?.seconds) return '';
     const d = new Date(r.createdAt.seconds * 1000);
@@ -341,7 +360,36 @@ export default function GrowthStory() {
         <div style={{ height: '1px', background: 'rgba(201,162,39,0.2)', marginBottom: '20px' }} />
         <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.18em', fontWeight: 600, marginBottom: '6px' }}>GROWTH STORY</p>
         <p style={{ fontSize: '26px', fontWeight: 700, color: '#fff', letterSpacing: '-0.5px', marginBottom: '4px' }}>{student.name}의 성장 이야기</p>
-        <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>{periodLabel}</p>
+        <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginBottom: '16px' }}>{periodLabel}</p>
+
+        {/* 기간 토글 */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', background: 'rgba(255,255,255,0.08)', borderRadius: '20px', padding: '3px' }}>
+            {[
+              { key: 'all', label: '전체 여정' },
+              { key: '3m', label: '최근 3개월' },
+            ].map(({ key, label }) => (
+              <button key={key} onClick={() => handlePeriodChange(key)}
+                style={{
+                  padding: '5px 14px', borderRadius: '16px', border: 'none', cursor: 'pointer',
+                  background: period === key ? '#C9A227' : 'transparent',
+                  color: period === key ? '#1A1A1A' : 'rgba(255,255,255,0.5)',
+                  fontSize: '11px', fontWeight: 700, fontFamily: 'inherit', transition: 'all 0.2s',
+                }}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* 공유 버튼 */}
+          <button onClick={() => {
+            const url = `${window.location.origin}/story/${studentId}${period === '3m' ? '?period=3m' : ''}`;
+            navigator.clipboard.writeText(url).then(() => alert('링크가 복사됐어요!'));
+          }}
+            style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '16px', padding: '5px 14px', color: 'rgba(255,255,255,0.8)', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            📤 링크 복사
+          </button>
+        </div>
       </div>
 
       {/* GROWTH MILESTONE */}
