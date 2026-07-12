@@ -1272,9 +1272,24 @@ function HistoryView({ reports, students, reportViews = [], onDelete, onEdit }) 
 
           {/* 다음 계획 */}
           {selected.nextPlan && (
-            <div>
+            <div style={{ marginBottom: '18px' }}>
               <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '0 0 8px', fontWeight: 600, letterSpacing: '0.06em' }}>다음 수업 계획</p>
               <p style={{ fontSize: '13px', color: '#374151', margin: 0 }}>{selected.nextPlan}</p>
+            </div>
+          )}
+
+          {/* 수업 사진 */}
+          {selected.photoUrls?.length > 0 && (
+            <div>
+              <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '0 0 8px', fontWeight: 600, letterSpacing: '0.06em' }}>수업 사진 ({selected.photoUrls.length}장)</p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '8px' }}>
+                {selected.photoUrls.map((url, i) => (
+                  <a key={i} href={url} target="_blank" rel="noopener noreferrer">
+                    <img src={url} alt={`수업 사진 ${i + 1}`}
+                      style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', borderRadius: '8px', border: '1px solid #E5E7EB', cursor: 'pointer', display: 'block' }} />
+                  </a>
+                ))}
+              </div>
             </div>
           )}
         </div>
