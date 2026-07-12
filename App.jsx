@@ -2823,12 +2823,8 @@ function GrowthDashboard({ reports, students, onSwitchTab }) {
               const url = `${window.location.origin}/report/${latestReport.id}`;
               navigator.clipboard.writeText(url).then(() => alert('링크 복사 완료!'));
             } else { alert('최근 리포트가 없습니다.'); }
-          } else if (type === 'review') {
-            setDrawerOpen(false); setSelId(null);
-            if (onSwitchTab) onSwitchTab('review');
           } else if (type === 'profile') {
-            setDrawerOpen(false); setSelId(null);
-            if (onSwitchTab) onSwitchTab('analysis');
+            window.open(`/story/${s?.id}`, '_blank');
           }
         };
 
@@ -2855,82 +2851,71 @@ function GrowthDashboard({ reports, students, onSwitchTab }) {
             </div>
 
             {/* 미니 바차트 + 진단 태그 연결 */}
-            <p style={{ fontSize: '10px', color: '#98A1AC', margin: '0 0 6px', letterSpacing: '0.08em' }}>개념 이해도 추이 · 진단</p>
+            {/* 날짜별 수업 카드 */}
             <div style={{ marginBottom: '14px' }}>
-              {/* 바차트 */}
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px', height: '60px', borderBottom: '1px solid #E8E6E0', paddingBottom: '2px' }}>
-                {rs.map((r, i) => {
-                  const hasWeak = (r.diagnosis || []).some(d => d.key !== 'perfect');
-                  const barColor = hasWeak ? '#A32D2D' : status.color;
-                  return (
-                    <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
-                      <span style={{ fontSize: '9px', fontWeight: 700, color: barColor, marginBottom: '2px' }}>{r.conceptRating}</span>
-                      <div style={{ width: '100%', height: `${(r.conceptRating / 5) * 44}px`, background: barColor, borderRadius: '2px 2px 0 0', opacity: 0.85 }} />
-                    </div>
-                  );
-                })}
-              </div>
-              {/* 날짜 */}
-              <div style={{ display: 'flex', gap: '4px', marginTop: '3px', marginBottom: '8px' }}>
-                {rs.map((r, i) => (
-                  <div key={i} style={{ flex: 1, textAlign: 'center' }}>
-                    <span style={{ fontSize: '8px', color: '#98A1AC' }}>
-                      {r.createdAt?.seconds ? `${new Date(r.createdAt.seconds*1000).getMonth()+1}/${new Date(r.createdAt.seconds*1000).getDate()}` : ''}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              {/* 수업일별 진단 태그 + 상세 */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {rs.filter(r => (r.diagnosis || []).some(d => d.key !== 'perfect')).slice(-3).reverse().map((r, i) => {
+                {rs.slice().reverse().slice(0, 4).map((r, i) => {
+                  const diagLabels = { calc: '계산 실수', concept: '개념 누락', apply: '응용 부족', time: '시간 부족', perfect: '개념 완벽' };
+                  const tags = (r.diagnosis || []).filter(d => d.key !== 'perfect');
+                  const hasPerfect = (r.diagnosis || []).some(d => d.key === 'perfect');
+                  const isWarning = r.conceptRating > 0 && r.conceptRating <= 2;
                   const dateStr = r.createdAt?.seconds
                     ? `${new Date(r.createdAt.seconds*1000).getMonth()+1}/${new Date(r.createdAt.seconds*1000).getDate()}`
                     : '';
-                  const weakDiags = (r.diagnosis || []).filter(d => d.key !== 'perfect');
+                  const rawNote = r.teacherNote || '';
+                  const cleanNote = rawNote.replace(/\[([^\]]+)\]\s*/g, '').trim();
+
                   return (
-                    <div key={i} style={{ background: '#FAFAFA', border: '0.5px solid #E8E6E0', borderRadius: '8px', padding: '8px 10px' }}>
-                      <p style={{ fontSize: '10px', color: '#98A1AC', margin: '0 0 5px', fontWeight: 600 }}>{dateStr} · 개념 {r.conceptRating}/5</p>
-                      {weakDiags.map((d, j) => (
-                        <div key={j} style={{ marginBottom: j < weakDiags.length - 1 ? '4px' : 0 }}>
-                          <span style={{ background: '#FCEBEB', border: '1px solid #A32D2D', color: '#791F1F', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px' }}>
-                            ⚠ {DIAG_MAP[d.key]?.label || d.key}
-                            {d.unit ? ` · ${d.unit}단원` : ''}
-                            {d.pages ? ` ${d.pages}` : ''}
-                          </span>
-                          {d.detail && (
-                            <p style={{ fontSize: '11px', color: '#5A6472', margin: '3px 0 0 4px', lineHeight: 1.5 }}>
-                              └ {d.detail}
-                            </p>
-                          )}
+                    <div key={i} style={{
+                      background: '#FAFAF8', border: '0.5px solid #E5E7EB', borderRadius: '8px', padding: '8px 10px',
+                      borderLeft: isWarning ? '2px solid #DC2626' : hasPerfect ? '2px solid #0F6E56' : '2px solid transparent',
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 600, color: '#1A1A1A' }}>{dateStr}</span>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          {r.homeworkRating > 0 && <span style={{ fontSize: '10px', color: '#6B7280' }}>과제 <strong style={{ color: '#0D2D6B' }}>{r.homeworkRating}</strong>/5</span>}
+                          {r.conceptRating > 0 && <span style={{ fontSize: '10px', color: '#6B7280' }}>개념 <strong style={{ color: '#0D2D6B' }}>{r.conceptRating}</strong>/5</span>}
+                          {r.hasTest && r.testScore && <span style={{ fontSize: '10px', color: '#C9A227', fontWeight: 700 }}>시험 {r.testScore}점</span>}
                         </div>
-                      ))}
+                      </div>
+                      {(r.textbook || r.unit) && (
+                        <p style={{ fontSize: '10px', color: '#9CA3AF', margin: '0 0 4px' }}>
+                          {[r.textbook, r.unit].filter(Boolean).join(' · ')}
+                        </p>
+                      )}
+                      {(tags.length > 0 || hasPerfect) && (
+                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: cleanNote ? '4px' : 0 }}>
+                          {hasPerfect && <span style={{ fontSize: '10px', background: '#F0FAF5', color: '#0F6E56', padding: '1px 6px', borderRadius: '8px', fontWeight: 600 }}>개념 완벽</span>}
+                          {tags.map((d, ti) => (
+                            <span key={ti} style={{ fontSize: '10px', background: '#FDF0F0', color: '#8A2020', padding: '1px 6px', borderRadius: '8px', fontWeight: 600 }}>
+                              {diagLabels[d.key] || d.key}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {cleanNote && (
+                        <p style={{ fontSize: '10px', color: '#6B7280', margin: 0, fontStyle: 'italic' }}>
+                          "{cleanNote.length > 40 ? cleanNote.slice(0, 40) + '...' : cleanNote}"
+                        </p>
+                      )}
                     </div>
                   );
                 })}
-                {rs.every(r => !(r.diagnosis || []).some(d => d.key !== 'perfect')) && (
-                  <p style={{ fontSize: '11px', color: '#98A1AC', margin: 0, textAlign: 'center', padding: '4px 0' }}>이 기간 진단된 약점 없음</p>
-                )}
               </div>
             </div>
 
-            {/* 액션 버튼 — 실제 동작 */}
-            <p style={{ fontSize: '10px', color: '#98A1AC', margin: '0 0 8px', letterSpacing: '0.08em' }}>액션</p>
+            {/* 액션 버튼 — 핵심만 */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <button onClick={() => handleAction('link')} style={{
-                padding: '9px 12px', fontSize: '12px', fontWeight: 600, borderRadius: '8px',
+                padding: '10px 12px', fontSize: '12px', fontWeight: 600, borderRadius: '8px',
                 border: '0.5px solid #1A5CB8', background: '#EAF0F9', color: '#0D2D6B',
                 cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
-              }}>🔗 링크 복사 — 학부모 전송</button>
-              <button onClick={() => handleAction('review')} style={{
-                padding: '9px 12px', fontSize: '12px', fontWeight: 600, borderRadius: '8px',
-                border: '0.5px solid #E8E6E0', background: '#fff', color: '#1A1A1A',
-                cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
-              }}>🔁 복습 관리 탭으로 이동</button>
+              }}>🔗 최근 리포트 링크 복사</button>
               <button onClick={() => handleAction('profile')} style={{
-                padding: '9px 12px', fontSize: '12px', fontWeight: 600, borderRadius: '8px',
+                padding: '10px 12px', fontSize: '12px', fontWeight: 600, borderRadius: '8px',
                 border: '0.5px solid #E8E6E0', background: '#fff', color: '#1A1A1A',
                 cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
-              }}>📊 종합 분석 탭으로 이동</button>
+              }}>📈 성장 스토리 열기</button>
             </div>
           </div>
         );
