@@ -196,6 +196,9 @@ export default function App() {
   const setSubTab = (group, key) => setActiveSubTab(prev => ({ ...prev, [group]: key }));
   const [editingReport, setEditingReport] = useState(null);
   const [showDraftPanel, setShowDraftPanel] = useState(false);
+  const [writingStudentId, setWritingStudentId] = useState(null); // 작성 중인 학생 ID
+  const [headerDraftSave, setHeaderDraftSave] = useState(null);   // 헤더 임시저장 트리거
+  const [lastHeaderSaved, setLastHeaderSaved] = useState(null);   // 마지막 저장 시각
   const [students, setStudents] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [reports, setReports] = useState([]);
@@ -439,15 +442,37 @@ export default function App() {
             const rDate = new Date((r.createdAt?.seconds||0)*1000).toLocaleDateString('ko-KR');
             return r.status === 'draft' && rDate === today;
           }).length;
-          if (draftCount === 0) return null;
-          return (
+
+          // 상태 3: draft 쌓임 → 마무리 버튼
+          if (draftCount > 0) return (
             <button onClick={() => setShowDraftPanel(true)}
-              style={{ display: 'flex', alignItems: 'center', gap: '5px', background: '#FFF8EC', border: '1px solid #C9A22760', borderRadius: '16px', padding: '4px 10px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', color: '#7A4F00', fontFamily: 'inherit' }}>
-              📋
-              <span>임시저장</span>
+              style={{ display: 'flex', alignItems: 'center', gap: '5px', background: '#FFF8EC', border: '1.5px solid #C9A227', borderRadius: '16px', padding: '4px 12px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', color: '#7A4F00', fontFamily: 'inherit' }}>
+              📋 마무리 필요
               <span style={{ background: '#C9A227', color: '#fff', borderRadius: '10px', padding: '1px 5px', fontSize: '10px', fontWeight: 700 }}>{draftCount}</span>
             </button>
           );
+
+          // 상태 2: 학생 선택됨 → 임시저장 버튼
+          if (writingStudentId) return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <button onClick={() => {
+                setHeaderDraftSave(Date.now());
+                setLastHeaderSaved(new Date());
+                setTimeout(() => setLastHeaderSaved(null), 3000);
+              }}
+                style={{ display: 'flex', alignItems: 'center', gap: '5px', background: '#fff', border: '1.5px solid #0D2D6B', borderRadius: '16px', padding: '4px 12px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', color: '#0D2D6B', fontFamily: 'inherit' }}>
+                📋 임시저장
+              </button>
+              {lastHeaderSaved && (
+                <span style={{ fontSize: '10px', color: '#0F6E56', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                  ✓ {lastHeaderSaved.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} 저장됨
+                </span>
+              )}
+            </div>
+          );
+
+          // 상태 1: 학생 미선택 → 없음
+          return null;
         })()}
 
         <span style={{ fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '6px', background: isDirector ? '#EAF0F9' : '#E1F5EE', color: isDirector ? '#0D2D6B' : '#0F6E56' }}>
@@ -488,6 +513,8 @@ export default function App() {
               onSave={handleSaveReport}
               editingReport={editingReport}
               onEditDone={() => setEditingReport(null)}
+              onStudentChange={setWritingStudentId}
+              headerDraftSave={headerDraftSave}
             />
           </>
         )}
@@ -977,138 +1004,261 @@ const DIAGNOSIS_TAGS_MAP = {
 };
 
 function HistoryView({ reports, students, onDelete, onEdit }) {
-  const [previewReport, setPreviewReport] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
   const [deleteConfirmReport, setDeleteConfirmReport] = useState(null);
   const [studentFilter, setStudentFilter] = useState('');
   const [searchText, setSearchText] = useState('');
-  const [periodFilter, setPeriodFilter] = useState('all'); // all | week | month
-  const [photoOnly, setPhotoOnly] = useState(false);
+  const [periodFilter, setPeriodFilter] = useState('all');
+  const [copied, setCopied] = useState(false);
+
+  const DIAG_LABELS = { calc: '계산 실수', concept: '개념 누락', apply: '응용 부족', time: '시간 부족', perfect: '개념 완벽' };
+  const DIAG_COLORS = { calc: { bg: '#FFF8EC', color: '#8A5A00', border: '#C9A22740' }, concept: { bg: '#EAF1FB', color: '#0D2D6B', border: '#0D2D6B40' }, apply: { bg: '#FDF0F0', color: '#8A2020', border: '#8A202040' }, time: { bg: '#F3F0FA', color: '#4A3080', border: '#4A308040' }, perfect: { bg: '#F0FAF5', color: '#0F6E56', border: '#0F6E5640' } };
 
   const now = Date.now() / 1000;
-  const filtered = reports.filter(r => {
-    if (studentFilter && r.studentId !== studentFilter) return false;
-    if (photoOnly && !(r.photoUrls?.length > 0)) return false;
-    if (periodFilter !== 'all') {
-      const ts = r.createdAt?.seconds || 0;
-      const cutoff = periodFilter === 'week' ? 7 * 86400 : 30 * 86400;
-      if (now - ts > cutoff) return false;
-    }
-    if (searchText.trim()) {
-      const q = searchText.trim().toLowerCase();
-      const haystack = `${r.studentName || ''} ${r.textbook || ''} ${r.unit || ''} ${r.teacherNote || ''}`.toLowerCase();
-      if (!haystack.includes(q)) return false;
-    }
-    return true;
-  });
+  const filtered = reports
+    .filter(r => {
+      if (studentFilter && r.studentId !== studentFilter) return false;
+      if (periodFilter !== 'all') {
+        const ts = r.createdAt?.seconds || 0;
+        const cutoff = periodFilter === 'week' ? 7 * 86400 : 30 * 86400;
+        if (now - ts > cutoff) return false;
+      }
+      if (searchText.trim()) {
+        const q = searchText.trim().toLowerCase();
+        const hay = `${r.studentName||''} ${r.textbook||''} ${r.unit||''} ${r.teacherNote||''}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0));
 
-  return (
-    <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <h2 style={{ fontSize: '20px', fontWeight: 700, letterSpacing: '-0.02em' }}>기록 보관소</h2>
-        <span style={{ fontSize: '11px', color: '#6B7280', fontWeight: 600, background: '#fff', padding: '4px 10px', borderRadius: '8px', border: '1px solid #E5E7EB' }}>
-          {filtered.length}건 {filtered.length !== reports.length && `/ 전체 ${reports.length}건`}
-        </span>
-      </div>
+  const selected = filtered.find(r => r.id === selectedId) || filtered[0];
 
-      {/* 검색 */}
-      <input
-        value={searchText} onChange={(e) => setSearchText(e.target.value)}
-        placeholder="🔍 학생명·교재명·코멘트 검색"
-        style={{ width: '100%', padding: '10px 14px', fontSize: '13px', border: '1px solid #E5E7EB', borderRadius: '10px', background: '#fff', outline: 'none', fontFamily: 'inherit', marginBottom: '10px', boxSizing: 'border-box' }}
-      />
+  const fmtDate = (r) => r.createdAt?.seconds
+    ? new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })
+    : '날짜 없음';
 
-      {/* 학생 필터 */}
-      <select value={studentFilter} onChange={(e) => setStudentFilter(e.target.value)}
-        style={{ width: '100%', padding: '10px 12px', fontSize: '13px', fontWeight: 500, border: '1px solid #E5E7EB', borderRadius: '10px', background: '#F9FAFB', outline: 'none', fontFamily: 'inherit', marginBottom: '10px' }}>
-        <option value="">전체 학생</option>
-        {(students || []).map(s => <option key={s.id} value={s.id}>{s.name} · {s.school}</option>)}
-      </select>
+  const statusBadge = (r) => {
+    if (r.status === 'draft') return { label: '작성 중', bg: '#FFF8EC', color: '#8A5A00' };
+    return { label: '발송 완료', bg: '#F0FAF5', color: '#0F6E56' };
+  };
 
-      {/* 기간·사진 필터 칩 */}
-      <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
-        {[['all', '전체 기간'], ['week', '최근 1주'], ['month', '최근 1개월']].map(([key, label]) => (
-          <button key={key} onClick={() => setPeriodFilter(key)}
-            style={{
-              padding: '6px 12px', fontSize: '11px', fontWeight: 700, borderRadius: '20px', cursor: 'pointer', fontFamily: 'inherit',
-              border: periodFilter === key ? '1.5px solid #185FA5' : '1px solid #E5E7EB',
-              background: periodFilter === key ? '#E6F1FB' : '#fff',
-              color: periodFilter === key ? '#185FA5' : '#6B7280',
-            }}>{label}</button>
-        ))}
-        <button onClick={() => setPhotoOnly(v => !v)}
-          style={{
-            padding: '6px 12px', fontSize: '11px', fontWeight: 700, borderRadius: '20px', cursor: 'pointer', fontFamily: 'inherit',
-            border: photoOnly ? '1.5px solid #185FA5' : '1px solid #E5E7EB',
-            background: photoOnly ? '#E6F1FB' : '#fff',
-            color: photoOnly ? '#185FA5' : '#6B7280',
-          }}>📷 사진 있는 것만</button>
-      </div>
+  const handleCopyLink = (id) => {
+    navigator.clipboard.writeText(`${window.location.origin}/report/${id}`).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
 
-      {filtered.length === 0
-        ? <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #E5E7EB', padding: '60px 20px', textAlign: 'center', color: '#9CA3AF', fontSize: '13px' }}>
-            {reports.length === 0 ? '작성된 리포트가 없습니다' : '조건에 맞는 리포트가 없습니다'}
-          </div>
-        : <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+  // PC: 스플릿 뷰 / 모바일: 카드 리스트
+  const isMobile = window.innerWidth < 768;
+
+  if (isMobile) {
+    // 기존 모바일 카드 리스트 유지
+    return (
+      <div style={{ padding: '16px' }}>
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+          <input value={searchText} onChange={e => setSearchText(e.target.value)}
+            placeholder="학생명·교재·코멘트 검색"
+            style={{ flex: 1, padding: '9px 12px', fontSize: '13px', border: '1px solid #E5E7EB', borderRadius: '10px', outline: 'none', fontFamily: 'inherit' }} />
+          <select value={studentFilter} onChange={e => setStudentFilter(e.target.value)}
+            style={{ padding: '9px 10px', fontSize: '12px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', background: '#fff' }}>
+            <option value="">전체</option>
+            {(students||[]).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {filtered.map(r => {
-            const date = r.createdAt?.seconds
-              ? new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })
-              : '날짜 없음';
+            const badge = statusBadge(r);
             return (
-              <div key={r.id} style={{ background: '#fff', borderRadius: '16px', padding: '16px 18px', border: r.status === 'draft' ? '1px solid #C9A22760' : '1px solid #E5E7EB', cursor: 'pointer' }}
-                onClick={() => r.status === 'draft' ? onEdit(r) : setPreviewReport(r)}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <p style={{ fontSize: '15px', fontWeight: 700, margin: 0 }}>{r.studentName}</p>
-                      {r.status === 'draft' && (
-                        <span style={{ fontSize: '10px', fontWeight: 700, background: '#FFF8EC', color: '#8A5A00', border: '1px solid #C9A22740', padding: '2px 7px', borderRadius: '8px' }}>작성 중</span>
-                      )}
-                      {r.photoUrls?.length > 0 && <span style={{ fontSize: '11px' }}>📷{r.photoUrls.length}</span>}
-                    </div>
-                    <p style={{ fontSize: '11px', color: '#6B7280', margin: '2px 0 0', fontWeight: 500 }}>{date} · {r.teacherName}</p>
-                  </div>
-                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                    <span style={{ fontSize: '20px' }}>{RATING_EMOJI[r.homeworkRating] || ''}</span>
-                    {deleteConfirmReport === r.id ? (
-                      <div style={{ display: 'flex', gap: '4px' }} onClick={e => e.stopPropagation()}>
-                        <button onClick={() => { onDelete(r.id); setDeleteConfirmReport(null); }}
-                          style={{ background: '#DC2626', border: 'none', color: '#fff', fontSize: '10px', fontWeight: 700, padding: '4px 8px', borderRadius: '6px', cursor: 'pointer' }}>삭제</button>
-                        <button onClick={() => setDeleteConfirmReport(null)}
-                          style={{ background: '#F3F4F6', border: 'none', color: '#6B7280', fontSize: '10px', fontWeight: 600, padding: '4px 8px', borderRadius: '6px', cursor: 'pointer' }}>취소</button>
-                      </div>
-                    ) : (
-                      <button onClick={(e) => { e.stopPropagation(); setDeleteConfirmReport(r.id); setTimeout(() => setDeleteConfirmReport(null), 3000); }}
-                        style={{ background: 'none', border: 'none', color: '#D1D5DB', fontSize: '18px', cursor: 'pointer' }}>×</button>
-                    )}
-                  </div>
+              <div key={r.id} onClick={() => r.status === 'draft' ? onEdit(r) : setSelectedId(r.id)}
+                style={{ background: '#fff', borderRadius: '12px', padding: '14px 16px', border: '1px solid #E5E7EB', cursor: 'pointer' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '14px', fontWeight: 700 }}>{r.studentName}</span>
+                  <span style={{ fontSize: '10px', fontWeight: 600, background: badge.bg, color: badge.color, padding: '1px 7px', borderRadius: '8px' }}>{badge.label}</span>
                 </div>
-                {r.textbook && <p style={{ fontSize: '12px', color: '#6B7280', margin: '0 0 4px', fontWeight: 500 }}>{r.textbook} · {r.unit}</p>}
-                {r.teacherNote && (
-                  <p style={{ fontSize: '12px', color: '#1A1A1A', margin: 0, lineHeight: 1.6, fontWeight: 500, background: '#F9FAFB', padding: '8px 10px', borderRadius: '8px' }}>
-                    {r.teacherNote.length > 80 ? r.teacherNote.slice(0, 80) + '...' : r.teacherNote}
-                  </p>
-                )}
-                <p style={{ fontSize: '11px', color: '#185FA5', fontWeight: 600, margin: '8px 0 0' }}>👆 탭하여 전체 보기</p>
+                <p style={{ fontSize: '11px', color: '#6B7280', margin: 0 }}>{fmtDate(r)} · {r.textbook}</p>
+                {r.teacherNote && <p style={{ fontSize: '12px', color: '#374151', margin: '6px 0 0', lineHeight: 1.6, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{r.teacherNote}</p>}
               </div>
             );
           })}
         </div>
-      }
+      </div>
+    );
+  }
 
-      {/* 리포트 미리보기 모달 */}
-      {previewReport && (
-        <ReportPreviewModal
-          report={previewReport}
-          allReports={reports}
-          onClose={() => setPreviewReport(null)}
-          onDelete={(id) => { onDelete(id); setPreviewReport(null); }}
-          onEdit={onEdit}
-        />
+  // PC: 스플릿 뷰
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', height: 'calc(100vh - 120px)', overflow: 'hidden' }}>
+
+      {/* 좌측 목록 */}
+      <div style={{ borderRight: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+
+        {/* 필터 */}
+        <div style={{ padding: '12px 14px', borderBottom: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column', gap: '8px', flexShrink: 0 }}>
+          <input value={searchText} onChange={e => setSearchText(e.target.value)}
+            placeholder="검색..."
+            style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '1px solid #E5E7EB', borderRadius: '8px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box', background: '#FAFAFA' }} />
+          <div style={{ display: 'flex', gap: '6px' }}>
+            <select value={studentFilter} onChange={e => setStudentFilter(e.target.value)}
+              style={{ flex: 1, padding: '6px 8px', fontSize: '11px', border: '1px solid #E5E7EB', borderRadius: '7px', fontFamily: 'inherit', background: '#fff', color: '#374151' }}>
+              <option value="">전체 학생</option>
+              {(students||[]).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+            <select value={periodFilter} onChange={e => setPeriodFilter(e.target.value)}
+              style={{ flex: 1, padding: '6px 8px', fontSize: '11px', border: '1px solid #E5E7EB', borderRadius: '7px', fontFamily: 'inherit', background: '#fff', color: '#374151' }}>
+              <option value="all">전체 기간</option>
+              <option value="week">이번 주</option>
+              <option value="month">이번 달</option>
+            </select>
+          </div>
+          <p style={{ fontSize: '11px', color: '#9CA3AF', margin: 0 }}>{filtered.length}건</p>
+        </div>
+
+        {/* 리스트 */}
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          {filtered.length === 0 ? (
+            <p style={{ textAlign: 'center', color: '#9CA3AF', fontSize: '13px', padding: '40px 20px' }}>리포트가 없습니다</p>
+          ) : filtered.map(r => {
+            const isSelected = (selected?.id === r.id);
+            const badge = statusBadge(r);
+            return (
+              <div key={r.id} onClick={() => r.status === 'draft' ? onEdit(r) : setSelectedId(r.id)}
+                style={{
+                  padding: '11px 14px', borderBottom: '1px solid #F3F4F6', cursor: 'pointer', transition: 'background 0.1s',
+                  background: isSelected ? '#EAF1FB' : 'transparent',
+                  borderLeft: isSelected ? '2px solid #0D2D6B' : '2px solid transparent',
+                }}
+                onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = '#F9FAFB'; }}
+                onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: isSelected ? '#0D2D6B' : '#E5E7EB', color: isSelected ? '#fff' : '#374151', fontSize: '10px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {r.studentName?.[0]}
+                    </div>
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#1A1A1A' }}>{r.studentName}</span>
+                  </div>
+                  <span style={{ fontSize: '10px', fontWeight: 600, background: badge.bg, color: badge.color, padding: '1px 6px', borderRadius: '8px', flexShrink: 0 }}>{badge.label}</span>
+                </div>
+                <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '0 0 2px', paddingLeft: '28px' }}>{fmtDate(r)}</p>
+                <p style={{ fontSize: '11px', color: '#6B7280', margin: 0, paddingLeft: '28px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{[r.textbook, r.subject].filter(Boolean).join(' · ')}</p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 우측 상세 */}
+      {selected ? (
+        <div style={{ overflowY: 'auto', padding: '24px 28px', background: '#FAFAFA' }}>
+
+          {/* 헤더 */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid #E5E7EB' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                <h3 style={{ fontSize: '20px', fontWeight: 700, margin: 0 }}>{selected.studentName}</h3>
+                <span style={{ fontSize: '11px', fontWeight: 600, background: statusBadge(selected).bg, color: statusBadge(selected).color, padding: '2px 9px', borderRadius: '10px' }}>{statusBadge(selected).label}</span>
+                {selected.photoUrls?.length > 0 && <span style={{ fontSize: '11px', color: '#6B7280', background: '#F3F4F6', padding: '2px 8px', borderRadius: '8px' }}>사진 {selected.photoUrls.length}장</span>}
+              </div>
+              <p style={{ fontSize: '13px', color: '#6B7280', margin: 0 }}>{fmtDate(selected)} · {selected.teacherName} · {[selected.textbook, selected.subject].filter(Boolean).join(' · ')}</p>
+            </div>
+            <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+              <button onClick={() => onEdit(selected)}
+                style={{ padding: '7px 14px', fontSize: '12px', fontWeight: 600, border: '1px solid #E5E7EB', borderRadius: '8px', background: '#fff', cursor: 'pointer', color: '#374151', fontFamily: 'inherit' }}>
+                수정
+              </button>
+              <button onClick={() => handleCopyLink(selected.id)}
+                style={{ padding: '7px 14px', fontSize: '12px', fontWeight: 600, border: '1px solid #0D2D6B', borderRadius: '8px', background: copied ? '#0D2D6B' : '#fff', cursor: 'pointer', color: copied ? '#fff' : '#0D2D6B', fontFamily: 'inherit' }}>
+                {copied ? '✓ 복사됨' : '링크 복사'}
+              </button>
+              {deleteConfirmReport === selected.id ? (
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  <button onClick={() => { onDelete(selected.id); setDeleteConfirmReport(null); setSelectedId(null); }}
+                    style={{ padding: '7px 12px', fontSize: '12px', fontWeight: 600, border: 'none', borderRadius: '8px', background: '#DC2626', color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>확인</button>
+                  <button onClick={() => setDeleteConfirmReport(null)}
+                    style={{ padding: '7px 12px', fontSize: '12px', border: '1px solid #E5E7EB', borderRadius: '8px', background: '#fff', cursor: 'pointer', fontFamily: 'inherit', color: '#6B7280' }}>취소</button>
+                </div>
+              ) : (
+                <button onClick={() => setDeleteConfirmReport(selected.id)}
+                  style={{ padding: '7px 14px', fontSize: '12px', fontWeight: 600, border: '1px solid #FECACA', borderRadius: '8px', background: '#FFF5F5', cursor: 'pointer', color: '#DC2626', fontFamily: 'inherit' }}>
+                  삭제
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* 평가 지표 */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '20px' }}>
+            {[
+              { label: '과제 평가', value: selected.homeworkRating ? `${selected.homeworkRating} / 5` : '—', color: '#0D2D6B' },
+              { label: '개념 평가', value: selected.conceptRating ? `${selected.conceptRating} / 5` : '—', color: '#0D2D6B' },
+              { label: '단원평가', value: selected.hasTest && selected.testScore ? `${selected.testScore}점` : '—', color: '#1A1A1A' },
+            ].map((s, i) => (
+              <div key={i} style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: '10px', padding: '14px 16px' }}>
+                <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '0 0 6px', fontWeight: 500 }}>{s.label}</p>
+                <p style={{ fontSize: '22px', fontWeight: 700, color: s.color, margin: 0 }}>{s.value}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* 진단 태그 */}
+          {selected.diagnosis?.length > 0 && (
+            <div style={{ marginBottom: '18px' }}>
+              <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '0 0 8px', fontWeight: 600, letterSpacing: '0.06em' }}>진단 태그</p>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {selected.diagnosis.map(d => {
+                  const c = DIAG_COLORS[d.key] || { bg: '#F3F4F6', color: '#374151', border: '#E5E7EB' };
+                  return <span key={d.key} style={{ fontSize: '12px', padding: '4px 12px', borderRadius: '10px', background: c.bg, color: c.color, border: `1px solid ${c.border}`, fontWeight: 600 }}>{DIAG_LABELS[d.key] || d.key}</span>;
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* 선생님 코멘트 */}
+          {selected.teacherNote && (
+            <div style={{ marginBottom: '18px' }}>
+              <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '0 0 8px', fontWeight: 600, letterSpacing: '0.06em' }}>선생님 코멘트</p>
+              <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: '10px', padding: '14px 16px', borderLeft: '3px solid #0D2D6B' }}>
+                <p style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.9, margin: 0 }}>{selected.teacherNote}</p>
+              </div>
+            </div>
+          )}
+
+          {/* 학습 범위 */}
+          {(selected.textbook || selected.unit || selected.pages) && (
+            <div style={{ marginBottom: '18px' }}>
+              <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '0 0 8px', fontWeight: 600, letterSpacing: '0.06em' }}>학습 범위</p>
+              <p style={{ fontSize: '13px', color: '#374151', margin: 0 }}>
+                {[selected.textbook, selected.unit, selected.pages && `${selected.pages}쪽`].filter(Boolean).join(' · ')}
+              </p>
+            </div>
+          )}
+
+          {/* 다음 계획 */}
+          {selected.nextPlan && (
+            <div>
+              <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '0 0 8px', fontWeight: 600, letterSpacing: '0.06em' }}>다음 수업 계획</p>
+              <p style={{ fontSize: '13px', color: '#374151', margin: 0 }}>{selected.nextPlan}</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9CA3AF', fontSize: '13px', background: '#FAFAFA' }}>
+          좌측에서 리포트를 선택하세요
+        </div>
+      )}
+
+      {/* 프리뷰 모달 (모바일 선택 시) */}
+      {selectedId && isMobile && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999 }} onClick={() => setSelectedId(null)}>
+          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: '#fff', borderRadius: '20px 20px 0 0', maxHeight: '80vh', overflowY: 'auto', padding: '20px' }} onClick={e => e.stopPropagation()}>
+            <p style={{ textAlign: 'center', fontSize: '13px', color: '#374151' }}>상세 내용</p>
+          </div>
+        </div>
       )}
     </div>
   );
 }
-
 function ReportPreviewModal({ report: r, allReports, onClose, onDelete, onEdit }) {
   useEffect(() => {
     history.pushState(null, '', window.location.href);
