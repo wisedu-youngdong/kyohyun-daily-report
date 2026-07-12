@@ -388,6 +388,14 @@ export default function GrowthStory() {
         </div>
       </div>
 
+      {/* AI 서사 생성 버튼 — 상단 배치 */}
+      <div style={{ padding: '12px 22px 0' }}>
+        <button onClick={handleGenNarrative} disabled={narLoading}
+          style={{ width: '100%', padding: '11px', background: narLoading ? '#E5E7EB' : narrative ? '#F0FAF5' : '#0D2D6B', color: narLoading ? '#9CA3AF' : narrative ? '#0F6E56' : '#fff', border: narrative ? '1px solid #0F6E5640' : 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: narLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+          {narLoading ? '⏳ AI 서사 생성 중...' : narrative ? '🔄 서사 재생성' : '✨ AI 서사 자동 생성'}
+        </button>
+      </div>
+
       {/* GROWTH MILESTONE */}
       <div style={S.section}>
         <p style={S.label}>GROWTH MILESTONE</p>
@@ -632,17 +640,6 @@ export default function GrowthStory() {
           <p style={{ fontSize: '10px', color: '#8A8A8A', fontWeight: 600, marginBottom: '3px' }}>다음 목표 단계</p>
           <p style={{ fontSize: '13px', fontWeight: 700, color: '#0D2D6B' }}>PHASE 5 · 전략 고도화</p>
         </div>
-      </div>
-
-      {/* AI 서사 생성 버튼 */}
-      <div style={{ padding: '16px 22px', background: '#F7F5F1', borderBottom: '1px solid #EEECEA' }}>
-        <button onClick={handleGenNarrative} disabled={narLoading}
-          style={{ width: '100%', padding: '13px', background: narLoading ? '#E5E7EB' : '#0D2D6B', color: narLoading ? '#9CA3AF' : '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: narLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
-          {narLoading ? 'AI 서사 생성 중...' : narrative ? '🔄 서사 재생성' : '✨ AI 서사 자동 생성'}
-        </button>
-        <p style={{ fontSize: '10px', color: '#B0B0B0', textAlign: 'center', marginTop: '8px' }}>
-          {narrative ? '생성된 서사를 직접 편집하거나 재생성할 수 있습니다' : 'Gemini AI가 데이터 기반 성장 서사를 자동으로 작성합니다'}
-        </p>
       </div>
 
       {/* 푸터 */}
