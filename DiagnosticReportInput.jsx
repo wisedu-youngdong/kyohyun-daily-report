@@ -132,6 +132,7 @@ export default function DiagnosticReportInput({
   const [showStudentModal, setShowStudentModal] = useState(false);
   const [showTeacherPanel, setShowTeacherPanel] = useState(false);
   const [selectedSkin, setSelectedSkin] = useState('navy');
+  const autoSaveTimer = React.useRef(null);
 
   const [studentId, setStudentId] = useState('');
   const [teacherId, setTeacherId] = useState('');
@@ -158,21 +159,11 @@ export default function DiagnosticReportInput({
   const [savedReportId, setSavedReportId] = useState(null);
   // 학생 선택 변경 시 헤더에 알림
   React.useEffect(() => {
-    onStudentChange(studentId || null);
-  }, [studentId]);
-
-  // 헤더 임시저장 버튼 트리거
-  React.useEffect(() => {
-    if (headerDraftSave && studentId) {
-      handleAutoSave();
-    }
-  }, [headerDraftSave]);
-  React.useEffect(() => {
     if (!studentId) return;
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => {
       handleAutoSave();
-    }, 30000); // 30초
+    }, 30000);
     return () => clearTimeout(autoSaveTimer.current);
   }, [studentId, teacherNote, homeworkRating, conceptRating, selectedTags, textbook, unit, pages, subject]);
 
