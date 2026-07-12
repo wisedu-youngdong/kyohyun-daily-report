@@ -133,6 +133,7 @@ export default function DiagnosticReportInput({
   const [showTeacherPanel, setShowTeacherPanel] = useState(false);
   const [selectedSkin, setSelectedSkin] = useState('navy');
   const autoSaveTimer = React.useRef(null);
+  const [lastSaved, setLastSaved] = useState(null);
 
   const [studentId, setStudentId] = useState('');
   const [teacherId, setTeacherId] = useState('');
@@ -189,6 +190,7 @@ export default function DiagnosticReportInput({
         photoAnalysis: photoAnalysis || null,
       };
       await onSave(reportPayload);
+      setLastSaved(new Date());
     } catch (e) {
       console.error('자동저장 오류:', e);
     }
@@ -570,9 +572,17 @@ setAiPolishedNote(data.result);
 
           {/* 1. 학생 선택 */}
           <FormSection number="1" title="대상 학생">
-            <select value={studentId} onChange={(e) => {
+            <select value={studentId} onChange={async (e) => {
               const newId = e.target.value;
+
+              // 이미 학생이 선택된 상태에서 전환 시 → 자동저장 먼저
+              if (studentId && newId !== studentId && !editingReport) {
+                if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+                await handleAutoSave();
+              }
+
               setStudentId(newId);
+
               // 최근 리포트 자동 불러오기
               if (newId && !editingReport) {
                 const lastReport = [...reports]
@@ -583,6 +593,14 @@ setAiPolishedNote(data.result);
                   if (lastReport.subject) setSubject(lastReport.subject);
                   if (lastReport.unit) setUnit(lastReport.unit);
                 }
+                // 새 학생 전환 시 입력 초기화
+                setHomeworkRating(0); setConceptRating(0);
+                setHasTest(false); setTestScore(''); setTestName(''); setTestRound('');
+                setUnit(''); setPages('');
+                setTeacherNote(''); setSelectedTags([]);
+                setNextPlan(''); setNextPlanDetail('');
+                setPhotos([]); setPhotoAnalysis(null);
+                setLastSaved(null);
               }
             }} style={selectStyle}>
               <option value="">학생을 선택해주세요</option>
@@ -1003,6 +1021,11 @@ setAiPolishedNote(data.result);
               <button onClick={handleSubmit} disabled={!isValid || saving} style={{ ...submitButtonStyle(isValid && !saving), width: '100%' }}>
                 <Send size={15} /> {saving ? '저장 중...' : '리포트 저장 및 발송 준비'}
               </button>
+              {lastSaved && (
+                <p style={{ fontSize: '11px', color: '#0F6E56', margin: '6px 0 0', textAlign: 'center', fontWeight: 500 }}>
+                  ✓ {lastSaved.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} 자동저장됨
+                </p>
+              )}
             </>
           )}
         </div>
