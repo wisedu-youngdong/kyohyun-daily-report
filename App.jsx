@@ -199,7 +199,13 @@ export default function App() {
   const [students, setStudents] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [reports, setReports] = useState([]);
-  const [reportViews, setReportViews] = useState([]); // 열람 기록 — App 레벨
+  const [reportViews, setReportViews] = useState([]);
+  const [appToast, setAppToast] = useState(null);
+
+  const showAppToast = (msg, type = 'success') => {
+    setAppToast({ msg, type });
+    setTimeout(() => setAppToast(null), 2500);
+  };
 
   // 앱 이탈 방지 — 브라우저 밖으로 나갈 때 경고
   useEffect(() => {
@@ -449,6 +455,17 @@ export default function App() {
         </button>
       </header>
 
+      {/* 앱 레벨 토스트 */}
+      {appToast && (
+        <div style={{
+          position: 'fixed', bottom: '80px', left: '50%', transform: 'translateX(-50%)',
+          background: appToast.type === 'success' ? '#0F6E56' : '#0D2D6B',
+          color: '#fff', padding: '10px 20px', borderRadius: '20px',
+          fontSize: '13px', fontWeight: 600, zIndex: 9999,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)', whiteSpace: 'nowrap',
+        }}>{appToast.msg}</div>
+      )}
+
       <main>
         {activeTab === 'dashboard' && <DashboardView students={visibleStudents} reports={visibleReports} onTabChange={setActiveTab} />}
         {activeTab === 'write' && (
@@ -476,7 +493,7 @@ export default function App() {
                       const done = r?.teacherNote && r.teacherNote.trim().length > 0;
                       return (
                         <button key={s.id}
-                          onClick={() => { setEditingReport(r); }}
+                          onClick={() => { setEditingReport(r); setActiveTab('write'); }}
                           style={{
                             padding: '3px 10px', borderRadius: '12px', border: 'none',
                             background: done ? '#F0FAF5' : '#FFF8EC',
@@ -489,7 +506,7 @@ export default function App() {
                     })
                   }
                   <button
-                    onClick={() => navigator.clipboard.writeText(allLinks).then(() => alert(`오늘 리포트 ${todayReports.length}건 링크 복사 완료!`))}
+                    onClick={() => navigator.clipboard.writeText(allLinks).then(() => showAppToast(`오늘 리포트 ${todayReports.length}건 링크 복사됐어요!`))}
                     style={{ marginLeft: 'auto', padding: '4px 10px', borderRadius: '12px', border: '1px solid #0D2D6B', background: '#fff', color: '#0D2D6B', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
                     전체 링크 복사 ({todayReports.length}건)
                   </button>
@@ -1299,11 +1316,29 @@ function HistoryView({ reports, students, reportViews = [], onDelete, onEdit }) 
         </div>
       )}
 
-      {/* 프리뷰 모달 (모바일 선택 시) */}
-      {selectedId && isMobile && (
+      {/* 프리뷰 모달 (모바일) */}
+      {selectedId && isMobile && selected && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999 }} onClick={() => setSelectedId(null)}>
           <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: '#fff', borderRadius: '20px 20px 0 0', maxHeight: '80vh', overflowY: 'auto', padding: '20px' }} onClick={e => e.stopPropagation()}>
-            <p style={{ textAlign: 'center', fontSize: '13px', color: '#374151' }}>상세 내용</p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <div>
+                <p style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>{selected.studentName}</p>
+                <p style={{ fontSize: '12px', color: '#6B7280', margin: '2px 0 0' }}>{fmtDate(selected)} · {selected.teacherName}</p>
+              </div>
+              <button onClick={() => setSelectedId(null)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#6B7280' }}>×</button>
+            </div>
+            {selected.textbook && <p style={{ fontSize: '13px', color: '#374151', marginBottom: '10px' }}>{[selected.textbook, selected.unit].filter(Boolean).join(' · ')}</p>}
+            {selected.teacherNote && (
+              <div style={{ background: '#F9FAFB', borderRadius: '8px', padding: '12px', marginBottom: '10px', borderLeft: '3px solid #0D2D6B' }}>
+                <p style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.8, margin: 0 }}>{selected.teacherNote}</p>
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+              <button onClick={() => { onEdit(selected); setSelectedId(null); }}
+                style={{ flex: 1, padding: '10px', border: '1px solid #E5E7EB', borderRadius: '8px', background: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>수정</button>
+              <button onClick={() => navigator.clipboard.writeText(`${window.location.origin}/report/${selected.id}`).then(() => alert('링크 복사됐어요!'))}
+                style={{ flex: 1, padding: '10px', border: 'none', borderRadius: '8px', background: '#0D2D6B', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>링크 복사</button>
+            </div>
           </div>
         </div>
       )}
@@ -1366,7 +1401,7 @@ function ReportPreviewModal({ report: r, allReports, onClose, onDelete, onEdit }
           <div style={{ display: 'flex', gap: '8px' }}>
             <button onClick={() => {
               const url = `${window.location.origin}/report/${r.id}`;
-              navigator.clipboard.writeText(url).then(() => alert('링크가 복사됐습니다!\n카톡에 붙여넣기 하세요.'));
+              navigator.clipboard.writeText(url).then(() => showAppToast('링크 복사됐어요! 카톡에 붙여넣기 하세요.'));
             }} style={{ background: '#1A5CB8', color: '#fff', border: 'none', borderRadius: '9px', padding: '7px 14px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
               링크 복사
             </button>
@@ -2888,8 +2923,8 @@ function GrowthDashboard({ reports, students, onSwitchTab }) {
           if (type === 'link') {
             if (latestReport?.id) {
               const url = `${window.location.origin}/report/${latestReport.id}`;
-              navigator.clipboard.writeText(url).then(() => alert('링크 복사 완료!'));
-            } else { alert('최근 리포트가 없습니다.'); }
+              navigator.clipboard.writeText(url).then(() => showAppToast('링크 복사됐어요!'));
+            } else { showAppToast('최근 리포트가 없습니다.', 'info'); }
           } else if (type === 'profile') {
             window.open(`/story/${s?.id}`, '_blank');
           }
@@ -3258,7 +3293,7 @@ function StudentProfileModal({ student, reports, onClose, DIAG_MAP }) {
 
               const handleCopy = () => {
                 navigator.clipboard.writeText(copyUrl).then(() => {
-                  alert('링크가 복사되었습니다. 카카오톡에 붙여넣기 하세요.');
+                  showAppToast('링크 복사됐어요! 카톡에 붙여넣기 하세요.');
                 });
               };
 
@@ -3281,7 +3316,7 @@ function StudentProfileModal({ student, reports, onClose, DIAG_MAP }) {
                   </button>
 
                   {/* 링크 복사 */}
-                  <button onClick={() => navigator.clipboard.writeText(copyUrl).then(() => alert('링크 복사 완료!'))}
+                  <button onClick={() => navigator.clipboard.writeText(copyUrl).then(() => showAppToast('링크 복사됐어요! 카톡에 붙여넣기 하세요.'))}
                     style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '13px 16px', background: '#F7F5F1', border: '0.5px solid #E5E5E5', borderRadius: '10px', cursor: 'pointer', textAlign: 'left', width: '100%' }}>
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
                       <path d="M8 4H5a1 1 0 00-1 1v10a1 1 0 001 1h10a1 1 0 001-1v-3M12 3h5v5M10 10L17 3" stroke="#4A4A4A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -3707,7 +3742,7 @@ function DirectorView({ reports, students }) {
                           url,
                         ].filter(line => line !== '').join('\n');
                         navigator.clipboard.writeText(copyText).then(() =>
-                          alert(`복사 완료! 카톡에 그대로 붙여넣기 하세요. ✅`)
+                          showAppToast('링크 복사됐어요! 카톡에 붙여넣기 하세요.')
                         );
                       }}
                       style={{
@@ -4234,7 +4269,7 @@ function AnalysisView({ students, reports }) {
                 const student = students.find(s => s.id === selectedId);
                 if (student) {
                   const url = `${window.location.origin}/story/${student.id}?period=3m`;
-                  navigator.clipboard.writeText(url).then(() => alert('최근 3개월 성장 스토리 링크가 복사됐어요!'));
+                  navigator.clipboard.writeText(url).then(() => showAppToast('3개월 성장 스토리 링크 복사됐어요!'));
                 }
               }}
               disabled={!selectedId}
