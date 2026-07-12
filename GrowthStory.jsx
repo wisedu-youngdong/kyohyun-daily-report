@@ -372,16 +372,7 @@ export default function GrowthStory() {
               </div>
               <p style={{ fontSize: '9px', fontWeight: 700, color: '#C9A227', letterSpacing: '0.14em', marginBottom: '3px' }}>{m.phase}</p>
               <span style={{ fontSize: '10px', color: '#8A8A8A', fontWeight: 500, marginBottom: '4px', display: 'block' }}>{m.date}</span>
-
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                <p style={{ fontSize: '13px', fontWeight: 700, color: '#0D2D6B', margin: 0 }}>{m.title}</p>
-                {narrative && chapterField && (
-                  <button onClick={() => startEdit(chapterField)}
-                    style={{ background: '#F0EDE8', border: 'none', color: '#8A8A8A', fontSize: '10px', fontWeight: 600, padding: '3px 8px', borderRadius: '5px', cursor: 'pointer' }}>
-                    ✏️ 편집
-                  </button>
-                )}
-              </div>
+              <p style={{ fontSize: '13px', fontWeight: 700, color: '#0D2D6B', margin: '0 0 4px' }}>{m.title}</p>
 
               {/* 실데이터 카드 */}
               {m.realData && (
@@ -432,21 +423,9 @@ export default function GrowthStory() {
                 </div>
               )}
 
-              {/* 편집 모드 */}
-              {editing === chapterField ? (
-                <div style={{ marginBottom: '6px' }}>
-                  <textarea value={editText} onChange={e => setEditText(e.target.value)}
-                    style={{ width: '100%', minHeight: '80px', padding: '10px', border: '1px solid #E5E5E5', borderRadius: '8px', fontSize: '12px', lineHeight: 1.8, fontFamily: 'inherit', resize: 'vertical', outline: 'none', color: '#2C2C2C' }} />
-                  <div style={{ display: 'flex', gap: '6px', marginTop: '6px' }}>
-                    <button onClick={saveEdit} style={{ flex: 1, padding: '7px', background: '#0D2D6B', border: 'none', borderRadius: '6px', color: '#fff', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>저장</button>
-                    <button onClick={cancelEdit} style={{ flex: 1, padding: '7px', background: '#F3F4F6', border: 'none', borderRadius: '6px', color: '#6B7280', fontSize: '11px', cursor: 'pointer' }}>취소</button>
-                  </div>
-                </div>
-              ) : (
-                <p style={{ fontSize: '12px', color: '#4A4A4A', lineHeight: 1.8, wordBreak: 'keep-all', marginBottom: '6px' }}>
-                  {chapterText}
-                </p>
-              )}
+              <p style={{ fontSize: '12px', color: '#4A4A4A', lineHeight: 1.8, wordBreak: 'keep-all', marginBottom: '6px' }}>
+                {chapterText}
+              </p>
 
               <span style={{ display: 'inline-block', fontSize: '10px', fontWeight: 700, color: m.active ? '#8A6500' : '#0D2D6B', background: m.active ? 'rgba(201,162,39,0.12)' : '#EAF0F9', padding: '3px 9px', borderRadius: '3px' }}>{m.badge}</span>
             </div>
