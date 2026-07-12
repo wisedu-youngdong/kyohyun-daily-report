@@ -282,15 +282,12 @@ export default function App() {
   }, [user]);
 
   const handleSaveStudent = async (d) => {
-  console.log('학생 저장 시작:', d);
   try {
     if (d.id) {
       const { id, ...data } = d;
       await updateDoc(doc(db, 'students', id), data);
-      console.log('학생 수정 성공');
     } else {
-      const result = await addDoc(collection(db, 'students'), { ...d, createdAt: serverTimestamp() });
-      console.log('학생 저장 성공:', result.id);
+      await addDoc(collection(db, 'students'), { ...d, createdAt: serverTimestamp() });
     }
   } catch (e) {
     console.error('학생 저장 실패:', e);
