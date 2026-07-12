@@ -199,6 +199,7 @@ export default function App() {
   const [students, setStudents] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [reports, setReports] = useState([]);
+  const [reportViews, setReportViews] = useState([]); // 열람 기록 — App 레벨
 
   // 앱 이탈 방지 — 브라우저 밖으로 나갈 때 경고
   useEffect(() => {
@@ -265,7 +266,13 @@ export default function App() {
       setReports(snap.docs.map(d => ({ id: d.id, ...d.data() }))
         .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
     });
-    return () => { unsubStudents(); unsubTeachers(); unsubReports(); };
+
+    // 열람 기록 실시간 구독
+    const unsubViews = onSnapshot(collection(db, 'reportViews'), (snap) => {
+      setReportViews(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    return () => { unsubStudents(); unsubTeachers(); unsubReports(); unsubViews(); };
   }, [user]);
 
   const handleSaveStudent = async (d) => {
@@ -509,7 +516,7 @@ export default function App() {
               { key: 'review',  label: '복습 관리' },
             ])}
             <div style={{ marginTop: '12px' }}>
-              {activeSubTab.record === 'history' && <HistoryView reports={visibleReports} students={visibleStudents} onDelete={handleDeleteReport} onEdit={(report) => { setEditingReport(report); setActiveTab('write'); }} />}
+              {activeSubTab.record === 'history' && <HistoryView reports={visibleReports} students={visibleStudents} reportViews={reportViews} onDelete={handleDeleteReport} onEdit={(report) => { setEditingReport(report); setActiveTab('write'); }} />}
               {activeSubTab.record === 'review' && <ReviewView students={visibleStudents} />}
             </div>
           </div>
@@ -987,7 +994,7 @@ const DIAGNOSIS_TAGS_MAP = {
   perfect: { label: '✓ 개념 완벽', bg: '#0F6E56', color: '#fff' },
 };
 
-function HistoryView({ reports, students, onDelete, onEdit }) {
+function HistoryView({ reports, students, reportViews = [], onDelete, onEdit }) {
   const [selectedId, setSelectedId] = useState(null);
   const [deleteConfirmReport, setDeleteConfirmReport] = useState(null);
   const [studentFilter, setStudentFilter] = useState('');
@@ -1023,7 +1030,9 @@ function HistoryView({ reports, students, onDelete, onEdit }) {
     : '날짜 없음';
 
   const statusBadge = (r) => {
-    return { label: '발송 완료', bg: '#F0FAF5', color: '#0F6E56' };
+    const isViewed = reportViews.some(v => v.reportId === r.id);
+    if (isViewed) return { label: '열람 완료', bg: '#F0FAF5', color: '#0F6E56' };
+    return { label: '작성 완료', bg: '#EAF1FB', color: '#0D2D6B' };
   };
 
   const handleCopyLink = (id) => {
