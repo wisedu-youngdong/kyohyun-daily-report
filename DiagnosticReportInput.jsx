@@ -128,8 +128,6 @@ export default function DiagnosticReportInput({
   onSave = async () => {},
   editingReport = null,
   onEditDone = () => {},
-  onStudentChange = () => {},
-  headerDraftSave = null,
 }) {
   const [showStudentModal, setShowStudentModal] = useState(false);
   const [showTeacherPanel, setShowTeacherPanel] = useState(false);
@@ -158,9 +156,6 @@ export default function DiagnosticReportInput({
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
   const [savedReportId, setSavedReportId] = useState(null);
-  const [lastSaved, setLastSaved] = useState(null); // 마지막 저장 시각
-  const autoSaveTimer = React.useRef(null);
-
   // 학생 선택 변경 시 헤더에 알림
   React.useEffect(() => {
     onStudentChange(studentId || null);
@@ -201,10 +196,8 @@ export default function DiagnosticReportInput({
         nextPlan, nextPlanDetail,
         photoUrls: [],
         photoAnalysis: photoAnalysis || null,
-        status: 'draft',
       };
       await onSave(reportPayload);
-      setLastSaved(new Date());
     } catch (e) {
       console.error('자동저장 오류:', e);
     }
@@ -407,37 +400,7 @@ setAiPolishedNote(data.result);
     setPhotos([]);
     setPhotoAnalysis(null); setPhotoError('');
   };
-  // 임시저장 — 검증 없이 현재 상태 그대로 저장
-  const handleDraftSave = async () => {
-    if (!studentId) return showToast('학생을 먼저 선택해주세요.', 'warn');
-    setSaving(true);
-    try {
-      const reportPayload = {
-        ...(editingReport ? { id: editingReport.id } : {}),
-        studentId, studentName: student?.name,
-        teacherId: teacherId || '', teacherName: teacher?.name || '',
-        attendance, arrivalTime,
-        homeworkRating: homeworkRating || 0,
-        conceptRating: conceptRating || 0,
-        hasTest,
-        testName: hasTest ? testName : null,
-        testScore: hasTest ? testScore : null,
-        testRound: hasTest ? testRound : null,
-        textbook, subject, unit, pages,
-        diagnosis: selectedTags,
-        teacherNote: teacherNote || '',
-        nextPlan, nextPlanDetail,
-        photoUrls: [],
-        photoAnalysis: photoAnalysis || null,
-        status: 'draft',
-      };
-      await onSave(reportPayload);
-      showToast('임시저장 완료! 나중에 마저 작성하세요.', 'info');
-    } catch (e) {
-      showToast('임시저장 중 오류가 발생했습니다.', 'error');
-    }
-    setSaving(false);
-  };
+;
 
   const handleSubmit = async () => {
     // 단계별 검증
@@ -477,7 +440,6 @@ setAiPolishedNote(data.result);
         nextPlan, nextPlanDetail,
         photoUrls,
         photoAnalysis: photoAnalysis || null,
-        status: 'done', // 완료 저장
       };
       reportPayload.points = calculateReportPoints(reportPayload);
       const savedId = await onSave(reportPayload);
@@ -1047,32 +1009,9 @@ setAiPolishedNote(data.result);
               </FormSection>
 
               {/* 저장 버튼 */}
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: '0 0 auto' }}>
-                  <button onClick={async () => { await handleDraftSave(); setLastSaved(new Date()); }}
-                    disabled={!studentId || saving}
-                    style={{
-                      padding: '12px 16px', borderRadius: '10px',
-                      border: `1.5px solid ${studentId ? '#0D2D6B' : '#E5E7EB'}`,
-                      background: '#fff',
-                      color: studentId ? '#0D2D6B' : '#9CA3AF',
-                      fontSize: '13px', fontWeight: 700,
-                      cursor: studentId ? 'pointer' : 'not-allowed',
-                      display: 'flex', alignItems: 'center', gap: '6px',
-                      fontFamily: 'inherit', transition: 'all 0.15s',
-                    }}>
-                    📋 임시저장
-                  </button>
-                  {lastSaved && (
-                    <p style={{ fontSize: '10px', color: '#0F6E56', margin: 0, textAlign: 'center', fontWeight: 500 }}>
-                      ✓ {lastSaved.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} 저장됨
-                    </p>
-                  )}
-                </div>
-                <button onClick={handleSubmit} disabled={!isValid || saving} style={{ ...submitButtonStyle(isValid && !saving), flex: 1 }}>
-                  <Send size={15} /> {saving ? '저장 중...' : '리포트 저장 및 발송 준비'}
-                </button>
-              </div>
+              <button onClick={handleSubmit} disabled={!isValid || saving} style={{ ...submitButtonStyle(isValid && !saving), width: '100%' }}>
+                <Send size={15} /> {saving ? '저장 중...' : '리포트 저장 및 발송 준비'}
+              </button>
             </>
           )}
         </div>
