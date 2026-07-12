@@ -3028,20 +3028,95 @@ function StudentProfileModal({ student, reports, onClose, DIAG_MAP }) {
             ))}
           </div>
 
-          {/* 개념 이해도 추이 */}
+          {/* 날짜별 수업 카드 리스트 */}
           <div style={{ marginBottom: '20px' }}>
-            <p style={{ fontFamily: "'Noto Serif KR', serif", fontSize: '14px', fontWeight: 700, margin: '0 0 6px', color: '#1A1A1A' }}>개념 이해도 추이</p>
+            <p style={{ fontFamily: "'Noto Serif KR', serif", fontSize: '14px', fontWeight: 700, margin: '0 0 6px', color: '#1A1A1A' }}>수업 기록</p>
             <div style={{ width: '32px', height: '2px', background: '#C9A227', marginBottom: '12px' }} />
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '5px', height: '80px', borderBottom: '1px solid #E8E6E0', paddingBottom: '4px' }}>
-              {recent.map((r, i) => (
-                <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
-                  <span style={{ fontSize: '9px', fontWeight: 700, color: (r.conceptRating >= 4) ? '#0F6E56' : (r.conceptRating <= 2 && r.conceptRating > 0) ? '#A32D2D' : '#1A5CB8', marginBottom: '2px' }}>{r.conceptRating || 0}</span>
-                  <div style={{ width: '100%', maxWidth: '20px', height: `${((r.conceptRating || 0) / 5) * 64}px`, background: (r.conceptRating >= 4) ? '#0F6E56' : (r.conceptRating <= 2 && r.conceptRating > 0) ? '#A32D2D' : '#1A5CB8', borderRadius: '2px 2px 0 0' }} />
-                  <span style={{ fontSize: '8px', color: '#98A1AC', marginTop: '4px' }}>{fmtDate(r)}</span>
-                </div>
-              ))}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
+              {[...sorted].reverse().slice(0, 5).map((r, i) => {
+                const diagLabels = { calc: '계산 실수', concept: '개념 누락', apply: '응용 부족', time: '시간 부족', perfect: '개념 완벽' };
+                const diagColors = {
+                  calc: { bg: '#FFF8EC', color: '#8A5A00' },
+                  concept: { bg: '#FDF0F0', color: '#8A2020' },
+                  apply: { bg: '#FDF0F0', color: '#8A2020' },
+                  time: { bg: '#F3F0FA', color: '#4A3080' },
+                  perfect: { bg: '#F0FAF5', color: '#0F6E56' },
+                };
+                const tags = (r.diagnosis || []).filter(d => d.key !== 'perfect');
+                const hasPerfect = (r.diagnosis || []).some(d => d.key === 'perfect');
+                const isWarning = r.conceptRating > 0 && r.conceptRating <= 2;
+                const rawNote = r.teacherNote || '';
+                const cleanNote = rawNote.replace(/\[([^\]]+)\]\s*/g, '').trim();
+
+                return (
+                  <div key={i} style={{
+                    background: '#FAFAF8',
+                    border: '0.5px solid #E5E7EB',
+                    borderRadius: '8px',
+                    padding: '9px 10px',
+                    borderLeft: isWarning ? '2px solid #DC2626' : hasPerfect ? '2px solid #0F6E56' : '2px solid #E5E7EB',
+                  }}>
+                    {/* 날짜 + 평점 */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 600, color: '#1A1A1A' }}>{fmtDate(r)}</span>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        {r.homeworkRating > 0 && (
+                          <span style={{ fontSize: '10px', color: '#6B7280' }}>
+                            과제 <strong style={{ color: '#0D2D6B' }}>{r.homeworkRating}</strong>/5
+                          </span>
+                        )}
+                        {r.conceptRating > 0 && (
+                          <span style={{ fontSize: '10px', color: '#6B7280' }}>
+                            개념 <strong style={{ color: '#0D2D6B' }}>{r.conceptRating}</strong>/5
+                          </span>
+                        )}
+                        {r.hasTest && r.testScore && (
+                          <span style={{ fontSize: '10px', color: '#C9A227', fontWeight: 700 }}>
+                            시험 {r.testScore}점
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 교재 + 단원 */}
+                    {(r.textbook || r.unit) && (
+                      <p style={{ fontSize: '10px', color: '#9CA3AF', margin: '0 0 5px' }}>
+                        {[r.textbook, r.unit, r.pages && `${r.pages}쪽`].filter(Boolean).join(' · ')}
+                      </p>
+                    )}
+
+                    {/* 진단 태그 */}
+                    {(tags.length > 0 || hasPerfect) && (
+                      <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: cleanNote ? '5px' : 0 }}>
+                        {hasPerfect && (
+                          <span style={{ fontSize: '10px', background: '#F0FAF5', color: '#0F6E56', padding: '1px 7px', borderRadius: '8px', fontWeight: 600 }}>개념 완벽</span>
+                        )}
+                        {tags.map((d, ti) => {
+                          const c = diagColors[d.key] || { bg: '#F3F4F6', color: '#374151' };
+                          return (
+                            <span key={ti} style={{ fontSize: '10px', background: c.bg, color: c.color, padding: '1px 7px', borderRadius: '8px', fontWeight: 600 }}>
+                              {diagLabels[d.key] || d.key}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* 코멘트 미리보기 */}
+                    {cleanNote && (
+                      <p style={{ fontSize: '10px', color: '#6B7280', margin: 0, lineHeight: 1.6, fontStyle: 'italic' }}>
+                        "{cleanNote.length > 45 ? cleanNote.slice(0, 45) + '...' : cleanNote}"
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-            <p style={{ fontSize: '10px', color: '#98A1AC', margin: '5px 0 0' }}>최근 {recent.length}회 수업 기준</p>
+            {sorted.length > 5 && (
+              <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '8px 0 0', textAlign: 'center' }}>
+                최근 5회 표시 · 전체 {sorted.length}회
+              </p>
+            )}
           </div>
 
           {/* 반복 약점 TOP3 */}
@@ -4085,26 +4160,43 @@ function AnalysisView({ students, reports }) {
             })()}
           </div>
 
-          <button onClick={() => setShowMonthlyReport(true)} disabled={periodReports.length === 0}
-            style={{
-              width: '100%', padding: '14px', fontSize: '14px', fontWeight: 700, borderRadius: '14px', border: 'none',
-              background: periodReports.length === 0 ? '#E5E7EB' : 'linear-gradient(135deg, #185FA5, #0C447C)',
-              color: periodReports.length === 0 ? '#9CA3AF' : '#fff',
-              cursor: periodReports.length === 0 ? 'not-allowed' : 'pointer', fontFamily: 'inherit'
-            }}>
-            📄 {periodLabel} 종합 리포트 만들기
-          </button>
+          {/* 성장 스토리 열기 버튼 */}
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              onClick={() => {
+                const student = students.find(s => s.id === selectedId);
+                if (student) window.open(`/story/${student.id}`, '_blank');
+              }}
+              disabled={!selectedId}
+              style={{
+                flex: 1, padding: '14px', fontSize: '14px', fontWeight: 700, borderRadius: '14px', border: 'none',
+                background: !selectedId ? '#E5E7EB' : 'linear-gradient(135deg, #185FA5, #0C447C)',
+                color: !selectedId ? '#9CA3AF' : '#fff',
+                cursor: !selectedId ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+              }}>
+              📈 성장 스토리 열기
+            </button>
+            <button
+              onClick={() => {
+                const student = students.find(s => s.id === selectedId);
+                if (student) {
+                  const url = `${window.location.origin}/story/${student.id}?period=3m`;
+                  navigator.clipboard.writeText(url).then(() => alert('최근 3개월 성장 스토리 링크가 복사됐어요!'));
+                }
+              }}
+              disabled={!selectedId}
+              style={{
+                padding: '14px 16px', fontSize: '13px', fontWeight: 700, borderRadius: '14px',
+                border: '1.5px solid #185FA5', background: '#fff',
+                color: !selectedId ? '#9CA3AF' : '#185FA5',
+                cursor: !selectedId ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+                display: 'flex', alignItems: 'center', gap: '6px',
+              }}>
+              📤 3개월 공유
+            </button>
+          </div>
         </div>
-      )}
-
-      {showMonthlyReport && (
-        <MonthlyReportModal
-          student={students.find(s => s.id === selectedId)}
-          reports={periodReports}
-          allReports={studentReports}
-          periodLabel={periodLabel}
-          onClose={() => setShowMonthlyReport(false)}
-        />
       )}
     </div>
   );
