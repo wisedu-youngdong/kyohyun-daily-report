@@ -442,10 +442,14 @@ setAiPolishedNote(data.result);
       setSelectedTags([]); setTeacherNote(''); setAiPolishedNote('');
       setNextPlan(''); setNextPlanDetail('');
       removeAllPhotos();
+      setLastSaved(null);
       if (editingReport) {
         onEditDone();
         showToast('리포트가 수정됐습니다!', 'success');
       } else {
+        setStudentId(''); // 완료 후 학생 선택 초기화
+        setAttendance('정시'); setArrivalTime('15:30');
+        setHomeworkRating(0); setConceptRating(0);
         showToast('저장 완료! 링크를 복사해서 카카오톡으로 전송하세요.', 'success', savedId);
       }
     } catch (e) {
