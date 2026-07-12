@@ -1054,8 +1054,8 @@ function HistoryView({ reports, students, onDelete, onEdit }) {
               ? new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })
               : '날짜 없음';
             return (
-              <div key={r.id} style={{ background: '#fff', borderRadius: '16px', padding: '16px 18px', border: '1px solid #E5E7EB', cursor: 'pointer' }}
-                onClick={() => setPreviewReport(r)}>
+              <div key={r.id} style={{ background: '#fff', borderRadius: '16px', padding: '16px 18px', border: r.status === 'draft' ? '1px solid #C9A22760' : '1px solid #E5E7EB', cursor: 'pointer' }}
+                onClick={() => r.status === 'draft' ? onEdit(r) : setPreviewReport(r)}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -4211,6 +4211,26 @@ function DraftPanel({ reports, students, onClose, onEdit, onFinish }) {
                       전체 수정
                     </button>
                   </div>
+                  {/* 퀵 태그 */}
+                  {(() => {
+                    const PANEL_TAGS = {
+                      수학: ['연산 실수 주의', '응용 연습 필요', '개념 완성', '집중력 우수'],
+                      영어: ['어휘 암기 우수', '문법 주의', '독해 향상 중', '집중력 우수'],
+                      국어: ['독해력 우수', '어휘 확장 필요', '집중력 우수', '복습 권장'],
+                      기타: ['집중력 우수', '과제 완성도 높음', '복습 권장', '발전 중'],
+                    };
+                    const tags = PANEL_TAGS[r.subject] || PANEL_TAGS['기타'];
+                    return (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '6px' }}>
+                        {tags.map(tag => (
+                          <button key={tag} onClick={() => setNotes(prev => ({ ...prev, [r.id]: (prev[r.id] || r.teacherNote || '') + `[${tag}] ` }))}
+                            style={{ padding: '2px 8px', borderRadius: '10px', border: '0.5px solid #E5E7EB', background: '#F9FAFB', color: '#374151', fontSize: '10px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                            {tag}
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })()}
                   <textarea
                     value={notes[r.id] ?? (r.teacherNote || '')}
                     onChange={e => setNotes(prev => ({ ...prev, [r.id]: e.target.value }))}
