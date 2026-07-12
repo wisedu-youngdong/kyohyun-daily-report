@@ -31,6 +31,14 @@ export default function PublicReport() {
         const rSnap = await getDoc(doc(db, 'reports', reportId));
         if (!rSnap.exists()) { setError('리포트를 찾을 수 없습니다.'); setLoading(false); return; }
         const r = { id: rSnap.id, ...rSnap.data() };
+
+        // 임시저장 리포트 차단 — 학부모에게 노출 안 됨
+        if (r.status === 'draft') {
+          setError('아직 작성 중인 리포트입니다. 선생님이 완료 후 다시 전송드릴게요.');
+          setLoading(false);
+          return;
+        }
+
         setReport(r);
 
         // 열람 기록 저장
