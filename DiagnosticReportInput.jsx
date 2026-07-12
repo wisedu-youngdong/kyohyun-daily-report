@@ -128,6 +128,8 @@ export default function DiagnosticReportInput({
   onSave = async () => {},
   editingReport = null,
   onEditDone = () => {},
+  onStudentChange = () => {},
+  headerDraftSave = null,
 }) {
   const [showStudentModal, setShowStudentModal] = useState(false);
   const [showTeacherPanel, setShowTeacherPanel] = useState(false);
@@ -159,7 +161,17 @@ export default function DiagnosticReportInput({
   const [lastSaved, setLastSaved] = useState(null); // 마지막 저장 시각
   const autoSaveTimer = React.useRef(null);
 
-  // 자동저장 — 학생 선택 후 데이터 변경 시 30초마다
+  // 학생 선택 변경 시 헤더에 알림
+  React.useEffect(() => {
+    onStudentChange(studentId || null);
+  }, [studentId]);
+
+  // 헤더 임시저장 버튼 트리거
+  React.useEffect(() => {
+    if (headerDraftSave && studentId) {
+      handleAutoSave();
+    }
+  }, [headerDraftSave]);
   React.useEffect(() => {
     if (!studentId) return;
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
