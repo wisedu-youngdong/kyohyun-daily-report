@@ -71,10 +71,6 @@ export default function GrowthStory() {
         setReports(rList);
 
         console.log('✅ 로드 완료 — 학생:', stuSnap.size, '리포트:', rSnap.size);
-        console.log('📅 리포트 날짜:', rList.map(r => {
-          const d = new Date((r.createdAt?.seconds||0)*1000);
-          return `${d.getMonth()+1}/${d.getDate()}`;
-        }));
       } catch (e) {
         console.error('❌ Firebase 오류:', e);
       } finally {
