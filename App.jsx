@@ -1214,15 +1214,59 @@ function HistoryView({ reports, students, onDelete, onEdit }) {
             </div>
           )}
 
-          {/* 선생님 코멘트 */}
-          {selected.teacherNote && (
-            <div style={{ marginBottom: '18px' }}>
-              <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '0 0 8px', fontWeight: 600, letterSpacing: '0.06em' }}>선생님 코멘트</p>
-              <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: '10px', padding: '14px 16px', borderLeft: '3px solid #0D2D6B' }}>
-                <p style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.9, margin: 0 }}>{selected.teacherNote}</p>
+          {/* 선생님 코멘트 — 퀵 태그 파싱 */}
+          {(() => {
+            const raw = selected.teacherNote || '';
+            // [태그] 패턴 추출
+            const tagPattern = /\[([^\]]+)\]/g;
+            const tags = [];
+            let match;
+            while ((match = tagPattern.exec(raw)) !== null) {
+              tags.push(match[1]);
+            }
+            // 본문에서 태그 제거
+            const cleanNote = raw.replace(/\[([^\]]+)\]\s*/g, '').trim();
+
+            const TAG_COLORS = {
+              '연산 실수 주의': { bg: '#FFF8EC', color: '#8A5A00' },
+              '응용 연습 필요': { bg: '#FDF0F0', color: '#8A2020' },
+              '개념 완성':      { bg: '#F0FAF5', color: '#0F6E56' },
+              '집중력 우수':    { bg: '#EAF1FB', color: '#0D2D6B' },
+              '과제 완성도 높음':{ bg: '#F0FAF5', color: '#0F6E56' },
+              '복습 권장':      { bg: '#F3F0FA', color: '#4A3080' },
+            };
+
+            return (
+              <div style={{ marginBottom: '18px' }}>
+                <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '0 0 8px', fontWeight: 600, letterSpacing: '0.06em' }}>선생님 코멘트</p>
+
+                {/* 퀵 태그 칩 */}
+                {tags.length > 0 && (
+                  <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                    {tags.map((tag, i) => {
+                      const c = TAG_COLORS[tag] || { bg: '#F3F4F6', color: '#374151' };
+                      return (
+                        <span key={i} style={{ fontSize: '11px', fontWeight: 600, padding: '3px 9px', borderRadius: '10px', background: c.bg, color: c.color }}>
+                          {tag}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* 본문 */}
+                <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: '10px', padding: '14px 16px', borderLeft: '3px solid #0D2D6B' }}>
+                  {cleanNote ? (
+                    <p style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.9, margin: 0 }}>{cleanNote}</p>
+                  ) : raw ? (
+                    <p style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.9, margin: 0 }}>{raw}</p>
+                  ) : (
+                    <p style={{ fontSize: '13px', color: '#9CA3AF', lineHeight: 1.9, margin: 0, fontStyle: 'italic' }}>아직 작성된 코멘트가 없습니다</p>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* 학습 범위 */}
           {(selected.textbook || selected.unit || selected.pages) && (
