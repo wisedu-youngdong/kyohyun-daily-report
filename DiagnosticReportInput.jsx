@@ -911,6 +911,43 @@ setAiPolishedNote(data.result);
 
               {/* 7. 선생님 한 마디 */}
               <FormSection number="7" title="선생님 한 마디">
+
+                {/* 과목별 퀵 태그 */}
+                {(() => {
+                  const QUICK_TAGS = {
+                    수학: ['연산 실수 주의', '응용 연습 필요', '개념 완성', '계산 속도 향상 중', '문제 이해력 우수', '집중력 우수'],
+                    영어: ['어휘 암기 우수', '독해 속도 향상 중', '문법 주의', '받아쓰기 정확도 높음', '발음 교정 필요', '집중력 우수'],
+                    국어: ['독해력 우수', '어휘 확장 필요', '글쓰기 향상 중', '문학 이해도 높음', '비문학 연습 필요', '집중력 우수'],
+                    과학: ['실험 이해 우수', '개념 암기 필요', '응용 연습 필요', '탐구력 우수', '계산 연습 필요', '집중력 우수'],
+                    사회: ['시사 연계 우수', '암기 보완 필요', '이해력 향상 중', '서술 연습 필요', '핵심 개념 정리 필요', '집중력 우수'],
+                    역사: ['흐름 파악 우수', '연대 암기 필요', '서술 연습 필요', '인과관계 이해 우수', '암기 보완 필요', '집중력 우수'],
+                    기타: ['집중력 우수', '과제 완성도 높음', '복습 권장', '이해력 향상 중', '참여도 우수', '개념 정리 필요'],
+                  };
+                  const tags = QUICK_TAGS[subject] || QUICK_TAGS['기타'];
+                  return (
+                    <div style={{ marginBottom: '10px' }}>
+                      <p style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: 600, margin: '0 0 6px', letterSpacing: '0.06em' }}>
+                        {subject} 퀵 태그 — 클릭하면 코멘트에 추가돼요
+                      </p>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                        {tags.map(tag => (
+                          <button key={tag} onClick={() => {
+                            const prefix = `[${tag}]`;
+                            setTeacherNote(prev => prev ? `${prev} ${prefix} ` : `${prefix} `);
+                          }}
+                          style={{
+                            padding: '4px 10px', borderRadius: '12px', border: '0.5px solid #E5E7EB',
+                            background: '#F9FAFB', color: '#374151', fontSize: '11px', fontWeight: 500,
+                            cursor: 'pointer', fontFamily: 'inherit',
+                          }}>
+                            {tag}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 <FieldLabel>강사 메모 (평소 카톡 톤으로 자유롭게)</FieldLabel>
                 <textarea value={teacherNote} onChange={(e) => setTeacherNote(e.target.value)}
                   placeholder="예: 3단원 자릿수 실수 2번, 응용은 시간 부족으로 못 풂. 개념은 알고 있음"
