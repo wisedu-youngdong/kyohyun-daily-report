@@ -446,6 +446,49 @@ export default function App() {
         {activeTab === 'dashboard' && <DashboardView students={visibleStudents} reports={visibleReports} onTabChange={setActiveTab} />}
         {activeTab === 'write' && (
           <>
+            {/* 오늘 리포트 상태바 */}
+            {(() => {
+              const today = new Date().toLocaleDateString('ko-KR');
+              const todayReports = visibleReports.filter(r => {
+                const rDate = new Date((r.createdAt?.seconds||0)*1000).toLocaleDateString('ko-KR');
+                return rDate === today;
+              });
+              if (todayReports.length === 0) return null;
+
+              const allLinks = todayReports
+                .map(r => `${r.studentName} 학생 리포트\n${window.location.origin}/report/${r.id}`)
+                .join('\n\n');
+
+              return (
+                <div style={{ background: '#F8F9FC', borderBottom: '1px solid #E5E7EB', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '11px', color: '#6B7280', fontWeight: 500, flexShrink: 0 }}>오늘</span>
+                  {visibleStudents
+                    .filter(s => todayReports.some(r => r.studentId === s.id))
+                    .map(s => {
+                      const r = todayReports.find(r => r.studentId === s.id);
+                      const done = r?.teacherNote && r.teacherNote.trim().length > 0;
+                      return (
+                        <button key={s.id}
+                          onClick={() => { setEditingReport(r); }}
+                          style={{
+                            padding: '3px 10px', borderRadius: '12px', border: 'none',
+                            background: done ? '#F0FAF5' : '#FFF8EC',
+                            color: done ? '#0F6E56' : '#7A4F00',
+                            fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                          }}>
+                          {s.name} {done ? '✓' : '✍️'}
+                        </button>
+                      );
+                    })
+                  }
+                  <button
+                    onClick={() => navigator.clipboard.writeText(allLinks).then(() => alert(`오늘 리포트 ${todayReports.length}건 링크 복사 완료!`))}
+                    style={{ marginLeft: 'auto', padding: '4px 10px', borderRadius: '12px', border: '1px solid #0D2D6B', background: '#fff', color: '#0D2D6B', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
+                    전체 링크 복사 ({todayReports.length}건)
+                  </button>
+                </div>
+              );
+            })()}
             <DiagnosticReportInput
               students={visibleStudents} teachers={teachers}
               reports={visibleReports}
