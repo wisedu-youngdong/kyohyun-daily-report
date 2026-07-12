@@ -155,7 +155,48 @@ export default function DiagnosticReportInput({
   const [nextPlanDetail, setNextPlanDetail] = useState('');
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
-  const [savedReportId, setSavedReportId] = useState(null); // 저장 직후 링크 복사용
+  const [savedReportId, setSavedReportId] = useState(null);
+  const [lastSaved, setLastSaved] = useState(null); // 마지막 저장 시각
+  const autoSaveTimer = React.useRef(null);
+
+  // 자동저장 — 학생 선택 후 데이터 변경 시 30초마다
+  React.useEffect(() => {
+    if (!studentId) return;
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => {
+      handleAutoSave();
+    }, 30000); // 30초
+    return () => clearTimeout(autoSaveTimer.current);
+  }, [studentId, teacherNote, homeworkRating, conceptRating, selectedTags, textbook, unit, pages, subject]);
+
+  const handleAutoSave = async () => {
+    if (!studentId || saving) return;
+    try {
+      const reportPayload = {
+        ...(editingReport ? { id: editingReport.id } : {}),
+        studentId, studentName: student?.name,
+        teacherId: teacherId || '', teacherName: teacher?.name || '',
+        attendance, arrivalTime,
+        homeworkRating: homeworkRating || 0,
+        conceptRating: conceptRating || 0,
+        hasTest,
+        testName: hasTest ? testName : null,
+        testScore: hasTest ? testScore : null,
+        testRound: hasTest ? testRound : null,
+        textbook, subject, unit, pages,
+        diagnosis: selectedTags,
+        teacherNote: teacherNote || '',
+        nextPlan, nextPlanDetail,
+        photoUrls: [],
+        photoAnalysis: photoAnalysis || null,
+        status: 'draft',
+      };
+      await onSave(reportPayload);
+      setLastSaved(new Date());
+    } catch (e) {
+      console.error('자동저장 오류:', e);
+    }
+  };
 
   const showToast = (msg, type = 'success', reportId = null) => {
     setToast({ msg, type, reportId });
@@ -934,6 +975,12 @@ setAiPolishedNote(data.result);
                           <button key={tag} onClick={() => {
                             const prefix = `[${tag}]`;
                             setTeacherNote(prev => prev ? `${prev} ${prefix} ` : `${prefix} `);
+                            // 퀵 태그 클릭 시 즉시 자동저장 예약 (3초 후)
+                            if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+                            autoSaveTimer.current = setTimeout(() => {
+                              handleAutoSave();
+                              setLastSaved(new Date());
+                            }, 3000);
                           }}
                           style={{
                             padding: '4px 10px', borderRadius: '12px', border: '0.5px solid #E5E7EB',
@@ -989,18 +1036,27 @@ setAiPolishedNote(data.result);
 
               {/* 저장 버튼 */}
               <div style={{ display: 'flex', gap: '8px' }}>
-                <button onClick={handleDraftSave} disabled={!studentId || saving}
-                  style={{
-                    flex: '0 0 auto', padding: '12px 16px', borderRadius: '10px',
-                    border: '1.5px solid #0D2D6B', background: '#fff',
-                    color: '#0D2D6B', fontSize: '13px', fontWeight: 700,
-                    cursor: studentId ? 'pointer' : 'not-allowed',
-                    opacity: studentId ? 1 : 0.4,
-                    display: 'flex', alignItems: 'center', gap: '6px',
-                    fontFamily: 'inherit',
-                  }}>
-                  📋 임시저장
-                </button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: '0 0 auto' }}>
+                  <button onClick={async () => { await handleDraftSave(); setLastSaved(new Date()); }}
+                    disabled={!studentId || saving}
+                    style={{
+                      padding: '12px 16px', borderRadius: '10px',
+                      border: `1.5px solid ${studentId ? '#0D2D6B' : '#E5E7EB'}`,
+                      background: '#fff',
+                      color: studentId ? '#0D2D6B' : '#9CA3AF',
+                      fontSize: '13px', fontWeight: 700,
+                      cursor: studentId ? 'pointer' : 'not-allowed',
+                      display: 'flex', alignItems: 'center', gap: '6px',
+                      fontFamily: 'inherit', transition: 'all 0.15s',
+                    }}>
+                    📋 임시저장
+                  </button>
+                  {lastSaved && (
+                    <p style={{ fontSize: '10px', color: '#0F6E56', margin: 0, textAlign: 'center', fontWeight: 500 }}>
+                      ✓ {lastSaved.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} 저장됨
+                    </p>
+                  )}
+                </div>
                 <button onClick={handleSubmit} disabled={!isValid || saving} style={{ ...submitButtonStyle(isValid && !saving), flex: 1 }}>
                   <Send size={15} /> {saving ? '저장 중...' : '리포트 저장 및 발송 준비'}
                 </button>
