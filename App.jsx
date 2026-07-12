@@ -1021,9 +1021,13 @@ function HistoryView({ reports, students, onDelete, onEdit }) {
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <p style={{ fontSize: '15px', fontWeight: 700, margin: 0 }}>{r.studentName}</p>
+                      {r.status === 'draft' && (
+                        <span style={{ fontSize: '10px', fontWeight: 700, background: '#FFF8EC', color: '#8A5A00', border: '1px solid #C9A22740', padding: '2px 7px', borderRadius: '8px' }}>작성 중</span>
+                      )}
                       {r.photoUrls?.length > 0 && <span style={{ fontSize: '11px' }}>📷{r.photoUrls.length}</span>}
                     </div>
-                    <p style={{ fontSize: '11px', color: '#6B7280', margin: '2px 0 0', fontWeight: 500 }}>{date} · {r.teacherName}</p>                  </div>
+                    <p style={{ fontSize: '11px', color: '#6B7280', margin: '2px 0 0', fontWeight: 500 }}>{date} · {r.teacherName}</p>
+                  </div>
                   <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                     <span style={{ fontSize: '20px' }}>{RATING_EMOJI[r.homeworkRating] || ''}</span>
                     {deleteConfirmReport === r.id ? (
