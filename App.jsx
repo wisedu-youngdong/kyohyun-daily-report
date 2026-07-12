@@ -431,6 +431,25 @@ export default function App() {
         <span style={{ marginLeft: 'auto', fontSize: '10px', color: T.textMute, fontWeight: 500, background: T.bgSoft, padding: '3px 8px', borderRadius: '6px', border: `1px solid ${T.border}` }}>
           {new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
         </span>
+
+        {/* 임시저장 배지 — 헤더 내 */}
+        {(() => {
+          const today = new Date().toLocaleDateString('ko-KR');
+          const draftCount = visibleReports.filter(r => {
+            const rDate = new Date((r.createdAt?.seconds||0)*1000).toLocaleDateString('ko-KR');
+            return r.status === 'draft' && rDate === today;
+          }).length;
+          if (draftCount === 0) return null;
+          return (
+            <button onClick={() => setShowDraftPanel(true)}
+              style={{ display: 'flex', alignItems: 'center', gap: '5px', background: '#FFF8EC', border: '1px solid #C9A22760', borderRadius: '16px', padding: '4px 10px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', color: '#7A4F00', fontFamily: 'inherit' }}>
+              📋
+              <span>임시저장</span>
+              <span style={{ background: '#C9A227', color: '#fff', borderRadius: '10px', padding: '1px 5px', fontSize: '10px', fontWeight: 700 }}>{draftCount}</span>
+            </button>
+          );
+        })()}
+
         <span style={{ fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '6px', background: isDirector ? '#EAF0F9' : '#E1F5EE', color: isDirector ? '#0D2D6B' : '#0F6E56' }}>
           {isDirector ? '원장' : (teachers.find(t => t.id === userTeacherId)?.name || '강사')}
         </span>
@@ -443,26 +462,6 @@ export default function App() {
         {activeTab === 'dashboard' && <DashboardView students={visibleStudents} reports={visibleReports} onTabChange={setActiveTab} />}
         {activeTab === 'write' && (
           <>
-            {/* 우측 상단 임시저장 배지 — 네비바에 통합 */}
-            {(() => {
-              const today = new Date().toLocaleDateString('ko-KR');
-              const drafts = visibleReports.filter(r => {
-                const rDate = new Date((r.createdAt?.seconds||0)*1000).toLocaleDateString('ko-KR');
-                return r.status === 'draft' && rDate === today;
-              });
-              if (drafts.length === 0) return null;
-              return (
-                <div style={{ position: 'fixed', top: '12px', right: '120px', zIndex: 1000 }}>
-                  <button onClick={() => setShowDraftPanel(true)}
-                    style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#fff', border: '1px solid #E5E7EB', borderRadius: '20px', padding: '5px 12px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', color: '#7A4F00', fontFamily: 'inherit', boxShadow: '0 1px 4px rgba(0,0,0,0.1)' }}>
-                    <span style={{ fontSize: '13px' }}>📋</span>
-                    임시저장
-                    <span style={{ background: '#C9A227', color: '#fff', borderRadius: '10px', padding: '1px 6px', fontSize: '10px', fontWeight: 700 }}>{drafts.length}</span>
-                  </button>
-                </div>
-              );
-            })()}
-
             {/* 사이드 패널 오버레이 */}
             {showDraftPanel && (
               <>
