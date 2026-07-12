@@ -443,7 +443,7 @@ export default function App() {
         {activeTab === 'dashboard' && <DashboardView students={visibleStudents} reports={visibleReports} onTabChange={setActiveTab} />}
         {activeTab === 'write' && (
           <>
-            {/* 일괄 마무리 배너 */}
+            {/* 우측 상단 임시저장 배지 — 네비바에 통합 */}
             {(() => {
               const today = new Date().toLocaleDateString('ko-KR');
               const drafts = visibleReports.filter(r => {
@@ -452,29 +452,32 @@ export default function App() {
               });
               if (drafts.length === 0) return null;
               return (
-                <div onClick={() => setShowDraftPanel(true)}
-                  style={{ margin: '8px 16px 0', background: '#FFF8EC', border: '1px solid #C9A22760', borderRadius: '10px', padding: '11px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '16px' }}>📋</span>
-                    <div>
-                      <p style={{ fontSize: '13px', fontWeight: 700, color: '#7A4F00', margin: 0 }}>오늘 작성 중인 리포트 {drafts.length}건</p>
-                      <p style={{ fontSize: '11px', color: '#9CA3AF', margin: 0 }}>탭해서 마저 완료하세요</p>
-                    </div>
-                  </div>
-                  <span style={{ fontSize: '12px', color: '#7A4F00', fontWeight: 700 }}>마무리 →</span>
+                <div style={{ position: 'fixed', top: '12px', right: '120px', zIndex: 1000 }}>
+                  <button onClick={() => setShowDraftPanel(true)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#fff', border: '1px solid #E5E7EB', borderRadius: '20px', padding: '5px 12px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', color: '#7A4F00', fontFamily: 'inherit', boxShadow: '0 1px 4px rgba(0,0,0,0.1)' }}>
+                    <span style={{ fontSize: '13px' }}>📋</span>
+                    임시저장
+                    <span style={{ background: '#C9A227', color: '#fff', borderRadius: '10px', padding: '1px 6px', fontSize: '10px', fontWeight: 700 }}>{drafts.length}</span>
+                  </button>
                 </div>
               );
             })()}
 
-            {/* 일괄 마무리 패널 */}
+            {/* 사이드 패널 오버레이 */}
             {showDraftPanel && (
-              <DraftPanel
-                reports={visibleReports}
-                students={visibleStudents}
-                onClose={() => setShowDraftPanel(false)}
-                onEdit={(r) => { setEditingReport(r); setShowDraftPanel(false); }}
-                onFinish={handleSaveReport}
-              />
+              <>
+                <div onClick={() => setShowDraftPanel(false)}
+                  style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.3)', zIndex: 1001 }} />
+                <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: '320px', background: '#fff', zIndex: 1002, boxShadow: '-4px 0 20px rgba(0,0,0,0.12)', display: 'flex', flexDirection: 'column' }}>
+                  <DraftPanel
+                    reports={visibleReports}
+                    students={visibleStudents}
+                    onClose={() => setShowDraftPanel(false)}
+                    onEdit={(r) => { setEditingReport(r); setShowDraftPanel(false); }}
+                    onFinish={handleSaveReport}
+                  />
+                </div>
+              </>
             )}
 
             <DiagnosticReportInput
@@ -4133,7 +4136,7 @@ function UnitErrorDashboard({ reports }) {
   );
 }
 
-// ── 일괄 마무리 패널 ──
+// ── 일괄 마무리 패널 (사이드 패널) ──
 function DraftPanel({ reports, students, onClose, onEdit, onFinish }) {
   const [notes, setNotes] = useState({});
   const [completing, setCompleting] = useState(null);
@@ -4176,87 +4179,92 @@ function DraftPanel({ reports, students, onClose, onEdit, onFinish }) {
   };
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-      <div style={{ background: '#fff', borderRadius: '20px 20px 0 0', maxHeight: '85vh', overflowY: 'auto', padding: '0 0 20px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>
 
-        {/* 헤더 */}
-        <div style={{ position: 'sticky', top: 0, background: '#fff', padding: '16px 20px 12px', borderBottom: '1px solid #F3F4F6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 }}>
-          <div>
-            <p style={{ fontSize: '15px', fontWeight: 700, margin: 0 }}>오늘 일괄 마무리</p>
-            <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '2px 0 0' }}>작성 중 {drafts.length}건 · 완료 {doneDrafts.length}건</p>
-          </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#6B7280' }}>×</button>
+      {/* 헤더 */}
+      <div style={{ padding: '16px 20px', borderBottom: '1px solid #F3F4F6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+        <div>
+          <p style={{ fontSize: '14px', fontWeight: 700, margin: 0, color: '#1A1A1A' }}>임시저장 마무리</p>
+          <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '2px 0 0' }}>작성 중 {drafts.length}건 · 완료 {doneDrafts.length}건</p>
         </div>
-
-        <div style={{ padding: '16px 20px' }}>
-
-          {/* 작성 중 리포트 */}
-          {drafts.length > 0 && (
-            <div style={{ marginBottom: '20px' }}>
-              <p style={{ fontSize: '11px', fontWeight: 700, color: '#8A5A00', letterSpacing: '0.08em', margin: '0 0 10px' }}>작성 중 — 코멘트만 입력하면 완료</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {drafts.map(r => (
-                  <div key={r.id} style={{ background: '#FAFAF8', borderRadius: '10px', padding: '12px 14px', border: '1px solid #E5E7EB' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <div>
-                        <p style={{ fontSize: '13px', fontWeight: 700, margin: 0 }}>{r.studentName}</p>
-                        <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '2px 0 0' }}>
-                          {r.textbook && `${r.textbook}`}{r.unit && ` · ${r.unit}`}{r.pages && ` · ${r.pages}쪽`}
-                        </p>
-                      </div>
-                      <button onClick={() => onEdit(r)}
-                        style={{ fontSize: '11px', color: '#0D2D6B', background: '#EAF1FB', border: 'none', borderRadius: '6px', padding: '3px 8px', cursor: 'pointer' }}>
-                        전체 수정
-                      </button>
-                    </div>
-                    <textarea
-                      value={notes[r.id] ?? (r.teacherNote || '')}
-                      onChange={e => setNotes(prev => ({ ...prev, [r.id]: e.target.value }))}
-                      placeholder="오늘 수업 한마디 남겨주세요"
-                      style={{ width: '100%', minHeight: '60px', padding: '8px 10px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '12px', lineHeight: 1.7, fontFamily: 'inherit', resize: 'none', outline: 'none', boxSizing: 'border-box' }}
-                    />
-                    <button onClick={() => handleComplete(r)} disabled={completing === r.id}
-                      style={{ width: '100%', marginTop: '6px', padding: '9px', background: '#0D2D6B', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-                      {completing === r.id ? '완료 처리 중...' : '✓ 완료 처리'}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* 완료된 리포트 + 일괄 복사 */}
-          {doneDrafts.length > 0 && (
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                <p style={{ fontSize: '11px', fontWeight: 700, color: '#0F6E56', letterSpacing: '0.08em', margin: 0 }}>완료 — 링크 전송 준비</p>
-                <button onClick={handleCopyAll}
-                  style={{ fontSize: '11px', background: '#FEE500', border: 'none', borderRadius: '6px', padding: '4px 10px', fontWeight: 700, cursor: 'pointer', color: '#3A1D1D' }}>
-                  전체 링크 복사 ({doneDrafts.length}건)
-                </button>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {doneDrafts.map(r => (
-                  <div key={r.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#F0FAF5', borderRadius: '8px', padding: '10px 14px', border: '1px solid #0F6E5620' }}>
-                    <div>
-                      <p style={{ fontSize: '13px', fontWeight: 600, color: '#0F6E56', margin: 0 }}>{r.studentName}</p>
-                      <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '2px 0 0' }}>{r.textbook}{r.unit && ` · ${r.unit}`}</p>
-                    </div>
-                    <button onClick={() => handleCopyLink(r.id)}
-                      style={{ fontSize: '11px', background: copied[r.id] ? '#0F6E56' : '#fff', color: copied[r.id] ? '#fff' : '#0F6E56', border: '1px solid #0F6E56', borderRadius: '6px', padding: '4px 10px', fontWeight: 700, cursor: 'pointer' }}>
-                      {copied[r.id] ? '✓ 복사됨' : '링크 복사'}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {drafts.length === 0 && doneDrafts.length === 0 && (
-            <p style={{ textAlign: 'center', color: '#9CA3AF', fontSize: '13px', padding: '20px 0' }}>오늘 작성 중인 리포트가 없어요</p>
-          )}
-        </div>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#6B7280', lineHeight: 1 }}>×</button>
       </div>
+
+      {/* 스크롤 영역 */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px' }}>
+
+        {/* 작성 중 */}
+        {drafts.length > 0 && (
+          <div style={{ marginBottom: '20px' }}>
+            <p style={{ fontSize: '10px', fontWeight: 700, color: '#8A5A00', letterSpacing: '0.08em', margin: '0 0 10px' }}>작성 중 — 한마디 입력 후 완료</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {drafts.map(r => (
+                <div key={r.id} style={{ background: '#FAFAF8', borderRadius: '10px', padding: '12px', border: '1px solid #E5E7EB' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
+                    <div>
+                      <p style={{ fontSize: '13px', fontWeight: 700, margin: 0, color: '#1A1A1A' }}>{r.studentName}</p>
+                      <p style={{ fontSize: '10px', color: '#9CA3AF', margin: '2px 0 0' }}>
+                        {[r.textbook, r.unit, r.pages && `${r.pages}쪽`].filter(Boolean).join(' · ')}
+                      </p>
+                    </div>
+                    <button onClick={() => onEdit(r)}
+                      style={{ fontSize: '10px', color: '#0D2D6B', background: '#EAF1FB', border: 'none', borderRadius: '5px', padding: '3px 7px', cursor: 'pointer', flexShrink: 0 }}>
+                      전체 수정
+                    </button>
+                  </div>
+                  <textarea
+                    value={notes[r.id] ?? (r.teacherNote || '')}
+                    onChange={e => setNotes(prev => ({ ...prev, [r.id]: e.target.value }))}
+                    placeholder="한마디..."
+                    style={{ width: '100%', minHeight: '52px', padding: '7px 9px', border: '1px solid #E5E7EB', borderRadius: '7px', fontSize: '12px', lineHeight: 1.7, fontFamily: 'inherit', resize: 'none', outline: 'none', boxSizing: 'border-box', background: '#fff' }}
+                  />
+                  <button onClick={() => handleComplete(r)} disabled={completing === r.id}
+                    style={{ width: '100%', marginTop: '6px', padding: '8px', background: '#0D2D6B', border: 'none', borderRadius: '7px', color: '#fff', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    {completing === r.id ? '처리 중...' : '✓ 완료'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 완료된 리포트 */}
+        {doneDrafts.length > 0 && (
+          <div>
+            <p style={{ fontSize: '10px', fontWeight: 700, color: '#0F6E56', letterSpacing: '0.08em', margin: '0 0 10px' }}>완료 — 링크 전송 준비</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {doneDrafts.map(r => (
+                <div key={r.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#F0FAF5', borderRadius: '8px', padding: '10px 12px', border: '1px solid #0F6E5620' }}>
+                  <div>
+                    <p style={{ fontSize: '13px', fontWeight: 600, color: '#0F6E56', margin: 0 }}>
+                      <span style={{ marginRight: '4px' }}>✓</span>{r.studentName}
+                    </p>
+                    <p style={{ fontSize: '10px', color: '#9CA3AF', margin: '2px 0 0' }}>{r.textbook}</p>
+                  </div>
+                  <button onClick={() => handleCopyLink(r.id)}
+                    style={{ fontSize: '11px', background: copied[r.id] ? '#0F6E56' : '#fff', color: copied[r.id] ? '#fff' : '#0F6E56', border: '1px solid #0F6E56', borderRadius: '6px', padding: '4px 9px', fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+                    {copied[r.id] ? '✓ 복사됨' : '링크 복사'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {drafts.length === 0 && doneDrafts.length === 0 && (
+          <p style={{ textAlign: 'center', color: '#9CA3AF', fontSize: '13px', padding: '40px 0' }}>오늘 작성 중인 리포트가 없어요</p>
+        )}
+      </div>
+
+      {/* 하단 일괄 복사 */}
+      {doneDrafts.length > 0 && (
+        <div style={{ padding: '12px 16px', borderTop: '1px solid #F3F4F6', flexShrink: 0 }}>
+          <button onClick={handleCopyAll}
+            style={{ width: '100%', padding: '11px', background: '#FEE500', border: 'none', borderRadius: '9px', color: '#3A1D1D', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+            카카오톡 전체 링크 복사 ({doneDrafts.length}건)
+          </button>
+        </div>
+      )}
     </div>
   );
 }
