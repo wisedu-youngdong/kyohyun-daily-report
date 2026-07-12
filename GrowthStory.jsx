@@ -229,9 +229,43 @@ export default function GrowthStory() {
     // idx 개수만큼 PHASE 생성 (최대 4개, 리포트 적으면 그만큼만)
     idx.forEach((i, pi) => {
       const r = sorted[i];
+      // 해당 리포트 실데이터 추출
+      const diagLabels = {
+        calc: '계산 실수', concept: '개념 누락', apply: '응용 부족',
+        time: '시간 부족', perfect: '개념 완벽'
+      };
+      const diagTags = (r.diagnosis||[])
+        .filter(d => d.key !== 'perfect')
+        .map(d => diagLabels[d.key] || d.key);
+
+      // 선생님 코멘트 첫 줄 (태그 제거)
+      const rawNote = r.teacherNote || '';
+      const cleanNote = rawNote.replace(/\[([^\]]+)\]\s*/g, '').trim();
+      const notePreview = cleanNote.length > 50
+        ? cleanNote.slice(0, 50) + '...'
+        : cleanNote;
+
+      // 이전 PHASE 대비 평점 변화 (PHASE 2 이상)
+      const prevR = pi > 0 ? sorted[idx[pi - 1]] : null;
+      const hwDelta = prevR
+        ? (r.homeworkRating || 0) - (prevR.homeworkRating || 0)
+        : null;
+
       milestones.push({
         ...phaseConfigs[pi],
         date: fmtDate(r),
+        // 실데이터
+        realData: {
+          textbook: r.textbook || '',
+          unit: r.unit || '',
+          pages: r.pages || '',
+          homeworkRating: r.homeworkRating || 0,
+          conceptRating: r.conceptRating || 0,
+          testScore: r.hasTest ? r.testScore : null,
+          diagTags,
+          notePreview,
+          hwDelta,
+        },
       });
     });
   }
@@ -337,7 +371,8 @@ export default function GrowthStory() {
                 }
               </div>
               <p style={{ fontSize: '9px', fontWeight: 700, color: '#C9A227', letterSpacing: '0.14em', marginBottom: '3px' }}>{m.phase}</p>
-              <p style={{ fontSize: '10px', color: '#8A8A8A', fontWeight: 500, marginBottom: '4px' }}>{m.date}</p>
+              <span style={{ fontSize: '10px', color: '#8A8A8A', fontWeight: 500, marginBottom: '4px', display: 'block' }}>{m.date}</span>
+
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
                 <p style={{ fontSize: '13px', fontWeight: 700, color: '#0D2D6B', margin: 0 }}>{m.title}</p>
                 {narrative && chapterField && (
@@ -347,6 +382,55 @@ export default function GrowthStory() {
                   </button>
                 )}
               </div>
+
+              {/* 실데이터 카드 */}
+              {m.realData && (
+                <div style={{ background: '#F8F9FC', border: '0.5px solid #E5E7EB', borderRadius: '8px', padding: '8px 10px', marginBottom: '6px' }}>
+                  {/* 교재/단원 */}
+                  {(m.realData.textbook || m.realData.unit) && (
+                    <p style={{ fontSize: '10px', color: '#6B7280', margin: '0 0 5px', fontWeight: 500 }}>
+                      📚 {[m.realData.textbook, m.realData.unit, m.realData.pages && `${m.realData.pages}쪽`].filter(Boolean).join(' · ')}
+                    </p>
+                  )}
+                  {/* 평점 */}
+                  <div style={{ display: 'flex', gap: '10px', marginBottom: m.realData.diagTags.length > 0 || m.realData.testScore || m.realData.notePreview ? '5px' : 0 }}>
+                    {m.realData.homeworkRating > 0 && (
+                      <span style={{ fontSize: '10px', color: '#374151' }}>
+                        과제 <strong style={{ color: '#0D2D6B' }}>{m.realData.homeworkRating}/5</strong>
+                        {m.realData.hwDelta !== null && m.realData.hwDelta !== 0 && (
+                          <span style={{ color: m.realData.hwDelta > 0 ? '#0F6E56' : '#DC2626', marginLeft: '3px' }}>
+                            {m.realData.hwDelta > 0 ? `+${m.realData.hwDelta}` : m.realData.hwDelta}
+                          </span>
+                        )}
+                      </span>
+                    )}
+                    {m.realData.conceptRating > 0 && (
+                      <span style={{ fontSize: '10px', color: '#374151' }}>
+                        개념 <strong style={{ color: '#0D2D6B' }}>{m.realData.conceptRating}/5</strong>
+                      </span>
+                    )}
+                    {m.realData.testScore && (
+                      <span style={{ fontSize: '10px', color: '#374151' }}>
+                        시험 <strong style={{ color: '#C9A227' }}>{m.realData.testScore}점</strong>
+                      </span>
+                    )}
+                  </div>
+                  {/* 진단 태그 */}
+                  {m.realData.diagTags.length > 0 && (
+                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: m.realData.notePreview ? '5px' : 0 }}>
+                      {m.realData.diagTags.map((tag, ti) => (
+                        <span key={ti} style={{ fontSize: '9px', fontWeight: 600, padding: '2px 6px', borderRadius: '8px', background: '#FDF0F0', color: '#8A2020' }}>{tag}</span>
+                      ))}
+                    </div>
+                  )}
+                  {/* 코멘트 미리보기 */}
+                  {m.realData.notePreview && (
+                    <p style={{ fontSize: '10px', color: '#6B7280', margin: '0', lineHeight: 1.6, fontStyle: 'italic' }}>
+                      "{m.realData.notePreview}"
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* 편집 모드 */}
               {editing === chapterField ? (
