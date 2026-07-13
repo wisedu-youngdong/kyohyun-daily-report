@@ -721,6 +721,39 @@ setAiPolishedNote(data.result);
                   style={{ ...inputStyle, marginBottom: '12px' }}
                 />
                 <FieldLabel>단원</FieldLabel>
+                {/* 최근 단원 히스토리 — 교재+단원 세트 원클릭 */}
+                {(() => {
+                  const recentUnits = [];
+                  const seen = new Set();
+                  const studentReports = [...reports]
+                    .filter(r => r.studentId === studentId && r.textbook && r.unit)
+                    .sort((a, b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0));
+                  for (const r of studentReports) {
+                    const key = `${r.textbook}|||${r.unit}`;
+                    if (!seen.has(key)) {
+                      seen.add(key);
+                      recentUnits.push({ textbook: r.textbook, unit: r.unit });
+                      if (recentUnits.length >= 3) break;
+                    }
+                  }
+                  if (recentUnits.length === 0) return null;
+                  return (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: '8px' }}>
+                      {recentUnits.map((item, i) => (
+                        <button key={i} onClick={() => { setTextbook(item.textbook); setUnit(item.unit); }}
+                          style={{
+                            padding: '4px 10px', borderRadius: '10px', border: '1px solid #E5E7EB',
+                            background: (textbook === item.textbook && unit === item.unit) ? '#0D2D6B' : '#F9FAFB',
+                            color: (textbook === item.textbook && unit === item.unit) ? '#fff' : '#374151',
+                            fontSize: '11px', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
+                            maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                          }}>
+                          {item.textbook} · {item.unit}
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })()}
                 <input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="예: 3단원 소수의 나눗셈" style={inputStyle} />
                 <div style={{ height: '8px' }} />
                 <FieldLabel>학습 범위</FieldLabel>
@@ -983,6 +1016,53 @@ setAiPolishedNote(data.result);
                 })()}
 
                 <FieldLabel>강사 메모 (평소 카톡 톤으로 자유롭게)</FieldLabel>
+
+                {/* AI 코멘트 초안 생성 버튼 */}
+                {(studentId && (textbook || unit) && selectedTags.length > 0) && !teacherNote && (
+                  <button onClick={async () => {
+                    const studentName = students.find(s => s.id === studentId)?.name || '학생';
+                    const diagLabels = { calc: '계산 실수', concept: '개념 누락', apply: '응용 부족', time: '시간 부족', perfect: '개념 완벽' };
+                    const tagNames = selectedTags.map(t => diagLabels[t.key] || t.key).join(', ');
+                    const prompt = `선생님이 학원 수업 후 학부모에게 보내는 짧은 코멘트 초안을 작성해줘.
+학생: ${studentName}
+교재: ${textbook || ''}
+단원: ${unit || ''}
+진단: ${tagNames}
+조건:
+- 2~3문장으로 간결하게
+- 팩트(오늘 배운 내용 + 진단 내용)만 담고 과장 없이
+- 마지막 줄은 반드시 "오늘 보여준 모습: " 으로 끝내서 선생님이 직접 채울 수 있게
+- 한국어, 따뜻하되 전문적인 톤
+- JSON, 마크다운 없이 텍스트만`;
+
+                    try {
+                      const res = await fetch('https://api.anthropic.com/v1/messages', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          model: 'claude-sonnet-4-6',
+                          max_tokens: 300,
+                          messages: [{ role: 'user', content: prompt }]
+                        })
+                      });
+                      const data = await res.json();
+                      const draft = data.content?.[0]?.text || '';
+                      if (draft) setTeacherNote(draft);
+                    } catch (e) {
+                      console.error('AI 초안 생성 오류:', e);
+                    }
+                  }}
+                  style={{
+                    width: '100%', marginBottom: '8px', padding: '9px', borderRadius: '8px',
+                    border: '1px dashed #C9A227', background: '#FFF8EC',
+                    color: '#7A4F00', fontSize: '12px', fontWeight: 600,
+                    cursor: 'pointer', fontFamily: 'inherit',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                  }}>
+                  ✨ AI 코멘트 초안 생성 (팩트 기반)
+                </button>
+                )}
+
                 <textarea value={teacherNote} onChange={(e) => setTeacherNote(e.target.value)}
                   placeholder="예: 3단원 자릿수 실수 2번, 응용은 시간 부족으로 못 풂. 개념은 알고 있음"
                   rows={3} style={{ ...inputStyle, fontFamily: 'inherit', resize: 'vertical' }} />
