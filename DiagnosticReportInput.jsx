@@ -866,7 +866,7 @@ export default function DiagnosticReportInput({
                     cursor: 'pointer', color: TOKENS.textSub, fontSize: '13px', fontWeight: 600, background: TOKENS.bgSoft
                   }}>
                     <FileText size={16} /> 사진 선택 (갤러리, 최대 {MAX_PHOTOS}장)
-                    <input type="file" accept="image/jpeg,image/jpg,image/png,image/heic,image/heif" multiple style={{ display: 'none' }}
+                    <input type="file" accept="image/jpeg,image/jpg,image/png" multiple style={{ display: 'none' }}
                       onChange={(e) => { if (e.target.files?.length) { handlePhotoSelect(e.target.files); e.target.value = ''; } }} />
                   </label>
                 )}
@@ -896,7 +896,7 @@ export default function DiagnosticReportInput({
                           cursor: 'pointer', color: TOKENS.textMute, background: TOKENS.bgSoft
                         }}>
                           <Plus size={20} />
-                          <input type="file" accept="image/jpeg,image/jpg,image/png,image/heic,image/heif" multiple style={{ display: 'none' }}
+                          <input type="file" accept="image/jpeg,image/jpg,image/png" multiple style={{ display: 'none' }}
                             onChange={(e) => { if (e.target.files?.length) { handlePhotoSelect(e.target.files); e.target.value = ''; } }} />
                         </label>
                       )}
