@@ -1175,11 +1175,34 @@ function HistoryView({ reports, students, reportViews = [], onDelete, onEdit }) 
                 {copied ? '✓ 복사됨' : '링크 복사'}
               </button>
               {deleteConfirmReport === selected.id ? (
-                <div style={{ display: 'flex', gap: '4px' }}>
-                  <button onClick={() => { onDelete(selected.id); setDeleteConfirmReport(null); setSelectedId(null); }}
-                    style={{ padding: '7px 12px', fontSize: '12px', fontWeight: 600, border: 'none', borderRadius: '8px', background: '#DC2626', color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>확인</button>
-                  <button onClick={() => setDeleteConfirmReport(null)}
-                    style={{ padding: '7px 12px', fontSize: '12px', border: '1px solid #E5E7EB', borderRadius: '8px', background: '#fff', cursor: 'pointer', fontFamily: 'inherit', color: '#6B7280' }}>취소</button>
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ background: '#fff', borderRadius: '16px', padding: '28px 24px', width: '320px', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
+                    <div style={{ width: '44px', height: '44px', background: '#FEE2E2', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                      <span style={{ fontSize: '22px' }}>🗑️</span>
+                    </div>
+                    <p style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', margin: '0 0 8px', textAlign: 'center' }}>리포트를 삭제할까요?</p>
+                    <div style={{ background: '#FFF5F5', border: '1px solid #FECACA', borderRadius: '8px', padding: '12px', margin: '0 0 16px' }}>
+                      <p style={{ fontSize: '13px', color: '#374151', margin: '0 0 4px', textAlign: 'center' }}>
+                        <strong>{fmtDate(selected)}</strong>
+                      </p>
+                      <p style={{ fontSize: '14px', fontWeight: 700, color: '#DC2626', margin: 0, textAlign: 'center' }}>
+                        {selected.studentName} 학생 리포트
+                      </p>
+                    </div>
+                    <p style={{ fontSize: '12px', color: '#9CA3AF', textAlign: 'center', margin: '0 0 20px' }}>
+                      삭제 후 복구가 불가능합니다.
+                    </p>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button onClick={() => setDeleteConfirmReport(null)}
+                        style={{ flex: 1, padding: '11px', fontSize: '13px', fontWeight: 600, border: '1px solid #E5E7EB', borderRadius: '8px', background: '#fff', cursor: 'pointer', fontFamily: 'inherit', color: '#374151' }}>
+                        취소
+                      </button>
+                      <button onClick={() => { onDelete(selected.id); setDeleteConfirmReport(null); setSelectedId(null); }}
+                        style={{ flex: 1, padding: '11px', fontSize: '13px', fontWeight: 700, border: 'none', borderRadius: '8px', background: '#DC2626', color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
+                        삭제
+                      </button>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <button onClick={() => setDeleteConfirmReport(selected.id)}
