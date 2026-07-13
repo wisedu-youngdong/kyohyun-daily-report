@@ -12,28 +12,54 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 // maxDim/quality를 다소 넉넉히 잡음 — 한 페이지에 문항이 많을수록 글씨가 작아 판독력이 중요
 function compressImage(file, maxDim = 2000, quality = 0.82) {
   return new Promise((resolve, reject) => {
-    const img = new Image();
+    // HEIC/HEIF 등 모바일 특수 포맷 처리
+    const mimeType = file.type || 'image/jpeg';
+
     const reader = new FileReader();
-    reader.onload = (e) => { img.src = e.target.result; };
     reader.onerror = reject;
-    img.onload = () => {
-      let { width, height } = img;
-      if (width > height && width > maxDim) { height = Math.round(height * maxDim / width); width = maxDim; }
-      else if (height > maxDim) { width = Math.round(width * maxDim / height); height = maxDim; }
-      const canvas = document.createElement('canvas');
-      canvas.width = width; canvas.height = height;
-      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-      canvas.toBlob((blob) => {
-        const fr = new FileReader();
-        fr.onload = () => {
-          const base64 = fr.result.split(',')[1];
-          resolve({ base64, mimeType: 'image/jpeg', blob });
-        };
-        fr.onerror = reject;
-        fr.readAsDataURL(blob);
-      }, 'image/jpeg', quality);
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = () => {
+        // 이미지 로드 실패 시 원본 그대로 사용
+        const base64 = e.target.result.split(',')[1];
+        resolve({ base64, mimeType: mimeType, blob: file });
+      };
+      img.onload = () => {
+        try {
+          let { width, height } = img;
+          if (width > height && width > maxDim) { height = Math.round(height * maxDim / width); width = maxDim; }
+          else if (height > maxDim) { width = Math.round(width * maxDim / height); height = maxDim; }
+          const canvas = document.createElement('canvas');
+          canvas.width = width; canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          canvas.toBlob((blob) => {
+            if (!blob) {
+              // toBlob 실패 시 원본 사용
+              const base64 = e.target.result.split(',')[1];
+              resolve({ base64, mimeType: 'image/jpeg', blob: file });
+              return;
+            }
+            const fr = new FileReader();
+            fr.onload = () => {
+              const base64 = fr.result.split(',')[1];
+              resolve({ base64, mimeType: 'image/jpeg', blob });
+            };
+            fr.onerror = () => {
+              // FileReader 실패 시 원본 사용
+              const base64 = e.target.result.split(',')[1];
+              resolve({ base64, mimeType: 'image/jpeg', blob });
+            };
+            fr.readAsDataURL(blob);
+          }, 'image/jpeg', quality);
+        } catch (err) {
+          // canvas 작업 실패 시 원본 사용
+          const base64 = e.target.result.split(',')[1];
+          resolve({ base64, mimeType: 'image/jpeg', blob: file });
+        }
+      };
+      img.src = e.target.result;
     };
-    img.onerror = reject;
     reader.readAsDataURL(file);
   });
 }
@@ -322,6 +348,21 @@ export default function DiagnosticReportInput({
     try {
       const diagLabels = { calc: '계산 실수', concept: '개념 누락', apply: '응용 부족', time: '시간 부족', perfect: '개념 완벽' };
       const tagNames = selectedTags.map(t => diagLabels[t.key] || t.key).join(', ');
+
+      // 사진 분석 결과 추출
+      let photoContext = '';
+      if (photoAnalysis) {
+        const wrongs = (photoAnalysis.rawObservations || []).filter(o => o.mark !== 'O');
+        const rights = (photoAnalysis.rawObservations || []).filter(o => o.mark === 'O');
+        const wrongNums = wrongs.map(o => `${o.num}번`).join(', ');
+        photoContext = [
+          photoAnalysis.unit && `분석 단원: ${photoAnalysis.unit}`,
+          rights.length > 0 && `정답 문제: ${rights.length}개`,
+          wrongs.length > 0 && `오답 문제: ${wrongNums}`,
+          photoAnalysis.draftComment && `AI 분석 요약: ${photoAnalysis.draftComment}`,
+        ].filter(Boolean).join('\n');
+      }
+
       const response = await fetch('/api/polish', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -331,6 +372,7 @@ export default function DiagnosticReportInput({
           textbook: textbook || '',
           unit: unit || '',
           diagTags: tagNames || '',
+          photoContext: photoContext || '',
         }),
       });
       const data = await response.json();
