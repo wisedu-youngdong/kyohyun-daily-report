@@ -34,10 +34,15 @@ ${context ? `[수업 정보]\n${context}\n\n` : ''}[선생님 메모]\n${note}
         generationConfig: {
           temperature: 0.7,
           maxOutputTokens: 2048,
-        },
-        thinkingConfig: { thinkingBudget: 0 }
+        }
       })
     });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error('Gemini API 오류:', response.status, errText.slice(0, 200));
+      return res.status(500).json({ result: `API 오류 (${response.status})` });
+    }
 
     const data = await response.json();
     
