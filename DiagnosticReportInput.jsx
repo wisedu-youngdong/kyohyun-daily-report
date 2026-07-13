@@ -13,29 +13,38 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 // 이미지를 지정 크기로 압축해서 base64 반환
 function resizeToBase64(file, maxWidth, quality = 0.85) {
   return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
+    const objectUrl = URL.createObjectURL(file);
     const img = new Image();
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('이미지 로드 실패')); };
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('이미지 로드 실패'));
+    };
     img.onload = () => {
-      URL.revokeObjectURL(url);
+      // 1. 사이즈 계산
       let w = img.width, h = img.height;
       if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+
+      // 2. 캔버스에 먼저 그리기
       const canvas = document.createElement('canvas');
       canvas.width = w; canvas.height = h;
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      // webp 지원 안 되면 jpeg로 폴백
-      let dataUrl = canvas.toDataURL('image/webp', quality);
-      if (!dataUrl || dataUrl === 'data:,') dataUrl = canvas.toDataURL('image/jpeg', quality);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+
+      // 3. 다 그린 후에 메모리 해제 (타이밍 중요!)
+      URL.revokeObjectURL(objectUrl);
+
+      // 4. 모바일 호환성 최고인 jpeg로 추출
+      const dataUrl = canvas.toDataURL('image/jpeg', quality);
       resolve(dataUrl.split(',')[1]);
     };
-    img.src = url;
+    img.src = objectUrl;
   });
 }
 
 async function compressImage(file) {
   const [aiBase64, thumbBase64] = await Promise.all([
     resizeToBase64(file, 1024, 0.85),  // AI 분석용
-    resizeToBase64(file, 200, 0.75),   // 썸네일 미리보기용
+    resizeToBase64(file, 200, 0.80),   // 썸네일 미리보기용
   ]);
   return {
     aiBase64,
@@ -815,7 +824,7 @@ export default function DiagnosticReportInput({
                     cursor: 'pointer', color: TOKENS.textSub, fontSize: '13px', fontWeight: 600, background: TOKENS.bgSoft
                   }}>
                     <FileText size={16} /> 사진 선택 (갤러리, 최대 {MAX_PHOTOS}장)
-                    <input type="file" accept="image/*" multiple style={{ display: 'none' }}
+                    <input type="file" accept="image/jpeg,image/jpg,image/png,image/heic,image/heif" multiple style={{ display: 'none' }}
                       onChange={(e) => { if (e.target.files?.length) { handlePhotoSelect(e.target.files); e.target.value = ''; } }} />
                   </label>
                 )}
@@ -844,7 +853,7 @@ export default function DiagnosticReportInput({
                           cursor: 'pointer', color: TOKENS.textMute, background: TOKENS.bgSoft
                         }}>
                           <Plus size={20} />
-                          <input type="file" accept="image/*" multiple style={{ display: 'none' }}
+                          <input type="file" accept="image/jpeg,image/jpg,image/png,image/heic,image/heif" multiple style={{ display: 'none' }}
                             onChange={(e) => { if (e.target.files?.length) { handlePhotoSelect(e.target.files); e.target.value = ''; } }} />
                         </label>
                       )}
