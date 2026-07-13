@@ -10,67 +10,17 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 // 사진을 캔버스로 리사이즈/압축해서 base64로 반환 (업로드 용량 절감, API 페이로드 제한 대응)
 // maxDim/quality를 다소 넉넉히 잡음 — 한 페이지에 문항이 많을수록 글씨가 작아 판독력이 중요
-function compressImage(file, maxDim = 2000, quality = 0.82) {
+function compressImage(file) {
   return new Promise((resolve, reject) => {
-    const objectUrl = URL.createObjectURL(file);
-    const img = new Image();
-
-    img.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      // 이미지 로드 실패 시 FileReader로 폴백
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const base64 = e.target.result.split(',')[1];
-        resolve({ base64, mimeType: 'image/jpeg', blob: file, preview: e.target.result });
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = (e) => {
+      const dataUrl = e.target.result;
+      const base64 = dataUrl.split(',')[1];
+      const mimeType = file.type || 'image/jpeg';
+      resolve({ base64, mimeType, blob: file, preview: dataUrl });
     };
-
-    img.onload = () => {
-      URL.revokeObjectURL(objectUrl);
-      try {
-        let { width, height } = img;
-        if (width > height && width > maxDim) { height = Math.round(height * maxDim / width); width = maxDim; }
-        else if (height > maxDim) { width = Math.round(width * maxDim / height); height = maxDim; }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-
-        canvas.toBlob((blob) => {
-          if (!blob) {
-            // toBlob 실패 → FileReader 폴백
-            const reader = new FileReader();
-            reader.onload = (e) => resolve({ base64: e.target.result.split(',')[1], mimeType: 'image/jpeg', blob: file, preview: e.target.result });
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-            return;
-          }
-          const reader = new FileReader();
-          reader.onload = (e) => resolve({
-            base64: e.target.result.split(',')[1],
-            mimeType: 'image/jpeg',
-            blob,
-            preview: e.target.result,
-          });
-          reader.onerror = () => {
-            // FileReader 실패 → canvas dataURL 폴백
-            try {
-              const dataUrl = canvas.toDataURL('image/jpeg', quality);
-              resolve({ base64: dataUrl.split(',')[1], mimeType: 'image/jpeg', blob, preview: dataUrl });
-            } catch (e2) { reject(e2); }
-          };
-          reader.readAsDataURL(blob);
-        }, 'image/jpeg', quality);
-      } catch (err) {
-        reject(err);
-      }
-    };
-
-    img.src = objectUrl;
+    reader.readAsDataURL(file);
   });
 }
 
