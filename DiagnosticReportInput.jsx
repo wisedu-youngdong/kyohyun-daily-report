@@ -12,13 +12,16 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 // maxDim/quality를 다소 넉넉히 잡음 — 한 페이지에 문항이 많을수록 글씨가 작아 판독력이 중요
 function compressImage(file) {
   return new Promise((resolve, reject) => {
+    // 미리보기: objectURL (메모리 효율적, 모바일 안전)
+    const preview = URL.createObjectURL(file);
+
+    // base64: FileReader로 변환 (AI 분석용)
     const reader = new FileReader();
     reader.onerror = reject;
     reader.onload = (e) => {
-      const dataUrl = e.target.result;
-      const base64 = dataUrl.split(',')[1];
+      const base64 = e.target.result.split(',')[1];
       const mimeType = file.type || 'image/jpeg';
-      resolve({ base64, mimeType, blob: file, preview: dataUrl });
+      resolve({ base64, mimeType, blob: file, preview });
     };
     reader.readAsDataURL(file);
   });
@@ -366,7 +369,13 @@ export default function DiagnosticReportInput({
   };
 
   const removeOnePhoto = (idx) => {
-    setPhotos(prev => prev.filter((_, i) => i !== idx));
+    setPhotos(prev => {
+      const removed = prev[idx];
+      if (removed?.preview?.startsWith('blob:')) {
+        URL.revokeObjectURL(removed.preview);
+      }
+      return prev.filter((_, i) => i !== idx);
+    });
     setPhotoAnalysis(null);
   };
 
