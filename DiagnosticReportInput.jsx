@@ -25,16 +25,13 @@ async function compressImage(file) {
     fileType: 'image/jpeg',
     useWebWorker: true,
   });
-  const [aiDataUrl, thumbDataUrl] = await Promise.all([
-    imageCompression.getDataUrlFromFile(aiFile),
-    imageCompression.getDataUrlFromFile(thumbFile),
-  ]);
+  const aiDataUrl = await imageCompression.getDataUrlFromFile(aiFile);
+  const thumbDataUrl = await imageCompression.getDataUrlFromFile(thumbFile);
   return {
     aiBase64: aiDataUrl.split(',')[1],
-    thumbBase64: thumbDataUrl.split(',')[1],
     mimeType: 'image/jpeg',
     blob: aiFile,
-    preview: thumbDataUrl,
+    preview: thumbDataUrl,  // data:image/jpeg;base64,... 전체
   };
 }
 
