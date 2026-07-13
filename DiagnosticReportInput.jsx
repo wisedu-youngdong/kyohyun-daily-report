@@ -30,25 +30,30 @@ async function compressImage(file) {
     });
     const aiDataUrl = await imageCompression.getDataUrlFromFile(aiFile);
     const thumbDataUrl = await imageCompression.getDataUrlFromFile(thumbFile);
+
+    // thumbDataUrl 검증
+    const preview = (thumbDataUrl && thumbDataUrl.startsWith('data:'))
+      ? thumbDataUrl
+      : aiDataUrl; // thumb 실패 시 ai 이미지로 대체
+
     return {
       aiBase64: aiDataUrl.split(',')[1],
       mimeType: 'image/jpeg',
       blob: aiFile,
-      preview: thumbDataUrl,
+      preview,
     };
   } catch (e) {
-    console.warn('imageCompression 실패, objectURL 폴백:', e);
-    // 폴백: objectURL을 preview로, FileReader로 base64 생성
+    console.warn('imageCompression 실패, FileReader 폴백:', e);
     return new Promise((resolve, reject) => {
-      const preview = URL.createObjectURL(file);
       const reader = new FileReader();
       reader.onerror = reject;
       reader.onload = (ev) => {
+        const dataUrl = ev.target.result;
         resolve({
-          aiBase64: ev.target.result.split(',')[1],
+          aiBase64: dataUrl.split(',')[1],
           mimeType: file.type || 'image/jpeg',
           blob: file,
-          preview,
+          preview: dataUrl,
         });
       };
       reader.readAsDataURL(file);
