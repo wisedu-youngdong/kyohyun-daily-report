@@ -37,8 +37,22 @@ async function compressImage(file) {
       preview: thumbDataUrl,
     };
   } catch (e) {
-    console.error('compressImage 실패:', e);
-    throw new Error(e?.message || '압축 중 오류 발생');
+    console.warn('imageCompression 실패, FileReader 폴백:', e);
+    // 폴백: FileReader로 원본 그대로 사용
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = reject;
+      reader.onload = (ev) => {
+        const dataUrl = ev.target.result;
+        resolve({
+          aiBase64: dataUrl.split(',')[1],
+          mimeType: file.type || 'image/jpeg',
+          blob: file,
+          preview: dataUrl,
+        });
+      };
+      reader.readAsDataURL(file);
+    });
   }
 }
 
@@ -380,7 +394,8 @@ export default function DiagnosticReportInput({
         const result = await compressImage(file);
 
         if (!result.preview) {
-          throw new Error('미리보기 생성 실패');
+          console.warn('preview 없음, 건너뜀');
+          continue;
         }
 
         setPhotos(prev => [...prev, {
