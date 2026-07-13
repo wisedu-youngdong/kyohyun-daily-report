@@ -37,18 +37,18 @@ async function compressImage(file) {
       preview: thumbDataUrl,
     };
   } catch (e) {
-    console.warn('imageCompression 실패, FileReader 폴백:', e);
-    // 폴백: FileReader로 원본 그대로 사용
+    console.warn('imageCompression 실패, objectURL 폴백:', e);
+    // 폴백: objectURL을 preview로, FileReader로 base64 생성
     return new Promise((resolve, reject) => {
+      const preview = URL.createObjectURL(file);
       const reader = new FileReader();
       reader.onerror = reject;
       reader.onload = (ev) => {
-        const dataUrl = ev.target.result;
         resolve({
-          aiBase64: dataUrl.split(',')[1],
+          aiBase64: ev.target.result.split(',')[1],
           mimeType: file.type || 'image/jpeg',
           blob: file,
-          preview: dataUrl,
+          preview,
         });
       };
       reader.readAsDataURL(file);
@@ -851,11 +851,27 @@ export default function DiagnosticReportInput({
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '10px' }}>
                       {photos.map((p, i) => (
                         <div key={i} style={{ position: 'relative', borderRadius: '10px', overflow: 'hidden', aspectRatio: '3/4', background: '#F3F4F6' }}>
-                          <img
-                            src={p.preview}
-                            alt={`사진 ${i + 1}`}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                          />
+                          {p.preview ? (
+                            <img
+                              src={p.preview}
+                              alt={`사진 ${i + 1}`}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.parentNode.querySelector('.fallback-label').style.display = 'flex';
+                              }}
+                            />
+                          ) : null}
+                          <div className="fallback-label" style={{
+                            display: p.preview ? 'none' : 'flex',
+                            position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                            alignItems: 'center', justifyContent: 'center',
+                            flexDirection: 'column', gap: '4px',
+                            color: '#9CA3AF', fontSize: '11px', fontWeight: 500,
+                          }}>
+                            <span style={{ fontSize: '24px' }}>🖼️</span>
+                            <span>사진 {i + 1}</span>
+                          </div>
                           <span style={{ position: 'absolute', bottom: '4px', left: '4px', background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: '6px' }}>{i + 1}</span>
                           <button onClick={() => removeOnePhoto(i)} style={{
                             position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.55)',
