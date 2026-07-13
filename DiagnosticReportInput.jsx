@@ -10,21 +10,40 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 // 사진을 캔버스로 리사이즈/압축해서 base64로 반환 (업로드 용량 절감, API 페이로드 제한 대응)
 // maxDim/quality를 다소 넉넉히 잡음 — 한 페이지에 문항이 많을수록 글씨가 작아 판독력이 중요
-function compressImage(file) {
+// 이미지를 지정 크기로 압축해서 base64 반환
+function resizeToBase64(file, maxWidth, quality = 0.85) {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = reject;
-    reader.onload = (e) => {
-      const dataUrl = e.target.result;
-      resolve({
-        base64: dataUrl.split(',')[1],
-        mimeType: file.type || 'image/jpeg',
-        blob: file,
-        preview: dataUrl,
-      });
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('이미지 로드 실패')); };
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let w = img.width, h = img.height;
+      if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      // webp 지원 안 되면 jpeg로 폴백
+      let dataUrl = canvas.toDataURL('image/webp', quality);
+      if (!dataUrl || dataUrl === 'data:,') dataUrl = canvas.toDataURL('image/jpeg', quality);
+      resolve(dataUrl.split(',')[1]);
     };
-    reader.readAsDataURL(file);
+    img.src = url;
   });
+}
+
+async function compressImage(file) {
+  const [aiBase64, thumbBase64] = await Promise.all([
+    resizeToBase64(file, 1024, 0.85),  // AI 분석용
+    resizeToBase64(file, 200, 0.75),   // 썸네일 미리보기용
+  ]);
+  return {
+    aiBase64,
+    thumbBase64,
+    mimeType: 'image/jpeg',
+    blob: file,
+    preview: `data:image/jpeg;base64,${thumbBase64}`,
+  };
 }
 
 const TOKENS = {
@@ -354,13 +373,12 @@ export default function DiagnosticReportInput({
     setPhotoAnalysis(null);
     setPhotoError('');
 
-    // 한 장씩 처리해서 즉시 화면에 반영
     for (const file of files) {
       try {
         const result = await compressImage(file);
         setPhotos(prev => [...prev, {
-          preview: result.preview,
-          base64: result.base64,
+          preview: result.preview,       // 200px 썸네일 (미리보기)
+          base64: result.aiBase64,       // 1024px (AI 분석용)
           mimeType: result.mimeType,
           blob: result.blob,
         }]);
