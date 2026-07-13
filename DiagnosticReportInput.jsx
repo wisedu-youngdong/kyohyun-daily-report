@@ -365,7 +365,17 @@ export default function DiagnosticReportInput({
 
     for (const file of files) {
       try {
+        // 파일 크기 체크 (50MB 초과 시 거부)
+        if (file.size > 50 * 1024 * 1024) {
+          throw new Error(`파일이 너무 큽니다 (${(file.size/1024/1024).toFixed(1)}MB)`);
+        }
+
         const result = await compressImage(file);
+
+        if (!result.preview) {
+          throw new Error('미리보기 생성 실패');
+        }
+
         setPhotos(prev => [...prev, {
           preview: result.preview,
           base64: result.aiBase64,
@@ -373,13 +383,15 @@ export default function DiagnosticReportInput({
           blob: result.blob,
         }]);
       } catch (e) {
-        console.error('사진 처리 오류:', e);
-        const msg = `사진 처리 실패: ${e.message}`;
-        setPhotoError(msg);
-        showToast(msg, 'error');
+        const msg = e?.message || e?.toString() || '알 수 없는 오류';
+        console.error('사진 처리 오류:', msg, e);
+        setPhotoError(`사진 처리 실패: ${msg}`);
+        showToast(`사진 처리 실패: ${msg}`, 'error');
       }
     }
-    showToast(`사진 ${files.length}장 준비 완료!`, 'success');
+    if (photos.length > 0 || files.length > 0) {
+      showToast(`사진 준비 완료!`, 'success');
+    }
   };
 
   const removeOnePhoto = (idx) => {
