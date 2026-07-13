@@ -24,7 +24,7 @@ ${context ? `[수업 정보]\n${context}\n\n` : ''}[선생님 메모]\n${note}
 - 2~3문장, 한국어, 본문만 출력 (인사말/서명 없이)
 - 과장 없이 팩트 기반, 따뜻하되 전문적인 톤`;
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite-preview-06-17:generateContent?key=${process.env.GEMINI_API_KEY}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
 
     const response = await fetch(url, {
       method: 'POST',
@@ -40,10 +40,23 @@ ${context ? `[수업 정보]\n${context}\n\n` : ''}[선생님 메모]\n${note}
     });
 
     const data = await response.json();
-    const parts = data.candidates?.[0]?.content?.parts || [];
+    
+    // thinking 모드 대응 — parts 중 text 타입만 추출
+    const candidate = data.candidates?.[0];
+    const parts = candidate?.content?.parts || [];
     const textPart = parts.find(p => p.text && !p.thought);
-    const result = textPart?.text || parts.map(p => p.text || '').join('') || '결과 없음';
-    res.status(200).json({ result });
+    const result = textPart?.text 
+      || parts.find(p => p.text)?.text
+      || parts.map(p => p.text || '').join('')
+      || data.candidates?.[0]?.content?.parts?.[0]?.text
+      || '';
+
+    if (!result) {
+      console.error('Gemini 응답 파싱 실패:', JSON.stringify(data).slice(0, 300));
+      return res.status(200).json({ result: '응답을 가져오지 못했습니다. 다시 시도해주세요.' });
+    }
+
+    res.status(200).json({ result: result.trim() });
 
   } catch (e) {
     res.status(500).json({ result: '오류: ' + e.message });
