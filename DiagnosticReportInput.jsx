@@ -34,10 +34,19 @@ async function compressImage(file) {
     });
     logs.push(`썸네일: ${(thumbFile.size/1024).toFixed(0)}KB`);
 
-    const aiDataUrl = await imageCompression.getDataUrlFromFile(aiFile);
-    const thumbDataUrl = await imageCompression.getDataUrlFromFile(thumbFile);
-    logs.push(`AI URL: ${aiDataUrl?.slice(0,20)||'없음'}`);
-    logs.push(`썸URL: ${thumbDataUrl?.slice(0,20)||'없음'}`);
+    // getDataUrlFromFile 대신 FileReader 직접 사용 (모바일 안정)
+    const aiDataUrl = await new Promise((res, rej) => {
+      const r = new FileReader(); r.onerror = rej;
+      r.onload = e => res(e.target.result);
+      r.readAsDataURL(aiFile);
+    });
+    const thumbDataUrl = await new Promise((res, rej) => {
+      const r = new FileReader(); r.onerror = rej;
+      r.onload = e => res(e.target.result);
+      r.readAsDataURL(thumbFile);
+    });
+    logs.push(`AI URL: ${aiDataUrl?.slice(0,30)||'없음'}`);
+    logs.push(`썸URL: ${thumbDataUrl?.slice(0,30)||'없음'}`);
 
     const preview = (thumbDataUrl && thumbDataUrl.startsWith('data:'))
       ? thumbDataUrl : aiDataUrl;
