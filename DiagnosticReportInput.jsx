@@ -336,9 +336,9 @@ export default function DiagnosticReportInput({
       const data = await response.json();
       setAiPolishedNote(data.result);
     } catch (e) {
-      console.error('AI 오류:', e);
-      setAiPolishedNote('');
-      showToast('AI 연결에 실패했습니다.', 'error');
+      console.error('AI 오류 상세:', e.message, e.stack);
+      setAiPolishedNote('오류: ' + e.message);
+      showToast('AI 연결 실패: ' + e.message, 'error');
     }
   };
 
