@@ -317,22 +317,30 @@ export default function DiagnosticReportInput({
   };
 
   const handleAIPolish = async () => {
-  if (!teacherNote.trim()) return;
-  setAiPolishedNote('✨ AI가 다듬는 중...');
-  try {
-    const response = await fetch('/api/polish', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ note: teacherNote }),
-});
-const data = await response.json();
-setAiPolishedNote(data.result);
-  } catch (e) {
-    console.error('AI 오류:', e);
-    setAiPolishedNote('');
-    alert('AI 연결에 실패했습니다. 잠시 후 다시 시도해주세요.');
-  }
-};
+    if (!teacherNote.trim()) return;
+    setAiPolishedNote('✨ AI가 다듬는 중...');
+    try {
+      const diagLabels = { calc: '계산 실수', concept: '개념 누락', apply: '응용 부족', time: '시간 부족', perfect: '개념 완벽' };
+      const tagNames = selectedTags.map(t => diagLabels[t.key] || t.key).join(', ');
+      const response = await fetch('/api/polish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          note: teacherNote,
+          studentName: student?.name || '',
+          textbook: textbook || '',
+          unit: unit || '',
+          diagTags: tagNames || '',
+        }),
+      });
+      const data = await response.json();
+      setAiPolishedNote(data.result);
+    } catch (e) {
+      console.error('AI 오류:', e);
+      setAiPolishedNote('');
+      showToast('AI 연결에 실패했습니다.', 'error');
+    }
+  };
 
   // 사진 선택 → 미리보기 (여러 장 동시 선택 가능, 기존 목록에 추가됨)
   const handlePhotoSelect = async (fileList) => {
