@@ -15,48 +15,13 @@ function compressImage(file) {
     const reader = new FileReader();
     reader.onerror = reject;
     reader.onload = (e) => {
-      const originalBase64 = e.target.result.split(',')[1];
-      const mimeType = file.type || 'image/jpeg';
-
-      // 썸네일용 작은 이미지 생성 (미리보기 전용, 200px)
-      const img = new Image();
-      img.onerror = () => {
-        // 이미지 생성 실패 시 원본으로 폴백
-        resolve({
-          base64: originalBase64,
-          mimeType,
-          blob: file,
-          preview: `data:${mimeType};base64,${originalBase64}`,
-        });
-      };
-      img.onload = () => {
-        try {
-          const maxThumb = 200;
-          let w = img.width, h = img.height;
-          if (w > h) { h = Math.round(h * maxThumb / w); w = maxThumb; }
-          else { w = Math.round(w * maxThumb / h); h = maxThumb; }
-
-          const canvas = document.createElement('canvas');
-          canvas.width = w; canvas.height = h;
-          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-          const thumbDataUrl = canvas.toDataURL('image/jpeg', 0.7);
-
-          resolve({
-            base64: originalBase64,  // AI 분석용 원본
-            mimeType,
-            blob: file,
-            preview: thumbDataUrl,   // 미리보기용 썸네일
-          });
-        } catch {
-          resolve({
-            base64: originalBase64,
-            mimeType,
-            blob: file,
-            preview: `data:${mimeType};base64,${originalBase64}`,
-          });
-        }
-      };
-      img.src = e.target.result;
+      const dataUrl = e.target.result;
+      resolve({
+        base64: dataUrl.split(',')[1],
+        mimeType: file.type || 'image/jpeg',
+        blob: file,
+        preview: dataUrl,
+      });
     };
     reader.readAsDataURL(file);
   });
@@ -388,18 +353,21 @@ export default function DiagnosticReportInput({
     if (files.length === 0) return;
     setPhotoAnalysis(null);
     setPhotoError('');
-    try {
-      const compressed = await Promise.all(files.map(f => compressImage(f)));
-      setPhotos(prev => [
-        ...prev,
-        ...compressed.map(({ base64, mimeType, blob, preview }) => ({
-          preview: preview || `data:${mimeType};base64,${base64}`,
-          blob
-        }))
-      ]);
-    } catch (e) {
-      console.error('사진 처리 오류:', e);
-      setPhotoError('사진을 불러오지 못했습니다.');
+
+    // 한 장씩 처리해서 즉시 화면에 반영
+    for (const file of files) {
+      try {
+        const result = await compressImage(file);
+        setPhotos(prev => [...prev, {
+          preview: result.preview,
+          base64: result.base64,
+          mimeType: result.mimeType,
+          blob: result.blob,
+        }]);
+      } catch (e) {
+        console.error('사진 처리 오류:', e);
+        setPhotoError('사진을 불러오지 못했습니다.');
+      }
     }
   };
 
@@ -421,7 +389,7 @@ export default function DiagnosticReportInput({
     setAnalyzingPhoto(true);
     setPhotoError('');
     try {
-      const images = photos.map(p => ({ imageBase64: p.preview.split(',')[1], mimeType: 'image/jpeg' }));
+      const images = photos.map(p => ({ imageBase64: p.base64, mimeType: p.mimeType || 'image/jpeg' }));
       const response = await fetch('/api/analyze-photo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
