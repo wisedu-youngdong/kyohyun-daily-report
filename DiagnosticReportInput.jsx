@@ -12,55 +12,65 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 // maxDim/quality를 다소 넉넉히 잡음 — 한 페이지에 문항이 많을수록 글씨가 작아 판독력이 중요
 function compressImage(file, maxDim = 2000, quality = 0.82) {
   return new Promise((resolve, reject) => {
-    // HEIC/HEIF 등 모바일 특수 포맷 처리
-    const mimeType = file.type || 'image/jpeg';
+    const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
 
-    const reader = new FileReader();
-    reader.onerror = reject;
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onerror = () => {
-        // 이미지 로드 실패 시 원본 그대로 사용
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      // 이미지 로드 실패 시 FileReader로 폴백
+      const reader = new FileReader();
+      reader.onload = (e) => {
         const base64 = e.target.result.split(',')[1];
-        resolve({ base64, mimeType: mimeType, blob: file });
+        resolve({ base64, mimeType: 'image/jpeg', blob: file, preview: e.target.result });
       };
-      img.onload = () => {
-        try {
-          let { width, height } = img;
-          if (width > height && width > maxDim) { height = Math.round(height * maxDim / width); width = maxDim; }
-          else if (height > maxDim) { width = Math.round(width * maxDim / height); height = maxDim; }
-          const canvas = document.createElement('canvas');
-          canvas.width = width; canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, width, height);
-          canvas.toBlob((blob) => {
-            if (!blob) {
-              // toBlob 실패 시 원본 사용
-              const base64 = e.target.result.split(',')[1];
-              resolve({ base64, mimeType: 'image/jpeg', blob: file });
-              return;
-            }
-            const fr = new FileReader();
-            fr.onload = () => {
-              const base64 = fr.result.split(',')[1];
-              resolve({ base64, mimeType: 'image/jpeg', blob });
-            };
-            fr.onerror = () => {
-              // FileReader 실패 시 원본 사용
-              const base64 = e.target.result.split(',')[1];
-              resolve({ base64, mimeType: 'image/jpeg', blob });
-            };
-            fr.readAsDataURL(blob);
-          }, 'image/jpeg', quality);
-        } catch (err) {
-          // canvas 작업 실패 시 원본 사용
-          const base64 = e.target.result.split(',')[1];
-          resolve({ base64, mimeType: 'image/jpeg', blob: file });
-        }
-      };
-      img.src = e.target.result;
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
     };
-    reader.readAsDataURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      try {
+        let { width, height } = img;
+        if (width > height && width > maxDim) { height = Math.round(height * maxDim / width); width = maxDim; }
+        else if (height > maxDim) { width = Math.round(width * maxDim / height); height = maxDim; }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            // toBlob 실패 → FileReader 폴백
+            const reader = new FileReader();
+            reader.onload = (e) => resolve({ base64: e.target.result.split(',')[1], mimeType: 'image/jpeg', blob: file, preview: e.target.result });
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+            return;
+          }
+          const reader = new FileReader();
+          reader.onload = (e) => resolve({
+            base64: e.target.result.split(',')[1],
+            mimeType: 'image/jpeg',
+            blob,
+            preview: e.target.result,
+          });
+          reader.onerror = () => {
+            // FileReader 실패 → canvas dataURL 폴백
+            try {
+              const dataUrl = canvas.toDataURL('image/jpeg', quality);
+              resolve({ base64: dataUrl.split(',')[1], mimeType: 'image/jpeg', blob, preview: dataUrl });
+            } catch (e2) { reject(e2); }
+          };
+          reader.readAsDataURL(blob);
+        }, 'image/jpeg', quality);
+      } catch (err) {
+        reject(err);
+      }
+    };
+
+    img.src = objectUrl;
   });
 }
 
@@ -394,7 +404,10 @@ export default function DiagnosticReportInput({
       const compressed = await Promise.all(files.map(f => compressImage(f)));
       setPhotos(prev => [
         ...prev,
-        ...compressed.map(({ base64, mimeType, blob }) => ({ preview: `data:${mimeType};base64,${base64}`, blob }))
+        ...compressed.map(({ base64, mimeType, blob, preview }) => ({
+          preview: preview || `data:${mimeType};base64,${base64}`,
+          blob
+        }))
       ]);
     } catch (e) {
       console.error('사진 처리 오류:', e);
