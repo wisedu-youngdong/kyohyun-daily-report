@@ -1013,6 +1013,13 @@ function HistoryView({ reports, students, reportViews = [], onDelete, onEdit }) 
   const [periodFilter, setPeriodFilter] = useState('all');
   const [copied, setCopied] = useState(false);
 
+  // 삭제된 리포트가 selectedId면 자동 초기화
+  React.useEffect(() => {
+    if (selectedId && !reports.find(r => r.id === selectedId)) {
+      setSelectedId(null);
+    }
+  }, [reports, selectedId]);
+
   const DIAG_LABELS = { calc: '계산 실수', concept: '개념 누락', apply: '응용 부족', time: '시간 부족', perfect: '개념 완벽' };
   const DIAG_COLORS = { calc: { bg: '#FFF8EC', color: '#8A5A00', border: '#C9A22740' }, concept: { bg: '#EAF1FB', color: '#0D2D6B', border: '#0D2D6B40' }, apply: { bg: '#FDF0F0', color: '#8A2020', border: '#8A202040' }, time: { bg: '#F3F0FA', color: '#4A3080', border: '#4A308040' }, perfect: { bg: '#F0FAF5', color: '#0F6E56', border: '#0F6E5640' } };
 
@@ -1197,7 +1204,11 @@ function HistoryView({ reports, students, reportViews = [], onDelete, onEdit }) 
                         style={{ flex: 1, padding: '11px', fontSize: '13px', fontWeight: 600, border: '1px solid #E5E7EB', borderRadius: '8px', background: '#fff', cursor: 'pointer', fontFamily: 'inherit', color: '#374151' }}>
                         취소
                       </button>
-                      <button onClick={() => { onDelete(selected.id); setDeleteConfirmReport(null); setSelectedId(null); }}
+                      <button onClick={() => {
+                        setDeleteConfirmReport(null);
+                        setSelectedId(null);
+                        onDelete(selected.id);
+                      }}
                         style={{ flex: 1, padding: '11px', fontSize: '13px', fontWeight: 700, border: 'none', borderRadius: '8px', background: '#DC2626', color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
                         삭제
                       </button>
