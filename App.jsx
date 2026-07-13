@@ -1150,14 +1150,10 @@ function HistoryView({ reports, students, reportViews = [], onDelete, onEdit }) 
                 </div>
               )}
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                 <button onClick={() => { onEdit(selected); setSelectedId(null); }}
                   style={{ padding: '11px', border: '1px solid #E5E7EB', borderRadius: '8px', background: '#fff', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', color: '#374151' }}>
                   ✏️ 수정
-                </button>
-                <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/report/${selected.id}`); setSelectedId(null); }}
-                  style={{ padding: '11px', border: 'none', borderRadius: '8px', background: '#0D2D6B', color: '#fff', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                  🔗 복사
                 </button>
                 <button onClick={() => setDeleteConfirmReport(selected.id)}
                   style={{ padding: '11px', border: '1px solid #FECACA', borderRadius: '8px', background: '#FFF5F5', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', color: '#DC2626' }}>
