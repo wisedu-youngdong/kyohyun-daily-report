@@ -13,26 +13,33 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 // maxDim/quality를 다소 넉넉히 잡음 — 한 페이지에 문항이 많을수록 글씨가 작아 판독력이 중요
 // browser-image-compression 기반 이미지 처리
 async function compressImage(file) {
-  const aiFile = await imageCompression(file, {
-    maxSizeMB: 1,
-    maxWidthOrHeight: 1024,
-    fileType: 'image/jpeg',
-    useWebWorker: true,
-  });
-  const thumbFile = await imageCompression(file, {
-    maxSizeMB: 0.1,
-    maxWidthOrHeight: 200,
-    fileType: 'image/jpeg',
-    useWebWorker: true,
-  });
-  const aiDataUrl = await imageCompression.getDataUrlFromFile(aiFile);
-  const thumbDataUrl = await imageCompression.getDataUrlFromFile(thumbFile);
-  return {
-    aiBase64: aiDataUrl.split(',')[1],
-    mimeType: 'image/jpeg',
-    blob: aiFile,
-    preview: thumbDataUrl,  // data:image/jpeg;base64,... 전체
-  };
+  try {
+    const aiFile = await imageCompression(file, {
+      maxSizeMB: 1,
+      maxWidthOrHeight: 1024,
+      fileType: 'image/jpeg',
+      useWebWorker: false,
+      initialQuality: 0.85,
+    });
+    const thumbFile = await imageCompression(file, {
+      maxSizeMB: 0.05,
+      maxWidthOrHeight: 200,
+      fileType: 'image/jpeg',
+      useWebWorker: false,
+      initialQuality: 0.8,
+    });
+    const aiDataUrl = await imageCompression.getDataUrlFromFile(aiFile);
+    const thumbDataUrl = await imageCompression.getDataUrlFromFile(thumbFile);
+    return {
+      aiBase64: aiDataUrl.split(',')[1],
+      mimeType: 'image/jpeg',
+      blob: aiFile,
+      preview: thumbDataUrl,
+    };
+  } catch (e) {
+    console.error('compressImage 실패:', e);
+    throw new Error(e?.message || '압축 중 오류 발생');
+  }
 }
 
 const TOKENS = {
