@@ -31,7 +31,7 @@ ${context ? `[수업 정보]\n${context}\n\n` : ''}[선생님 메모]\n${note}
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.7, maxOutputTokens: 512 }
+        generationConfig: { temperature: 0.7, maxOutputTokens: 1024 }
       })
     });
 
