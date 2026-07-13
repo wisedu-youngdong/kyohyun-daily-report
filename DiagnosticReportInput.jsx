@@ -1,3 +1,4 @@
+import imageCompression from 'browser-image-compression';
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   User, Clock, Target, MessageCircle, ArrowRight,
@@ -10,48 +11,30 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 // 사진을 캔버스로 리사이즈/압축해서 base64로 반환 (업로드 용량 절감, API 페이로드 제한 대응)
 // maxDim/quality를 다소 넉넉히 잡음 — 한 페이지에 문항이 많을수록 글씨가 작아 판독력이 중요
-// 이미지를 지정 크기로 압축해서 base64 반환
-function resizeToBase64(file, maxWidth, quality = 0.85) {
-  return new Promise((resolve, reject) => {
-    const objectUrl = URL.createObjectURL(file);
-    const img = new Image();
-    img.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      reject(new Error('이미지 로드 실패'));
-    };
-    img.onload = () => {
-      // 1. 사이즈 계산
-      let w = img.width, h = img.height;
-      if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
-
-      // 2. 캔버스에 먼저 그리기
-      const canvas = document.createElement('canvas');
-      canvas.width = w; canvas.height = h;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, w, h);
-
-      // 3. 다 그린 후에 메모리 해제 (타이밍 중요!)
-      URL.revokeObjectURL(objectUrl);
-
-      // 4. 모바일 호환성 최고인 jpeg로 추출
-      const dataUrl = canvas.toDataURL('image/jpeg', quality);
-      resolve(dataUrl.split(',')[1]);
-    };
-    img.src = objectUrl;
-  });
-}
-
+// browser-image-compression 기반 이미지 처리
 async function compressImage(file) {
-  const [aiBase64, thumbBase64] = await Promise.all([
-    resizeToBase64(file, 1024, 0.85),  // AI 분석용
-    resizeToBase64(file, 200, 0.80),   // 썸네일 미리보기용
+  const aiFile = await imageCompression(file, {
+    maxSizeMB: 1,
+    maxWidthOrHeight: 1024,
+    fileType: 'image/jpeg',
+    useWebWorker: true,
+  });
+  const thumbFile = await imageCompression(file, {
+    maxSizeMB: 0.1,
+    maxWidthOrHeight: 200,
+    fileType: 'image/jpeg',
+    useWebWorker: true,
+  });
+  const [aiDataUrl, thumbDataUrl] = await Promise.all([
+    imageCompression.getDataUrlFromFile(aiFile),
+    imageCompression.getDataUrlFromFile(thumbFile),
   ]);
   return {
-    aiBase64,
-    thumbBase64,
+    aiBase64: aiDataUrl.split(',')[1],
+    thumbBase64: thumbDataUrl.split(',')[1],
     mimeType: 'image/jpeg',
-    blob: file,
-    preview: `data:image/jpeg;base64,${thumbBase64}`,
+    blob: aiFile,
+    preview: thumbDataUrl,
   };
 }
 
@@ -381,21 +364,25 @@ export default function DiagnosticReportInput({
     if (files.length === 0) return;
     setPhotoAnalysis(null);
     setPhotoError('');
+    showToast('사진을 압축하고 있습니다...', 'info');
 
     for (const file of files) {
       try {
         const result = await compressImage(file);
         setPhotos(prev => [...prev, {
-          preview: result.preview,       // 200px 썸네일 (미리보기)
-          base64: result.aiBase64,       // 1024px (AI 분석용)
+          preview: result.preview,
+          base64: result.aiBase64,
           mimeType: result.mimeType,
           blob: result.blob,
         }]);
       } catch (e) {
         console.error('사진 처리 오류:', e);
-        setPhotoError('사진을 불러오지 못했습니다.');
+        const msg = `사진 처리 실패: ${e.message}`;
+        setPhotoError(msg);
+        showToast(msg, 'error');
       }
     }
+    showToast(`사진 ${files.length}장 준비 완료!`, 'success');
   };
 
   const removeOnePhoto = (idx) => {
