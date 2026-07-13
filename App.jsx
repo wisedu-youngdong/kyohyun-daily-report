@@ -1064,7 +1064,6 @@ function HistoryView({ reports, students, reportViews = [], onDelete, onEdit }) 
   const isMobile = window.innerWidth < 768;
 
   if (isMobile) {
-    // 기존 모바일 카드 리스트 유지
     return (
       <div style={{ padding: '16px' }}>
         <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
@@ -1093,12 +1092,111 @@ function HistoryView({ reports, students, reportViews = [], onDelete, onEdit }) 
             );
           })}
         </div>
+
+        {/* 모바일 바텀시트 */}
+        {selectedId && selected && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999 }} onClick={() => setSelectedId(null)}>
+            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: '#fff', borderRadius: '20px 20px 0 0', maxHeight: '85vh', overflowY: 'auto', padding: '20px' }} onClick={e => e.stopPropagation()}>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+                    <p style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>{selected.studentName}</p>
+                    <span style={{ fontSize: '10px', fontWeight: 600, background: statusBadge(selected).bg, color: statusBadge(selected).color, padding: '1px 7px', borderRadius: '8px' }}>{statusBadge(selected).label}</span>
+                  </div>
+                  <p style={{ fontSize: '12px', color: '#6B7280', margin: 0 }}>{fmtDate(selected)} · {selected.teacherName}</p>
+                </div>
+                <button onClick={() => setSelectedId(null)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#6B7280' }}>×</button>
+              </div>
+
+              {(selected.textbook || selected.unit) && (
+                <p style={{ fontSize: '13px', color: '#374151', marginBottom: '10px', fontWeight: 500 }}>
+                  {[selected.textbook, selected.unit, selected.pages && `${selected.pages}쪽`].filter(Boolean).join(' · ')}
+                </p>
+              )}
+
+              {(selected.homeworkRating > 0 || selected.conceptRating > 0 || selected.testScore) && (
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
+                  {selected.homeworkRating > 0 && <span style={{ fontSize: '12px', background: '#EAF1FB', color: '#0D2D6B', padding: '4px 10px', borderRadius: '8px', fontWeight: 600 }}>과제 {selected.homeworkRating}/5</span>}
+                  {selected.conceptRating > 0 && <span style={{ fontSize: '12px', background: '#EAF1FB', color: '#0D2D6B', padding: '4px 10px', borderRadius: '8px', fontWeight: 600 }}>개념 {selected.conceptRating}/5</span>}
+                  {selected.hasTest && selected.testScore && <span style={{ fontSize: '12px', background: '#FFF8EC', color: '#7A4F00', padding: '4px 10px', borderRadius: '8px', fontWeight: 600 }}>시험 {selected.testScore}점</span>}
+                </div>
+              )}
+
+              {selected.diagnosis?.length > 0 && (
+                <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                  {selected.diagnosis.map((d, i) => {
+                    const DIAG = { calc: '계산 실수', concept: '개념 누락', apply: '응용 부족', time: '시간 부족', perfect: '개념 완벽' };
+                    return <span key={i} style={{ fontSize: '11px', background: d.key === 'perfect' ? '#F0FAF5' : '#FDF0F0', color: d.key === 'perfect' ? '#0F6E56' : '#8A2020', padding: '3px 9px', borderRadius: '8px', fontWeight: 600 }}>{DIAG[d.key] || d.key}</span>;
+                  })}
+                </div>
+              )}
+
+              {selected.teacherNote ? (
+                <div style={{ background: '#F9FAFB', borderRadius: '8px', padding: '12px', marginBottom: '12px', borderLeft: '3px solid #0D2D6B' }}>
+                  <p style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.8, margin: 0 }}>{selected.teacherNote}</p>
+                </div>
+              ) : (
+                <p style={{ fontSize: '12px', color: '#9CA3AF', marginBottom: '12px', fontStyle: 'italic' }}>아직 작성된 코멘트가 없습니다</p>
+              )}
+
+              {selected.photoUrls?.length > 0 && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', marginBottom: '12px' }}>
+                  {selected.photoUrls.map((url, i) => (
+                    <a key={i} href={url} target="_blank" rel="noopener noreferrer">
+                      <img src={url} alt={`사진 ${i+1}`} style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', borderRadius: '6px' }} />
+                    </a>
+                  ))}
+                </div>
+              )}
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
+                <button onClick={() => { onEdit(selected); setSelectedId(null); }}
+                  style={{ padding: '11px', border: '1px solid #E5E7EB', borderRadius: '8px', background: '#fff', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', color: '#374151' }}>
+                  ✏️ 수정
+                </button>
+                <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/report/${selected.id}`); setSelectedId(null); }}
+                  style={{ padding: '11px', border: 'none', borderRadius: '8px', background: '#0D2D6B', color: '#fff', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  🔗 복사
+                </button>
+                <button onClick={() => setDeleteConfirmReport(selected.id)}
+                  style={{ padding: '11px', border: '1px solid #FECACA', borderRadius: '8px', background: '#FFF5F5', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', color: '#DC2626' }}>
+                  🗑️ 삭제
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 삭제 확인 모달 */}
+        {deleteConfirmReport && selected && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+            <div style={{ background: '#fff', borderRadius: '16px', padding: '28px 24px', width: '100%', maxWidth: '320px' }}>
+              <div style={{ width: '44px', height: '44px', background: '#FEE2E2', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                <span style={{ fontSize: '22px' }}>🗑️</span>
+              </div>
+              <p style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', margin: '0 0 8px', textAlign: 'center' }}>리포트를 삭제할까요?</p>
+              <div style={{ background: '#FFF5F5', border: '1px solid #FECACA', borderRadius: '8px', padding: '12px', margin: '0 0 16px' }}>
+                <p style={{ fontSize: '13px', color: '#374151', margin: '0 0 4px', textAlign: 'center' }}><strong>{fmtDate(selected)}</strong></p>
+                <p style={{ fontSize: '14px', fontWeight: 700, color: '#DC2626', margin: 0, textAlign: 'center' }}>{selected.studentName} 학생 리포트</p>
+              </div>
+              <p style={{ fontSize: '12px', color: '#9CA3AF', textAlign: 'center', margin: '0 0 20px' }}>삭제 후 복구가 불가능합니다.</p>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={() => setDeleteConfirmReport(null)}
+                  style={{ flex: 1, padding: '11px', fontSize: '13px', fontWeight: 600, border: '1px solid #E5E7EB', borderRadius: '8px', background: '#fff', cursor: 'pointer', fontFamily: 'inherit', color: '#374151' }}>취소</button>
+                <button onClick={() => { setDeleteConfirmReport(null); setSelectedId(null); onDelete(selected.id); }}
+                  style={{ flex: 1, padding: '11px', fontSize: '13px', fontWeight: 700, border: 'none', borderRadius: '8px', background: '#DC2626', color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>삭제</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
 
   // PC: 스플릿 뷰
   return (
+    <>
     <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', height: 'calc(100vh - 120px)', overflow: 'hidden' }}>
 
       {/* 좌측 목록 */}
@@ -1310,90 +1408,9 @@ function HistoryView({ reports, students, reportViews = [], onDelete, onEdit }) 
         </div>
       )}
 
-      {/* 프리뷰 모달 (모바일) */}
-      {selectedId && isMobile && selected && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999 }} onClick={() => setSelectedId(null)}>
-          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: '#fff', borderRadius: '20px 20px 0 0', maxHeight: '85vh', overflowY: 'auto', padding: '20px' }} onClick={e => e.stopPropagation()}>
+    </div>
 
-            {/* 헤더 */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px' }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
-                  <p style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>{selected.studentName}</p>
-                  <span style={{ fontSize: '10px', fontWeight: 600, background: statusBadge(selected).bg, color: statusBadge(selected).color, padding: '1px 7px', borderRadius: '8px' }}>{statusBadge(selected).label}</span>
-                </div>
-                <p style={{ fontSize: '12px', color: '#6B7280', margin: 0 }}>{fmtDate(selected)} · {selected.teacherName}</p>
-              </div>
-              <button onClick={() => setSelectedId(null)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#6B7280' }}>×</button>
-            </div>
-
-            {/* 교재/단원 */}
-            {(selected.textbook || selected.unit) && (
-              <p style={{ fontSize: '13px', color: '#374151', marginBottom: '10px', fontWeight: 500 }}>
-                {[selected.textbook, selected.unit, selected.pages && `${selected.pages}쪽`].filter(Boolean).join(' · ')}
-              </p>
-            )}
-
-            {/* 평점 */}
-            {(selected.homeworkRating > 0 || selected.conceptRating > 0 || selected.testScore) && (
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
-                {selected.homeworkRating > 0 && <span style={{ fontSize: '12px', background: '#EAF1FB', color: '#0D2D6B', padding: '4px 10px', borderRadius: '8px', fontWeight: 600 }}>과제 {selected.homeworkRating}/5</span>}
-                {selected.conceptRating > 0 && <span style={{ fontSize: '12px', background: '#EAF1FB', color: '#0D2D6B', padding: '4px 10px', borderRadius: '8px', fontWeight: 600 }}>개념 {selected.conceptRating}/5</span>}
-                {selected.hasTest && selected.testScore && <span style={{ fontSize: '12px', background: '#FFF8EC', color: '#7A4F00', padding: '4px 10px', borderRadius: '8px', fontWeight: 600 }}>시험 {selected.testScore}점</span>}
-              </div>
-            )}
-
-            {/* 진단 태그 */}
-            {selected.diagnosis?.length > 0 && (
-              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginBottom: '10px' }}>
-                {selected.diagnosis.map((d, i) => {
-                  const DIAG = { calc: '계산 실수', concept: '개념 누락', apply: '응용 부족', time: '시간 부족', perfect: '개념 완벽' };
-                  return <span key={i} style={{ fontSize: '11px', background: d.key === 'perfect' ? '#F0FAF5' : '#FDF0F0', color: d.key === 'perfect' ? '#0F6E56' : '#8A2020', padding: '3px 9px', borderRadius: '8px', fontWeight: 600 }}>{DIAG[d.key] || d.key}</span>;
-                })}
-              </div>
-            )}
-
-            {/* 코멘트 */}
-            {selected.teacherNote && (
-              <div style={{ background: '#F9FAFB', borderRadius: '8px', padding: '12px', marginBottom: '10px', borderLeft: '3px solid #0D2D6B' }}>
-                <p style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.8, margin: 0 }}>{selected.teacherNote}</p>
-              </div>
-            )}
-            {!selected.teacherNote && (
-              <p style={{ fontSize: '12px', color: '#9CA3AF', marginBottom: '10px', fontStyle: 'italic' }}>아직 작성된 코멘트가 없습니다</p>
-            )}
-
-            {/* 사진 */}
-            {selected.photoUrls?.length > 0 && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', marginBottom: '12px' }}>
-                {selected.photoUrls.map((url, i) => (
-                  <a key={i} href={url} target="_blank" rel="noopener noreferrer">
-                    <img src={url} alt={`사진 ${i+1}`} style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', borderRadius: '6px' }} />
-                  </a>
-                ))}
-              </div>
-            )}
-
-            {/* 액션 버튼 */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px', marginTop: '4px' }}>
-              <button onClick={() => { onEdit(selected); setSelectedId(null); }}
-                style={{ padding: '10px', border: '1px solid #E5E7EB', borderRadius: '8px', background: '#fff', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', color: '#374151' }}>
-                ✏️ 수정
-              </button>
-              <button onClick={() => navigator.clipboard.writeText(`${window.location.origin}/report/${selected.id}`).then(() => { setSelectedId(null); })}
-                style={{ padding: '10px', border: 'none', borderRadius: '8px', background: '#0D2D6B', color: '#fff', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                🔗 링크복사
-              </button>
-              <button onClick={() => setDeleteConfirmReport(selected.id)}
-                style={{ padding: '10px', border: '1px solid #FECACA', borderRadius: '8px', background: '#FFF5F5', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', color: '#DC2626' }}>
-                🗑️ 삭제
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 삭제 확인 모달 (PC + 모바일 공통) */}
+      {/* PC 삭제 확인 모달 */}
       {deleteConfirmReport && selected && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
           <div style={{ background: '#fff', borderRadius: '16px', padding: '28px 24px', width: '100%', maxWidth: '320px', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
@@ -1402,12 +1419,8 @@ function HistoryView({ reports, students, reportViews = [], onDelete, onEdit }) 
             </div>
             <p style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', margin: '0 0 8px', textAlign: 'center' }}>리포트를 삭제할까요?</p>
             <div style={{ background: '#FFF5F5', border: '1px solid #FECACA', borderRadius: '8px', padding: '12px', margin: '0 0 16px' }}>
-              <p style={{ fontSize: '13px', color: '#374151', margin: '0 0 4px', textAlign: 'center' }}>
-                <strong>{fmtDate(selected)}</strong>
-              </p>
-              <p style={{ fontSize: '14px', fontWeight: 700, color: '#DC2626', margin: 0, textAlign: 'center' }}>
-                {selected.studentName} 학생 리포트
-              </p>
+              <p style={{ fontSize: '13px', color: '#374151', margin: '0 0 4px', textAlign: 'center' }}><strong>{fmtDate(selected)}</strong></p>
+              <p style={{ fontSize: '14px', fontWeight: 700, color: '#DC2626', margin: 0, textAlign: 'center' }}>{selected.studentName} 학생 리포트</p>
             </div>
             <p style={{ fontSize: '12px', color: '#9CA3AF', textAlign: 'center', margin: '0 0 20px' }}>삭제 후 복구가 불가능합니다.</p>
             <div style={{ display: 'flex', gap: '8px' }}>
@@ -1419,7 +1432,7 @@ function HistoryView({ reports, students, reportViews = [], onDelete, onEdit }) 
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 function ReportPreviewModal({ report: r, allReports, onClose, onDelete, onEdit }) {
