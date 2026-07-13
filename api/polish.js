@@ -24,14 +24,18 @@ ${context ? `[수업 정보]\n${context}\n\n` : ''}[선생님 메모]\n${note}
 - 2~3문장, 한국어, 본문만 출력 (인사말/서명 없이)
 - 과장 없이 팩트 기반, 따뜻하되 전문적인 톤`;
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite-preview-06-17:generateContent?key=${process.env.GEMINI_API_KEY}`;
 
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.7, maxOutputTokens: 1024 }
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 2048,
+        },
+        thinkingConfig: { thinkingBudget: 0 }
       })
     });
 
