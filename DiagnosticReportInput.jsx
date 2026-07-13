@@ -1,4 +1,5 @@
 import imageCompression from 'browser-image-compression';
+import heic2any from 'heic2any';
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   User, Clock, Target, MessageCircle, ArrowRight,
@@ -11,71 +12,50 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 // 사진을 캔버스로 리사이즈/압축해서 base64로 반환 (업로드 용량 절감, API 페이로드 제한 대응)
 // maxDim/quality를 다소 넉넉히 잡음 — 한 페이지에 문항이 많을수록 글씨가 작아 판독력이 중요
-// browser-image-compression 기반 이미지 처리
+// browser-image-compression 기반 이미지 처리 (HEIC 자동변환 포함)
 async function compressImage(file) {
-  const logs = [];
   try {
-    logs.push(`파일: ${file.name} ${(file.size/1024/1024).toFixed(1)}MB ${file.type}`);
-    const aiFile = await imageCompression(file, {
-      maxSizeMB: 1,
-      maxWidthOrHeight: 1024,
-      fileType: 'image/jpeg',
-      useWebWorker: false,
-      initialQuality: 0.85,
-    });
-    logs.push(`AI압축: ${(aiFile.size/1024).toFixed(0)}KB`);
+    // HEIC/HEIF → JPEG 자동 변환
+    let processFile = file;
+    const isHeic = file.type === 'image/heic' || file.type === 'image/heif'
+      || file.name?.toLowerCase().endsWith('.heic')
+      || file.name?.toLowerCase().endsWith('.heif');
 
-    const thumbFile = await imageCompression(file, {
-      maxSizeMB: 0.05,
-      maxWidthOrHeight: 200,
-      fileType: 'image/jpeg',
-      useWebWorker: false,
-      initialQuality: 0.8,
-    });
-    logs.push(`썸네일: ${(thumbFile.size/1024).toFixed(0)}KB`);
+    if (isHeic) {
+      const blob = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.85 });
+      processFile = new File([blob], file.name.replace(/\.heic$/i, '.jpg'), { type: 'image/jpeg' });
+    }
 
-    // getDataUrlFromFile 대신 FileReader 직접 사용 (모바일 안정)
-    const aiDataUrl = await new Promise((res, rej) => {
-      const r = new FileReader(); r.onerror = rej;
-      r.onload = e => res(e.target.result);
-      r.readAsDataURL(aiFile);
-    });
-    const thumbDataUrl = await new Promise((res, rej) => {
-      const r = new FileReader(); r.onerror = rej;
-      r.onload = e => res(e.target.result);
-      r.readAsDataURL(thumbFile);
-    });
-    logs.push(`AI URL: ${aiDataUrl?.slice(0,30)||'없음'}`);
-    logs.push(`썸URL: ${thumbDataUrl?.slice(0,30)||'없음'}`);
+    const [aiFile, thumbFile] = await Promise.all([
+      imageCompression(processFile, {
+        maxSizeMB: 1, maxWidthOrHeight: 1024,
+        fileType: 'image/jpeg', useWebWorker: false, initialQuality: 0.85,
+      }),
+      imageCompression(processFile, {
+        maxSizeMB: 0.05, maxWidthOrHeight: 200,
+        fileType: 'image/jpeg', useWebWorker: false, initialQuality: 0.8,
+      }),
+    ]);
 
-    const preview = (thumbDataUrl && thumbDataUrl.startsWith('data:'))
-      ? thumbDataUrl : aiDataUrl;
+    const [aiDataUrl, thumbDataUrl] = await Promise.all([
+      new Promise((res, rej) => { const r = new FileReader(); r.onerror = rej; r.onload = e => res(e.target.result); r.readAsDataURL(aiFile); }),
+      new Promise((res, rej) => { const r = new FileReader(); r.onerror = rej; r.onload = e => res(e.target.result); r.readAsDataURL(thumbFile); }),
+    ]);
 
     return {
       aiBase64: aiDataUrl.split(',')[1],
       mimeType: 'image/jpeg',
       blob: aiFile,
-      preview,
-      debugLogs: logs,
+      preview: (thumbDataUrl?.startsWith('data:')) ? thumbDataUrl : aiDataUrl,
     };
   } catch (e) {
-    logs.push(`에러: ${e?.message||'unknown'}`);
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onerror = reject;
-      reader.onload = (ev) => {
-        const dataUrl = ev.target.result;
-        logs.push(`폴백URL: ${dataUrl?.slice(0,20)||'없음'}`);
-        resolve({
-          aiBase64: dataUrl.split(',')[1],
-          mimeType: file.type || 'image/jpeg',
-          blob: file,
-          preview: dataUrl,
-          debugLogs: logs,
-        });
-      };
-      reader.readAsDataURL(file);
+    console.warn('compressImage 실패, 폴백:', e);
+    const dataUrl = await new Promise((res, rej) => {
+      const r = new FileReader(); r.onerror = rej;
+      r.onload = ev => res(ev.target.result);
+      r.readAsDataURL(file);
     });
+    return { aiBase64: dataUrl.split(',')[1], mimeType: 'image/jpeg', blob: file, preview: dataUrl };
   }
 }
 
@@ -866,7 +846,7 @@ export default function DiagnosticReportInput({
                     cursor: 'pointer', color: TOKENS.textSub, fontSize: '13px', fontWeight: 600, background: TOKENS.bgSoft
                   }}>
                     <FileText size={16} /> 사진 선택 (갤러리, 최대 {MAX_PHOTOS}장)
-                    <input type="file" accept="image/jpeg,image/jpg,image/png" multiple style={{ display: 'none' }}
+                    <input type="file" accept="image/*" multiple style={{ display: 'none' }}
                       onChange={(e) => { if (e.target.files?.length) { handlePhotoSelect(e.target.files); e.target.value = ''; } }} />
                   </label>
                 )}
@@ -896,7 +876,7 @@ export default function DiagnosticReportInput({
                           cursor: 'pointer', color: TOKENS.textMute, background: TOKENS.bgSoft
                         }}>
                           <Plus size={20} />
-                          <input type="file" accept="image/jpeg,image/jpg,image/png" multiple style={{ display: 'none' }}
+                          <input type="file" accept="image/*" multiple style={{ display: 'none' }}
                             onChange={(e) => { if (e.target.files?.length) { handlePhotoSelect(e.target.files); e.target.value = ''; } }} />
                         </label>
                       )}
