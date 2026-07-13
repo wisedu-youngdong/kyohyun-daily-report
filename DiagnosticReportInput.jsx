@@ -788,33 +788,34 @@ export default function DiagnosticReportInput({
                   채점(O/△/빗금) 완료된 페이지를 촬영하면, AI가 표시만 그대로 읽어 유형별 코멘트 초안을 만들어줍니다. 여러 장(최대 {MAX_PHOTOS}장) 한 번에 올려서 페이지별 결과를 통합 분석할 수 있습니다. 점수는 반영되지 않습니다.
                 </p>
                 {photos.length === 0 && (
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <label style={{
-                      flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                      border: `1.5px dashed ${TOKENS.border}`, borderRadius: '12px', padding: '16px',
-                      cursor: 'pointer', color: TOKENS.textSub, fontSize: '13px', fontWeight: 600, background: TOKENS.bgSoft
-                    }}>
-                      <FileText size={16} /> 갤러리 선택 (최대 10장)
-                      <input type="file" accept="image/*" multiple style={{ display: 'none' }}
-                        onChange={(e) => { if (e.target.files?.length) { handlePhotoSelect(e.target.files); e.target.value = ''; } }} />
-                    </label>
-                    <label style={{
-                      flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                      border: `1.5px dashed ${TOKENS.border}`, borderRadius: '12px', padding: '16px',
-                      cursor: 'pointer', color: TOKENS.textSub, fontSize: '13px', fontWeight: 600, background: TOKENS.bgSoft
-                    }}>
-                      📷 카메라 촬영
-                      <input type="file" accept="image/*" capture="environment" style={{ display: 'none' }}
-                        onChange={(e) => { if (e.target.files?.length) { handlePhotoSelect(e.target.files); e.target.value = ''; } }} />
-                    </label>
-                  </div>
+                  <label style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                    border: `1.5px dashed ${TOKENS.border}`, borderRadius: '12px', padding: '18px',
+                    cursor: 'pointer', color: TOKENS.textSub, fontSize: '13px', fontWeight: 600, background: TOKENS.bgSoft
+                  }}>
+                    <FileText size={16} /> 사진 선택 (갤러리, 최대 {MAX_PHOTOS}장)
+                    <input type="file" accept="image/*" multiple style={{ display: 'none' }}
+                      onChange={(e) => { if (e.target.files?.length) { handlePhotoSelect(e.target.files); e.target.value = ''; } }} />
+                  </label>
                 )}
                 {photos.length > 0 && (
                   <div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '10px' }}>
                       {photos.map((p, i) => (
-                        <div key={i} style={{ position: 'relative', borderRadius: '10px', overflow: 'hidden', aspectRatio: '3/4' }}>
-                          <img src={p.preview} alt={`사진 ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                        <div key={i} style={{ position: 'relative', borderRadius: '10px', overflow: 'hidden', aspectRatio: '3/4', background: '#F3F4F6' }}>
+                          <img
+                            src={p.preview}
+                            alt={`사진 ${i + 1}`}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                            onError={(e) => {
+                              // objectURL 만료 시 FileReader로 재시도
+                              if (p.blob) {
+                                const reader = new FileReader();
+                                reader.onload = (ev) => { e.target.src = ev.target.result; };
+                                reader.readAsDataURL(p.blob);
+                              }
+                            }}
+                          />
                           <span style={{ position: 'absolute', bottom: '4px', left: '4px', background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: '6px' }}>{i + 1}</span>
                           <button onClick={() => removeOnePhoto(i)} style={{
                             position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.55)',
