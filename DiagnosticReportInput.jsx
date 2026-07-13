@@ -14,6 +14,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 // browser-image-compression 기반 이미지 처리
 async function compressImage(file) {
   try {
+    console.log('압축 시작:', file.name, file.size, file.type);
     const aiFile = await imageCompression(file, {
       maxSizeMB: 1,
       maxWidthOrHeight: 1024,
@@ -21,6 +22,8 @@ async function compressImage(file) {
       useWebWorker: false,
       initialQuality: 0.85,
     });
+    console.log('AI 압축 완료:', aiFile.size);
+
     const thumbFile = await imageCompression(file, {
       maxSizeMB: 0.05,
       maxWidthOrHeight: 200,
@@ -28,13 +31,18 @@ async function compressImage(file) {
       useWebWorker: false,
       initialQuality: 0.8,
     });
+    console.log('썸네일 압축 완료:', thumbFile.size);
+
     const aiDataUrl = await imageCompression.getDataUrlFromFile(aiFile);
     const thumbDataUrl = await imageCompression.getDataUrlFromFile(thumbFile);
+    console.log('aiDataUrl 앞부분:', aiDataUrl?.slice(0, 30));
+    console.log('thumbDataUrl 앞부분:', thumbDataUrl?.slice(0, 30));
 
-    // thumbDataUrl 검증
     const preview = (thumbDataUrl && thumbDataUrl.startsWith('data:'))
       ? thumbDataUrl
-      : aiDataUrl; // thumb 실패 시 ai 이미지로 대체
+      : aiDataUrl;
+
+    console.log('최종 preview 앞부분:', preview?.slice(0, 30));
 
     return {
       aiBase64: aiDataUrl.split(',')[1],
@@ -43,12 +51,13 @@ async function compressImage(file) {
       preview,
     };
   } catch (e) {
-    console.warn('imageCompression 실패, FileReader 폴백:', e);
+    console.warn('imageCompression 실패:', e?.message, e);
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onerror = reject;
       reader.onload = (ev) => {
         const dataUrl = ev.target.result;
+        console.log('폴백 dataUrl 앞부분:', dataUrl?.slice(0, 30));
         resolve({
           aiBase64: dataUrl.split(',')[1],
           mimeType: file.type || 'image/jpeg',
