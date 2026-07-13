@@ -12,16 +12,51 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 // maxDim/quality를 다소 넉넉히 잡음 — 한 페이지에 문항이 많을수록 글씨가 작아 판독력이 중요
 function compressImage(file) {
   return new Promise((resolve, reject) => {
-    // 미리보기: objectURL (메모리 효율적, 모바일 안전)
-    const preview = URL.createObjectURL(file);
-
-    // base64: FileReader로 변환 (AI 분석용)
     const reader = new FileReader();
     reader.onerror = reject;
     reader.onload = (e) => {
-      const base64 = e.target.result.split(',')[1];
+      const originalBase64 = e.target.result.split(',')[1];
       const mimeType = file.type || 'image/jpeg';
-      resolve({ base64, mimeType, blob: file, preview });
+
+      // 썸네일용 작은 이미지 생성 (미리보기 전용, 200px)
+      const img = new Image();
+      img.onerror = () => {
+        // 이미지 생성 실패 시 원본으로 폴백
+        resolve({
+          base64: originalBase64,
+          mimeType,
+          blob: file,
+          preview: `data:${mimeType};base64,${originalBase64}`,
+        });
+      };
+      img.onload = () => {
+        try {
+          const maxThumb = 200;
+          let w = img.width, h = img.height;
+          if (w > h) { h = Math.round(h * maxThumb / w); w = maxThumb; }
+          else { w = Math.round(w * maxThumb / h); h = maxThumb; }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          const thumbDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+
+          resolve({
+            base64: originalBase64,  // AI 분석용 원본
+            mimeType,
+            blob: file,
+            preview: thumbDataUrl,   // 미리보기용 썸네일
+          });
+        } catch {
+          resolve({
+            base64: originalBase64,
+            mimeType,
+            blob: file,
+            preview: `data:${mimeType};base64,${originalBase64}`,
+          });
+        }
+      };
+      img.src = e.target.result;
     };
     reader.readAsDataURL(file);
   });
@@ -807,14 +842,6 @@ export default function DiagnosticReportInput({
                             src={p.preview}
                             alt={`사진 ${i + 1}`}
                             style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                            onError={(e) => {
-                              // objectURL 만료 시 FileReader로 재시도
-                              if (p.blob) {
-                                const reader = new FileReader();
-                                reader.onload = (ev) => { e.target.src = ev.target.result; };
-                                reader.readAsDataURL(p.blob);
-                              }
-                            }}
                           />
                           <span style={{ position: 'absolute', bottom: '4px', left: '4px', background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: '6px' }}>{i + 1}</span>
                           <button onClick={() => removeOnePhoto(i)} style={{
