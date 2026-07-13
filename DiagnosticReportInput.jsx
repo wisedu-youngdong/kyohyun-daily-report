@@ -13,8 +13,9 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 // maxDim/quality를 다소 넉넉히 잡음 — 한 페이지에 문항이 많을수록 글씨가 작아 판독력이 중요
 // browser-image-compression 기반 이미지 처리
 async function compressImage(file) {
+  const logs = [];
   try {
-    console.log('압축 시작:', file.name, file.size, file.type);
+    logs.push(`파일: ${file.name} ${(file.size/1024/1024).toFixed(1)}MB ${file.type}`);
     const aiFile = await imageCompression(file, {
       maxSizeMB: 1,
       maxWidthOrHeight: 1024,
@@ -22,7 +23,7 @@ async function compressImage(file) {
       useWebWorker: false,
       initialQuality: 0.85,
     });
-    console.log('AI 압축 완료:', aiFile.size);
+    logs.push(`AI압축: ${(aiFile.size/1024).toFixed(0)}KB`);
 
     const thumbFile = await imageCompression(file, {
       maxSizeMB: 0.05,
@@ -31,38 +32,37 @@ async function compressImage(file) {
       useWebWorker: false,
       initialQuality: 0.8,
     });
-    console.log('썸네일 압축 완료:', thumbFile.size);
+    logs.push(`썸네일: ${(thumbFile.size/1024).toFixed(0)}KB`);
 
     const aiDataUrl = await imageCompression.getDataUrlFromFile(aiFile);
     const thumbDataUrl = await imageCompression.getDataUrlFromFile(thumbFile);
-    console.log('aiDataUrl 앞부분:', aiDataUrl?.slice(0, 30));
-    console.log('thumbDataUrl 앞부분:', thumbDataUrl?.slice(0, 30));
+    logs.push(`AI URL: ${aiDataUrl?.slice(0,20)||'없음'}`);
+    logs.push(`썸URL: ${thumbDataUrl?.slice(0,20)||'없음'}`);
 
     const preview = (thumbDataUrl && thumbDataUrl.startsWith('data:'))
-      ? thumbDataUrl
-      : aiDataUrl;
-
-    console.log('최종 preview 앞부분:', preview?.slice(0, 30));
+      ? thumbDataUrl : aiDataUrl;
 
     return {
       aiBase64: aiDataUrl.split(',')[1],
       mimeType: 'image/jpeg',
       blob: aiFile,
       preview,
+      debugLogs: logs,
     };
   } catch (e) {
-    console.warn('imageCompression 실패:', e?.message, e);
+    logs.push(`에러: ${e?.message||'unknown'}`);
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onerror = reject;
       reader.onload = (ev) => {
         const dataUrl = ev.target.result;
-        console.log('폴백 dataUrl 앞부분:', dataUrl?.slice(0, 30));
+        logs.push(`폴백URL: ${dataUrl?.slice(0,20)||'없음'}`);
         resolve({
           aiBase64: dataUrl.split(',')[1],
           mimeType: file.type || 'image/jpeg',
           blob: file,
           preview: dataUrl,
+          debugLogs: logs,
         });
       };
       reader.readAsDataURL(file);
@@ -417,6 +417,7 @@ export default function DiagnosticReportInput({
           base64: result.aiBase64,
           mimeType: result.mimeType,
           blob: result.blob,
+          debugLogs: result.debugLogs || [],
         }]);
       } catch (e) {
         const msg = e?.message || e?.toString() || '알 수 없는 오류';
@@ -892,6 +893,14 @@ export default function DiagnosticReportInput({
                       )}
                     </div>
                     <button onClick={removeAllPhotos} style={{ ...suggestionStyle, marginBottom: '10px' }}>전체 지우기</button>
+                    {/* 디버그 로그 — 모바일 확인용 */}
+                    {photos[0]?.debugLogs?.length > 0 && (
+                      <div style={{ background: '#1A1A1A', borderRadius: '8px', padding: '8px 10px', marginBottom: '10px' }}>
+                        {photos[0].debugLogs.map((log, i) => (
+                          <p key={i} style={{ fontSize: '10px', color: '#00FF00', margin: '1px 0', fontFamily: 'monospace' }}>{log}</p>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
                 {photos.length > 0 && (
