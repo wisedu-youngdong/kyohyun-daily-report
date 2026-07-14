@@ -1,5 +1,14 @@
 import imageCompression from 'browser-image-compression';
-import heic2any from 'heic2any';
+
+// heic2any lazy import — 초기 번들에서 제외
+let heic2anyLib = null;
+const getHeic2any = async () => {
+  if (!heic2anyLib) {
+    const mod = await import('heic2any');
+    heic2anyLib = mod.default;
+  }
+  return heic2anyLib;
+};
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   User, Clock, Target, MessageCircle, ArrowRight,
@@ -22,6 +31,7 @@ async function compressImage(file) {
       || file.name?.toLowerCase().endsWith('.heif');
 
     if (isHeic) {
+      const heic2any = await getHeic2any();
       const blob = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.85 });
       processFile = new File([blob], file.name.replace(/\.heic$/i, '.jpg'), { type: 'image/jpeg' });
     }
