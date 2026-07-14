@@ -226,6 +226,7 @@ export default function DiagnosticReportInput({
   const [photos, setPhotos] = useState([]); // [{ preview, blob }]
   const [analyzingPhoto, setAnalyzingPhoto] = useState(false);
   const [photoAnalysis, setPhotoAnalysis] = useState(null);
+  const [wrongItems, setWrongItems] = useState([]); // 오답 문제별 태그+메모
   const [photoError, setPhotoError] = useState('');
   const MAX_PHOTOS = 10;
 
@@ -449,6 +450,16 @@ export default function DiagnosticReportInput({
         setPhotoError(data.error);
       } else {
         setPhotoAnalysis(data);
+        // 오답 문제별 태그+메모 초기화
+        if (data.wrongItems?.length > 0) {
+          setWrongItems(data.wrongItems.map(item => ({
+            ...item,
+            tags: [],
+            memo: '',
+          })));
+        } else {
+          setWrongItems([]);
+        }
       }
     } catch (e) {
       console.error('사진 분석 오류:', e);
@@ -507,6 +518,7 @@ export default function DiagnosticReportInput({
         nextPlan, nextPlanDetail,
         photoUrls,
         photoAnalysis: photoAnalysis || null,
+        wrongItems: wrongItems.length > 0 ? wrongItems : null,
       };
       reportPayload.points = calculateReportPoints(reportPayload);
       const savedId = await onSave(reportPayload);
@@ -996,6 +1008,107 @@ export default function DiagnosticReportInput({
                             <p style={{ fontSize: '11px', color: TOKENS.textMute, fontWeight: 700, margin: '0 0 4px' }}>코멘트 초안</p>
                             <p style={{ fontSize: '12px', margin: 0, lineHeight: 1.5 }}>{photoAnalysis.draftComment}</p>
                             <button onClick={appendDraftComment} style={{ ...suggestionStyle, marginTop: '8px' }}>선생님 한 마디에 이어붙이기</button>
+                          </div>
+                        )}
+
+                        {/* 오답 문제별 진단 카드 */}
+                        {wrongItems.length > 0 && (
+                          <div style={{ marginTop: '12px' }}>
+                            <p style={{ fontSize: '11px', fontWeight: 700, color: TOKENS.textSub, margin: '0 0 8px' }}>
+                              오답 문제별 원인 입력
+                            </p>
+                            {wrongItems.map((item, idx) => {
+                              const WRONG_TAGS = [
+                                { key: 'calc', label: '계산 실수', bg: '#FFF8EC', color: '#8A5A00', border: '#C9A22740' },
+                                { key: 'concept', label: '개념 누락', bg: '#FDF0F0', color: '#8A2020', border: '#8A202040' },
+                                { key: 'apply', label: '응용 부족', bg: '#FDF0F0', color: '#8A2020', border: '#8A202040' },
+                                { key: 'time', label: '시간 부족', bg: '#F3F0FA', color: '#4A3080', border: '#4A308040' },
+                                { key: 'unread', label: '문제 안 읽음', bg: '#FFF8EC', color: '#8A5A00', border: '#C9A22740' },
+                              ];
+                              return (
+                                <div key={idx} style={{ border: '1px solid #DC262630', borderRadius: '10px', padding: '10px', marginBottom: '8px', background: '#FFF5F5' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                                    <span style={{ background: '#DC2626', color: '#fff', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '6px' }}>
+                                      {item.number}번 오답
+                                    </span>
+                                    <span style={{ fontSize: '11px', color: TOKENS.textSub }}>{item.type}</span>
+                                    {item.correctRate && (
+                                      <span style={{ fontSize: '10px', color: '#DC2626', fontWeight: 600, marginLeft: 'auto' }}>
+                                        정답률 {item.correctRate}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                                    {WRONG_TAGS.map(tag => {
+                                      const active = item.tags.includes(tag.key);
+                                      return (
+                                        <button key={tag.key}
+                                          onClick={() => {
+                                            setWrongItems(prev => prev.map((w, i) => i === idx ? {
+                                              ...w,
+                                              tags: active ? w.tags.filter(t => t !== tag.key) : [...w.tags, tag.key]
+                                            } : w));
+                                          }}
+                                          style={{
+                                            fontSize: '10px', padding: '3px 9px', borderRadius: '20px',
+                                            background: active ? tag.bg : '#fff',
+                                            color: active ? tag.color : TOKENS.textMute,
+                                            border: `1px solid ${active ? tag.border : TOKENS.border}`,
+                                            cursor: 'pointer', fontFamily: 'inherit', fontWeight: active ? 600 : 400,
+                                          }}>
+                                          {tag.label}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                  <input
+                                    value={item.memo}
+                                    onChange={e => setWrongItems(prev => prev.map((w, i) => i === idx ? { ...w, memo: e.target.value } : w))}
+                                    placeholder="직접 입력 (선택) — 답 잘못 씀, 문제 안 읽음 등"
+                                    style={{ width: '100%', padding: '6px 10px', fontSize: '11px', border: `1px solid ${TOKENS.border}`, borderRadius: '8px', fontFamily: 'inherit', outline: 'none', background: '#fff', boxSizing: 'border-box', color: TOKENS.text }}
+                                  />
+                                </div>
+                              );
+                            })}
+
+                            {/* 오답 카드 기반 코멘트 생성 */}
+                            <button onClick={async () => {
+                              const studentName = students.find(s => s.id === studentId)?.name || '학생';
+                              const wrongSummary = wrongItems.map(w => {
+                                const tagLabels = { calc: '계산 실수', concept: '개념 누락', apply: '응용 부족', time: '시간 부족', unread: '문제 안 읽음' };
+                                const tags = w.tags.map(t => tagLabels[t]).filter(Boolean).join(', ');
+                                const memo = w.memo?.trim();
+                                return `${w.number}번(${w.type}${w.correctRate ? ` 정답률${w.correctRate}` : ''})${tags ? ` — ${tags}` : ''}${memo ? ` / ${memo}` : ''}`;
+                              }).join('; ');
+
+                              const prompt = `학원 선생님이 학부모에게 보내는 짧은 수업 결과 메시지를 써줘.
+학생: ${studentName}
+교재: ${textbook || ''} ${unit || ''}
+오답 문제: ${wrongSummary}
+
+규칙:
+- "${studentName} 학생은"으로 시작
+- 오답 문제 번호와 유형 구체적으로 언급
+- 다음 수업 계획 한 줄
+- "실수"라는 단어 절대 사용 금지
+- 2~3문장, 따뜻하되 과장 없이
+- 텍스트만 출력`;
+
+                              try {
+                                const res = await fetch('/api/polish', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ note: wrongSummary, studentName, textbook, unit, diagTags: wrongItems.flatMap(w => w.tags).join(', '), photoContext: wrongSummary }),
+                                });
+                                const data = await res.json();
+                                if (data.result) setTeacherNote(data.result);
+                              } catch (e) {
+                                console.error('코멘트 생성 오류:', e);
+                              }
+                            }}
+                              style={{ width: '100%', padding: '10px', fontSize: '12px', fontWeight: 700, border: 'none', borderRadius: '8px', background: '#0D2D6B', color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
+                              ✨ 오답 분석 기반 코멘트 생성
+                            </button>
                           </div>
                         )}
                       </div>
