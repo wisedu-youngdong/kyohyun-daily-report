@@ -237,6 +237,8 @@ export default function DiagnosticReportInput({
   const [selectedTags, setSelectedTags] = useState([]);
   const [teacherNote, setTeacherNote] = useState('');
   const [aiPolishedNote, setAiPolishedNote] = useState('');
+  const [polishing, setPolishing] = useState(false);
+  const [generatingComment, setGeneratingComment] = useState(false);
   const [nextPlan, setNextPlan] = useState('');
   const [nextPlanDetail, setNextPlanDetail] = useState('');
   const [saving, setSaving] = useState(false);
@@ -404,8 +406,8 @@ export default function DiagnosticReportInput({
   };
 
   const handleAIPolish = async () => {
-    if (!teacherNote.trim()) return;
-    setAiPolishedNote('✨ AI가 다듬는 중...');
+    if (!teacherNote.trim() || polishing) return;
+    setPolishing(true);
     try {
       const diagLabels = { calc: '계산 실수', concept: '개념 누락', apply: '응용 부족', time: '시간 부족', perfect: '개념 완벽' };
       const tagNames = selectedTags.map(t => diagLabels[t.key] || t.key).join(', ');
@@ -440,8 +442,9 @@ export default function DiagnosticReportInput({
       setAiPolishedNote(data.result);
     } catch (e) {
       console.error('AI 오류:', e);
-      setAiPolishedNote('');
       showToast('AI 연결에 실패했습니다.', 'error');
+    } finally {
+      setPolishing(false);
     }
   };
 
@@ -507,6 +510,7 @@ export default function DiagnosticReportInput({
       return next;
     });
     setPhotoAnalysis(null);
+    setWrongItems([]);
   };
 
   // Gemini Vision 분석 요청 (mode: 'auto'|'calculation'|'concept'|'mock_exam' — 재지정 시 override로 재호출)
@@ -554,6 +558,7 @@ export default function DiagnosticReportInput({
     setPhotos([]);
     photosRef.current = [];
     setPhotoAnalysis(null); setPhotoError('');
+    setWrongItems([]);
   };
 ;
 
@@ -562,6 +567,7 @@ export default function DiagnosticReportInput({
     if (!studentId) return setAlertMessage('학생을 먼저 선택해주세요.');
     if (!teacherId) return setAlertMessage('담당 강사를 선택해주세요.');
     if (!homeworkRating || !conceptRating) return setAlertMessage('과제 수행과 개념 이해 평가를 입력해주세요.');
+    if (polishing) return setAlertMessage('AI가 코멘트를 다듬는 중입니다. 완료 후 다시 저장해주세요.');
     if (!teacherNote.trim() && !aiPolishedNote.trim()) return setAlertMessage('선생님 코멘트를 입력해주세요.\n학부모에게 전달되는 핵심 내용입니다.');
 
     setSaving(true);
@@ -666,7 +672,7 @@ export default function DiagnosticReportInput({
           )}
         </div>
       )}
-      <style>{`@keyframes fadeInUp { from { opacity:0; transform:translateX(-50%) translateY(10px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }`}</style>
+      <style>{`@keyframes fadeInUp { from { opacity:0; transform:translateX(-50%) translateY(10px); } to { opacity:1; transform:translateX(-50%) translateY(0); } } @keyframes spin { to { transform: rotate(360deg); } }`}</style>
     <div style={{
       fontFamily: "'Pretendard Variable', Pretendard, -apple-system, sans-serif",
       letterSpacing: '-0.02em',
@@ -770,6 +776,7 @@ export default function DiagnosticReportInput({
                 setTeacherNote(''); setSelectedTags([]);
                 setNextPlan(''); setNextPlanDetail('');
                 setPhotos([]); setPhotoAnalysis(null);
+                setWrongItems([]);
                 setLastSaved(null);
               }
             }} style={selectStyle}>
@@ -1144,7 +1151,9 @@ export default function DiagnosticReportInput({
                             })}
 
                             {/* 오답 카드 기반 코멘트 생성 */}
-                            <button type="button" onClick={async () => {
+                            <button type="button" disabled={generatingComment} onClick={async () => {
+                              if (generatingComment) return;
+                              setGeneratingComment(true);
                               const studentName = students.find(s => s.id === studentId)?.name || '학생';
                               const tagLabels = { calc: '계산 실수', concept: '개념 누락', apply: '응용 부족', time: '시간 부족', unread: '문제 안 읽음' };
                               const wrongSummary = wrongItems.map(w => {
@@ -1177,10 +1186,12 @@ export default function DiagnosticReportInput({
                               } catch (e) {
                                 console.error('코멘트 생성 오류:', e);
                                 showToast('코멘트 생성 중 오류가 발생했습니다.', 'error');
+                              } finally {
+                                setGeneratingComment(false);
                               }
                             }}
-                              style={{ width: '100%', padding: '10px', fontSize: '12px', fontWeight: 700, border: 'none', borderRadius: '8px', background: '#0D2D6B', color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
-                              ✨ 오답 분석 기반 코멘트 생성
+                              style={{ width: '100%', padding: '10px', fontSize: '12px', fontWeight: 700, border: 'none', borderRadius: '8px', background: generatingComment ? '#8A93A8' : '#0D2D6B', color: '#fff', cursor: generatingComment ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                              {generatingComment ? '생성 중...' : '✨ 오답 분석 기반 코멘트 생성'}
                             </button>
                           </div>
                         )}
@@ -1282,10 +1293,16 @@ export default function DiagnosticReportInput({
                 <textarea value={teacherNote} onChange={(e) => setTeacherNote(e.target.value)}
                   placeholder="예: 3단원 자릿수 실수 2번, 응용은 시간 부족으로 못 풂. 개념은 알고 있음"
                   rows={3} style={{ ...inputStyle, fontFamily: 'inherit', resize: 'vertical' }} />
-                <button onClick={handleAIPolish} disabled={!teacherNote.trim()} style={aiButtonStyle(!teacherNote.trim())}>
-                  <Sparkles size={13} /> AI로 학부모 톤으로 다듬기
+                <button onClick={handleAIPolish} disabled={!teacherNote.trim() || polishing} style={aiButtonStyle(!teacherNote.trim() || polishing)}>
+                  <Sparkles size={13} /> {polishing ? '다듬는 중...' : 'AI로 학부모 톤으로 다듬기'}
                 </button>
-                {aiPolishedNote && (
+                {polishing && (
+                  <div style={{ background: TOKENS.successBg, borderRadius: '12px', padding: '14px', marginTop: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ display: 'inline-block', width: 14, height: 14, border: `2px solid ${TOKENS.success}40`, borderTopColor: TOKENS.success, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                    <span style={{ fontSize: '12px', color: TOKENS.success, fontWeight: 600 }}>AI가 학부모 톤으로 다듬는 중이에요...</span>
+                  </div>
+                )}
+                {!polishing && aiPolishedNote && (
                   <div style={{ background: TOKENS.successBg, borderRadius: '12px', padding: '10px', marginTop: '10px' }}>
                     <p style={{ fontSize: '11px', color: TOKENS.success, fontWeight: 700, margin: '0 0 6px' }}>학부모 발송 버전 (수정 가능)</p>
                     <textarea value={aiPolishedNote} onChange={(e) => setAiPolishedNote(e.target.value)}
@@ -1318,8 +1335,8 @@ export default function DiagnosticReportInput({
               </FormSection>
 
               {/* 저장 버튼 */}
-              <button onClick={handleSubmit} disabled={!isValid || saving} style={{ ...submitButtonStyle(isValid && !saving), width: '100%' }}>
-                <Send size={15} /> {saving ? '저장 중...' : '리포트 저장 및 발송 준비'}
+              <button onClick={handleSubmit} disabled={!isValid || saving || polishing} style={{ ...submitButtonStyle(isValid && !saving && !polishing), width: '100%' }}>
+                <Send size={15} /> {saving ? '저장 중...' : polishing ? 'AI 다듬는 중...' : '리포트 저장 및 발송 준비'}
               </button>
               {lastSaved && (
                 <p style={{ fontSize: '11px', color: '#0F6E56', margin: '6px 0 0', textAlign: 'center', fontWeight: 500 }}>

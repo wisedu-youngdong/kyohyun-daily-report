@@ -42,6 +42,9 @@ export default function GrowthStory() {
   const periodParam = searchParams.get('period');
   const [period, setPeriod] = useState(periodParam === '3m' ? '3m' : 'all');
 
+  // 학부모 공개 링크에는 관리자용 생성/편집 UI를 숨김 (?edit=1일 때만 노출)
+  const isEditor = searchParams.get('edit') === '1';
+
   const handlePeriodChange = (val) => {
     setPeriod(val);
     if (val === '3m') setSearchParams({ period: '3m' });
@@ -388,13 +391,15 @@ export default function GrowthStory() {
         </div>
       </div>
 
-      {/* AI 서사 생성 버튼 — 상단 배치 */}
-      <div style={{ padding: '12px 22px 0' }}>
-        <button onClick={handleGenNarrative} disabled={narLoading}
-          style={{ width: '100%', padding: '11px', background: narLoading ? '#E5E7EB' : narrative ? '#F0FAF5' : '#0D2D6B', color: narLoading ? '#9CA3AF' : narrative ? '#0F6E56' : '#fff', border: narrative ? '1px solid #0F6E5640' : 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: narLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
-          {narLoading ? '⏳ AI 서사 생성 중...' : narrative ? '🔄 서사 재생성' : '✨ AI 서사 자동 생성'}
-        </button>
-      </div>
+      {/* AI 서사 생성 버튼 — 상단 배치 (강사 전용, ?edit=1) */}
+      {isEditor && (
+        <div style={{ padding: '12px 22px 0' }}>
+          <button onClick={handleGenNarrative} disabled={narLoading}
+            style={{ width: '100%', padding: '11px', background: narLoading ? '#E5E7EB' : narrative ? '#F0FAF5' : '#0D2D6B', color: narLoading ? '#9CA3AF' : narrative ? '#0F6E56' : '#fff', border: narrative ? '1px solid #0F6E5640' : 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: narLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+            {narLoading ? '⏳ AI 서사 생성 중...' : narrative ? '🔄 서사 재생성' : '✨ AI 서사 자동 생성'}
+          </button>
+        </div>
+      )}
 
       {/* GROWTH MILESTONE */}
       <div style={S.section}>
@@ -583,7 +588,7 @@ export default function GrowthStory() {
       <div style={{ background: '#0D2D6B', padding: '24px 22px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
           <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.14em', fontWeight: 600 }}>TEACHER'S WORD</p>
-          {narrative && (
+          {isEditor && narrative && (
             <button onClick={() => startEdit('teacherWord')}
               style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '6px', cursor: 'pointer' }}>
               ✏️ 편집
@@ -615,7 +620,7 @@ export default function GrowthStory() {
       <div style={S.section}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
           <p style={S.label}>NEXT CHAPTER</p>
-          {narrative && (
+          {isEditor && narrative && (
             <button onClick={() => startEdit('nextChapter')}
               style={{ background: '#F0EDE8', border: 'none', color: '#8A8A8A', fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '6px', cursor: 'pointer' }}>
               ✏️ 편집
