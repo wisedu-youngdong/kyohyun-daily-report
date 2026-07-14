@@ -229,6 +229,7 @@ export default function DiagnosticReportInput({
   const [wrongItems, setWrongItems] = useState([]); // 오답 문제별 태그+메모
   const [photoError, setPhotoError] = useState('');
   const MAX_PHOTOS = 10;
+  const photosRef = React.useRef([]);
 
   // ── 수정 모드: editingReport가 들어오면 폼 pre-fill ──
   useEffect(() => {
@@ -383,7 +384,8 @@ export default function DiagnosticReportInput({
   // 사진 선택 → 미리보기 (여러 장 동시 선택 가능, 기존 목록에 추가됨)
   const handlePhotoSelect = async (fileList) => {
     const newFiles = Array.from(fileList || []);
-    const remaining = MAX_PHOTOS - photos.length;
+    const currentCount = photosRef.current.length;
+    const remaining = MAX_PHOTOS - currentCount;
     if (newFiles.length === 0 || remaining <= 0) return;
     const filesToProcess = newFiles.slice(0, remaining);
     setPhotoAnalysis(null);
@@ -397,12 +399,14 @@ export default function DiagnosticReportInput({
         }
         const result = await compressImage(file);
         if (!result.preview) continue;
-        setPhotos(prev => [...prev, {
+        const newPhoto = {
           preview: result.preview,
           base64: result.aiBase64,
           mimeType: result.mimeType,
           blob: result.blob,
-        }]);
+        };
+        photosRef.current = [...photosRef.current, newPhoto];
+        setPhotos(prev => [...prev, newPhoto]);
       } catch (e) {
         const msg = e?.message || e?.toString() || '알 수 없는 오류';
         console.error('사진 처리 오류:', msg, e);
@@ -419,7 +423,9 @@ export default function DiagnosticReportInput({
       if (removed?.preview?.startsWith('blob:')) {
         URL.revokeObjectURL(removed.preview);
       }
-      return prev.filter((_, i) => i !== idx);
+      const next = prev.filter((_, i) => i !== idx);
+      photosRef.current = next;
+      return next;
     });
     setPhotoAnalysis(null);
   };
@@ -468,6 +474,7 @@ export default function DiagnosticReportInput({
 
   const removeAllPhotos = () => {
     setPhotos([]);
+    photosRef.current = [];
     setPhotoAnalysis(null); setPhotoError('');
   };
 ;
@@ -1008,7 +1015,7 @@ export default function DiagnosticReportInput({
                                     {WRONG_TAGS.map(tag => {
                                       const active = item.tags.includes(tag.key);
                                       return (
-                                        <button key={tag.key}
+                                        <button type="button" key={tag.key}
                                           onClick={() => setWrongItems(prev => prev.map((w, i) => i === idx ? {
                                             ...w,
                                             tags: active ? w.tags.filter(t => t !== tag.key) : [...w.tags, tag.key]
