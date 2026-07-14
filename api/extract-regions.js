@@ -39,7 +39,7 @@ export default async function handler(req, res) {
             ...images.map(img => ({ inline_data: { mime_type: img.mimeType || 'image/jpeg', data: img.imageBase64 } }))
           ]
         }],
-        generationConfig: { temperature: 0, responseMimeType: 'application/json', maxOutputTokens: 4096 }
+        generationConfig: { temperature: 0, maxOutputTokens: 4096 }
       })
     });
 
