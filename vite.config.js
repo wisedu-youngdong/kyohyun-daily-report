@@ -10,10 +10,10 @@ export default defineConfig({
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
           'vendor-firebase': ['firebase/app', 'firebase/firestore', 'firebase/auth', 'firebase/storage'],
-          'vendor-ui': ['lucide-react', 'recharts'],
+          'vendor-ui': ['lucide-react'],
+          'vendor-charts': ['recharts'],
         }
       }
     },
-    chunkSizeWarningLimit: 1000,
   }
 })

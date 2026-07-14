@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { db } from './firebase';
-import { doc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { R, ReportCard } from './tokens.jsx';
 
 const RATING_LEVELS = [
   { level: 1, label: '노력 필요' },
@@ -24,11 +25,29 @@ const DIAG_BADGES = {
   perfect: { label: '✓ 개념 완벽', bg: '#0F6E56' },
 };
 
+const SkeletonReport = () => (
+  <div style={{ background: '#F5F5F0', minHeight: '100dvh', padding: '24px 16px', display: 'flex', justifyContent: 'center', fontFamily: 'Pretendard, sans-serif' }}>
+    <style>{`@keyframes reportPulse { 0%,100% { opacity: 0.5; } 50% { opacity: 0.9; } }`}</style>
+    <div style={{ width: '100%', maxWidth: '390px' }}>
+      <div style={{ background: '#fff', borderRadius: '4px', overflow: 'hidden', boxShadow: '0 2px 20px rgba(0,0,0,0.10)' }}>
+        <div style={{ background: '#0D2D6B', padding: '20px 22px 18px' }}>
+          <div style={{ width: '55%', height: '14px', background: 'rgba(255,255,255,0.2)', borderRadius: '4px', marginBottom: '10px', animation: 'reportPulse 1.4s ease-in-out infinite' }} />
+          <div style={{ width: '35%', height: '10px', background: 'rgba(255,255,255,0.15)', borderRadius: '4px', animation: 'reportPulse 1.4s ease-in-out infinite' }} />
+        </div>
+        <div style={{ padding: '22px' }}>
+          {[85, 60, 92, 45, 70].map((w, i) => (
+            <div key={i} style={{ width: `${w}%`, height: '12px', background: '#EDEBE7', borderRadius: '4px', marginBottom: '14px', animation: 'reportPulse 1.4s ease-in-out infinite' }} />
+          ))}
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
 export default function PublicReport() {
   const { reportId } = useParams();
   const location = useLocation();
   const [report, setReport] = useState(null);
-  const [allStudentReports, setAllStudentReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -39,20 +58,19 @@ export default function PublicReport() {
         if (!rSnap.exists()) { setError('리포트를 찾을 수 없습니다.'); setLoading(false); return; }
         const r = { id: rSnap.id, ...rSnap.data() };
         setReport(r);
+        setLoading(false);
 
-        // 열람 기록 저장
+        // 열람 기록 저장 (화면 표시를 막지 않도록 fire-and-forget)
         const params = new URLSearchParams(location.search);
         const src = params.get('src') || 'direct';
-        try {
-          await addDoc(collection(db, 'reportViews'), {
-            reportId,
-            studentId: r.studentId,
-            studentName: r.studentName,
-            src,
-            viewedAt: serverTimestamp(),
-            ua: navigator.userAgent.slice(0, 100),
-          });
-        } catch (e) { /* 열람 기록 실패해도 리포트 표시는 계속 */ }
+        addDoc(collection(db, 'reportViews'), {
+          reportId,
+          studentId: r.studentId,
+          studentName: r.studentName,
+          src,
+          viewedAt: serverTimestamp(),
+          ua: navigator.userAgent.slice(0, 100),
+        }).catch(() => { /* 열람 기록 실패해도 리포트 표시는 계속 */ });
 
         // 동적 OG 메타 태그 — 학생 이름 반영
         if (r.studentName) {
@@ -73,22 +91,11 @@ export default function PublicReport() {
           setMeta('twitter:title', title, true);
           setMeta('twitter:image', ogImg, true);
         }
-
-        if (r.studentId) {
-          const q = query(collection(db, 'reports'), where('studentId', '==', r.studentId));
-          const snap = await getDocs(q);
-          setAllStudentReports(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-        }
-      } catch (e) { setError('리포트를 불러오지 못했습니다.'); }
-      setLoading(false);
+      } catch (e) { setError('리포트를 불러오지 못했습니다.'); setLoading(false); }
     })();
   }, [reportId]);
 
-  if (loading) return (
-    <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F5F5F0', fontFamily: 'Pretendard, sans-serif' }}>
-      <p style={{ color: '#6B7280', fontSize: '14px' }}>리포트를 불러오는 중...</p>
-    </div>
-  );
+  if (loading) return <SkeletonReport />;
   if (error) return (
     <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F5F5F0' }}>
       <p style={{ color: '#4B5563', fontSize: '15px' }}>{error}</p>
@@ -108,20 +115,10 @@ export default function PublicReport() {
   const teacherSuffix = /선생님?$/.test(r.teacherName || '') ? '' : ' 선생님';
 
   // DS 토큰
-  const navy = '#0D2D6B';
-  const gold = '#C9A227';
-  const rule = '#E8E6E0';
-  const inkMute = '#98A1AC';
-  const inkSub = '#5A6472';
-  const ink = '#1A1A1A';
-  const positive = '#1E6B4E';
-  const serif = "'Noto Serif KR', serif";
-  const body = "'Pretendard Variable', Pretendard, sans-serif";
+  const { navy, gold, rule, inkMute, inkSub, ink, positive, serif, body } = R;
 
   return (
-    <div style={{ background: '#F5F5F0', minHeight: '100dvh', padding: '24px 16px', display: 'flex', justifyContent: 'center', fontFamily: body }}>
-      <div style={{ width: '100%', maxWidth: '390px' }}>
-        <div style={{ background: '#fff', borderRadius: '4px', overflow: 'hidden', boxShadow: '0 2px 20px rgba(0,0,0,0.10)' }}>
+    <ReportCard maxWidth="390px" fontFamily={body}>
 
           {/* 헤더 */}
           <div style={{ background: navy, padding: '20px 22px 18px', position: 'relative' }}>
@@ -271,9 +268,6 @@ export default function PublicReport() {
             )}
           </div>
 
-
-        </div>
-      </div>
-    </div>
+    </ReportCard>
   );
 }

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { db } from './firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
+import { ReportCard } from './tokens.jsx';
 
 const FONT_STYLE = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -338,17 +339,14 @@ export default function GrowthStory() {
   const teacherDisplay = teacherName ? teacherName.replace(/선생님?$/, '').trim() + ' 선생님' : '담당 교사';
 
   const S = {
-    wrap: { background: '#F5F5F0', minHeight: '100dvh', padding: '24px 16px', display: 'flex', justifyContent: 'center', fontFamily: "'Noto Sans KR', 'Pretendard Variable', Pretendard, sans-serif" },
-    card: { width: '100%', maxWidth: '420px', background: '#fff', borderRadius: '4px', overflow: 'hidden', boxShadow: '0 2px 20px rgba(0,0,0,0.10)' },
     header: { background: '#0D2D6B', padding: '32px 24px 28px', position: 'relative', overflow: 'hidden' },
     section: { background: '#fff', padding: '22px', borderBottom: '1px solid #EEECEA' },
     label: { fontSize: '10px', fontWeight: 700, color: '#0D2D6B', letterSpacing: '0.14em', marginBottom: '16px' },
   };
 
   return (
-    <div style={S.wrap}>
+    <ReportCard maxWidth="420px" fontFamily="'Noto Sans KR', 'Pretendard Variable', Pretendard, sans-serif">
       <style>{FONT_STYLE}</style>
-      <div style={S.card}>
 
       {/* 헤더 */}
       <div style={S.header}>
@@ -655,7 +653,6 @@ export default function GrowthStory() {
         <span style={{ fontSize: '10px', color: '#8A8A8A' }}>{new Date().getFullYear()}년 {new Date().getMonth() + 1}월</span>
       </div>
 
-      </div>
-    </div>
+    </ReportCard>
   );
 }

@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import { calculateTotalPoints, getStageInfo, calculateReportPoints, STAGES } from './growth.js';
 import { useMediaQuery } from './hooks.js';
+import ErrorBoundary from './ErrorBoundary.jsx';
+import { T } from './tokens.jsx';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LabelList
 } from 'recharts';
@@ -36,12 +38,6 @@ const AVATARS = [
   { key: 'graduate__1_', label: '졸업가운 여', url: '/avatars/graduate__1_.png' },
   { key: 'graduation',    label: '졸업식',       url: '/avatars/graduation.png' },
 ];
-
-const T = {
-  brand: '#185FA5', brandLight: '#E6F1FB', brandBg: '#F0F7FC',
-  text: '#1A1A1A', textSub: '#6B7280', textMute: '#9CA3AF',
-  border: '#E5E7EB', bg: '#FFFFFF', bgSoft: '#F9FAFB',
-};
 
 // ── 프리셋 스킨 ──
 const PRESET_SKINS = [
@@ -201,6 +197,9 @@ export default function App() {
   const [teachers, setTeachers] = useState([]);
   const [reports, setReports] = useState([]);
   const [reportViews, setReportViews] = useState([]);
+  const [studentsReady, setStudentsReady] = useState(false);
+  const [reportsReady, setReportsReady] = useState(false);
+  const dataReady = studentsReady && reportsReady;
   const [appToast, setAppToast] = useState(null);
   const appToastTimerRef = React.useRef(null);
 
@@ -260,9 +259,12 @@ export default function App() {
 
   useEffect(() => {
     if (!user) return;
-    const unsubStudents = onSnapshot(collection(db, 'students'), (snap) =>
-      setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() })))
-    );
+    setStudentsReady(false);
+    setReportsReady(false);
+    const unsubStudents = onSnapshot(collection(db, 'students'), (snap) => {
+      setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setStudentsReady(true);
+    });
     const unsubTeachers = onSnapshot(collection(db, 'teachers'), (snap) => {
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       if (list.length === 0) {
@@ -274,6 +276,7 @@ export default function App() {
     const unsubReports = onSnapshot(collection(db, 'reports'), (snap) => {
       setReports(snap.docs.map(d => ({ id: d.id, ...d.data() }))
         .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
+      setReportsReady(true);
     });
 
     // 열람 기록 실시간 구독
@@ -468,7 +471,8 @@ export default function App() {
       )}
 
       <main>
-        {activeTab === 'dashboard' && <DashboardView students={visibleStudents} reports={visibleReports} onTabChange={setActiveTab} />}
+      <ErrorBoundary key={activeTab} minHeight="400px">
+        {activeTab === 'dashboard' && (dataReady ? <DashboardView students={visibleStudents} reports={visibleReports} onTabChange={setActiveTab} /> : <SkeletonBlock rows={3} cardHeight={90} />)}
         {activeTab === 'write' && (
           <>
             {/* 오늘 리포트 상태바 */}
@@ -533,7 +537,10 @@ export default function App() {
               { key: 'history', label: '기록 보관소' },
             ])}
             <div style={{ marginTop: '12px' }}>
-              {activeSubTab.record === 'history' && <HistoryView reports={visibleReports} students={visibleStudents} reportViews={reportViews} onDelete={handleDeleteReport} onEdit={(report) => { setEditingReport(report); setActiveTab('write'); }} />}
+              {activeSubTab.record === 'history' && (dataReady
+                ? <HistoryView reports={visibleReports} students={visibleStudents} reportViews={reportViews} onDelete={handleDeleteReport} onEdit={(report) => { setEditingReport(report); setActiveTab('write'); }} />
+                : <SkeletonBlock rows={5} cardHeight={56} />
+              )}
             </div>
           </div>
         )}
@@ -544,7 +551,10 @@ export default function App() {
               { key: 'analysis', label: '종합 분석' },
             ])}
             <div style={{ marginTop: '12px' }}>
-              {activeSubTab.insight === 'director' && <div><DirectorView reports={reports} students={students} /><GrowthDashboard reports={reports} students={students} onSwitchTab={setActiveTab} /></div>}
+              {activeSubTab.insight === 'director' && (dataReady
+                ? <div><DirectorView reports={reports} students={students} /><GrowthDashboard reports={reports} students={students} onSwitchTab={setActiveTab} /></div>
+                : <SkeletonBlock rows={4} cardHeight={70} />
+              )}
               {activeSubTab.insight === 'analysis' && <AnalysisView students={students} reports={reports} />}
             </div>
           </div>
@@ -556,11 +566,15 @@ export default function App() {
               { key: 'settings', label: '설정' },
             ])}
             <div style={{ marginTop: '12px' }}>
-              {activeSubTab.manage === 'students' && <StudentsView students={students} reports={reports} onSave={handleSaveStudent} onDelete={handleDeleteStudent} teachers={teachers} />}
+              {activeSubTab.manage === 'students' && (dataReady
+                ? <StudentsView students={students} reports={reports} onSave={handleSaveStudent} onDelete={handleDeleteStudent} teachers={teachers} />
+                : <SkeletonBlock rows={5} cardHeight={56} />
+              )}
               {activeSubTab.manage === 'settings' && <SettingsView students={students} onSaveStudent={handleSaveStudent} teachers={teachers} onSaveTeacher={handleSaveTeacher} onDeleteTeacher={handleDeleteTeacher} />}
             </div>
           </div>
         )}
+      </ErrorBoundary>
       </main>
 
       <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: T.bg, borderTop: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', padding: 'calc(6px) 0 calc(8px + env(safe-area-inset-bottom))', zIndex: 100, boxShadow: '0 -4px 20px rgba(0,0,0,0.04)' }}>
@@ -611,6 +625,20 @@ function DashboardView({ students, reports, onTabChange }) {
             );
           })}
       </div>
+    </div>
+  );
+}
+
+function SkeletonBlock({ rows = 4, cardHeight = 64 }) {
+  return (
+    <div style={{ padding: '20px' }}>
+      <style>{`@keyframes skeletonPulse { 0%,100% { opacity: 0.5; } 50% { opacity: 0.9; } }`}</style>
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} style={{
+          height: `${cardHeight}px`, background: '#EDEBE7', borderRadius: '12px',
+          marginBottom: '10px', animation: 'skeletonPulse 1.4s ease-in-out infinite',
+        }} />
+      ))}
     </div>
   );
 }
