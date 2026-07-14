@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { db } from './firebase';
 import { doc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
-import { calculateTotalPoints, getStageInfo } from './growth.js';
 
 const RATING_LEVELS = [
   { level: 1, label: '노력 필요' },
@@ -98,7 +97,6 @@ export default function PublicReport() {
 
   const homework = RATING_LEVELS.find(x => x.level === r.homeworkRating);
   const concept  = RATING_LEVELS.find(x => x.level === r.conceptRating);
-  const stageInfo = getStageInfo(calculateTotalPoints(allStudentReports));
   const teacherSuffix = /선생님?$/.test(r.teacherName || '') ? '' : ' 선생님';
 
   // DS 토큰
@@ -131,11 +129,6 @@ export default function PublicReport() {
                 <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.45)', letterSpacing: '0.15em', margin: '0 0 4px', fontWeight: 600 }}>LEARNING REPORT</p>
                 <p style={{ fontFamily: serif, fontSize: '26px', fontWeight: 700, color: '#fff', margin: '0 0 4px', letterSpacing: '-0.5px' }}>{r.studentName}</p>
                 <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.55)', margin: 0 }}>{dateStr} · {r.teacherName}{teacherSuffix}</p>
-              </div>
-              {/* 성장 배지 */}
-              <div style={{ border: `1px solid rgba(201,162,39,0.5)`, padding: '6px 12px', textAlign: 'center', borderRadius: '2px', flexShrink: 0 }}>
-                <p style={{ fontSize: '9px', color: gold, margin: '0 0 2px', letterSpacing: '0.08em', fontWeight: 700 }}>성장 단계</p>
-                <p style={{ fontSize: '13px', fontWeight: 800, color: '#fff', margin: 0 }}>{stageInfo.current.label} · {stageInfo.totalPoints}P</p>
               </div>
             </div>
           </div>
