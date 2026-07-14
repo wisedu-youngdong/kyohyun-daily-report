@@ -945,7 +945,6 @@ export default function DiagnosticReportInput({
                                 <div>
                                   <p style={{ margin: 0, fontWeight: 600 }}>
                                     {p.number ? `${p.number}. ` : ''}{p.type}
-                                    {p.mark && <span style={{ marginLeft: '6px', fontSize: '10px', fontWeight: 600, color: TOKENS.textMute }}>[관찰된 표시: {p.mark}]</span>}
                                   </p>
                                   <p style={{ margin: '2px 0 0', color: TOKENS.textSub }}>{p.note}</p>
                                 </div>
