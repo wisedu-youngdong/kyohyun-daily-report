@@ -7,7 +7,7 @@
         {
           "type": "header",
           "key": "user-agent",
-          "value": ".*(Kakaotalk|kakaotalk|facebookexternalhit|twitterbot|LinkedInBot|Slackbot|TelegramBot|WhatsApp|Naverbot|Yeti|DaumMoaBot).*"
+          "value": ".*(facebookexternalhit|twitterbot|LinkedInBot|Slackbot|TelegramBot|WhatsApp|Naverbot|Yeti|DaumMoaBot|Googlebot|bingbot|crawler|spider|bot).*"
         }
       ]
     },
