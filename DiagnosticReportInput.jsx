@@ -54,14 +54,14 @@ async function compressImage(file) {
       processFile = new File([blob], file.name.replace(/\.heic$/i, '.jpg'), { type: 'image/jpeg' });
     }
 
-    // AI용 압축(1200px, 0.5MB) + 썸네일(canvas) 병렬 처리
+    // AI용 압축(1800px, 0.88품질) + 썸네일(canvas) 병렬 처리
     const [aiFile, thumbDataUrl] = await Promise.all([
       imageCompression(processFile, {
-        maxSizeMB: 0.5,
-        maxWidthOrHeight: 1200,
+        maxSizeMB: 0.8,
+        maxWidthOrHeight: 1800,
         fileType: 'image/jpeg',
         useWebWorker: false,
-        initialQuality: 0.82,
+        initialQuality: 0.88,
       }),
       makeThumbnail(processFile, 300),
     ]);
@@ -1056,14 +1056,6 @@ export default function DiagnosticReportInput({
                           </div>
                         ))}
 
-                        {photoAnalysis.draftComment && (
-                          <div style={{ background: '#fff', borderRadius: '10px', padding: '10px', marginTop: '8px' }}>
-                            <p style={{ fontSize: '11px', color: TOKENS.textMute, fontWeight: 700, margin: '0 0 4px' }}>코멘트 초안</p>
-                            <p style={{ fontSize: '12px', margin: 0, lineHeight: 1.5 }}>{photoAnalysis.draftComment}</p>
-                            <button onClick={appendDraftComment} style={{ ...suggestionStyle, marginTop: '8px' }}>선생님 한 마디에 이어붙이기</button>
-                          </div>
-                        )}
-
                         {/* 오답 문제별 진단 카드 */}
                         {wrongItems.length > 0 && (
                           <div style={{ marginTop: '12px' }}>
@@ -1125,38 +1117,39 @@ export default function DiagnosticReportInput({
                             })}
 
                             {/* 오답 카드 기반 코멘트 생성 */}
-                            <button onClick={async () => {
+                            <button type="button" onClick={async () => {
                               const studentName = students.find(s => s.id === studentId)?.name || '학생';
+                              const tagLabels = { calc: '계산 실수', concept: '개념 누락', apply: '응용 부족', time: '시간 부족', unread: '문제 안 읽음' };
                               const wrongSummary = wrongItems.map(w => {
-                                const tagLabels = { calc: '계산 실수', concept: '개념 누락', apply: '응용 부족', time: '시간 부족', unread: '문제 안 읽음' };
                                 const tags = w.tags.map(t => tagLabels[t]).filter(Boolean).join(', ');
                                 const memo = w.memo?.trim();
                                 return `${w.number}번(${w.type}${w.correctRate ? ` 정답률${w.correctRate}` : ''})${tags ? ` — ${tags}` : ''}${memo ? ` / ${memo}` : ''}`;
                               }).join('; ');
 
-                              const prompt = `학원 선생님이 학부모에게 보내는 짧은 수업 결과 메시지를 써줘.
-학생: ${studentName}
-교재: ${textbook || ''} ${unit || ''}
-오답 문제: ${wrongSummary}
-
-규칙:
-- "${studentName} 학생은"으로 시작
-- 오답 문제 번호와 유형 구체적으로 언급
-- 다음 수업 계획 한 줄
-- "실수"라는 단어 절대 사용 금지
-- 2~3문장, 따뜻하되 과장 없이
-- 텍스트만 출력`;
-
+                              showToast('코멘트 생성 중...', 'info');
                               try {
                                 const res = await fetch('/api/polish', {
                                   method: 'POST',
                                   headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ note: wrongSummary, studentName, textbook, unit, diagTags: wrongItems.flatMap(w => w.tags).join(', '), photoContext: wrongSummary }),
+                                  body: JSON.stringify({
+                                    note: wrongSummary,
+                                    studentName,
+                                    textbook: textbook || '',
+                                    unit: unit || '',
+                                    diagTags: wrongItems.flatMap(w => w.tags.map(t => tagLabels[t])).join(', '),
+                                    photoContext: `오답: ${wrongSummary}`,
+                                  }),
                                 });
                                 const data = await res.json();
-                                if (data.result) setTeacherNote(data.result);
+                                if (data.result) {
+                                  setTeacherNote(prev => prev ? `${prev}\n\n${data.result}` : data.result);
+                                  showToast('코멘트가 선생님 메모에 추가됐습니다!', 'success');
+                                } else {
+                                  showToast('코멘트 생성 실패. 다시 시도해주세요.', 'error');
+                                }
                               } catch (e) {
                                 console.error('코멘트 생성 오류:', e);
+                                showToast('코멘트 생성 중 오류가 발생했습니다.', 'error');
                               }
                             }}
                               style={{ width: '100%', padding: '10px', fontSize: '12px', fontWeight: 700, border: 'none', borderRadius: '8px', background: '#0D2D6B', color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -1258,52 +1251,6 @@ export default function DiagnosticReportInput({
                 })()}
 
                 <FieldLabel>강사 메모 (평소 카톡 톤으로 자유롭게)</FieldLabel>
-
-                {/* AI 코멘트 초안 생성 버튼 */}
-                {(studentId && (textbook || unit) && selectedTags.length > 0) && !teacherNote && (
-                  <button onClick={async () => {
-                    const studentName = students.find(s => s.id === studentId)?.name || '학생';
-                    const diagLabels = { calc: '계산 실수', concept: '개념 누락', apply: '응용 부족', time: '시간 부족', perfect: '개념 완벽' };
-                    const tagNames = selectedTags.map(t => diagLabels[t.key] || t.key).join(', ');
-                    const prompt = `선생님이 학원 수업 후 학부모에게 보내는 짧은 코멘트 초안을 작성해줘.
-학생: ${studentName}
-교재: ${textbook || ''}
-단원: ${unit || ''}
-진단: ${tagNames}
-조건:
-- 2~3문장으로 간결하게
-- 팩트(오늘 배운 내용 + 진단 내용)만 담고 과장 없이
-- 마지막 줄은 반드시 "오늘 보여준 모습: " 으로 끝내서 선생님이 직접 채울 수 있게
-- 한국어, 따뜻하되 전문적인 톤
-- JSON, 마크다운 없이 텍스트만`;
-
-                    try {
-                      const res = await fetch('https://api.anthropic.com/v1/messages', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          model: 'claude-sonnet-4-6',
-                          max_tokens: 300,
-                          messages: [{ role: 'user', content: prompt }]
-                        })
-                      });
-                      const data = await res.json();
-                      const draft = data.content?.[0]?.text || '';
-                      if (draft) setTeacherNote(draft);
-                    } catch (e) {
-                      console.error('AI 초안 생성 오류:', e);
-                    }
-                  }}
-                  style={{
-                    width: '100%', marginBottom: '8px', padding: '9px', borderRadius: '8px',
-                    border: '1px dashed #C9A227', background: '#FFF8EC',
-                    color: '#7A4F00', fontSize: '12px', fontWeight: 600,
-                    cursor: 'pointer', fontFamily: 'inherit',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-                  }}>
-                  ✨ AI 코멘트 초안 생성 (팩트 기반)
-                </button>
-                )}
 
                 <textarea value={teacherNote} onChange={(e) => setTeacherNote(e.target.value)}
                   placeholder="예: 3단원 자릿수 실수 2번, 응용은 시간 부족으로 못 풂. 개념은 알고 있음"
