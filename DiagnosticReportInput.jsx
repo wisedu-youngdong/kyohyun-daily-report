@@ -1078,24 +1078,31 @@ export default function DiagnosticReportInput({
                               <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', marginBottom: '6px', fontSize: '12px' }}>
                                 <button type="button"
                                   onClick={() => {
+                                    let becameWrong = false;
                                     setPhotoAnalysis(prev => ({
                                       ...prev,
                                       sections: prev.sections.map(s =>
                                         s.sectionType === 'concept'
-                                          ? { ...s, problemTypes: s.problemTypes.map((pt, pi) =>
-                                              pt.number === p.number
-                                                ? { ...pt, result: pt.result === '잘함' ? '약점' : '잘함' }
-                                                : pt
-                                            )}
+                                          ? { ...s, problemTypes: s.problemTypes.map((pt) => {
+                                              if (pt.number !== p.number) return pt;
+                                              const newResult = pt.result === '잘함' ? '약점' : '잘함';
+                                              becameWrong = newResult === '약점';
+                                              return { ...pt, result: newResult };
+                                            })}
                                           : s
                                       )
                                     }));
-                                    // wrongItems도 동기화
-                                    if (p.result === '잘함') {
-                                      setWrongItems(prev => [...prev, { number: p.number, type: p.type, correctRate: '', mark: '수동오답', tags: [], memo: '' }]);
-                                    } else {
-                                      setWrongItems(prev => prev.filter(w => w.number !== p.number));
-                                    }
+                                    // wrongItems도 동기화 — prev 기준으로 존재 여부를 확인해 중복 추가/유실 방지
+                                    setWrongItems(prev => {
+                                      const exists = prev.some(w => w.number === p.number);
+                                      if (becameWrong && !exists) {
+                                        return [...prev, { number: p.number, type: p.type, correctRate: '', mark: '수동오답', tags: [], memo: '' }];
+                                      }
+                                      if (!becameWrong && exists) {
+                                        return prev.filter(w => w.number !== p.number);
+                                      }
+                                      return prev;
+                                    });
                                   }}
                                   style={{
                                     flexShrink: 0, fontWeight: 700, fontSize: '12px', padding: '8px 14px', minHeight: '36px', borderRadius: '10px',
