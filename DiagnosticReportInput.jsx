@@ -941,7 +941,7 @@ export default function DiagnosticReportInput({
                                   flexShrink: 0, fontWeight: 700, fontSize: '10px', padding: '2px 8px', borderRadius: '10px',
                                   background: p.result === '잘함' ? '#E1F5EE' : TOKENS.dangerBg,
                                   color: p.result === '잘함' ? TOKENS.successDark : TOKENS.dangerBorder,
-                                }}>{p.result}</span>
+                                }}>{p.result === '잘함' ? '정답' : '오답'}</span>
                                 <div>
                                   <p style={{ margin: 0, fontWeight: 600 }}>
                                     {p.number ? `${p.number}. ` : ''}{p.type}
