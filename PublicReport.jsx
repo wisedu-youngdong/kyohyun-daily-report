@@ -42,56 +42,59 @@ export default function PublicReport() {
   const location = useLocation();
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [errorType, setErrorType] = useState(null); // 'notfound' | 'network'
+  const [retryKey, setRetryKey] = useState(0);
+  const [lightboxUrl, setLightboxUrl] = useState(null);
+  const [brokenPhotos, setBrokenPhotos] = useState({});
+  const viewLoggedRef = React.useRef(false); // StrictMode 개발 모드 이펙트 2회 실행 시 열람 기록 중복 방지
 
   useEffect(() => {
+    setLoading(true);
+    setErrorType(null);
     (async () => {
       try {
         const rSnap = await getDoc(doc(db, 'reports', reportId));
-        if (!rSnap.exists()) { setError('리포트를 찾을 수 없습니다.'); setLoading(false); return; }
+        if (!rSnap.exists()) { setErrorType('notfound'); setLoading(false); return; }
         const r = { id: rSnap.id, ...rSnap.data() };
         setReport(r);
         setLoading(false);
 
         // 열람 기록 저장 (화면 표시를 막지 않도록 fire-and-forget)
-        const params = new URLSearchParams(location.search);
-        const src = params.get('src') || 'direct';
-        addDoc(collection(db, 'reportViews'), {
-          reportId,
-          studentId: r.studentId,
-          studentName: r.studentName,
-          src,
-          viewedAt: serverTimestamp(),
-          ua: navigator.userAgent.slice(0, 100),
-        }).catch(() => { /* 열람 기록 실패해도 리포트 표시는 계속 */ });
-
-        // 동적 OG 메타 태그 — 학생 이름 반영
-        if (r.studentName) {
-          const title = `${r.studentName} 학생의 성장 리포트`;
-          const sub   = `교현학원 · 숫자를 넘어선 아이의 노력, 매 수업 진심으로 기록합니다.`;
-          const ogImg = `https://kyohyun-daily-report.vercel.app/api/og?title=${encodeURIComponent(title)}&sub=${encodeURIComponent(sub)}`;
-
-          document.title = title;
-          const setMeta = (prop, val, isName) => {
-            const sel = isName ? `meta[name="${prop}"]` : `meta[property="${prop}"]`;
-            let el = document.querySelector(sel);
-            if (!el) { el = document.createElement('meta'); isName ? el.setAttribute('name', prop) : el.setAttribute('property', prop); document.head.appendChild(el); }
-            el.setAttribute('content', val);
-          };
-          setMeta('og:title', title);
-          setMeta('og:description', sub);
-          setMeta('og:image', ogImg);
-          setMeta('twitter:title', title, true);
-          setMeta('twitter:image', ogImg, true);
+        if (!viewLoggedRef.current) {
+          viewLoggedRef.current = true;
+          const params = new URLSearchParams(location.search);
+          const src = params.get('src') || 'direct';
+          addDoc(collection(db, 'reportViews'), {
+            reportId,
+            studentId: r.studentId,
+            studentName: r.studentName,
+            src,
+            viewedAt: serverTimestamp(),
+            ua: navigator.userAgent.slice(0, 100),
+          }).catch(() => { /* 열람 기록 실패해도 리포트 표시는 계속 */ });
         }
-      } catch (e) { setError('리포트를 불러오지 못했습니다.'); setLoading(false); }
+
+        // 브라우저 탭 제목 — OG 메타 태그는 크롤러가 JS를 실행하지 않아 여기서 갱신해도
+        // 카톡/SNS 링크 미리보기에는 반영되지 않음(봇 UA는 /api/report-og로 별도 라우팅됨). document.title만 갱신.
+        if (r.studentName) {
+          document.title = `${r.studentName} 학생의 성장 리포트`;
+        }
+      } catch (e) { console.error('리포트 로드 실패:', e); setErrorType('network'); setLoading(false); }
     })();
-  }, [reportId]);
+  }, [reportId, retryKey]);
 
   if (loading) return <SkeletonReport />;
-  if (error) return (
-    <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F5F5F0' }}>
-      <p style={{ color: '#4B5563', fontSize: '15px' }}>{error}</p>
+  if (errorType) return (
+    <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#F5F5F0', padding: '24px', gap: '8px', textAlign: 'center' }}>
+      <p style={{ fontSize: '13px', fontWeight: 700, color: '#0D2D6B', letterSpacing: '0.08em' }}>와이즈에듀 교현학원</p>
+      <p style={{ color: '#4B5563', fontSize: '15px', margin: '4px 0 0' }}>
+        {errorType === 'notfound' ? '리포트를 찾을 수 없습니다.' : '리포트를 불러오지 못했습니다.'}
+      </p>
+      {errorType === 'network' && (
+        <button onClick={() => setRetryKey(k => k + 1)} style={{ marginTop: '10px', padding: '9px 20px', background: '#0D2D6B', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
+          다시 시도
+        </button>
+      )}
     </div>
   );
 
@@ -111,6 +114,7 @@ export default function PublicReport() {
   const { navy, gold, rule, inkMute, inkSub, ink, positive, serif, body } = R;
 
   return (
+    <>
     <ReportCard maxWidth="390px" fontFamily={body}>
 
           {/* 헤더 */}
@@ -234,13 +238,16 @@ export default function PublicReport() {
             )}
 
             {/* 문제집 사진 */}
-            {r.photoUrls?.length > 0 && (
+            {r.photoUrls?.filter((_, i) => !brokenPhotos[i]).length > 0 && (
               <>
                 <div style={{ marginBottom: '18px' }}>
                   <p style={{ fontSize: '10px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 8px' }}>TODAY'S WORK</p>
                   <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(r.photoUrls.length, 2)}, 1fr)`, gap: '6px' }}>
-                    {r.photoUrls.map((url, i) => (
-                      <img key={i} src={url} alt={`문제집 ${i+1}`} style={{ width: '100%', aspectRatio: '3/4', objectFit: 'cover', borderRadius: '4px', border: `1px solid ${rule}` }} />
+                    {r.photoUrls.map((url, i) => !brokenPhotos[i] && (
+                      <img key={i} src={url} alt={`문제집 ${i+1}`} loading="lazy"
+                        onClick={() => setLightboxUrl(url)}
+                        onError={() => setBrokenPhotos(prev => ({ ...prev, [i]: true }))}
+                        style={{ width: '100%', aspectRatio: '3/4', objectFit: 'cover', borderRadius: '4px', border: `1px solid ${rule}`, cursor: 'pointer' }} />
                     ))}
                   </div>
                 </div>
@@ -262,5 +269,19 @@ export default function PublicReport() {
           </div>
 
     </ReportCard>
+    {lightboxUrl && (
+      <div onClick={() => setLightboxUrl(null)} style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 999,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', cursor: 'zoom-out',
+      }}>
+        <img src={lightboxUrl} alt="확대 이미지" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '4px' }} />
+        <button onClick={() => setLightboxUrl(null)} style={{
+          position: 'fixed', top: '16px', right: '16px', width: '40px', height: '40px', borderRadius: '50%',
+          background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>×</button>
+      </div>
+    )}
+    </>
   );
 }

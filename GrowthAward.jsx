@@ -11,6 +11,7 @@ export default function GrowthAward() {
   const [student, setStudent] = useState(null);
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null); // 'network' | null
 
   useEffect(() => {
     async function load() {
@@ -24,6 +25,7 @@ export default function GrowthAward() {
         setReports(rList);
       } catch (e) {
         console.error(e);
+        setLoadError('network');
       } finally {
         setLoading(false);
       }
@@ -65,6 +67,13 @@ export default function GrowthAward() {
   if (loading) return (
     <div style={{ height: '100dvh', background: '#060E1F', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#C9A227', fontSize: '14px', fontFamily: "'Pretendard Variable', Pretendard, -apple-system, sans-serif" }}>
       성장 기록 불러오는 중...
+    </div>
+  );
+
+  if (loadError) return (
+    <div style={{ height: '100dvh', background: '#060E1F', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '10px', color: '#8A8A8A', fontSize: '14px', fontFamily: "'Pretendard Variable', Pretendard, -apple-system, sans-serif" }}>
+      <p style={{ margin: 0 }}>정보를 불러오지 못했습니다.</p>
+      <button onClick={() => window.location.reload()} style={{ padding: '9px 20px', background: '#C9A227', color: '#1A1A1A', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>다시 시도</button>
     </div>
   );
 
@@ -146,7 +155,7 @@ export default function GrowthAward() {
             { label: '총 수업 횟수', value: `${sorted.length}회`, note: allAttended ? '전 회 출석' : '출석 기록' },
             { label: '최저 → 최고', value: allScores.length >= 2 ? `${minScore}→${maxScore}` : maxScore ? `${maxScore}점` : '—', note: '단원평가 변화' },
           ].map((s, i) => (
-            <div key={i} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', padding: '20px 16px', textAlign: 'center', backdropFilter: 'blur(10px)' }}>
+            <div key={i} style={{ background: 'rgba(20,24,38,0.6)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', padding: '20px 16px', textAlign: 'center' }}>
               <p style={{ fontSize: 'clamp(9px, 1.1vw, 11px)', color: 'rgba(255,255,255,0.35)', fontWeight: 600, letterSpacing: '0.1em', marginBottom: '10px' }}>{s.label}</p>
               <p style={{ fontSize: 'clamp(20px, 3.5vw, 36px)', fontWeight: 800, color: '#fff', lineHeight: 1 }}>{s.value}</p>
               <p style={{ fontSize: 'clamp(9px, 1.1vw, 11px)', color: 'rgba(255,255,255,0.25)', marginTop: '6px' }}>{s.note}</p>

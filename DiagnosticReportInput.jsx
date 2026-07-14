@@ -212,6 +212,7 @@ export default function DiagnosticReportInput({
   const [selectedSkin, setSelectedSkin] = useState('navy');
   const autoSaveTimer = React.useRef(null);
   const [lastSaved, setLastSaved] = useState(null);
+  const [autoSaveError, setAutoSaveError] = useState(false);
 
   const [studentId, setStudentId] = useState('');
   const [teacherId, setTeacherId] = useState('');
@@ -236,6 +237,7 @@ export default function DiagnosticReportInput({
   const [nextPlan, setNextPlan] = useState('');
   const [nextPlanDetail, setNextPlanDetail] = useState('');
   const [saving, setSaving] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(null); // { done, total }
   const [toast, setToast] = useState(null);
   const [savedReportId, setSavedReportId] = useState(null);
   // 학생 선택 변경 시 헤더에 알림
@@ -271,8 +273,10 @@ export default function DiagnosticReportInput({
       };
       await onSave(reportPayload);
       setLastSaved(new Date());
+      setAutoSaveError(false);
     } catch (e) {
       console.error('자동저장 오류:', e);
+      setAutoSaveError(true);
     }
   };
 
@@ -292,6 +296,15 @@ export default function DiagnosticReportInput({
   const [photoError, setPhotoError] = useState('');
   const MAX_PHOTOS = 5;
   const photosRef = React.useRef([]);
+
+  // 사진 분석 대기 중 단계 문구 로테이션 (15~40초 소요되는 작업이라 진행감을 줌)
+  const ANALYZE_PHASES = ['사진을 읽는 중...', '채점 표시(O/△/빗금)를 확인하는 중...', '문항 유형을 분류하는 중...', '거의 다 됐어요...'];
+  const [analyzePhase, setAnalyzePhase] = useState(0);
+  useEffect(() => {
+    if (!analyzingPhoto) { setAnalyzePhase(0); return; }
+    const timer = setInterval(() => setAnalyzePhase(p => Math.min(p + 1, ANALYZE_PHASES.length - 1)), 4000);
+    return () => clearInterval(timer);
+  }, [analyzingPhoto]);
 
   // ── 수정 모드: editingReport가 들어오면 폼 pre-fill ──
   useEffect(() => {
@@ -433,12 +446,15 @@ export default function DiagnosticReportInput({
           diagTags: tagNames || '',
           photoContext: photoContext || '',
         }),
+        signal: AbortSignal.timeout(60000),
       });
+      if (!response.ok) throw new Error(`서버 오류 (${response.status})`);
       const data = await response.json();
+      if (!data.result) throw new Error('응답에 결과가 없습니다.');
       setAiPolishedNote(data.result);
     } catch (e) {
       console.error('AI 오류:', e);
-      showToast('AI 연결에 실패했습니다.', 'error');
+      showToast(e.name === 'TimeoutError' ? '응답 시간이 초과됐습니다. 다시 시도해주세요.' : 'AI 연결에 실패했습니다.', 'error');
     } finally {
       setPolishing(false);
     }
@@ -525,7 +541,9 @@ export default function DiagnosticReportInput({
           hintTextbook: textbook, hintUnit: unit, hintSubject: subject,
           mode: modeOverride || 'auto',
         }),
+        signal: AbortSignal.timeout(60000),
       });
+      if (!response.ok) throw new Error(`서버 오류 (${response.status})`);
       const data = await response.json();
       if (data.error) {
         setPhotoError(data.error);
@@ -539,7 +557,7 @@ export default function DiagnosticReportInput({
       }
     } catch (e) {
       console.error('사진 분석 오류:', e);
-      setPhotoError('AI 분석에 실패했습니다. 잠시 후 다시 시도해주세요.');
+      setPhotoError(e.name === 'TimeoutError' ? '분석 시간이 초과됐습니다. 사진 수를 줄여 다시 시도해주세요.' : 'AI 분석에 실패했습니다. 잠시 후 다시 시도해주세요.');
     }
     setAnalyzingPhoto(false);
   };
@@ -570,15 +588,22 @@ export default function DiagnosticReportInput({
     try {
       let photoUrls = [];
       if (photos.length > 0) {
+        setUploadProgress({ done: 0, total: photos.length });
         photoUrls = await Promise.all(photos.map(async (p, i) => {
           // 기존 사진 (blob 없음) → URL 그대로 유지
-          if (!p.blob && p.existingUrl) return p.existingUrl;
+          if (!p.blob && p.existingUrl) {
+            setUploadProgress(prev => prev && ({ ...prev, done: prev.done + 1 }));
+            return p.existingUrl;
+          }
           // 새로 추가한 사진 → Storage 업로드
           const path = `students/${studentId}/photos/${Date.now()}_${i}.jpg`;
           const storageRef = ref(storage, path);
           await uploadBytes(storageRef, p.blob);
-          return await getDownloadURL(storageRef);
+          const url = await getDownloadURL(storageRef);
+          setUploadProgress(prev => prev && ({ ...prev, done: prev.done + 1 }));
+          return url;
         }));
+        setUploadProgress(null);
       }
 
       const reportPayload = {
@@ -621,6 +646,7 @@ export default function DiagnosticReportInput({
       console.error('리포트 저장 오류:', e);
       showToast('저장 중 오류가 발생했습니다. 다시 시도해주세요.', 'error');
     }
+    setUploadProgress(null);
     setSaving(false);
   };
 
@@ -775,6 +801,7 @@ export default function DiagnosticReportInput({
                 setPhotos([]); setPhotoAnalysis(null);
                 setWrongItems([]);
                 setLastSaved(null);
+                setAutoSaveError(false);
               }
             }} style={selectStyle}>
               <option value="">학생을 선택해주세요</option>
@@ -958,14 +985,16 @@ export default function DiagnosticReportInput({
                           />
                           <div className="fallback-label" style={{ display: 'none' }} />
                           <span style={{ position: 'absolute', bottom: '4px', left: '4px', background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: '6px' }}>{i + 1}</span>
-                          <button onClick={() => removeOnePhoto(i)} style={{
-                            position: 'absolute', top: '2px', right: '2px', background: 'rgba(0,0,0,0.55)',
-                            border: 'none', borderRadius: '50%', width: '32px', height: '32px', color: '#fff', cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent'
-                          }}><X size={14} /></button>
+                          {!analyzingPhoto && (
+                            <button onClick={() => removeOnePhoto(i)} style={{
+                              position: 'absolute', top: '2px', right: '2px', background: 'rgba(0,0,0,0.55)',
+                              border: 'none', borderRadius: '50%', width: '32px', height: '32px', color: '#fff', cursor: 'pointer',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent'
+                            }}><X size={14} /></button>
+                          )}
                         </div>
                       ))}
-                      {photos.length < MAX_PHOTOS && (
+                      {photos.length < MAX_PHOTOS && !analyzingPhoto && (
                         <label style={{
                           display: 'flex', alignItems: 'center', justifyContent: 'center', aspectRatio: '3/4',
                           border: `1.5px dashed ${TOKENS.border}`, borderRadius: '10px',
@@ -977,7 +1006,9 @@ export default function DiagnosticReportInput({
                         </label>
                       )}
                     </div>
-                    <button onClick={removeAllPhotos} style={{ ...suggestionStyle, marginBottom: '10px' }}>전체 지우기</button>
+                    {!analyzingPhoto && (
+                      <button onClick={removeAllPhotos} style={{ ...suggestionStyle, marginBottom: '10px' }}>전체 지우기</button>
+                    )}
                     {/* 디버그 로그 — 모바일 확인용 */}
                     {photos[0]?.debugLogs?.length > 0 && (
                       <div style={{ background: '#1A1A1A', borderRadius: '8px', padding: '8px 10px', marginBottom: '10px' }}>
@@ -997,7 +1028,21 @@ export default function DiagnosticReportInput({
                           : <Sparkles size={13} />} {analyzingPhoto ? 'AI가 분석 중...' : `AI로 분석하기 (${photos.length}장)`}
                       </button>
                     )}
-                    {photoError && <p style={{ fontSize: '11px', color: TOKENS.danger, marginTop: '8px' }}>{photoError}</p>}
+                    {analyzingPhoto && (
+                      <div style={{ marginTop: '10px' }}>
+                        <style>{`@keyframes analyzePulse { 0%,100% { opacity: 0.5; } 50% { opacity: 0.9; } }`}</style>
+                        <p style={{ fontSize: '11px', color: TOKENS.textSub, textAlign: 'center', marginBottom: '8px' }}>{ANALYZE_PHASES[analyzePhase]}</p>
+                        {[80, 60, 90].map((w, i) => (
+                          <div key={i} style={{ width: `${w}%`, height: '12px', background: TOKENS.bgSoft, borderRadius: '4px', marginBottom: '8px', animation: 'analyzePulse 1.4s ease-in-out infinite' }} />
+                        ))}
+                      </div>
+                    )}
+                    {photoError && (
+                      <div style={{ background: TOKENS.dangerBg, borderRadius: '10px', padding: '10px 12px', marginTop: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                        <p style={{ fontSize: '11px', color: TOKENS.danger, margin: 0 }}>{photoError}</p>
+                        <button onClick={() => handleAnalyzePhoto('auto')} style={{ flexShrink: 0, padding: '5px 12px', fontSize: '11px', fontWeight: 700, border: 'none', borderRadius: '6px', background: TOKENS.danger, color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>재시도</button>
+                      </div>
+                    )}
                     {photoAnalysis && (
                       <div style={{ background: TOKENS.successBg, borderRadius: '12px', padding: '12px', marginTop: '4px' }}>
                         {(photoAnalysis.bookOrTest || photoAnalysis.unit || photoAnalysis.pageRange) && (
@@ -1006,7 +1051,11 @@ export default function DiagnosticReportInput({
                           </p>
                         )}
 
-                        {/* AI 판정 배지 + 재지정 버튼 */}
+                        {/* 재분석 버튼 — 결과가 틀렸을 때 사진 재업로드 없이 다시 시도 */}
+                        <button type="button" onClick={() => handleAnalyzePhoto('auto')} disabled={analyzingPhoto}
+                          style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '10px', padding: '5px 10px', fontSize: '11px', fontWeight: 700, border: `1px solid ${TOKENS.success}`, borderRadius: '20px', background: '#fff', color: TOKENS.success, cursor: analyzingPhoto ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: analyzingPhoto ? 0.6 : 1 }}>
+                          <Sparkles size={11} /> 결과가 다르다면 다시 분석
+                        </button>
 
                         {/* 섹션별 렌더링: 연산 = 집계만 / 유형 = 문항별 상세 / 모의고사 = 그룹집계+약점상세 */}
                         {(photoAnalysis.sections || []).map((sec, si) => (
@@ -1175,7 +1224,9 @@ export default function DiagnosticReportInput({
                                     diagTags: wrongItems.flatMap(w => w.tags.map(t => tagLabels[t])).join(', '),
                                     photoContext: `오답: ${wrongSummary}`,
                                   }),
+                                  signal: AbortSignal.timeout(60000),
                                 });
+                                if (!res.ok) throw new Error(`서버 오류 (${res.status})`);
                                 const data = await res.json();
                                 if (data.result) {
                                   setTeacherNote(prev => prev ? `${prev}\n\n${data.result}` : data.result);
@@ -1185,7 +1236,7 @@ export default function DiagnosticReportInput({
                                 }
                               } catch (e) {
                                 console.error('코멘트 생성 오류:', e);
-                                showToast('코멘트 생성 중 오류가 발생했습니다.', 'error');
+                                showToast(e.name === 'TimeoutError' ? '응답 시간이 초과됐습니다. 다시 시도해주세요.' : '코멘트 생성 중 오류가 발생했습니다.', 'error');
                               } finally {
                                 setGeneratingComment(false);
                               }
@@ -1338,9 +1389,13 @@ export default function DiagnosticReportInput({
               <button onClick={handleSubmit} disabled={!isValid || saving || polishing} style={{ ...submitButtonStyle(isValid && !saving && !polishing), width: '100%' }}>
                 {saving
                   ? <span style={{ display: 'inline-block', width: 15, height: 15, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                  : <Send size={15} />} {saving ? '저장 중...' : polishing ? 'AI 다듬는 중...' : '리포트 저장 및 발송 준비'}
+                  : <Send size={15} />} {saving ? (uploadProgress ? `사진 업로드 중 ${uploadProgress.done}/${uploadProgress.total}...` : '저장 중...') : polishing ? 'AI 다듬는 중...' : '리포트 저장 및 발송 준비'}
               </button>
-              {lastSaved && (
+              {autoSaveError ? (
+                <p style={{ fontSize: '11px', color: '#A32D2D', margin: '6px 0 0', textAlign: 'center', fontWeight: 600 }}>
+                  ⚠ 자동저장 실패 — 네트워크를 확인하고 직접 저장해주세요
+                </p>
+              ) : lastSaved && (
                 <p style={{ fontSize: '11px', color: '#0F6E56', margin: '6px 0 0', textAlign: 'center', fontWeight: 500 }}>
                   ✓ {lastSaved.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} 자동저장됨
                 </p>

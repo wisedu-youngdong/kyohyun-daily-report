@@ -264,7 +264,7 @@ export default function App() {
     const unsubStudents = onSnapshot(collection(db, 'students'), (snap) => {
       setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       setStudentsReady(true);
-    });
+    }, (e) => { console.error('학생 목록 구독 실패:', e); showAppToast('학생 목록을 불러오지 못했습니다. 새로고침해주세요.', 'error'); });
     const unsubTeachers = onSnapshot(collection(db, 'teachers'), (snap) => {
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       if (list.length === 0) {
@@ -272,17 +272,17 @@ export default function App() {
       } else {
         setTeachers(list);
       }
-    });
+    }, (e) => { console.error('강사 목록 구독 실패:', e); showAppToast('강사 목록을 불러오지 못했습니다.', 'error'); });
     const unsubReports = onSnapshot(collection(db, 'reports'), (snap) => {
       setReports(snap.docs.map(d => ({ id: d.id, ...d.data() }))
         .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
       setReportsReady(true);
-    });
+    }, (e) => { console.error('리포트 목록 구독 실패:', e); showAppToast('리포트 목록을 불러오지 못했습니다. 새로고침해주세요.', 'error'); });
 
     // 열람 기록 실시간 구독
     const unsubViews = onSnapshot(collection(db, 'reportViews'), (snap) => {
       setReportViews(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
+    }, (e) => { console.error('열람 기록 구독 실패:', e); });
 
     return () => { unsubStudents(); unsubTeachers(); unsubReports(); unsubViews(); };
   }, [user]);
@@ -300,13 +300,32 @@ export default function App() {
     alert('저장 실패: ' + e.message);
   }
 };
-  const handleDeleteStudent = async (id) => await deleteDoc(doc(db, 'students', id));
+  const handleDeleteStudent = async (id) => {
+    try {
+      await deleteDoc(doc(db, 'students', id));
+    } catch (e) {
+      console.error('학생 삭제 실패:', e);
+      showAppToast('학생 삭제에 실패했습니다.', 'error');
+    }
+  };
 
   const handleSaveTeacher = async (d) => {
-    if (d.id) { const { id, ...data } = d; await updateDoc(doc(db, 'teachers', id), data); }
-    else await addDoc(collection(db, 'teachers'), { ...d, createdAt: serverTimestamp() });
+    try {
+      if (d.id) { const { id, ...data } = d; await updateDoc(doc(db, 'teachers', id), data); }
+      else await addDoc(collection(db, 'teachers'), { ...d, createdAt: serverTimestamp() });
+    } catch (e) {
+      console.error('강사 저장 실패:', e);
+      showAppToast('강사 정보 저장에 실패했습니다.', 'error');
+    }
   };
-  const handleDeleteTeacher = async (id) => await deleteDoc(doc(db, 'teachers', id));
+  const handleDeleteTeacher = async (id) => {
+    try {
+      await deleteDoc(doc(db, 'teachers', id));
+    } catch (e) {
+      console.error('강사 삭제 실패:', e);
+      showAppToast('강사 삭제에 실패했습니다.', 'error');
+    }
+  };
 
   const handleSaveReport = async (d) => {
     // ── photoAnalysis → weakTypesSummary 자동 추출 ──
@@ -382,7 +401,13 @@ export default function App() {
     return reportId;
   };
   const handleDeleteReport = async (id) => {
-    await deleteDoc(doc(db, 'reports', id));
+    try {
+      await deleteDoc(doc(db, 'reports', id));
+    } catch (e) {
+      console.error('리포트 삭제 실패:', e);
+      showAppToast('리포트 삭제에 실패했습니다.', 'error');
+      return;
+    }
     // 연결된 복습 일정 삭제 (reportId 기준)
     try {
       const q = query(collection(db, 'reviews'), where('reportId', '==', id));
@@ -552,7 +577,7 @@ export default function App() {
             ])}
             <div style={{ marginTop: '12px' }}>
               {activeSubTab.insight === 'director' && (dataReady
-                ? <div><DirectorView reports={reports} students={students} /><GrowthDashboard reports={reports} students={students} onSwitchTab={setActiveTab} /></div>
+                ? <div><DirectorView reports={reports} students={students} reportViews={reportViews} /><GrowthDashboard reports={reports} students={students} onSwitchTab={setActiveTab} /></div>
                 : <SkeletonBlock rows={4} cardHeight={70} />
               )}
               {activeSubTab.insight === 'analysis' && <AnalysisView students={students} reports={reports} />}
@@ -1107,6 +1132,11 @@ function HistoryView({ reports, students, reportViews = [], onDelete, onEdit }) 
           </select>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {filtered.length === 0 && (
+            <div style={{ padding: '40px 0', textAlign: 'center', color: '#9CA3AF', fontSize: '13px' }}>
+              {searchText.trim() || studentFilter ? '검색 결과가 없습니다' : '작성된 리포트가 없습니다'}
+            </div>
+          )}
           {filtered.map(r => {
             const badge = statusBadge(r);
             return (
@@ -2880,24 +2910,12 @@ function StudentProfileModal({ student, reports, onClose, DIAG_MAP }) {
   );
 }
 
-function DirectorView({ reports, students }) {
+function DirectorView({ reports, students, reportViews = [] }) {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [expandedId, setExpandedId] = useState(null);
   const [memos, setMemos] = useState({});
   const [savingMemo, setSavingMemo] = useState(null);
   const [profileStudent, setProfileStudent] = useState(null);
-  const [reportViews, setReportViews] = useState([]); // 열람 기록
-
-  // 열람 기록 로드
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const snap = await getDocs(collection(db, 'reportViews'));
-        setReportViews(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-      } catch (e) { console.error('열람 기록 로드 실패:', e); }
-    };
-    load();
-  }, []);
 
   const DIAG_MAP = {
     calc:    { label: '계산 실수', bg: '#A32D2D', prefix: '⚠' },
@@ -3375,14 +3393,22 @@ function AnalysisView({ students, reports }) {
             )}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-            <StatCard label={`리포트 (${periodLabel})`} value={periodReports.length} unit="건" />
-            <StatCard label="과제 평균" value={periodAvg('homeworkRating')} unit="%" />
-            <StatCard label="개념 평균" value={periodAvg('conceptRating')} unit="%" />
-            <StatCard label="정시 출석" value={periodReports.length > 0 ? Math.round(periodReports.filter(r => r.attendance === '정시').length / periodReports.length * 100) : 0} unit="%" />
-          </div>
-          <HomeworkTestChart reports={periodReports} />
-          <InsightCard reports={periodReports} />
+          {periodReports.length === 0 ? (
+            <div style={{ background: '#fff', borderRadius: '16px', padding: '32px 16px', border: '1px solid #E5E7EB', textAlign: 'center', color: '#9CA3AF', fontSize: '13px' }}>
+              {periodLabel}에 기록된 리포트가 없습니다
+            </div>
+          ) : (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <StatCard label={`리포트 (${periodLabel})`} value={periodReports.length} unit="건" />
+                <StatCard label="과제 평균" value={periodAvg('homeworkRating')} unit="%" />
+                <StatCard label="개념 평균" value={periodAvg('conceptRating')} unit="%" />
+                <StatCard label="정시 출석" value={Math.round(periodReports.filter(r => r.attendance === '정시').length / periodReports.length * 100)} unit="%" />
+              </div>
+              <HomeworkTestChart reports={periodReports} />
+              <InsightCard reports={periodReports} />
+            </>
+          )}
 
           {/* 단원별 오답 + 진단 태그 — 2단 그리드 */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>

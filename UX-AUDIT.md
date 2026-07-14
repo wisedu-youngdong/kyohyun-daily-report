@@ -8,7 +8,8 @@
 
 > ✅ 1단계(Quick Wins) 전체 완료 — 커밋 ff0001a (2026-07-14). 2단계(반응형 레이아웃)부터 이어서 진행.
 > ✅ 2단계(반응형 레이아웃) 전체 완료 (2026-07-14). matchMedia 공용 훅(hooks.js) 도입, GrowthAward/드로어/테이블 모바일 대응, safe-area·100dvh 적용. 3단계(상용화 완성도)부터 이어서 진행.
-> ✅ 3단계 중 3-1(에러 바운더리)·3-2(코드 스플리팅)·3-3(로딩 스켈레톤) 완료 (2026-07-14). 추가로 tokens.jsx(T/R 팔레트 + ReportCard 공용 컴포넌트) 도입해 App.jsx/PublicReport.jsx/GrowthStory.jsx 중복 제거. 3-4 이후(fetch 타임아웃, 에러/빈 상태 통일, 라이트박스 등) 남음.
+> ✅ 3단계 중 3-1(에러 바운더리)·3-2(코드 스플리팅)·3-3(로딩 스켈레톤) 완료 (2026-07-14). 추가로 tokens.jsx(T/R 팔레트 + ReportCard 공용 컴포넌트) 도입해 App.jsx/PublicReport.jsx/GrowthStory.jsx 중복 제거.
+> ✅ 3단계 전체 완료 (2026-07-15). 3-4(fetch 타임아웃+res.ok), 3-5(사진 분석 대기 UX: 단계 문구 로테이션+잠금+재분석+에러 재시도), 3-6(에러/빈 상태 통일: onSnapshot 에러콜백, CRUD try/catch, PublicReport/GrowthStory/GrowthAward 에러 분리, HistoryView/AnalysisView 빈 상태), 3-7(채점 사진 라이트박스+onError 폴백), 3-8(사진 업로드 진행률), 3-9(자동저장 실패 알림), 3-10(GrowthStory 편집 Firestore 저장 — 기능 버그 수정), 3-11(마일스톤 문구 추세 반영), 3-13(vercel.json 캐시헤더+kakaotalk-scrap, OG 죽은코드 정리, DirectorView 중복로드 제거, StrictMode 열람기록 중복 방지, backdropFilter 제거) 모두 반영. UX-AUDIT 전 단계(1~3단계) 완료.
 
 ---
 

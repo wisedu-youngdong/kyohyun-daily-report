@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { db } from './firebase';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc, setDoc } from 'firebase/firestore';
 import { ReportCard } from './tokens.jsx';
 import { toPct } from './growth.js';
 
@@ -36,6 +36,7 @@ export default function GrowthStory() {
   const [reports, setReports] = useState([]);
   const [narrative, setNarrative] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null); // 'network' | null
   const [narLoading, setNarLoading] = useState(false);
   const [editing, setEditing] = useState(null);
   const [editText, setEditText] = useState('');
@@ -54,7 +55,17 @@ export default function GrowthStory() {
   };
 
   const startEdit = (field) => { setEditing(field); setEditText(narrative[field] || ''); };
-  const saveEdit = () => { setNarrative(prev => ({ ...prev, [editing]: editText })); setEditing(null); };
+  const saveEdit = async () => {
+    const updated = { ...narrative, [editing]: editText };
+    setNarrative(updated);
+    setEditing(null);
+    try {
+      await setDoc(doc(db, 'students', studentId), { narrative: updated }, { merge: true });
+    } catch (e) {
+      console.error('서사 저장 실패:', e);
+      alert('저장에 실패했습니다. 네트워크를 확인하고 다시 시도해주세요.');
+    }
+  };
   const cancelEdit = () => setEditing(null);
 
   useEffect(() => {
@@ -67,7 +78,9 @@ export default function GrowthStory() {
         ]);
 
         if (!stuSnap.empty) {
-          setStudent({ id: stuSnap.docs[0].id, ...stuSnap.docs[0].data() });
+          const studentData = stuSnap.docs[0].data();
+          setStudent({ id: stuSnap.docs[0].id, ...studentData });
+          if (studentData.narrative) setNarrative(studentData.narrative);
         }
 
         const rList = rSnap.docs
@@ -76,6 +89,7 @@ export default function GrowthStory() {
         setReports(rList);
       } catch (e) {
         console.error('❌ Firebase 오류:', e);
+        setLoadError('network');
       } finally {
         setLoading(false);
       }
@@ -240,9 +254,13 @@ export default function GrowthStory() {
       },
       {
         phase: 'PHASE 4 · 전략 고도화',
-        title: '사고력 고도화 — 응용 문제 자력 해결 체계 완성',
-        desc: '이제 낯선 문제 유형에서도 스스로 판단 기준을 세우고 전략을 선택할 수 있습니다. 다음 단원에서 이 고집이 더 빛을 발할 것입니다.',
-        badge: '해결 전략 완성 단계',
+        title: improved
+          ? '사고력 고도화 — 응용 문제 자력 해결 체계 완성'
+          : '기초 다지기 — 반복 오답 패턴 재점검 중',
+        desc: improved
+          ? '이제 낯선 문제 유형에서도 스스로 판단 기준을 세우고 전략을 선택할 수 있습니다. 다음 단원에서 이 고집이 더 빛을 발할 것입니다.'
+          : '최근 오답 패턴이 다시 늘어 기초 개념을 한 번 더 점검하는 시기입니다. 이 과정을 거치면 다음 도약이 더 단단해집니다.',
+        badge: improved ? '해결 전략 완성 단계' : '재점검 진행 중',
         active: true,
       },
     ];
@@ -320,6 +338,12 @@ export default function GrowthStory() {
         alert(`오류: ${JSON.stringify(data)}`);
       } else {
         setNarrative(data);
+        try {
+          await setDoc(doc(db, 'students', studentId), { narrative: data }, { merge: true });
+        } catch (e) {
+          console.error('서사 저장 실패:', e);
+          alert('서사가 생성됐지만 저장에는 실패했습니다. 네트워크를 확인하고 다시 시도해주세요.');
+        }
       }
     } catch (e) {
       alert(`오류: ${e.message}`);
@@ -330,6 +354,13 @@ export default function GrowthStory() {
   if (loading) return (
     <div style={{ height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Pretendard Variable', Pretendard, -apple-system, sans-serif", color: '#0D2D6B', fontSize: '14px', fontWeight: 600 }}>
       성장 기록을 불러오는 중...
+    </div>
+  );
+
+  if (loadError) return (
+    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '10px', fontFamily: "'Pretendard Variable', Pretendard, -apple-system, sans-serif", color: '#8A8A8A', fontSize: '14px' }}>
+      <p style={{ margin: 0 }}>정보를 불러오지 못했습니다.</p>
+      <button onClick={() => window.location.reload()} style={{ padding: '9px 20px', background: '#0D2D6B', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>다시 시도</button>
     </div>
   );
 

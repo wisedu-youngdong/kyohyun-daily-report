@@ -7,13 +7,21 @@
         {
           "type": "header",
           "key": "user-agent",
-          "value": ".*(facebookexternalhit|twitterbot|LinkedInBot|Slackbot|TelegramBot|WhatsApp|Naverbot|Yeti|DaumMoaBot|Googlebot|bingbot|crawler|spider|bot).*"
+          "value": ".*(facebookexternalhit|twitterbot|LinkedInBot|Slackbot|TelegramBot|WhatsApp|Naverbot|Yeti|DaumMoaBot|Googlebot|bingbot|[Kk]akaotalk-scrap|crawler|spider|bot).*"
         }
       ]
     },
     {
       "source": "/(.*)",
       "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/avatars/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
     }
   ]
 }
