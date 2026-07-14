@@ -149,6 +149,39 @@ export const SKINS = {
   indigo: buildSkin('indigo', '인디고 + 피치',  '#3949AB', '#FFCCBC'),
 };
 
+// 공통 중앙 알림 모달
+function AlertModal({ message, onClose }) {
+  if (!message) return null;
+  return (
+    <div style={{
+      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+      background: 'rgba(0,0,0,0.45)', zIndex: 99999,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: '20px',
+    }} onClick={onClose}>
+      <div style={{
+        background: '#fff', borderRadius: '16px', padding: '32px 24px',
+        width: '100%', maxWidth: '320px', textAlign: 'center',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+      }} onClick={e => e.stopPropagation()}>
+        <div style={{
+          width: '52px', height: '52px', borderRadius: '50%',
+          background: '#FFF3E0', border: '2px solid #F59E0B',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          margin: '0 auto 16px', fontSize: '24px',
+        }}>!</div>
+        <p style={{ fontSize: '17px', fontWeight: 700, color: '#1A1A1A', margin: '0 0 8px' }}>알림</p>
+        <p style={{ fontSize: '14px', color: '#4B5563', margin: '0 0 24px', lineHeight: 1.6 }}>{message}</p>
+        <button onClick={onClose} style={{
+          width: '100%', padding: '12px', fontSize: '14px', fontWeight: 700,
+          border: 'none', borderRadius: '10px', background: '#0D2D6B',
+          color: '#fff', cursor: 'pointer', fontFamily: 'inherit',
+        }}>확인</button>
+      </div>
+    </div>
+  );
+}
+
 export default function DiagnosticReportInput({
   students = [],
   teachers = [],
@@ -236,7 +269,8 @@ export default function DiagnosticReportInput({
   const [photos, setPhotos] = useState([]); // [{ preview, blob }]
   const [analyzingPhoto, setAnalyzingPhoto] = useState(false);
   const [photoAnalysis, setPhotoAnalysis] = useState(null);
-  const [wrongItems, setWrongItems] = useState([]); // 오답 문제별 태그+메모
+  const [wrongItems, setWrongItems] = useState([]);
+  const [alertMessage, setAlertMessage] = useState('');
   const [photoError, setPhotoError] = useState('');
   const MAX_PHOTOS = 10;
   const photosRef = React.useRef([]);
@@ -309,7 +343,7 @@ export default function DiagnosticReportInput({
       setShowStudentModal(false);
     } catch (e) {
       console.error('학생 저장 오류:', e);
-      alert('학생 저장 중 오류가 발생했습니다.');
+      setAlertMessage('학생 저장 중 오류가 발생했습니다.');
     }
   };
 
@@ -319,13 +353,13 @@ export default function DiagnosticReportInput({
       await onSaveTeacher({ name });
     } catch (e) {
       console.error('강사 저장 오류:', e);
-      alert('강사 저장 중 오류가 발생했습니다.');
+      setAlertMessage('강사 저장 중 오류가 발생했습니다.');
     }
   };
 
   const handleDeleteTeacher = async (id) => {
     if (teachers.length <= 1) {
-      alert('최소 1명의 강사는 등록되어 있어야 합니다.');
+      setAlertMessage('최소 1명의 강사는 등록되어 있어야 합니다.');
       return;
     }
     try {
@@ -506,10 +540,10 @@ export default function DiagnosticReportInput({
 
   const handleSubmit = async () => {
     // 단계별 검증
-    if (!studentId) return showToast('학생을 먼저 선택해주세요.', 'warn');
-    if (!teacherId) return showToast('담당 강사를 선택해주세요.', 'warn');
-    if (!homeworkRating || !conceptRating) return showToast('과제 수행과 개념 이해 평가를 입력해주세요.', 'warn');
-    if (!teacherNote.trim() && !aiPolishedNote.trim()) return showToast('선생님 코멘트를 입력해주세요. 학부모에게 전달되는 핵심 내용입니다.', 'warn');
+    if (!studentId) return setAlertMessage('학생을 먼저 선택해주세요.');
+    if (!teacherId) return setAlertMessage('담당 강사를 선택해주세요.');
+    if (!homeworkRating || !conceptRating) return setAlertMessage('과제 수행과 개념 이해 평가를 입력해주세요.');
+    if (!teacherNote.trim() && !aiPolishedNote.trim()) return setAlertMessage('선생님 코멘트를 입력해주세요.\n학부모에게 전달되는 핵심 내용입니다.');
 
     setSaving(true);
     try {
@@ -579,6 +613,9 @@ export default function DiagnosticReportInput({
 
   return (
     <>
+      {/* 중앙 알림 모달 */}
+      <AlertModal message={alertMessage} onClose={() => setAlertMessage('')} />
+
       {/* 토스트 알림 */}
       {toast && (
         <div style={{
