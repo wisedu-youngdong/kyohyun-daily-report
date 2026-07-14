@@ -111,6 +111,14 @@ JSON만 출력하라. 마크다운 코드펜스 없이 JSON 객체 하나만.
 }`;
 }
 
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb',
+    },
+  },
+};
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
