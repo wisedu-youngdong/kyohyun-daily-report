@@ -382,32 +382,26 @@ export default function DiagnosticReportInput({
 
   // 사진 선택 → 미리보기 (여러 장 동시 선택 가능, 기존 목록에 추가됨)
   const handlePhotoSelect = async (fileList) => {
-    const files = Array.from(fileList || []).slice(0, MAX_PHOTOS - photos.length);
-    if (files.length === 0) return;
+    const newFiles = Array.from(fileList || []);
+    const remaining = MAX_PHOTOS - photos.length;
+    if (newFiles.length === 0 || remaining <= 0) return;
+    const filesToProcess = newFiles.slice(0, remaining);
     setPhotoAnalysis(null);
     setPhotoError('');
-    showToast('사진을 압축하고 있습니다...', 'info');
+    showToast(`사진 ${filesToProcess.length}장 압축 중...`, 'info');
 
-    for (const file of files) {
+    for (const file of filesToProcess) {
       try {
-        // 파일 크기 체크 (50MB 초과 시 거부)
         if (file.size > 50 * 1024 * 1024) {
           throw new Error(`파일이 너무 큽니다 (${(file.size/1024/1024).toFixed(1)}MB)`);
         }
-
         const result = await compressImage(file);
-
-        if (!result.preview) {
-          console.warn('preview 없음, 건너뜀');
-          continue;
-        }
-
+        if (!result.preview) continue;
         setPhotos(prev => [...prev, {
           preview: result.preview,
           base64: result.aiBase64,
           mimeType: result.mimeType,
           blob: result.blob,
-          debugLogs: result.debugLogs || [],
         }]);
       } catch (e) {
         const msg = e?.message || e?.toString() || '알 수 없는 오류';
@@ -416,9 +410,7 @@ export default function DiagnosticReportInput({
         showToast(`사진 처리 실패: ${msg}`, 'error');
       }
     }
-    if (photos.length > 0 || files.length > 0) {
-      showToast(`사진 준비 완료!`, 'success');
-    }
+    showToast(`사진 준비 완료!`, 'success');
   };
 
   const removeOnePhoto = (idx) => {
@@ -921,32 +913,6 @@ export default function DiagnosticReportInput({
                         )}
 
                         {/* AI 판정 배지 + 재지정 버튼 */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginBottom: '10px' }}>
-                          <span style={{ fontSize: '11px', fontWeight: 700, color: TOKENS.textSub }}>AI 판정:</span>
-                          <span style={{ fontSize: '11px', fontWeight: 700, color: TOKENS.brand, background: TOKENS.brandLight, padding: '3px 10px', borderRadius: '10px' }}>
-                            {{ calculation: '연산문제', concept: '유형문제', mock_exam: '모의고사', mixed: '혼합' }[photoAnalysis.pageType] || photoAnalysis.pageType}
-                          </span>
-                          <span style={{ fontSize: '10px', color: TOKENS.textMute, marginLeft: '4px' }}>다르면 재지정:</span>
-                          {[['calculation', '연산'], ['concept', '유형'], ['mock_exam', '모의고사']].map(([m, label]) => (
-                            <button key={m} onClick={() => handleAnalyzePhoto(m)} disabled={analyzingPhoto}
-                              style={{ ...suggestionStyle, opacity: analyzingPhoto ? 0.5 : 1, cursor: analyzingPhoto ? 'not-allowed' : 'pointer' }}>
-                              {label}
-                            </button>
-                          ))}
-                        </div>
-
-                        {(photoAnalysis.rawObservations || []).length > 0 && (
-                          <details style={{ marginBottom: '10px' }}>
-                            <summary style={{ fontSize: '11px', fontWeight: 700, color: TOKENS.textSub, cursor: 'pointer' }}>
-                              AI가 관찰한 표시 원본 {photoAnalysis.rawObservations.length}개 (펼쳐서 사진과 대조)
-                            </summary>
-                            <ul style={{ margin: '6px 0 0', paddingLeft: '16px' }}>
-                              {photoAnalysis.rawObservations.map((obs, i) => (
-                                <li key={i} style={{ fontSize: '11px', color: TOKENS.textSub, marginBottom: '3px' }}>{obs}</li>
-                              ))}
-                            </ul>
-                          </details>
-                        )}
 
                         {/* 섹션별 렌더링: 연산 = 집계만 / 유형 = 문항별 상세 / 모의고사 = 그룹집계+약점상세 */}
                         {(photoAnalysis.sections || []).map((sec, si) => (
@@ -1043,20 +1009,20 @@ export default function DiagnosticReportInput({
                                       const active = item.tags.includes(tag.key);
                                       return (
                                         <button key={tag.key}
-                                          onClick={() => {
-                                            setWrongItems(prev => prev.map((w, i) => i === idx ? {
-                                              ...w,
-                                              tags: active ? w.tags.filter(t => t !== tag.key) : [...w.tags, tag.key]
-                                            } : w));
-                                          }}
+                                          onClick={() => setWrongItems(prev => prev.map((w, i) => i === idx ? {
+                                            ...w,
+                                            tags: active ? w.tags.filter(t => t !== tag.key) : [...w.tags, tag.key]
+                                          } : w))}
                                           style={{
-                                            fontSize: '10px', padding: '3px 9px', borderRadius: '20px',
+                                            fontSize: '11px', padding: '5px 11px', borderRadius: '20px',
                                             background: active ? tag.bg : '#fff',
                                             color: active ? tag.color : TOKENS.textMute,
                                             border: `1px solid ${active ? tag.border : TOKENS.border}`,
-                                            cursor: 'pointer', fontFamily: 'inherit', fontWeight: active ? 600 : 400,
+                                            cursor: 'pointer', fontFamily: 'inherit', fontWeight: active ? 700 : 400,
+                                            WebkitTapHighlightColor: 'transparent',
+                                            touchAction: 'manipulation',
                                           }}>
-                                          {tag.label}
+                                          {active ? '✓ ' : ''}{tag.label}
                                         </button>
                                       );
                                     })}
