@@ -289,7 +289,7 @@ export default function DiagnosticReportInput({
   const [wrongItems, setWrongItems] = useState([]);
   const [alertMessage, setAlertMessage] = useState('');
   const [photoError, setPhotoError] = useState('');
-  const MAX_PHOTOS = 10;
+  const MAX_PHOTOS = 5;
   const photosRef = React.useRef([]);
 
   // ── 수정 모드: editingReport가 들어오면 폼 pre-fill ──
