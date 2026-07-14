@@ -1016,13 +1016,38 @@ export default function DiagnosticReportInput({
                               </div>
                             )}
 
-                            {sec.sectionType === 'concept' && (sec.problemTypes || []).map((p, i) => (
+                            {sec.sectionType === 'concept' && (sec.problemTypes || [])
+                              .slice()
+                              .sort((a, b) => parseInt(a.number) - parseInt(b.number))
+                              .map((p, i) => (
                               <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', marginBottom: '6px', fontSize: '12px' }}>
-                                <span style={{
-                                  flexShrink: 0, fontWeight: 700, fontSize: '10px', padding: '2px 8px', borderRadius: '10px',
-                                  background: p.result === '잘함' ? '#E1F5EE' : TOKENS.dangerBg,
-                                  color: p.result === '잘함' ? TOKENS.successDark : TOKENS.dangerBorder,
-                                }}>{p.result === '잘함' ? '정답' : '오답'}</span>
+                                <button type="button"
+                                  onClick={() => {
+                                    setPhotoAnalysis(prev => ({
+                                      ...prev,
+                                      sections: prev.sections.map(s =>
+                                        s.sectionType === 'concept'
+                                          ? { ...s, problemTypes: s.problemTypes.map((pt, pi) =>
+                                              pt.number === p.number
+                                                ? { ...pt, result: pt.result === '잘함' ? '약점' : '잘함' }
+                                                : pt
+                                            )}
+                                          : s
+                                      )
+                                    }));
+                                    // wrongItems도 동기화
+                                    if (p.result === '잘함') {
+                                      setWrongItems(prev => [...prev, { number: p.number, type: p.type, correctRate: '', mark: '수동오답', tags: [], memo: '' }]);
+                                    } else {
+                                      setWrongItems(prev => prev.filter(w => w.number !== p.number));
+                                    }
+                                  }}
+                                  style={{
+                                    flexShrink: 0, fontWeight: 700, fontSize: '10px', padding: '2px 8px', borderRadius: '10px',
+                                    background: p.result === '잘함' ? '#E1F5EE' : TOKENS.dangerBg,
+                                    color: p.result === '잘함' ? TOKENS.successDark : TOKENS.dangerBorder,
+                                    border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                                  }}>{p.result === '잘함' ? '정답 ✓' : '오답 ✗'}</button>
                                 <div>
                                   <p style={{ margin: 0, fontWeight: 600 }}>
                                     {p.number ? `${p.number}. ` : ''}{p.type}
@@ -1062,7 +1087,9 @@ export default function DiagnosticReportInput({
                             <p style={{ fontSize: '11px', fontWeight: 700, color: TOKENS.textSub, margin: '0 0 8px' }}>
                               오답 문제별 원인 입력
                             </p>
-                            {wrongItems.map((item, idx) => {
+                            {[...wrongItems]
+                              .sort((a, b) => parseInt(a.number) - parseInt(b.number))
+                              .map((item, idx) => {
                               const WRONG_TAGS = [
                                 { key: 'calc', label: '계산 실수', bg: '#FFF8EC', color: '#8A5A00', border: '#C9A22740' },
                                 { key: 'concept', label: '개념 누락', bg: '#FDF0F0', color: '#8A2020', border: '#8A202040' },
