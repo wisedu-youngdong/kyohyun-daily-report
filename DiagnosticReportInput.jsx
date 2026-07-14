@@ -16,7 +16,7 @@ import {
   FileText, Sparkles, Send, Plus, X, Check,
   UserPlus, GraduationCap, Settings, Trash2
 } from 'lucide-react';
-import { calculateReportPoints } from './growth.js';
+import { calculateReportPoints, toPct, ratingLabel } from './growth.js';
 import { storage } from './firebase.js';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
@@ -98,14 +98,6 @@ const TOKENS = {
   text: '#1A1A1A', textSub: '#6B7280', textMute: '#9CA3AF',
   border: '#E5E7EB', borderLight: '#F3F4F6', bg: '#FFFFFF', bgSoft: '#F9FAFB',
 };
-
-const RATING_LEVELS = [
-  { level: 5, emoji: '🌟', label: '아주 잘함' },
-  { level: 4, emoji: '😊', label: '잘함' },
-  { level: 3, emoji: '🙂', label: '보통' },
-  { level: 2, emoji: '😐', label: '아쉬움' },
-  { level: 1, emoji: '😟', label: '노력 필요' },
-];
 
 const DIAGNOSIS_TAGS = [
   { key: 'calc',    label: '계산 실수',  color: 'warn'    },
@@ -308,8 +300,8 @@ export default function DiagnosticReportInput({
     setTeacherId(editingReport.teacherId || '');
     setAttendance(editingReport.attendance || '정시');
     setArrivalTime(editingReport.arrivalTime || '15:30');
-    setHomeworkRating(editingReport.homeworkRating || 0);
-    setConceptRating(editingReport.conceptRating || 0);
+    setHomeworkRating(toPct(editingReport.homeworkRating));
+    setConceptRating(toPct(editingReport.conceptRating));
     setHasTest(editingReport.hasTest || false);
     setTestName(editingReport.testName || '');
     setTestScore(editingReport.testScore || '');
@@ -1661,8 +1653,8 @@ export function deriveColorsToSkin(mainHex) {
 function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating, conceptRating, hasTest, testName, testScore, textbook, unit, pages, diagnosis, teacherNote, nextPlan, nextPlanDetail, skin }) {
   const today = new Date();
   const dateStr = `${String(today.getMonth() + 1).padStart(2,'0')}.${String(today.getDate()).padStart(2,'0')} (${'일월화수목금토'[today.getDay()]})`;
-  const homework = RATING_LEVELS.find(r => r.level === homeworkRating);
-  const concept  = RATING_LEVELS.find(r => r.level === conceptRating);
+  const homeworkPct = toPct(homeworkRating);
+  const conceptPct = toPct(conceptRating);
 
   // 학생 개별 스킨 → 없으면 선택 스킨 → 없으면 기본값
   const studentSkin = student?.skinColor ? deriveColorsToSkin(student.skinColor) : null;
@@ -1733,12 +1725,12 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
             {/* 과제 수행 — 다크 */}
             <div style={{ background: s.cardDarkBg, borderRadius: '14px', padding: '12px 12px' }}>
               {cardLabel('과제 수행', true)}
-              {homework ? (
+              {homeworkPct > 0 ? (
                 <>
                   <p style={{ fontSize: '26px', fontWeight: 800, color: '#ffffff', margin: '2px 0 2px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
-                    {homeworkRating}<span style={{ fontSize: '12px', fontWeight: 600, marginLeft: '2px', opacity: 0.7 }}>/5</span>
+                    {homeworkPct}<span style={{ fontSize: '12px', fontWeight: 600, marginLeft: '2px', opacity: 0.7 }}>%</span>
                   </p>
-                  <p style={{ fontSize: '12px', fontWeight: 700, color: 'rgba(255,255,255,0.85)', margin: 0 }}>{homework.label}</p>
+                  <p style={{ fontSize: '12px', fontWeight: 700, color: 'rgba(255,255,255,0.85)', margin: 0 }}>{ratingLabel(homeworkPct)}</p>
                 </>
               ) : <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', margin: 0 }}>미입력</p>}
             </div>
@@ -1746,12 +1738,12 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
             {/* 개념 이해 — 라이트 */}
             <div style={{ background: s.cardBg, borderRadius: '14px', padding: '12px 12px' }}>
               {cardLabel('개념 이해', false)}
-              {concept ? (
+              {conceptPct > 0 ? (
                 <>
                   <p style={{ fontSize: '26px', fontWeight: 800, color: s.cardText, margin: '2px 0 2px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
-                    {conceptRating}<span style={{ fontSize: '12px', fontWeight: 600, marginLeft: '2px', opacity: 0.6 }}>/5</span>
+                    {conceptPct}<span style={{ fontSize: '12px', fontWeight: 600, marginLeft: '2px', opacity: 0.6 }}>%</span>
                   </p>
-                  <p style={{ fontSize: '12px', fontWeight: 700, color: s.cardSub, margin: 0 }}>{concept.label}</p>
+                  <p style={{ fontSize: '12px', fontWeight: 700, color: s.cardSub, margin: 0 }}>{ratingLabel(conceptPct)}</p>
                 </>
               ) : <p style={{ fontSize: '12px', color: s.cardSub, margin: 0 }}>미입력</p>}
             </div>
@@ -1898,34 +1890,21 @@ function FieldLabel({ children }) {
 }
 
 function RatingPicker({ label, value, onChange }) {
+  const pct = value || 0;
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
         <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 700, margin: 0 }}>{label}</p>
-        <input
-          type="number" inputMode="numeric" min={1} max={5} step={1}
-          value={value || ''}
-          onChange={(e) => {
-            const raw = e.target.value;
-            if (raw === '') { onChange(0); return; }
-            const n = Math.min(5, Math.max(1, Math.round(Number(raw))));
-            if (!Number.isNaN(n)) onChange(n);
-          }}
-          placeholder="1~5"
-          style={{ width: '46px', padding: '3px 4px', fontSize: '13px', textAlign: 'center', border: '1px solid #E5E7EB', borderRadius: '6px', fontFamily: 'inherit', fontWeight: 700, color: '#1A1A1A', outline: 'none' }}
-        />
+        <span style={{ fontSize: '12px', fontWeight: 800, color: '#185FA5', background: '#E6F1FB', padding: '2px 11px', borderRadius: '20px', fontVariantNumeric: 'tabular-nums' }}>
+          {pct}%
+        </span>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '5px' }}>
-        {RATING_LEVELS.map(r => {
-          const active = value === r.level;
-          return (
-            <button key={r.level} onClick={() => onChange(r.level)} style={{ background: active ? '#E6F1FB' : '#F9FAFB', border: `1.5px solid ${active ? '#185FA5' : 'transparent'}`, borderRadius: '10px', padding: '8px 3px', cursor: 'pointer', fontFamily: 'inherit' }}>
-              <div style={{ fontSize: '22px', lineHeight: 1, marginBottom: '3px' }}>{r.emoji}</div>
-              <div style={{ fontSize: '9px', fontWeight: active ? 700 : 500, color: active ? '#0C447C' : '#6B7280' }}>{r.label}</div>
-            </button>
-          );
-        })}
-      </div>
+      <input
+        type="range" min={0} max={100} step={10}
+        value={pct}
+        onChange={(e) => onChange(Number(e.target.value))}
+        style={{ width: '100%', accentColor: '#185FA5', cursor: 'pointer', display: 'block', height: '22px' }}
+      />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { db } from './firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { useMediaQuery } from './hooks.js';
+import { toPct } from './growth.js';
 
 export default function GrowthAward() {
   const { studentId } = useParams();
@@ -36,12 +37,13 @@ export default function GrowthAward() {
     return `${d.getMonth() + 1}월 ${d.getDate()}일`;
   };
 
-  const sorted = reports;
+  // 과제/개념 평가는 구 리포트(1~5)와 신규 리포트(0~100)가 섞여 있으므로 0~100(%) 기준으로 정규화
+  const sorted = reports.map(r => ({ ...r, conceptRating: toPct(r.conceptRating), homeworkRating: toPct(r.homeworkRating) }));
   const allScores = sorted.filter(r => r.hasTest && r.testScore).map(r => Number(r.testScore));
   const maxScore = allScores.length > 0 ? Math.max(...allScores) : null;
   const minScore = allScores.length > 0 ? Math.min(...allScores) : null;
   const hwAvg = sorted.length > 0
-    ? (sorted.reduce((s, r) => s + (r.homeworkRating || 0), 0) / sorted.length).toFixed(1)
+    ? Math.round(sorted.reduce((s, r) => s + (r.homeworkRating || 0), 0) / sorted.length)
     : null;
   const allAttended = sorted.length > 0 && sorted.every(r => r.attendance === '출석');
   const bestReport = [...sorted].sort((a, b) => (b.conceptRating || 0) - (a.conceptRating || 0))[0];
@@ -51,7 +53,7 @@ export default function GrowthAward() {
   // 마일스톤
   const milestones = [];
   if (sorted.length > 0) milestones.push({ label: '태도 형성', date: fmtDate(sorted[0]), done: true });
-  if (sorted.find(r => r.homeworkRating >= 5)) milestones.push({ label: '개념 흡수', date: fmtDate(sorted.find(r => r.homeworkRating >= 5)), done: true });
+  if (sorted.find(r => r.homeworkRating >= 100)) milestones.push({ label: '개념 흡수', date: fmtDate(sorted.find(r => r.homeworkRating >= 100)), done: true });
   if (sorted.find(r => r.hasTest && Number(r.testScore) >= 70)) milestones.push({ label: '판단 기준', date: fmtDate(sorted.find(r => r.hasTest && Number(r.testScore) >= 70)), done: true });
   if (bestReport) milestones.push({ label: '전략 완성', date: fmtDate(bestReport), done: true, active: true });
   milestones.push({ label: '전략 고도화', date: '다음 목표', done: false });
@@ -140,7 +142,7 @@ export default function GrowthAward() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '16px', marginBottom: '48px' }}>
           {[
             { label: '최고 단원평가', value: maxScore ? `${maxScore}점` : '—', note: '100점 만점' },
-            { label: '과제 수행 평균', value: hwAvg ? `${hwAvg}점` : '—', note: '5점 만점' },
+            { label: '과제 수행 평균', value: hwAvg ? `${hwAvg}%` : '—', note: '100% 만점' },
             { label: '총 수업 횟수', value: `${sorted.length}회`, note: allAttended ? '전 회 출석' : '출석 기록' },
             { label: '최저 → 최고', value: allScores.length >= 2 ? `${minScore}→${maxScore}` : maxScore ? `${maxScore}점` : '—', note: '단원평가 변화' },
           ].map((s, i) => (

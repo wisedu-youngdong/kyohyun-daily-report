@@ -3,6 +3,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { db } from './firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { ReportCard } from './tokens.jsx';
+import { toPct } from './growth.js';
 
 const FONT_STYLE = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -84,7 +85,10 @@ export default function GrowthStory() {
 
   // 데이터 가공
   // 기간 필터 적용
-  const allSorted = [...reports].sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+  // 과제/개념 평가는 구 리포트(1~5)와 신규 리포트(0~100)가 섞여 있으므로 0~100(%) 기준으로 정규화
+  const allSorted = [...reports]
+    .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0))
+    .map(r => ({ ...r, conceptRating: toPct(r.conceptRating), homeworkRating: toPct(r.homeworkRating) }));
   const sorted = period === '3m'
     ? allSorted.filter(r => {
         const ts = r.createdAt?.seconds || 0;
@@ -121,13 +125,13 @@ export default function GrowthStory() {
   const bestReport = [...sorted].sort((a, b) => (b.conceptRating || 0) - (a.conceptRating || 0))[0];
   // 과제 평균
   const hwAvg = sorted.length > 0
-    ? (sorted.reduce((s, r) => s + (r.homeworkRating || 0), 0) / sorted.length).toFixed(1)
+    ? Math.round(sorted.reduce((s, r) => s + (r.homeworkRating || 0), 0) / sorted.length)
     : null;
   // 개근 여부
   const allAttended = sorted.length > 0 && sorted.every(r => r.attendance === '출석');
 
   // 공통 변수
-  const firstPerfect = sorted.find(r => r.homeworkRating >= 5);
+  const firstPerfect = sorted.find(r => r.homeworkRating >= 100);
   const over70 = sorted.find(r => r.hasTest && Number(r.testScore) >= 70);
 
   // 신규생/재학생 분기
@@ -444,7 +448,7 @@ export default function GrowthStory() {
                   <div style={{ display: 'flex', gap: '10px', marginBottom: m.realData.diagTags.length > 0 || m.realData.testScore || m.realData.notePreview ? '5px' : 0 }}>
                     {m.realData.homeworkRating > 0 && (
                       <span style={{ fontSize: '12px', color: '#374151' }}>
-                        과제 <strong style={{ color: '#0D2D6B' }}>{m.realData.homeworkRating}/5</strong>
+                        과제 <strong style={{ color: '#0D2D6B' }}>{m.realData.homeworkRating}%</strong>
                         {m.realData.hwDelta !== null && m.realData.hwDelta !== 0 && (
                           <span style={{ color: m.realData.hwDelta > 0 ? '#0F6E56' : '#DC2626', marginLeft: '3px' }}>
                             {m.realData.hwDelta > 0 ? `+${m.realData.hwDelta}` : m.realData.hwDelta}
@@ -454,7 +458,7 @@ export default function GrowthStory() {
                     )}
                     {m.realData.conceptRating > 0 && (
                       <span style={{ fontSize: '12px', color: '#374151' }}>
-                        개념 <strong style={{ color: '#0D2D6B' }}>{m.realData.conceptRating}/5</strong>
+                        개념 <strong style={{ color: '#0D2D6B' }}>{m.realData.conceptRating}%</strong>
                       </span>
                     )}
                     {m.realData.testScore && (
@@ -565,8 +569,8 @@ export default function GrowthStory() {
           {hwAvg && (
             <div style={{ background: '#F7F5F1', borderRadius: '6px', padding: '14px', borderLeft: '2px solid #C9A227' }}>
               <p style={{ fontSize: '12px', color: '#8A8A8A', fontWeight: 600, marginBottom: '6px' }}>과제 수행 평균</p>
-              <p style={{ fontSize: '22px', fontWeight: 800, color: '#0D2D6B' }}>{hwAvg}<span style={{ fontSize: '11px', color: '#8A8A8A' }}>점</span></p>
-              <p style={{ fontSize: '11px', color: '#B0B0B0', marginTop: '2px' }}>5점 만점 · 담당교사 관찰</p>
+              <p style={{ fontSize: '22px', fontWeight: 800, color: '#0D2D6B' }}>{hwAvg}<span style={{ fontSize: '11px', color: '#8A8A8A' }}>%</span></p>
+              <p style={{ fontSize: '11px', color: '#B0B0B0', marginTop: '2px' }}>100% 만점 · 담당교사 관찰</p>
             </div>
           )}
           <div style={{ background: '#F7F5F1', borderRadius: '6px', padding: '14px', borderLeft: '2px solid #C9A227' }}>

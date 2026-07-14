@@ -3,14 +3,7 @@ import { useParams, useLocation } from 'react-router-dom';
 import { db } from './firebase';
 import { doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { R, ReportCard } from './tokens.jsx';
-
-const RATING_LEVELS = [
-  { level: 1, label: '노력 필요' },
-  { level: 2, label: '조금 부족' },
-  { level: 3, label: '보통' },
-  { level: 4, label: '잘함' },
-  { level: 5, label: '아주 잘함' },
-];
+import { toPct, ratingLabel } from './growth.js';
 
 const DIAGNOSIS_LABELS = {
   calc: '계산 실수', concept: '개념 누락',
@@ -110,8 +103,8 @@ export default function PublicReport() {
       })()
     : '';
 
-  const homework = RATING_LEVELS.find(x => x.level === r.homeworkRating);
-  const concept  = RATING_LEVELS.find(x => x.level === r.conceptRating);
+  const homeworkPct = toPct(r.homeworkRating);
+  const conceptPct = toPct(r.conceptRating);
   const teacherSuffix = /선생님?$/.test(r.teacherName || '') ? '' : ' 선생님';
 
   // DS 토큰
@@ -146,16 +139,16 @@ export default function PublicReport() {
               <div style={{ borderRight: `1px solid ${rule}`, padding: '0 8px', textAlign: 'center' }}>
                 <p style={{ fontSize: '10px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 4px' }}>과제 수행</p>
                 <p style={{ fontSize: '24px', fontWeight: 800, color: navy, margin: 0, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
-                  {r.homeworkRating || '-'}<span style={{ fontSize: '12px', fontWeight: 500, color: inkMute }}>/5</span>
+                  {r.homeworkRating ? homeworkPct : '-'}<span style={{ fontSize: '12px', fontWeight: 500, color: inkMute }}>%</span>
                 </p>
-                <p style={{ fontSize: '12px', fontWeight: 600, color: inkSub, margin: '3px 0 0' }}>{homework?.label || ''}</p>
+                <p style={{ fontSize: '12px', fontWeight: 600, color: inkSub, margin: '3px 0 0' }}>{ratingLabel(homeworkPct)}</p>
               </div>
               <div style={{ borderRight: `1px solid ${rule}`, padding: '0 8px', textAlign: 'center' }}>
                 <p style={{ fontSize: '10px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 4px' }}>개념 이해</p>
                 <p style={{ fontSize: '24px', fontWeight: 800, color: navy, margin: 0, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
-                  {r.conceptRating || '-'}<span style={{ fontSize: '12px', fontWeight: 500, color: inkMute }}>/5</span>
+                  {r.conceptRating ? conceptPct : '-'}<span style={{ fontSize: '12px', fontWeight: 500, color: inkMute }}>%</span>
                 </p>
-                <p style={{ fontSize: '12px', fontWeight: 600, color: inkSub, margin: '3px 0 0' }}>{concept?.label || ''}</p>
+                <p style={{ fontSize: '12px', fontWeight: 600, color: inkSub, margin: '3px 0 0' }}>{ratingLabel(conceptPct)}</p>
               </div>
               <div style={{ padding: '0 8px', textAlign: 'center' }}>
                 <p style={{ fontSize: '10px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 4px' }}>출결</p>

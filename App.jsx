@@ -14,7 +14,7 @@ import DiagnosticReportInput from './DiagnosticReportInput';
 import {
   LayoutDashboard, Users, FileText, History, BarChart2, LogOut
 } from 'lucide-react';
-import { calculateTotalPoints, getStageInfo, calculateReportPoints, STAGES } from './growth.js';
+import { calculateTotalPoints, getStageInfo, calculateReportPoints, STAGES, toPct, ratingLabel } from './growth.js';
 import { useMediaQuery } from './hooks.js';
 import ErrorBoundary from './ErrorBoundary.jsx';
 import { T } from './tokens.jsx';
@@ -1027,8 +1027,6 @@ function StudentEditModal({ student, onClose, onSubmit, teachers = [] }) {
   );
 }
 
-const RATING_LEVELS_MAP = { 1: '노력 필요', 2: '조금 부족', 3: '보통', 4: '잘함', 5: '아주 잘함' };
-
 const DIAGNOSIS_TAGS_MAP = {
   calc:    { label: '⚠ 계산 실수', bg: '#A32D2D', color: '#fff' },
   concept: { label: '⚠ 개념 누락', bg: '#A32D2D', color: '#fff' },
@@ -1149,8 +1147,8 @@ function HistoryView({ reports, students, reportViews = [], onDelete, onEdit }) 
 
               {(selected.homeworkRating > 0 || selected.conceptRating > 0 || selected.testScore) && (
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
-                  {selected.homeworkRating > 0 && <span style={{ fontSize: '12px', background: '#EAF1FB', color: '#0D2D6B', padding: '4px 10px', borderRadius: '8px', fontWeight: 600 }}>과제 {selected.homeworkRating}/5</span>}
-                  {selected.conceptRating > 0 && <span style={{ fontSize: '12px', background: '#EAF1FB', color: '#0D2D6B', padding: '4px 10px', borderRadius: '8px', fontWeight: 600 }}>개념 {selected.conceptRating}/5</span>}
+                  {selected.homeworkRating > 0 && <span style={{ fontSize: '12px', background: '#EAF1FB', color: '#0D2D6B', padding: '4px 10px', borderRadius: '8px', fontWeight: 600 }}>과제 {toPct(selected.homeworkRating)}%</span>}
+                  {selected.conceptRating > 0 && <span style={{ fontSize: '12px', background: '#EAF1FB', color: '#0D2D6B', padding: '4px 10px', borderRadius: '8px', fontWeight: 600 }}>개념 {toPct(selected.conceptRating)}%</span>}
                   {selected.hasTest && selected.testScore && <span style={{ fontSize: '12px', background: '#FFF8EC', color: '#7A4F00', padding: '4px 10px', borderRadius: '8px', fontWeight: 600 }}>시험 {selected.testScore}점</span>}
                 </div>
               )}
@@ -1319,8 +1317,8 @@ function HistoryView({ reports, students, reportViews = [], onDelete, onEdit }) 
           {/* 평가 지표 */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '20px' }}>
             {[
-              { label: '과제 평가', value: selected.homeworkRating ? `${selected.homeworkRating} / 5` : '—', color: '#0D2D6B' },
-              { label: '개념 평가', value: selected.conceptRating ? `${selected.conceptRating} / 5` : '—', color: '#0D2D6B' },
+              { label: '과제 평가', value: selected.homeworkRating ? `${toPct(selected.homeworkRating)}%` : '—', color: '#0D2D6B' },
+              { label: '개념 평가', value: selected.conceptRating ? `${toPct(selected.conceptRating)}%` : '—', color: '#0D2D6B' },
               { label: '단원평가', value: selected.hasTest && selected.testScore ? `${selected.testScore}점` : '—', color: '#1A1A1A' },
             ].map((s, i) => (
               <div key={i} style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: '10px', padding: '14px 16px' }}>
@@ -1560,16 +1558,16 @@ function ReportPreviewModal({ report: r, allReports, onClose, onDelete, onEdit }
               <div style={{ borderRight: '1px solid #E8E6E0', paddingRight: '14px', textAlign: 'center' }}>
                 <p style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.08em', margin: '0 0 4px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>과제 수행</p>
                 <p style={{ fontSize: '24px', fontWeight: 800, color: '#0D2D6B', margin: 0, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
-                  {r.homeworkRating || '-'}<span style={{ fontSize: '12px', fontWeight: 500, color: '#98A1AC' }}>/5</span>
+                  {r.homeworkRating ? toPct(r.homeworkRating) : '-'}<span style={{ fontSize: '12px', fontWeight: 500, color: '#98A1AC' }}>%</span>
                 </p>
-                <p style={{ fontSize: '10px', fontWeight: 600, color: '#5A6472', margin: '3px 0 0' }}>{RATING_LEVELS_MAP[r.homeworkRating] || ''}</p>
+                <p style={{ fontSize: '10px', fontWeight: 600, color: '#5A6472', margin: '3px 0 0' }}>{ratingLabel(toPct(r.homeworkRating))}</p>
               </div>
               <div style={{ borderRight: '1px solid #E8E6E0', padding: '0 14px', textAlign: 'center' }}>
                 <p style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.08em', margin: '0 0 4px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>개념 이해</p>
                 <p style={{ fontSize: '24px', fontWeight: 800, color: '#0D2D6B', margin: 0, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
-                  {r.conceptRating || '-'}<span style={{ fontSize: '12px', fontWeight: 500, color: '#98A1AC' }}>/5</span>
+                  {r.conceptRating ? toPct(r.conceptRating) : '-'}<span style={{ fontSize: '12px', fontWeight: 500, color: '#98A1AC' }}>%</span>
                 </p>
-                <p style={{ fontSize: '10px', fontWeight: 600, color: '#5A6472', margin: '3px 0 0' }}>{RATING_LEVELS_MAP[r.conceptRating] || ''}</p>
+                <p style={{ fontSize: '10px', fontWeight: 600, color: '#5A6472', margin: '3px 0 0' }}>{ratingLabel(toPct(r.conceptRating))}</p>
               </div>
               <div style={{ paddingLeft: '14px', textAlign: 'center' }}>
                 <p style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.08em', margin: '0 0 4px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>출결</p>
@@ -1946,9 +1944,9 @@ function HomeworkTestChart({ reports }) {
       date: r.createdAt?.seconds
         ? new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })
         : '',
-      과제: r.homeworkRating || 0,
-      개념: r.conceptRating || 0,
-      시험: r.hasTest && r.testScore ? Math.round(Number(r.testScore) / 20) : null, // 100점 만점 → 5점 척도로 환산해 같은 축에 표시
+      과제: toPct(r.homeworkRating),
+      개념: toPct(r.conceptRating),
+      시험: r.hasTest && r.testScore ? Number(r.testScore) : null, // 과제/개념도 100점 척도로 통일되어 별도 환산 불필요
     }));
 
   if (data.length === 0) return null;
@@ -1956,13 +1954,13 @@ function HomeworkTestChart({ reports }) {
   return (
     <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB' }}>
       <h3 style={{ fontSize: '13px', fontWeight: 700, marginBottom: '12px' }}>과제 · 개념 · 시험 추이</h3>
-      <p style={{ fontSize: '10px', color: '#9CA3AF', margin: '0 0 10px' }}>막대가 높을수록 그날 점수가 좋았다는 뜻입니다 (5점 만점 기준).</p>
+      <p style={{ fontSize: '10px', color: '#9CA3AF', margin: '0 0 10px' }}>막대가 높을수록 그날 점수가 좋았다는 뜻입니다 (100점 만점 기준).</p>
       <div style={{ width: '100%', height: 220 }}>
         <ResponsiveContainer>
           <BarChart data={data} margin={{ top: 16, right: 4, left: -20, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
             <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-            <YAxis domain={[0, 5]} tick={{ fontSize: 10 }} />
+            <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} />
             <Tooltip contentStyle={{ fontSize: '11px', borderRadius: '8px' }} />
             <Legend wrapperStyle={{ fontSize: '11px' }} />
             <Bar dataKey="과제" fill="#185FA5" radius={[4, 4, 0, 0]}>
@@ -1977,7 +1975,6 @@ function HomeworkTestChart({ reports }) {
           </BarChart>
         </ResponsiveContainer>
       </div>
-      <p style={{ fontSize: '10px', color: '#9CA3AF', marginTop: '6px' }}>* 시험 점수는 100점 만점을 5점 척도로 환산해 표시</p>
     </div>
   );
 }
@@ -1990,8 +1987,9 @@ function buildInsights(reports) {
   const sorted = [...reports].sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
 
   const avgOf = (arr, key) => arr.length ? arr.reduce((s, r) => s + (r[key] || 0), 0) / arr.length : 0;
-  const overallHw = avgOf(sorted, 'homeworkRating');
-  const overallCc = avgOf(sorted, 'conceptRating');
+  const avgPctOf = (arr, key) => arr.length ? arr.reduce((s, r) => s + toPct(r[key]), 0) / arr.length : 0;
+  const overallHw = avgPctOf(sorted, 'homeworkRating');
+  const overallCc = avgPctOf(sorted, 'conceptRating');
 
   // 최근 절반 vs 이전 절반 비교로 추세 판단 (최소 4건부터 의미있는 비교)
   let trendText = null;
@@ -1999,11 +1997,11 @@ function buildInsights(reports) {
     const mid = Math.floor(sorted.length / 2);
     const prevHalf = sorted.slice(0, mid);
     const recentHalf = sorted.slice(mid);
-    const hwDelta = avgOf(recentHalf, 'homeworkRating') - avgOf(prevHalf, 'homeworkRating');
-    const ccDelta = avgOf(recentHalf, 'conceptRating') - avgOf(prevHalf, 'conceptRating');
+    const hwDelta = avgPctOf(recentHalf, 'homeworkRating') - avgPctOf(prevHalf, 'homeworkRating');
+    const ccDelta = avgPctOf(recentHalf, 'conceptRating') - avgPctOf(prevHalf, 'conceptRating');
     const parts = [];
-    if (Math.abs(hwDelta) >= 0.5) parts.push(`과제 수행이 최근 ${hwDelta > 0 ? '상승' : '하락'}세(${hwDelta > 0 ? '+' : ''}${hwDelta.toFixed(1)}점)`);
-    if (Math.abs(ccDelta) >= 0.5) parts.push(`개념 이해가 최근 ${ccDelta > 0 ? '상승' : '하락'}세(${ccDelta > 0 ? '+' : ''}${ccDelta.toFixed(1)}점)`);
+    if (Math.abs(hwDelta) >= 10) parts.push(`과제 수행이 최근 ${hwDelta > 0 ? '상승' : '하락'}세(${hwDelta > 0 ? '+' : ''}${Math.round(hwDelta)}%p)`);
+    if (Math.abs(ccDelta) >= 10) parts.push(`개념 이해가 최근 ${ccDelta > 0 ? '상승' : '하락'}세(${ccDelta > 0 ? '+' : ''}${Math.round(ccDelta)}%p)`);
     if (parts.length > 0) trendText = parts.join(', ') + '입니다.';
   }
 
@@ -2023,17 +2021,17 @@ function buildInsights(reports) {
   // 강점/보완 bullet
   const strengths = [];
   const weaknesses = [];
-  if (overallHw >= 4) strengths.push(`과제 수행 평균 ${overallHw.toFixed(1)}점 — 꾸준히 성실하게 임하고 있습니다.`);
-  if (overallCc >= 4) strengths.push(`개념 이해 평균 ${overallCc.toFixed(1)}점 — 새 단원 적응력이 좋습니다.`);
+  if (overallHw >= 80) strengths.push(`과제 수행 평균 ${Math.round(overallHw)}% — 꾸준히 성실하게 임하고 있습니다.`);
+  if (overallCc >= 80) strengths.push(`개념 이해 평균 ${Math.round(overallCc)}% — 새 단원 적응력이 좋습니다.`);
   if (tagEntries.find(([k]) => k === 'perfect')) strengths.push(`'개념 완벽' 진단이 ${tagCount.perfect}회 기록됐습니다.`);
   if (testTrend !== null && testTrend > 0) strengths.push(`시험 점수가 최근 ${testTrend > 0 ? '+' : ''}${testTrend}점 상승했습니다.`);
 
   if (topTag && topTag[0] !== 'perfect') weaknesses.push(`'${TAG_LABELS[topTag[0]]}' 패턴이 ${topTag[1]}회로 가장 빈번합니다 — 이 부분 집중 보강을 권장합니다.`);
-  if (overallHw < 3.5 && overallHw > 0) weaknesses.push(`과제 수행 평균이 ${overallHw.toFixed(1)}점으로 다소 낮습니다.`);
-  if (overallCc < 3.5 && overallCc > 0) weaknesses.push(`개념 이해 평균이 ${overallCc.toFixed(1)}점으로 보강이 필요합니다.`);
+  if (overallHw < 70 && overallHw > 0) weaknesses.push(`과제 수행 평균이 ${Math.round(overallHw)}%로 다소 낮습니다.`);
+  if (overallCc < 70 && overallCc > 0) weaknesses.push(`개념 이해 평균이 ${Math.round(overallCc)}%로 보강이 필요합니다.`);
 
   // 한 줄 종합 요약
-  let summary = `최근 ${sorted.length}회 리포트 기준, 과제 평균 ${overallHw.toFixed(1)}점 · 개념 평균 ${overallCc.toFixed(1)}점입니다.`;
+  let summary = `최근 ${sorted.length}회 리포트 기준, 과제 평균 ${Math.round(overallHw)}% · 개념 평균 ${Math.round(overallCc)}%입니다.`;
   if (testAvg !== null) summary += ` 시험 평균은 ${Math.round(testAvg)}점입니다.`;
   if (trendText) summary += ` ${trendText}`;
 
@@ -2093,11 +2091,14 @@ function GrowthDashboard({ reports, students, onSwitchTab }) {
 
   const PERIODS = { week: 7, '2week': 14, month: 30, '3month': 90 };
 
+  // 과제/개념 평가는 구 리포트(1~5)와 신규 리포트(0~100)가 섞여 있으므로,
+  // 이 컴포넌트 내 모든 계산이 일관되도록 조회 시점에 0~100(%) 기준으로 정규화한다.
   const getStudentReports = React.useCallback((studentId) => {
     const cutoff = Date.now() - PERIODS[period] * 24 * 60 * 60 * 1000;
     return reports
       .filter(r => r.studentId === studentId && r.createdAt?.seconds * 1000 >= cutoff && r.conceptRating > 0)
-      .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+      .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0))
+      .map(r => ({ ...r, conceptRating: toPct(r.conceptRating), homeworkRating: toPct(r.homeworkRating) }));
   }, [reports, period]);
 
   const avg = (arr) => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length * 10) / 10 : 0;
@@ -2122,9 +2123,9 @@ function GrowthDashboard({ reports, students, onSwitchTab }) {
     const a = avg(rs.map(r => r.conceptRating));
     const trend3 = rs.length >= 3 ? rs[rs.length - 1].conceptRating - rs[rs.length - 3].conceptRating
       : rs.length >= 2 ? rs[rs.length - 1].conceptRating - rs[rs.length - 2].conceptRating : 0;
-    if (a >= 4 && trend3 >= 0) return { label: '안정', color: '#0F6E56', bg: '#E1F5EE', border: '#0F6E56' };
-    if (trend3 <= -1 || a < 2.5) return { label: '경고', color: '#A32D2D', bg: '#FCEBEB', border: '#A32D2D' };
-    if (trend3 < 0 || a < 3.5) return { label: '주의', color: '#8A5A00', bg: '#FAEEDA', border: '#EF9F27' };
+    if (a >= 80 && trend3 >= 0) return { label: '안정', color: '#0F6E56', bg: '#E1F5EE', border: '#0F6E56' };
+    if (trend3 <= -20 || a < 50) return { label: '경고', color: '#A32D2D', bg: '#FCEBEB', border: '#A32D2D' };
+    if (trend3 < 0 || a < 70) return { label: '주의', color: '#8A5A00', bg: '#FAEEDA', border: '#EF9F27' };
     return { label: '안정', color: '#0F6E56', bg: '#E1F5EE', border: '#0F6E56' };
   }, [getStudentReports]);
 
@@ -2159,7 +2160,7 @@ function GrowthDashboard({ reports, students, onSwitchTab }) {
     allRs.forEach(r => {
       const d = new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR');
       if (!byDay[d]) byDay[d] = [];
-      byDay[d].push(r.conceptRating);
+      byDay[d].push(toPct(r.conceptRating));
     });
     return Object.entries(byDay).map(([date, vals]) => ({ date, avg: avg(vals) }));
   }, [reports, period]);
@@ -2176,7 +2177,7 @@ function GrowthDashboard({ reports, students, onSwitchTab }) {
 
   const toXY = (i, v, len) => [
     PL + (i / Math.max(len - 1, 1)) * cW,
-    PT + cH - ((v - 1) / 4) * cH
+    PT + cH - (v / 100) * cH
   ];
 
   const selStudentRs = selId ? getStudentReports(selId) : [];
@@ -2258,7 +2259,7 @@ function GrowthDashboard({ reports, students, onSwitchTab }) {
                     <circle key={i} cx={x} cy={y} r={i === globalPoints.length - 1 ? 4.5 : 8}
                       fill={i === globalPoints.length - 1 ? '#0D2D6B' : 'transparent'}
                       stroke="none"
-                      onMouseEnter={(e) => setTooltip({ x: e.clientX, y: e.clientY, text: `${p.date} · 평균 ${p.avg}점` })}
+                      onMouseEnter={(e) => setTooltip({ x: e.clientX, y: e.clientY, text: `${p.date} · 평균 ${p.avg}%` })}
                       onMouseLeave={() => setTooltip(null)}
                       style={{ cursor: 'crosshair' }}
                     />
@@ -2329,7 +2330,7 @@ function GrowthDashboard({ reports, students, onSwitchTab }) {
           const sparkW = 56, sparkH = 22;
           const sparkPts = rs.map((r, i) => [
             4 + (i / Math.max(rs.length - 1, 1)) * (sparkW - 8),
-            sparkH - 2 - ((r.conceptRating - 1) / 4) * (sparkH - 6)
+            sparkH - 2 - (r.conceptRating / 100) * (sparkH - 6)
           ]);
           const sparkPath = sparkPts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p[0]},${p[1]}`).join(' ');
 
@@ -2453,7 +2454,7 @@ function GrowthDashboard({ reports, students, onSwitchTab }) {
             <div style={{ background: status.bg, border: `1px solid ${status.border}`, borderRadius: '8px', padding: '10px 12px', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: '12px', fontWeight: 700, color: status.color }}>● {status.label}</span>
               <span style={{ fontSize: '18px', fontWeight: 800, color: status.color, fontVariantNumeric: 'tabular-nums' }}>
-                {a}점 <span style={{ fontSize: '12px', color: trendColor }}>{trendStr}</span>
+                {a}% <span style={{ fontSize: '12px', color: trendColor }}>{trendStr}</span>
               </span>
             </div>
 
@@ -2465,7 +2466,7 @@ function GrowthDashboard({ reports, students, onSwitchTab }) {
                   const diagLabels = { calc: '계산 실수', concept: '개념 누락', apply: '응용 부족', time: '시간 부족', perfect: '개념 완벽' };
                   const tags = (r.diagnosis || []).filter(d => d.key !== 'perfect');
                   const hasPerfect = (r.diagnosis || []).some(d => d.key === 'perfect');
-                  const isWarning = r.conceptRating > 0 && r.conceptRating <= 2;
+                  const isWarning = r.conceptRating > 0 && r.conceptRating <= 40;
                   const dateStr = r.createdAt?.seconds
                     ? `${new Date(r.createdAt.seconds*1000).getMonth()+1}/${new Date(r.createdAt.seconds*1000).getDate()}`
                     : '';
@@ -2480,8 +2481,8 @@ function GrowthDashboard({ reports, students, onSwitchTab }) {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
                         <span style={{ fontSize: '11px', fontWeight: 600, color: '#1A1A1A' }}>{dateStr}</span>
                         <div style={{ display: 'flex', gap: '6px' }}>
-                          {r.homeworkRating > 0 && <span style={{ fontSize: '10px', color: '#6B7280' }}>과제 <strong style={{ color: '#0D2D6B' }}>{r.homeworkRating}</strong>/5</span>}
-                          {r.conceptRating > 0 && <span style={{ fontSize: '10px', color: '#6B7280' }}>개념 <strong style={{ color: '#0D2D6B' }}>{r.conceptRating}</strong>/5</span>}
+                          {r.homeworkRating > 0 && <span style={{ fontSize: '10px', color: '#6B7280' }}>과제 <strong style={{ color: '#0D2D6B' }}>{r.homeworkRating}%</strong></span>}
+                          {r.conceptRating > 0 && <span style={{ fontSize: '10px', color: '#6B7280' }}>개념 <strong style={{ color: '#0D2D6B' }}>{r.conceptRating}%</strong></span>}
                           {r.hasTest && r.testScore && <span style={{ fontSize: '10px', color: '#C9A227', fontWeight: 700 }}>시험 {r.testScore}점</span>}
                         </div>
                       </div>
@@ -2564,11 +2565,14 @@ function StudentProfileModal({ student, reports, onClose, DIAG_MAP }) {
     return () => window.removeEventListener('popstate', handlePop);
   }, []);
 
-  const sorted = [...reports].sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+  // 과제/개념 평가는 구 리포트(1~5)와 신규 리포트(0~100)가 섞여 있으므로 0~100(%) 기준으로 정규화
+  const sorted = [...reports]
+    .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0))
+    .map(r => ({ ...r, conceptRating: toPct(r.conceptRating), homeworkRating: toPct(r.homeworkRating) }));
   const recent = sorted.slice(-10); // 최근 10회
 
-  const avgConcept = sorted.length ? Math.round(sorted.reduce((s, r) => s + (r.conceptRating || 0), 0) / sorted.length * 10) / 10 : 0;
-  const avgHomework = sorted.length ? Math.round(sorted.reduce((s, r) => s + (r.homeworkRating || 0), 0) / sorted.length * 10) / 10 : 0;
+  const avgConcept = sorted.length ? Math.round(sorted.reduce((s, r) => s + (r.conceptRating || 0), 0) / sorted.length) : 0;
+  const avgHomework = sorted.length ? Math.round(sorted.reduce((s, r) => s + (r.homeworkRating || 0), 0) / sorted.length) : 0;
   const attendanceRate = sorted.length ? Math.round(sorted.filter(r => r.attendance === '정시').length / sorted.length * 100) : 0;
 
   // 약점 집계
@@ -2607,8 +2611,8 @@ function StudentProfileModal({ student, reports, onClose, DIAG_MAP }) {
           {/* 핵심 지표 */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px', marginBottom: '20px' }}>
             {[
-              { label: '개념 이해 평균', value: `${avgConcept}점`, color: avgConcept >= 4 ? '#0F6E56' : avgConcept >= 3 ? '#8A5A00' : '#A32D2D' },
-              { label: '과제 수행 평균', value: `${avgHomework}점`, color: avgHomework >= 4 ? '#0F6E56' : '#8A5A00' },
+              { label: '개념 이해 평균', value: `${avgConcept}%`, color: avgConcept >= 80 ? '#0F6E56' : avgConcept >= 60 ? '#8A5A00' : '#A32D2D' },
+              { label: '과제 수행 평균', value: `${avgHomework}%`, color: avgHomework >= 80 ? '#0F6E56' : '#8A5A00' },
               { label: '정시 출석률', value: `${attendanceRate}%`, color: attendanceRate >= 90 ? '#0F6E56' : attendanceRate >= 70 ? '#8A5A00' : '#A32D2D' },
             ].map((item, i) => (
               <div key={i} style={{ border: '0.5px solid #E8E6E0', borderRadius: '10px', padding: '12px', textAlign: 'center' }}>
@@ -2634,7 +2638,7 @@ function StudentProfileModal({ student, reports, onClose, DIAG_MAP }) {
                 };
                 const tags = (r.diagnosis || []).filter(d => d.key !== 'perfect');
                 const hasPerfect = (r.diagnosis || []).some(d => d.key === 'perfect');
-                const isWarning = r.conceptRating > 0 && r.conceptRating <= 2;
+                const isWarning = r.conceptRating > 0 && r.conceptRating <= 40;
                 const rawNote = r.teacherNote || '';
                 const cleanNote = rawNote.replace(/\[([^\]]+)\]\s*/g, '').trim();
 
@@ -2652,12 +2656,12 @@ function StudentProfileModal({ student, reports, onClose, DIAG_MAP }) {
                       <div style={{ display: 'flex', gap: '8px' }}>
                         {r.homeworkRating > 0 && (
                           <span style={{ fontSize: '10px', color: '#6B7280' }}>
-                            과제 <strong style={{ color: '#0D2D6B' }}>{r.homeworkRating}</strong>/5
+                            과제 <strong style={{ color: '#0D2D6B' }}>{r.homeworkRating}%</strong>
                           </span>
                         )}
                         {r.conceptRating > 0 && (
                           <span style={{ fontSize: '10px', color: '#6B7280' }}>
-                            개념 <strong style={{ color: '#0D2D6B' }}>{r.conceptRating}</strong>/5
+                            개념 <strong style={{ color: '#0D2D6B' }}>{r.conceptRating}%</strong>
                           </span>
                         )}
                         {r.hasTest && r.testScore && (
@@ -3114,7 +3118,7 @@ function DirectorView({ reports, students }) {
 
                   {/* 점수 */}
                   <p style={{ fontSize: '11px', color: '#5A6472', margin: 0, whiteSpace: 'nowrap', flexShrink: 0 }}>
-                    과제 {r.homeworkRating}/5 · 개념 {r.conceptRating}/5
+                    과제 {toPct(r.homeworkRating)}% · 개념 {toPct(r.conceptRating)}%
                     {r.hasTest && r.testScore ? ` · 시험 ${r.testScore}점` : ''}
                   </p>
 
@@ -3211,8 +3215,8 @@ function DirectorView({ reports, students }) {
                       <p style={{ fontSize: '11px', color: '#1A5CB8', fontWeight: 700, margin: '0 0 6px' }}>📋 교현학원 수업 리포트</p>
                       <p style={{ fontSize: '13px', fontWeight: 800, color: '#0D2D6B', margin: '0 0 4px' }}>{r.studentName} 학생 · {dateStr}</p>
                       <div style={{ display: 'flex', gap: '10px', margin: '0 0 6px', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: '11px', color: '#5A6472' }}>과제 {r.homeworkRating}/5</span>
-                        <span style={{ fontSize: '11px', color: '#5A6472' }}>개념 {r.conceptRating}/5</span>
+                        <span style={{ fontSize: '11px', color: '#5A6472' }}>과제 {toPct(r.homeworkRating)}%</span>
+                        <span style={{ fontSize: '11px', color: '#5A6472' }}>개념 {toPct(r.conceptRating)}%</span>
                         <span style={{ fontSize: '11px', color: r.attendance === '정시' ? '#0F6E56' : '#A32D2D' }}>{r.attendance}</span>
                         {r.hasTest && r.testScore && <span style={{ fontSize: '11px', color: '#5A6472' }}>시험 {r.testScore}점</span>}
                       </div>
@@ -3234,15 +3238,14 @@ function DirectorView({ reports, students }) {
                     <button
                       onClick={() => {
                         const url = `${window.location.origin}/report/${r.id}`;
-                        const RATING_LABEL = { 1: '노력 필요', 2: '조금 부족', 3: '보통', 4: '잘함', 5: '아주 잘함' };
                         const diagText = (r.diagnosis || []).map(d => DIAG_MAP[d.key] ? `${DIAG_MAP[d.key].prefix} ${DIAG_MAP[d.key].label}${d.detail ? ` (${d.detail})` : ''}` : '').filter(Boolean).join(', ');
                         const copyText = [
                           `📋 교현학원 수업 리포트`,
                           ``,
                           `안녕하세요, ${r.studentName} 학생 ${dateStr} 수업 리포트입니다.`,
                           ``,
-                          `▸ 과제 수행: ${r.homeworkRating}/5 (${RATING_LABEL[r.homeworkRating] || ''})`,
-                          `▸ 개념 이해: ${r.conceptRating}/5 (${RATING_LABEL[r.conceptRating] || ''})`,
+                          `▸ 과제 수행: ${toPct(r.homeworkRating)}% (${ratingLabel(toPct(r.homeworkRating))})`,
+                          `▸ 개념 이해: ${toPct(r.conceptRating)}% (${ratingLabel(toPct(r.conceptRating))})`,
                           `▸ 출결: ${r.attendance}`,
                           r.hasTest && r.testScore ? `▸ 시험: ${r.testName || ''} ${r.testScore}점` : '',
                           diagText ? `▸ 진단: ${diagText}` : '',
@@ -3335,7 +3338,7 @@ function AnalysisView({ students, reports }) {
       })
     : studentReports;
 
-  const periodAvg = (key) => periodReports.length ? Math.round(periodReports.reduce((a, r) => a + (r[key] || 0), 0) / periodReports.length * 10) / 10 : 0;
+  const periodAvg = (key) => periodReports.length ? Math.round(periodReports.reduce((a, r) => a + toPct(r[key]), 0) / periodReports.length) : 0;
 
   return (
     <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
@@ -3374,8 +3377,8 @@ function AnalysisView({ students, reports }) {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             <StatCard label={`리포트 (${periodLabel})`} value={periodReports.length} unit="건" />
-            <StatCard label="과제 평균" value={periodAvg('homeworkRating')} unit="점" />
-            <StatCard label="개념 평균" value={periodAvg('conceptRating')} unit="점" />
+            <StatCard label="과제 평균" value={periodAvg('homeworkRating')} unit="%" />
+            <StatCard label="개념 평균" value={periodAvg('conceptRating')} unit="%" />
             <StatCard label="정시 출석" value={periodReports.length > 0 ? Math.round(periodReports.filter(r => r.attendance === '정시').length / periodReports.length * 100) : 0} unit="%" />
           </div>
           <HomeworkTestChart reports={periodReports} />
@@ -3726,7 +3729,7 @@ function WeeklySummaryCard({ student, reports, teachers }) {
     .sort((a, b) => (a.createdAt?.seconds||0) - (b.createdAt?.seconds||0));
 
   const avg = (key) => weekReports.length
-    ? (weekReports.reduce((s, r) => s + (r[key]||0), 0) / weekReports.length).toFixed(1)
+    ? Math.round(weekReports.reduce((s, r) => s + toPct(r[key]), 0) / weekReports.length)
     : '—';
 
   const attendRate = weekReports.length
@@ -3793,7 +3796,7 @@ function WeeklySummaryCard({ student, reports, teachers }) {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', borderBottom: '0.5px solid #E5E7EB' }}>
             {[
               { label: '수업 횟수', value: `${weekReports.length}회`, color: '#0D2D6B' },
-              { label: '과제 평균', value: `${avg('homeworkRating')}점`, color: '#0D2D6B' },
+              { label: '과제 평균', value: `${avg('homeworkRating')}%`, color: '#0D2D6B' },
               { label: '출석률', value: `${attendRate}%`, color: attendRate === 100 ? '#0F6E56' : '#7A4F00' },
             ].map((s, i) => (
               <div key={i} style={{ padding: '14px 12px', textAlign: 'center', borderRight: i < 2 ? '0.5px solid #E5E7EB' : 'none' }}>

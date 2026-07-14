@@ -4,11 +4,31 @@
 // 사진분석(photoAnalysis)은 서술형 코멘트 초안 용도이며 점수에 절대 반영하지 않음.
 // ─────────────────────────────────────────────
 
-// 과제 수행 평가(1~5) → 포인트 (1:1 비례)
-const HOMEWORK_POINTS = { 1: 1, 2: 2, 3: 3, 4: 4, 5: 5 };
+// 과제/개념 평가 척도 변환 — 구 리포트(1~5)와 신규 리포트(0~100, 10단위)가 섞여 있음.
+// 구 값은 항상 1~5, 신규 값은 항상 0 또는 10의 배수라 겹치지 않으므로 안전하게 구분 가능.
+export function toPct(rating) {
+  const n = Number(rating) || 0;
+  if (n <= 0) return 0;
+  return n <= 5 ? n * 20 : n;
+}
 
-// 개념 이해 평가(1~5) → 포인트 (최대 3P, 완만한 비례)
-const CONCEPT_POINTS = { 1: 1, 2: 1, 3: 2, 4: 2, 5: 3 };
+// 과제 수행 평가(0~100%) → 포인트 (최대 5P, 1:1 비례 — 구 척도 1~5점과 동일 비율)
+function homeworkPoints(pct) {
+  return Math.round((pct / 100) * 5);
+}
+
+// 개념 이해 평가(0~100%) → 포인트 (최대 3P, 완만한 비례 — 구 척도 1~5점 구간과 동일)
+function conceptPoints(pct) {
+  return pct > 0 ? Math.ceil(pct / 40) : 0;
+}
+
+// 0~100(%) → 5단계 정성 라벨 (구 1~5점 척도와 동일 구간)
+const RATING_LABELS = ['노력 필요', '아쉬움', '보통', '잘함', '아주 잘함'];
+export function ratingLabel(pct) {
+  if (!pct || pct <= 0) return '';
+  const idx = Math.min(5, Math.max(1, Math.ceil(pct / 20))) - 1;
+  return RATING_LABELS[idx];
+}
 
 // 출결 → 포인트
 const ATTENDANCE_POINTS = { '정시': 3, '지각': 1, '결석': 0, '조퇴': 1 };
@@ -32,8 +52,8 @@ function testPoints(score) {
 export function calculateReportPoints(report) {
   const { homeworkRating, conceptRating, attendance, hasTest, testScore } = report;
   let pts = 0;
-  pts += HOMEWORK_POINTS[homeworkRating] || 0;
-  pts += CONCEPT_POINTS[conceptRating] || 0;
+  pts += homeworkPoints(toPct(homeworkRating));
+  pts += conceptPoints(toPct(conceptRating));
   pts += ATTENDANCE_POINTS[attendance] || 0;
   if (hasTest && testScore !== null && testScore !== undefined && testScore !== '') {
     pts += testPoints(testScore);
