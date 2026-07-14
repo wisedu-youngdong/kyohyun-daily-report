@@ -392,7 +392,22 @@ export default function DiagnosticReportInput({
     setPhotoError('');
     showToast(`사진 ${filesToProcess.length}장 압축 중...`, 'info');
 
+    // 🔑 핵심: 파일 선택 즉시 모든 파일을 ArrayBuffer로 변환
+    // 모바일에서 File 객체가 타임아웃으로 무효화되는 것을 방지
+    const bufferedFiles = [];
     for (const file of filesToProcess) {
+      try {
+        const buffer = await file.arrayBuffer();
+        const blob = new Blob([buffer], { type: file.type || 'image/jpeg' });
+        const safeFile = new File([blob], file.name || 'photo.jpg', { type: file.type || 'image/jpeg' });
+        bufferedFiles.push(safeFile);
+      } catch (e) {
+        console.warn('파일 버퍼링 실패, 원본 사용:', e);
+        bufferedFiles.push(file);
+      }
+    }
+
+    for (const file of bufferedFiles) {
       try {
         if (file.size > 50 * 1024 * 1024) {
           throw new Error(`파일이 너무 큽니다 (${(file.size/1024/1024).toFixed(1)}MB)`);
