@@ -16,6 +16,14 @@ const DIAGNOSIS_LABELS = {
   apply: '응용 부족', time: '시간 부족', perfect: '개념 완벽',
 };
 
+const DIAG_BADGES = {
+  calc:    { label: '⚠ 계산 실수', bg: '#A32D2D' },
+  concept: { label: '⚠ 개념 누락', bg: '#A32D2D' },
+  apply:   { label: '⚠ 응용 부족', bg: '#A32D2D' },
+  time:    { label: '△ 시간 부족', bg: '#8A5A00' },
+  perfect: { label: '✓ 개념 완벽', bg: '#0F6E56' },
+};
+
 export default function PublicReport() {
   const { reportId } = useParams();
   const location = useLocation();
@@ -83,7 +91,7 @@ export default function PublicReport() {
   );
   if (error) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F5F5F0' }}>
-      <p style={{ color: '#9CA3AF', fontSize: '14px' }}>{error}</p>
+      <p style={{ color: '#4B5563', fontSize: '15px' }}>{error}</p>
     </div>
   );
 
@@ -126,9 +134,9 @@ export default function PublicReport() {
             {/* 학생 정보 */}
             <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
               <div>
-                <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.45)', letterSpacing: '0.15em', margin: '0 0 4px', fontWeight: 600 }}>LEARNING REPORT</p>
+                <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.45)', letterSpacing: '0.15em', margin: '0 0 4px', fontWeight: 600 }}>LEARNING REPORT</p>
                 <p style={{ fontFamily: serif, fontSize: '26px', fontWeight: 700, color: '#fff', margin: '0 0 4px', letterSpacing: '-0.5px' }}>{r.studentName}</p>
-                <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.55)', margin: 0 }}>{dateStr} · {r.teacherName}{teacherSuffix}</p>
+                <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.75)', margin: 0 }}>{dateStr} · {r.teacherName}{teacherSuffix}</p>
               </div>
             </div>
           </div>
@@ -138,24 +146,24 @@ export default function PublicReport() {
 
             {/* 핵심 지표 — B안: SUMMARY 제거, 수치 → TEACHER'S NOTE 바로 연결 */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', marginBottom: '18px' }}>
-              <div style={{ borderRight: `1px solid ${rule}`, paddingRight: '14px', textAlign: 'center' }}>
-                <p style={{ fontSize: '9px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 4px' }}>과제 수행</p>
+              <div style={{ borderRight: `1px solid ${rule}`, padding: '0 8px', textAlign: 'center' }}>
+                <p style={{ fontSize: '10px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 4px' }}>과제 수행</p>
                 <p style={{ fontSize: '24px', fontWeight: 800, color: navy, margin: 0, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
                   {r.homeworkRating || '-'}<span style={{ fontSize: '12px', fontWeight: 500, color: inkMute }}>/5</span>
                 </p>
-                <p style={{ fontSize: '10px', fontWeight: 600, color: inkSub, margin: '3px 0 0' }}>{homework?.label || ''}</p>
+                <p style={{ fontSize: '12px', fontWeight: 600, color: inkSub, margin: '3px 0 0' }}>{homework?.label || ''}</p>
               </div>
-              <div style={{ borderRight: `1px solid ${rule}`, padding: '0 14px', textAlign: 'center' }}>
-                <p style={{ fontSize: '9px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 4px' }}>개념 이해</p>
+              <div style={{ borderRight: `1px solid ${rule}`, padding: '0 8px', textAlign: 'center' }}>
+                <p style={{ fontSize: '10px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 4px' }}>개념 이해</p>
                 <p style={{ fontSize: '24px', fontWeight: 800, color: navy, margin: 0, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
                   {r.conceptRating || '-'}<span style={{ fontSize: '12px', fontWeight: 500, color: inkMute }}>/5</span>
                 </p>
-                <p style={{ fontSize: '10px', fontWeight: 600, color: inkSub, margin: '3px 0 0' }}>{concept?.label || ''}</p>
+                <p style={{ fontSize: '12px', fontWeight: 600, color: inkSub, margin: '3px 0 0' }}>{concept?.label || ''}</p>
               </div>
-              <div style={{ paddingLeft: '14px', textAlign: 'center' }}>
-                <p style={{ fontSize: '9px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 4px' }}>출결</p>
-                <p style={{ fontSize: '16px', fontWeight: 800, color: r.attendance === '정시' ? positive : navy, margin: '4px 0', lineHeight: 1 }}>{r.attendance}</p>
-                <p style={{ fontSize: '10px', fontWeight: 600, color: inkSub, margin: '3px 0 0' }}>{r.arrivalTime} 등원</p>
+              <div style={{ padding: '0 8px', textAlign: 'center' }}>
+                <p style={{ fontSize: '10px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 4px' }}>출결</p>
+                <p style={{ fontSize: '16px', fontWeight: 800, color: r.attendance === '정시' ? positive : navy, margin: 0, lineHeight: '24px' }}>{r.attendance}</p>
+                <p style={{ fontSize: '12px', fontWeight: 600, color: inkSub, margin: '3px 0 0' }}>{r.arrivalTime} 등원</p>
               </div>
             </div>
 
@@ -165,10 +173,10 @@ export default function PublicReport() {
             {(r.textbook || r.unit || r.pages) && (
               <>
                 <div style={{ marginBottom: '18px' }}>
-                  <p style={{ fontSize: '9px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 6px' }}>학습 범위</p>
+                  <p style={{ fontSize: '10px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 6px' }}>학습 범위</p>
                   {r.textbook && <p style={{ fontSize: '12px', fontWeight: 700, color: navy, margin: '0 0 2px', wordBreak: 'keep-all' }}>{r.textbook}</p>}
-                  {r.unit && <p style={{ fontSize: '11px', color: inkSub, margin: '0 0 1px' }}>{r.unit}</p>}
-                  {r.pages && <p style={{ fontSize: '11px', color: inkMute, margin: 0 }}>{r.pages}</p>}
+                  {r.unit && <p style={{ fontSize: '12px', color: inkSub, margin: '0 0 1px' }}>{r.unit}</p>}
+                  {r.pages && <p style={{ fontSize: '12px', color: inkMute, margin: 0 }}>{r.pages}</p>}
                 </div>
                 <div style={{ height: '1px', background: rule, marginBottom: '18px' }} />
               </>
@@ -178,7 +186,7 @@ export default function PublicReport() {
             {r.hasTest && r.testName && (
               <>
                 <div style={{ marginBottom: '18px' }}>
-                  <p style={{ fontSize: '9px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 8px' }}>TEST RESULT</p>
+                  <p style={{ fontSize: '10px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 8px' }}>TEST RESULT</p>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
                       <p style={{ fontSize: '28px', fontWeight: 800, color: navy, margin: 0, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{r.testScore}<span style={{ fontSize: '13px', fontWeight: 600, color: inkMute, marginLeft: '2px' }}>점</span></p>
@@ -187,16 +195,9 @@ export default function PublicReport() {
                     {r.diagnosis?.length > 0 && (
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
                         {r.diagnosis.map((d, i) => {
-                          const DIAG = {
-                            calc:    { label: '⚠ 계산 실수', bg: '#A32D2D' },
-                            concept: { label: '⚠ 개념 누락', bg: '#A32D2D' },
-                            apply:   { label: '⚠ 응용 부족', bg: '#A32D2D' },
-                            time:    { label: '△ 시간 부족', bg: '#8A5A00' },
-                            perfect: { label: '✓ 개념 완벽', bg: '#0F6E56' },
-                          };
-                          const tag = DIAG[d.key] || { label: d.key, bg: '#8A5A00' };
+                          const tag = DIAG_BADGES[d.key] || { label: d.key, bg: '#8A5A00' };
                           return (
-                            <span key={i} style={{ display: 'inline-block', background: tag.bg, color: '#fff', fontSize: '11px', fontWeight: 700, padding: '4px 10px', borderRadius: '20px' }}>
+                            <span key={i} style={{ display: 'inline-block', background: tag.bg, color: '#fff', fontSize: '12px', fontWeight: 700, padding: '4px 11px', borderRadius: '20px' }}>
                               {tag.label}{d.unit ? ` · ${d.unit}` : ''}{d.pages ? ` ${d.pages}` : ''}
                             </span>
                           );
@@ -213,19 +214,12 @@ export default function PublicReport() {
             {(!r.hasTest || !r.testName) && r.diagnosis?.length > 0 && (
               <>
                 <div style={{ marginBottom: '18px' }}>
-                  <p style={{ fontSize: '9px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 8px' }}>진단</p>
+                  <p style={{ fontSize: '10px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 8px' }}>진단</p>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                     {r.diagnosis.map((d, i) => {
-                      const DIAG = {
-                        calc:    { label: '⚠ 계산 실수', bg: '#A32D2D' },
-                        concept: { label: '⚠ 개념 누락', bg: '#A32D2D' },
-                        apply:   { label: '⚠ 응용 부족', bg: '#A32D2D' },
-                        time:    { label: '△ 시간 부족', bg: '#8A5A00' },
-                        perfect: { label: '✓ 개념 완벽', bg: '#0F6E56' },
-                      };
-                      const tag = DIAG[d.key] || { label: d.key, bg: '#8A5A00' };
+                      const tag = DIAG_BADGES[d.key] || { label: d.key, bg: '#8A5A00' };
                       return (
-                        <span key={i} style={{ display: 'inline-block', background: tag.bg, color: '#fff', fontSize: '13px', fontWeight: 700, padding: '5px 13px', borderRadius: '20px' }}>
+                        <span key={i} style={{ display: 'inline-block', background: tag.bg, color: '#fff', fontSize: '12px', fontWeight: 700, padding: '4px 11px', borderRadius: '20px' }}>
                           {tag.label}{d.unit ? ` · ${d.unit}` : ''}{d.pages ? ` ${d.pages}` : ''}
                         </span>
                       );
@@ -253,7 +247,7 @@ export default function PublicReport() {
             {r.photoUrls?.length > 0 && (
               <>
                 <div style={{ marginBottom: '18px' }}>
-                  <p style={{ fontSize: '9px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 8px' }}>TODAY'S WORK</p>
+                  <p style={{ fontSize: '10px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 8px' }}>TODAY'S WORK</p>
                   <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(r.photoUrls.length, 2)}, 1fr)`, gap: '6px' }}>
                     {r.photoUrls.map((url, i) => (
                       <img key={i} src={url} alt={`문제집 ${i+1}`} style={{ width: '100%', aspectRatio: '3/4', objectFit: 'cover', borderRadius: '4px', border: `1px solid ${rule}` }} />
@@ -268,9 +262,9 @@ export default function PublicReport() {
             {r.nextPlan && (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
-                  <p style={{ fontSize: '9px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 4px' }}>NEXT CLASS</p>
+                  <p style={{ fontSize: '10px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 4px' }}>NEXT CLASS</p>
                   <p style={{ fontSize: '13px', fontWeight: 700, color: navy, margin: 0 }}>{r.nextPlan}</p>
-                  {r.nextPlanDetail && <p style={{ fontSize: '11px', color: inkSub, margin: '2px 0 0' }}>{r.nextPlanDetail}</p>}
+                  {r.nextPlanDetail && <p style={{ fontSize: '12px', color: inkSub, margin: '2px 0 0' }}>{r.nextPlanDetail}</p>}
                 </div>
                 <div style={{ width: '28px', height: '28px', background: '#EAF0F9', borderRadius: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1A5CB8', fontSize: '14px', flexShrink: 0 }}>→</div>
               </div>

@@ -282,9 +282,11 @@ export default function DiagnosticReportInput({
     }
   };
 
+  const toastTimerRef = React.useRef(null);
   const showToast = (msg, type = 'success', reportId = null) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     setToast({ msg, type, reportId });
-    setTimeout(() => setToast(null), type === 'success' ? 5000 : 3000);
+    toastTimerRef.current = setTimeout(() => setToast(null), type === 'success' ? 5000 : 3000);
   };
 
   // 사진 분석 (다중 업로드 — 최대 10장)
@@ -731,7 +733,7 @@ export default function DiagnosticReportInput({
                 <span style={{ fontSize: '13px', fontWeight: 700, color: TOKENS.brandDark }}>{teachers[0].name}</span>
               ) : (
                 <select value={teacherId} onChange={(e) => setTeacherId(e.target.value)}
-                  style={{ ...inputStyle, padding: '5px 10px', fontSize: '12px', width: 'auto' }}>
+                  style={{ ...inputStyle, padding: '5px 10px', fontSize: '16px', width: 'auto' }}>
                   <option value="">선택</option>
                   {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                 </select>
@@ -962,10 +964,10 @@ export default function DiagnosticReportInput({
                           <div className="fallback-label" style={{ display: 'none' }} />
                           <span style={{ position: 'absolute', bottom: '4px', left: '4px', background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: '6px' }}>{i + 1}</span>
                           <button onClick={() => removeOnePhoto(i)} style={{
-                            position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.55)',
-                            border: 'none', borderRadius: '50%', width: '22px', height: '22px', color: '#fff', cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center'
-                          }}><X size={12} /></button>
+                            position: 'absolute', top: '2px', right: '2px', background: 'rgba(0,0,0,0.55)',
+                            border: 'none', borderRadius: '50%', width: '32px', height: '32px', color: '#fff', cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent'
+                          }}><X size={14} /></button>
                         </div>
                       ))}
                       {photos.length < MAX_PHOTOS && (
@@ -995,7 +997,9 @@ export default function DiagnosticReportInput({
                   <div>
                     {!photoAnalysis && (
                       <button onClick={() => handleAnalyzePhoto('auto')} disabled={analyzingPhoto} style={aiButtonStyle(analyzingPhoto)}>
-                        <Sparkles size={13} /> {analyzingPhoto ? 'AI가 분석 중...' : `AI로 분석하기 (${photos.length}장)`}
+                        {analyzingPhoto
+                          ? <span style={{ display: 'inline-block', width: 13, height: 13, border: `2px solid ${TOKENS.success}40`, borderTopColor: TOKENS.success, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                          : <Sparkles size={13} />} {analyzingPhoto ? 'AI가 분석 중...' : `AI로 분석하기 (${photos.length}장)`}
                       </button>
                     )}
                     {photoError && <p style={{ fontSize: '11px', color: TOKENS.danger, marginTop: '8px' }}>{photoError}</p>}
@@ -1050,10 +1054,11 @@ export default function DiagnosticReportInput({
                                     }
                                   }}
                                   style={{
-                                    flexShrink: 0, fontWeight: 700, fontSize: '10px', padding: '2px 8px', borderRadius: '10px',
+                                    flexShrink: 0, fontWeight: 700, fontSize: '12px', padding: '8px 14px', minHeight: '36px', borderRadius: '10px',
                                     background: p.result === '잘함' ? '#E1F5EE' : TOKENS.dangerBg,
                                     color: p.result === '잘함' ? TOKENS.successDark : TOKENS.dangerBorder,
                                     border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                                    WebkitTapHighlightColor: 'transparent',
                                   }}>{p.result === '잘함' ? '정답 ✓' : '오답 ✗'}</button>
                                 <div>
                                   <p style={{ margin: 0, fontWeight: 600 }}>
@@ -1144,7 +1149,7 @@ export default function DiagnosticReportInput({
                                     value={item.memo}
                                     onChange={e => setWrongItems(prev => prev.map((w) => w.number === item.number ? { ...w, memo: e.target.value } : w))}
                                     placeholder="직접 입력 (선택) — 답 잘못 씀, 문제 안 읽음 등"
-                                    style={{ width: '100%', padding: '6px 10px', fontSize: '11px', border: `1px solid ${TOKENS.border}`, borderRadius: '8px', fontFamily: 'inherit', outline: 'none', background: '#fff', boxSizing: 'border-box', color: TOKENS.text }}
+                                    style={{ width: '100%', padding: '6px 10px', fontSize: '16px', border: `1px solid ${TOKENS.border}`, borderRadius: '8px', fontFamily: 'inherit', outline: 'none', background: '#fff', boxSizing: 'border-box', color: TOKENS.text }}
                                   />
                                 </div>
                               );
@@ -1227,15 +1232,15 @@ export default function DiagnosticReportInput({
                         <div key={idx} style={{ background: '#fff', borderRadius: '10px', padding: '10px' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                             <span style={tagStyle(tagDef.color, true)}>{tagDef.label}</span>
-                            <button onClick={() => toggleTag(tag.key)} style={{ background: 'none', border: 'none', color: TOKENS.textMute, cursor: 'pointer' }}><X size={13} /></button>
+                            <button onClick={() => toggleTag(tag.key)} style={{ background: 'none', border: 'none', color: TOKENS.textMute, cursor: 'pointer', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}><X size={14} /></button>
                           </div>
                           <div style={{ display: 'flex', gap: '5px', marginBottom: '5px' }}>
-                            <input value={tag.unit} onChange={(e) => updateTagDetail(idx, 'unit', e.target.value)} placeholder="단원 (예: 4단원)" style={{ ...inputStyle, fontSize: '12px', padding: '6px 10px' }} />
-                            <input value={tag.pages} onChange={(e) => updateTagDetail(idx, 'pages', e.target.value)} placeholder="페이지 (예: 111, 114p)" style={{ ...inputStyle, fontSize: '12px', padding: '6px 10px' }} />
+                            <input value={tag.unit} onChange={(e) => updateTagDetail(idx, 'unit', e.target.value)} placeholder="단원 (예: 4단원)" style={{ ...inputStyle, fontSize: '16px', padding: '6px 10px', minWidth: 0 }} />
+                            <input value={tag.pages} onChange={(e) => updateTagDetail(idx, 'pages', e.target.value)} placeholder="페이지 (예: 111, 114p)" style={{ ...inputStyle, fontSize: '16px', padding: '6px 10px', minWidth: 0 }} />
                           </div>
                           <input value={tag.detail} onChange={(e) => updateTagDetail(idx, 'detail', e.target.value)}
                             placeholder="구체적 개념명 (예: 비례식 문장제 — 식 세우기 단계에서 막힘)"
-                            style={{ ...inputStyle, fontSize: '12px', padding: '6px 10px' }} />
+                            style={{ ...inputStyle, fontSize: '16px', padding: '6px 10px' }} />
                         </div>
                       );
                     })}
@@ -1336,7 +1341,9 @@ export default function DiagnosticReportInput({
 
               {/* 저장 버튼 */}
               <button onClick={handleSubmit} disabled={!isValid || saving || polishing} style={{ ...submitButtonStyle(isValid && !saving && !polishing), width: '100%' }}>
-                <Send size={15} /> {saving ? '저장 중...' : polishing ? 'AI 다듬는 중...' : '리포트 저장 및 발송 준비'}
+                {saving
+                  ? <span style={{ display: 'inline-block', width: 15, height: 15, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                  : <Send size={15} />} {saving ? '저장 중...' : polishing ? 'AI 다듬는 중...' : '리포트 저장 및 발송 준비'}
               </button>
               {lastSaved && (
                 <p style={{ fontSize: '11px', color: '#0F6E56', margin: '6px 0 0', textAlign: 'center', fontWeight: 500 }}>
@@ -1535,7 +1542,7 @@ function StudentModal({ onClose, onSubmit }) {
 
         <div style={{ padding: '12px 22px', borderTop: `1px solid #E5E7EB`, display: 'flex', gap: '8px', justifyContent: 'flex-end', background: '#F9FAFB', borderRadius: '0 0 18px 18px' }}>
           <button onClick={onClose} style={{ padding: '9px 18px', fontSize: '13px', fontWeight: 600, borderRadius: '9px', border: `1px solid #E5E7EB`, background: '#fff', color: '#6B7280', cursor: 'pointer', fontFamily: 'inherit' }}>취소</button>
-          <button onClick={handleSubmit} disabled={!isValid || saving} style={{ padding: '9px 18px', fontSize: '13px', fontWeight: 700, borderRadius: '9px', border: 'none', background: isValid ? '#185FA5' : '#E5E7EB', color: '#fff', cursor: isValid ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: '5px', fontFamily: 'inherit' }}>
+          <button onClick={handleSubmit} disabled={!isValid || saving} style={{ padding: '9px 18px', fontSize: '13px', fontWeight: 700, borderRadius: '9px', border: 'none', background: isValid ? '#185FA5' : '#E5E7EB', color: isValid ? '#fff' : '#9CA3AF', cursor: isValid ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: '5px', fontFamily: 'inherit' }}>
             <Check size={14} /> {saving ? '등록 중...' : '등록 완료'}
           </button>
         </div>
@@ -1597,7 +1604,7 @@ function TeacherPanel({ teachers, onAdd, onDelete, onClose }) {
             <input value={newName} onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
               placeholder="예: 박선생님" style={inputStyle} />
-            <button onClick={handleAdd} disabled={!newName.trim() || saving} style={{ padding: '10px 14px', fontSize: '12px', fontWeight: 700, borderRadius: '9px', border: 'none', background: newName.trim() ? '#185FA5' : '#E5E7EB', color: '#fff', cursor: newName.trim() ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: '4px', fontFamily: 'inherit', flexShrink: 0 }}>
+            <button onClick={handleAdd} disabled={!newName.trim() || saving} style={{ padding: '10px 14px', fontSize: '12px', fontWeight: 700, borderRadius: '9px', border: 'none', background: newName.trim() ? '#185FA5' : '#E5E7EB', color: newName.trim() ? '#fff' : '#9CA3AF', cursor: newName.trim() ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: '4px', fontFamily: 'inherit', flexShrink: 0 }}>
               <Plus size={13} /> {saving ? '...' : '추가'}
             </button>
           </div>
@@ -1904,7 +1911,7 @@ function RatingPicker({ label, value, onChange }) {
 }
 
 const inputStyle = {
-  width: '100%', padding: '9px 11px', fontSize: '13px',
+  width: '100%', padding: '9px 11px', fontSize: '16px',
   border: `1px solid #E5E7EB`, borderRadius: '9px',
   background: '#F9FAFB', outline: 'none',
   fontFamily: "'Pretendard Variable', Pretendard, sans-serif",
@@ -1927,7 +1934,7 @@ const toggleStyle = (active) => ({
   color: active ? '#0C447C' : '#6B7280', cursor: 'pointer', fontFamily: 'inherit',
   boxShadow: active ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
 });
-const suggestionStyle = { padding: '3px 9px', fontSize: '10px', fontWeight: 500, borderRadius: '5px', border: 'none', background: '#E6F1FB', color: '#185FA5', cursor: 'pointer', fontFamily: 'inherit' };
+const suggestionStyle = { padding: '7px 12px', fontSize: '12px', fontWeight: 500, borderRadius: '7px', border: 'none', background: '#E6F1FB', color: '#185FA5', cursor: 'pointer', fontFamily: 'inherit', minHeight: '32px' };
 const aiButtonStyle = (disabled) => ({
   marginTop: '8px', width: '100%', padding: '9px', fontSize: '12px', fontWeight: 700,
   borderRadius: '9px', border: `1px solid ${disabled ? '#E5E7EB' : '#0F6E56'}`,
@@ -1937,7 +1944,7 @@ const aiButtonStyle = (disabled) => ({
 });
 const submitButtonStyle = (valid) => ({
   padding: '14px', fontSize: '14px', fontWeight: 700, borderRadius: '12px', border: 'none',
-  background: valid ? '#185FA5' : '#E5E7EB', color: '#fff', cursor: valid ? 'pointer' : 'not-allowed',
+  background: valid ? '#185FA5' : '#E5E7EB', color: valid ? '#fff' : '#9CA3AF', cursor: valid ? 'pointer' : 'not-allowed',
   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px',
   fontFamily: 'inherit', boxShadow: valid ? '0 4px 14px rgba(24,95,165,0.25)' : 'none',
 });

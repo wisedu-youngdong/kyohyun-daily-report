@@ -72,8 +72,6 @@ export default function GrowthStory() {
           .map(d => ({ id: d.id, ...d.data() }))
           .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
         setReports(rList);
-
-        console.log('✅ 로드 완료 — 학생:', stuSnap.size, '리포트:', rSnap.size);
       } catch (e) {
         console.error('❌ Firebase 오류:', e);
       } finally {
@@ -337,13 +335,13 @@ export default function GrowthStory() {
   );
 
   const teacherName = sorted[sorted.length - 1]?.teacherName || '';
-  const teacherDisplay = teacherName.replace(/선생님?$/, '').trim() + ' 선생님';
+  const teacherDisplay = teacherName ? teacherName.replace(/선생님?$/, '').trim() + ' 선생님' : '담당 교사';
 
   const S = {
     wrap: { maxWidth: '420px', margin: '0 auto', fontFamily: "'Noto Sans KR', 'Pretendard Variable', Pretendard, sans-serif", background: '#F5F5F0', minHeight: '100vh' },
     header: { background: '#0D2D6B', padding: '32px 24px 28px', position: 'relative', overflow: 'hidden' },
     section: { background: '#fff', padding: '22px', borderBottom: '1px solid #EEECEA' },
-    label: { fontSize: '9px', fontWeight: 700, color: '#0D2D6B', letterSpacing: '0.14em', marginBottom: '16px' },
+    label: { fontSize: '10px', fontWeight: 700, color: '#0D2D6B', letterSpacing: '0.14em', marginBottom: '16px' },
   };
 
   return (
@@ -357,7 +355,7 @@ export default function GrowthStory() {
           <span style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.16em' }}>와이즈에듀 교현학원</span>
         </div>
         <div style={{ height: '1px', background: 'rgba(201,162,39,0.2)', marginBottom: '20px' }} />
-        <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.18em', fontWeight: 600, marginBottom: '6px' }}>GROWTH STORY</p>
+        <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.18em', fontWeight: 600, marginBottom: '6px' }}>GROWTH STORY</p>
         <p style={{ fontSize: '26px', fontWeight: 700, color: '#fff', letterSpacing: '-0.5px', marginBottom: '4px' }}>{student.name}의 성장 이야기</p>
         <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginBottom: '16px' }}>{periodLabel}</p>
 
@@ -383,7 +381,9 @@ export default function GrowthStory() {
           {/* 공유 버튼 */}
           <button onClick={() => {
             const url = `${window.location.origin}/story/${studentId}${period === '3m' ? '?period=3m' : ''}`;
-            navigator.clipboard.writeText(url).then(() => alert('링크가 복사됐어요!'));
+            navigator.clipboard.writeText(url)
+              .then(() => alert('링크가 복사됐어요!'))
+              .catch(() => window.prompt('아래 링크를 길게 눌러 복사하세요', url));
           }}
             style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '16px', padding: '5px 14px', color: 'rgba(255,255,255,0.8)', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             📤 링크 복사
@@ -427,8 +427,8 @@ export default function GrowthStory() {
                   : <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><circle cx="4" cy="4" r="2" fill="#0D2D6B"/></svg>
                 }
               </div>
-              <p style={{ fontSize: '9px', fontWeight: 700, color: '#C9A227', letterSpacing: '0.14em', marginBottom: '3px' }}>{m.phase}</p>
-              <span style={{ fontSize: '10px', color: '#8A8A8A', fontWeight: 500, marginBottom: '4px', display: 'block' }}>{m.date}</span>
+              <p style={{ fontSize: '10px', fontWeight: 700, color: '#C9A227', letterSpacing: '0.14em', marginBottom: '3px' }}>{m.phase}</p>
+              <span style={{ fontSize: '11px', color: '#8A8A8A', fontWeight: 500, marginBottom: '4px', display: 'block' }}>{m.date}</span>
               <p style={{ fontSize: '13px', fontWeight: 700, color: '#0D2D6B', margin: '0 0 4px' }}>{m.title}</p>
 
               {/* 실데이터 카드 */}
@@ -436,14 +436,14 @@ export default function GrowthStory() {
                 <div style={{ background: '#F8F9FC', border: '0.5px solid #E5E7EB', borderRadius: '8px', padding: '8px 10px', marginBottom: '6px' }}>
                   {/* 교재/단원 */}
                   {(m.realData.textbook || m.realData.unit) && (
-                    <p style={{ fontSize: '10px', color: '#6B7280', margin: '0 0 5px', fontWeight: 500 }}>
+                    <p style={{ fontSize: '12px', color: '#6B7280', margin: '0 0 5px', fontWeight: 500 }}>
                       📚 {[m.realData.textbook, m.realData.unit, m.realData.pages && `${m.realData.pages}쪽`].filter(Boolean).join(' · ')}
                     </p>
                   )}
                   {/* 평점 */}
                   <div style={{ display: 'flex', gap: '10px', marginBottom: m.realData.diagTags.length > 0 || m.realData.testScore || m.realData.notePreview ? '5px' : 0 }}>
                     {m.realData.homeworkRating > 0 && (
-                      <span style={{ fontSize: '10px', color: '#374151' }}>
+                      <span style={{ fontSize: '12px', color: '#374151' }}>
                         과제 <strong style={{ color: '#0D2D6B' }}>{m.realData.homeworkRating}/5</strong>
                         {m.realData.hwDelta !== null && m.realData.hwDelta !== 0 && (
                           <span style={{ color: m.realData.hwDelta > 0 ? '#0F6E56' : '#DC2626', marginLeft: '3px' }}>
@@ -453,12 +453,12 @@ export default function GrowthStory() {
                       </span>
                     )}
                     {m.realData.conceptRating > 0 && (
-                      <span style={{ fontSize: '10px', color: '#374151' }}>
+                      <span style={{ fontSize: '12px', color: '#374151' }}>
                         개념 <strong style={{ color: '#0D2D6B' }}>{m.realData.conceptRating}/5</strong>
                       </span>
                     )}
                     {m.realData.testScore && (
-                      <span style={{ fontSize: '10px', color: '#374151' }}>
+                      <span style={{ fontSize: '12px', color: '#374151' }}>
                         시험 <strong style={{ color: '#C9A227' }}>{m.realData.testScore}점</strong>
                       </span>
                     )}
@@ -467,13 +467,13 @@ export default function GrowthStory() {
                   {m.realData.diagTags.length > 0 && (
                     <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: m.realData.notePreview ? '5px' : 0 }}>
                       {m.realData.diagTags.map((tag, ti) => (
-                        <span key={ti} style={{ fontSize: '9px', fontWeight: 600, padding: '2px 6px', borderRadius: '8px', background: '#FDF0F0', color: '#8A2020' }}>{tag}</span>
+                        <span key={ti} style={{ fontSize: '11px', fontWeight: 600, padding: '2px 6px', borderRadius: '8px', background: '#FDF0F0', color: '#8A2020' }}>{tag}</span>
                       ))}
                     </div>
                   )}
                   {/* 코멘트 미리보기 */}
                   {m.realData.notePreview && (
-                    <p style={{ fontSize: '10px', color: '#6B7280', margin: '0', lineHeight: 1.6, fontStyle: 'italic' }}>
+                    <p style={{ fontSize: '12px', color: '#6B7280', margin: '0', lineHeight: 1.6, fontStyle: 'italic' }}>
                       "{m.realData.notePreview}"
                     </p>
                   )}
@@ -532,20 +532,20 @@ export default function GrowthStory() {
           {/* 전체 요약 — 2회 이상 평가 시만 표시 */}
           {allScores.length >= 2 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', background: '#F7F5F1', borderRadius: '4px', borderLeft: '2px solid #C9A227', marginTop: '12px' }}>
-              <span style={{ fontSize: '10px', color: '#8A8A8A', fontWeight: 600, flexShrink: 0 }}>전체 범위</span>
+              <span style={{ fontSize: '11px', color: '#8A8A8A', fontWeight: 600, flexShrink: 0 }}>전체 범위</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1 }}>
                 <span style={{ fontSize: '13px', fontWeight: 700, color: '#2C2C2C' }}>{minScore}점</span>
                 <span style={{ fontSize: '12px', color: '#C9A227' }}>→</span>
                 <span style={{ fontSize: '16px', fontWeight: 800, color: '#0D2D6B' }}>{maxScore}점</span>
               </div>
-              <span style={{ fontSize: '10px', color: '#8A8A8A' }}>100점 만점</span>
+              <span style={{ fontSize: '11px', color: '#8A8A8A' }}>100점 만점</span>
             </div>
           )}
           {allScores.length === 1 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', background: '#F7F5F1', borderRadius: '4px', borderLeft: '2px solid #C9A227', marginTop: '12px' }}>
-              <span style={{ fontSize: '10px', color: '#8A8A8A', fontWeight: 600 }}>이번 평가</span>
+              <span style={{ fontSize: '11px', color: '#8A8A8A', fontWeight: 600 }}>이번 평가</span>
               <span style={{ fontSize: '16px', fontWeight: 800, color: '#0D2D6B', marginLeft: 'auto' }}>{maxScore}점</span>
-              <span style={{ fontSize: '10px', color: '#8A8A8A' }}>/ 100점 만점</span>
+              <span style={{ fontSize: '11px', color: '#8A8A8A' }}>/ 100점 만점</span>
             </div>
           )}
         </div>
@@ -557,28 +557,28 @@ export default function GrowthStory() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
           {maxScore && (
             <div style={{ background: '#F7F5F1', borderRadius: '6px', padding: '14px', borderLeft: '2px solid #C9A227' }}>
-              <p style={{ fontSize: '10px', color: '#8A8A8A', fontWeight: 600, marginBottom: '6px' }}>최고 단원평가</p>
+              <p style={{ fontSize: '12px', color: '#8A8A8A', fontWeight: 600, marginBottom: '6px' }}>최고 단원평가</p>
               <p style={{ fontSize: '22px', fontWeight: 800, color: '#0D2D6B' }}>{maxScore}<span style={{ fontSize: '11px', color: '#8A8A8A' }}>점</span></p>
-              <p style={{ fontSize: '9px', color: '#B0B0B0', marginTop: '2px' }}>100점 만점</p>
+              <p style={{ fontSize: '11px', color: '#B0B0B0', marginTop: '2px' }}>100점 만점</p>
             </div>
           )}
           {hwAvg && (
             <div style={{ background: '#F7F5F1', borderRadius: '6px', padding: '14px', borderLeft: '2px solid #C9A227' }}>
-              <p style={{ fontSize: '10px', color: '#8A8A8A', fontWeight: 600, marginBottom: '6px' }}>과제 수행 평균</p>
+              <p style={{ fontSize: '12px', color: '#8A8A8A', fontWeight: 600, marginBottom: '6px' }}>과제 수행 평균</p>
               <p style={{ fontSize: '22px', fontWeight: 800, color: '#0D2D6B' }}>{hwAvg}<span style={{ fontSize: '11px', color: '#8A8A8A' }}>점</span></p>
-              <p style={{ fontSize: '9px', color: '#B0B0B0', marginTop: '2px' }}>5점 만점 · 담당교사 관찰</p>
+              <p style={{ fontSize: '11px', color: '#B0B0B0', marginTop: '2px' }}>5점 만점 · 담당교사 관찰</p>
             </div>
           )}
           <div style={{ background: '#F7F5F1', borderRadius: '6px', padding: '14px', borderLeft: '2px solid #C9A227' }}>
-            <p style={{ fontSize: '10px', color: '#8A8A8A', fontWeight: 600, marginBottom: '6px' }}>총 수업 횟수</p>
+            <p style={{ fontSize: '12px', color: '#8A8A8A', fontWeight: 600, marginBottom: '6px' }}>총 수업 횟수</p>
             <p style={{ fontSize: '22px', fontWeight: 800, color: '#0D2D6B' }}>{sorted.length}<span style={{ fontSize: '11px', color: '#8A8A8A' }}>회</span></p>
-            <p style={{ fontSize: '9px', color: '#B0B0B0', marginTop: '2px' }}>{allAttended ? '전 회 출석' : '출석 기록'}</p>
+            <p style={{ fontSize: '11px', color: '#B0B0B0', marginTop: '2px' }}>{allAttended ? '전 회 출석' : '출석 기록'}</p>
           </div>
           {avgScore && (
             <div style={{ background: '#F7F5F1', borderRadius: '6px', padding: '14px', borderLeft: '2px solid #C9A227' }}>
-              <p style={{ fontSize: '10px', color: '#8A8A8A', fontWeight: 600, marginBottom: '6px' }}>평균 점수</p>
+              <p style={{ fontSize: '12px', color: '#8A8A8A', fontWeight: 600, marginBottom: '6px' }}>평균 점수</p>
               <p style={{ fontSize: '22px', fontWeight: 800, color: '#0D2D6B' }}>{avgScore}<span style={{ fontSize: '11px', color: '#8A8A8A' }}>점</span></p>
-              <p style={{ fontSize: '9px', color: '#B0B0B0', marginTop: '2px' }}>100점 만점</p>
+              <p style={{ fontSize: '11px', color: '#B0B0B0', marginTop: '2px' }}>100점 만점</p>
             </div>
           )}
         </div>
@@ -587,7 +587,7 @@ export default function GrowthStory() {
       {/* 선생님 한마디 */}
       <div style={{ background: '#0D2D6B', padding: '24px 22px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-          <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.14em', fontWeight: 600 }}>TEACHER'S WORD</p>
+          <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.14em', fontWeight: 600 }}>TEACHER'S WORD</p>
           {isEditor && narrative && (
             <button onClick={() => startEdit('teacherWord')}
               style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '6px', cursor: 'pointer' }}>
@@ -598,7 +598,7 @@ export default function GrowthStory() {
         {editing === 'teacherWord' ? (
           <div>
             <textarea value={editText} onChange={e => setEditText(e.target.value)}
-              style={{ width: '100%', minHeight: '100px', padding: '12px', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '8px', color: '#fff', fontSize: '13px', lineHeight: 1.8, fontFamily: 'inherit', resize: 'vertical', outline: 'none' }} />
+              style={{ width: '100%', minHeight: '100px', padding: '12px', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '8px', color: '#fff', fontSize: '16px', lineHeight: 1.8, fontFamily: 'inherit', resize: 'vertical', outline: 'none' }} />
             <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
               <button onClick={saveEdit} style={{ flex: 1, padding: '8px', background: '#C9A227', border: 'none', borderRadius: '6px', color: '#fff', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>저장</button>
               <button onClick={cancelEdit} style={{ flex: 1, padding: '8px', background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '6px', color: 'rgba(255,255,255,0.6)', fontSize: '12px', cursor: 'pointer' }}>취소</button>
@@ -611,7 +611,7 @@ export default function GrowthStory() {
               : `${student.name}이(가) 바뀐 건 점수가 아닙니다. 문제를 스스로 바라보는 시선이 바뀌었습니다.`)}
           </p>
         )}
-        <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', textAlign: 'right' }}>
+        <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', textAlign: 'right' }}>
           {teacherDisplay}
         </p>
       </div>
@@ -630,7 +630,7 @@ export default function GrowthStory() {
         {editing === 'nextChapter' ? (
           <div style={{ marginBottom: '14px' }}>
             <textarea value={editText} onChange={e => setEditText(e.target.value)}
-              style={{ width: '100%', minHeight: '80px', padding: '12px', border: '1px solid #E5E5E5', borderRadius: '8px', color: '#2C2C2C', fontSize: '12px', lineHeight: 1.8, fontFamily: 'inherit', resize: 'vertical', outline: 'none' }} />
+              style={{ width: '100%', minHeight: '80px', padding: '12px', border: '1px solid #E5E5E5', borderRadius: '8px', color: '#2C2C2C', fontSize: '16px', lineHeight: 1.8, fontFamily: 'inherit', resize: 'vertical', outline: 'none' }} />
             <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
               <button onClick={saveEdit} style={{ flex: 1, padding: '8px', background: '#0D2D6B', border: 'none', borderRadius: '6px', color: '#fff', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>저장</button>
               <button onClick={cancelEdit} style={{ flex: 1, padding: '8px', background: '#F3F4F6', border: 'none', borderRadius: '6px', color: '#6B7280', fontSize: '12px', cursor: 'pointer' }}>취소</button>
@@ -642,7 +642,7 @@ export default function GrowthStory() {
           </p>
         )}
         <div style={{ padding: '14px 16px', background: '#F7F5F1', borderRadius: '6px', borderLeft: '2px solid #C9A227' }}>
-          <p style={{ fontSize: '10px', color: '#8A8A8A', fontWeight: 600, marginBottom: '3px' }}>다음 목표 단계</p>
+          <p style={{ fontSize: '11px', color: '#8A8A8A', fontWeight: 600, marginBottom: '3px' }}>다음 목표 단계</p>
           <p style={{ fontSize: '13px', fontWeight: 700, color: '#0D2D6B' }}>PHASE 5 · 전략 고도화</p>
         </div>
       </div>

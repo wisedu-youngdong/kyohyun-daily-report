@@ -141,7 +141,7 @@ function LoginScreen() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="이메일 입력" required
               style={{
-                width: '100%', padding: '11px 14px', fontSize: '14px',
+                width: '100%', padding: '11px 14px', fontSize: '16px',
                 border: `1px solid ${T.border}`, borderRadius: '10px',
                 background: T.bgSoft, outline: 'none',
                 fontFamily: 'inherit', letterSpacing: '-0.02em', boxSizing: 'border-box',
@@ -155,7 +155,7 @@ function LoginScreen() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="비밀번호 입력" required
               style={{
-                width: '100%', padding: '11px 14px', fontSize: '14px',
+                width: '100%', padding: '11px 14px', fontSize: '16px',
                 border: `1px solid ${T.border}`, borderRadius: '10px',
                 background: T.bgSoft, outline: 'none',
                 fontFamily: 'inherit', letterSpacing: '-0.02em', boxSizing: 'border-box',
@@ -201,10 +201,12 @@ export default function App() {
   const [reports, setReports] = useState([]);
   const [reportViews, setReportViews] = useState([]);
   const [appToast, setAppToast] = useState(null);
+  const appToastTimerRef = React.useRef(null);
 
   const showAppToast = (msg, type = 'success') => {
+    if (appToastTimerRef.current) clearTimeout(appToastTimerRef.current);
     setAppToast({ msg, type });
-    setTimeout(() => setAppToast(null), 2500);
+    appToastTimerRef.current = setTimeout(() => setAppToast(null), 2500);
   };
 
   // 앱 이탈 방지 — 브라우저 밖으로 나갈 때 경고
@@ -447,7 +449,7 @@ export default function App() {
         <span style={{ fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '6px', background: isDirector ? '#EAF0F9' : '#E1F5EE', color: isDirector ? '#0D2D6B' : '#0F6E56' }}>
           {isDirector ? '원장' : (teachers.find(t => t.id === userTeacherId)?.name || '강사')}
         </span>
-        <button onClick={() => signOut(auth)} style={{ background: 'none', border: 'none', color: T.textMute, cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }} title="로그아웃">
+        <button onClick={() => signOut(auth)} style={{ background: 'none', border: 'none', color: T.textMute, cursor: 'pointer', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, WebkitTapHighlightColor: 'transparent' }} title="로그아웃">
           <LogOut size={16} />
         </button>
       </header>
@@ -459,7 +461,8 @@ export default function App() {
           background: appToast.type === 'success' ? '#0F6E56' : '#0D2D6B',
           color: '#fff', padding: '10px 20px', borderRadius: '20px',
           fontSize: '13px', fontWeight: 600, zIndex: 9999,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.15)', whiteSpace: 'nowrap',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          maxWidth: 'calc(100vw - 40px)', whiteSpace: 'normal', textAlign: 'center',
         }}>{appToast.msg}</div>
       )}
 
@@ -589,7 +592,7 @@ function DashboardView({ students, reports, onTabChange }) {
       <div style={{ background: '#fff', borderRadius: '16px', border: `1px solid #E5E7EB`, overflow: 'hidden' }}>
         <div style={{ padding: '14px 18px', borderBottom: `1px solid #F3F4F6`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h3 style={{ fontSize: '13px', fontWeight: 700 }}>오늘 학생 현황</h3>
-          <button onClick={() => onTabChange('write')} style={{ background: '#185FA5', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 14px', fontSize: '12px', fontWeight: 700, fontFamily: 'inherit' }}>리포트 작성</button>
+          <button onClick={() => onTabChange('write')} style={{ background: '#185FA5', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 14px', fontSize: '12px', fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}>리포트 작성</button>
         </div>
         {students.length === 0
           ? <div style={{ padding: '40px', textAlign: 'center', color: '#9CA3AF', fontSize: '13px' }}>등록된 학생이 없습니다</div>
@@ -683,14 +686,14 @@ function StudentsView({ students, reports, onSave, onDelete, teachers = [] }) {
           <input
             value={search} onChange={e => setSearch(e.target.value)}
             placeholder="이름 또는 학교 검색"
-            style={{ width: '100%', padding: '9px 12px 9px 32px', border: '1px solid #E5E7EB', borderRadius: '10px', fontSize: '13px', fontFamily: 'inherit', outline: 'none', background: '#fff' }}
+            style={{ width: '100%', padding: '9px 12px 9px 32px', border: '1px solid #E5E7EB', borderRadius: '10px', fontSize: '16px', fontFamily: 'inherit', outline: 'none', background: '#fff' }}
           />
           {search && (
-            <button onClick={() => setSearch('')} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer', fontSize: '16px', lineHeight: 1 }}>×</button>
+            <button onClick={() => setSearch('')} style={{ position: 'absolute', right: '4px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer', fontSize: '16px', lineHeight: 1, width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>×</button>
           )}
         </div>
         <select value={sortBy} onChange={e => setSortBy(e.target.value)}
-          style={{ padding: '9px 12px', border: '1px solid #E5E7EB', borderRadius: '10px', fontSize: '12px', fontFamily: 'inherit', background: '#fff', color: '#374151', cursor: 'pointer', outline: 'none' }}>
+          style={{ padding: '9px 12px', border: '1px solid #E5E7EB', borderRadius: '10px', fontSize: '16px', fontFamily: 'inherit', background: '#fff', color: '#374151', cursor: 'pointer', outline: 'none' }}>
           <option value="name">이름순</option>
           <option value="recent">최근 수업순</option>
           <option value="reports">리포트 많은순</option>
@@ -747,7 +750,7 @@ function StudentsView({ students, reports, onSave, onDelete, teachers = [] }) {
                     </div>
                   ) : (
                     <button onClick={(e) => { e.stopPropagation(); setDeleteConfirm(s.id); setTimeout(() => setDeleteConfirm(null), 3000); }}
-                      style={{ background: 'none', border: 'none', color: '#D1D5DB', fontSize: '18px', cursor: 'pointer', padding: '4px' }}>×</button>
+                      style={{ background: 'none', border: 'none', color: '#D1D5DB', fontSize: '18px', cursor: 'pointer', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, WebkitTapHighlightColor: 'transparent' }}>×</button>
                   )}
                 </div>
                 {s.textbooks?.length > 0 && (
@@ -816,7 +819,7 @@ function StudentEditModal({ student, onClose, onSubmit, teachers = [] }) {
 
   const overlayStyle = { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px', backdropFilter: 'blur(4px)' };
   const modalStyle = { background: '#fff', borderRadius: '18px', width: '100%', maxWidth: '500px', maxHeight: '80vh', overflow: 'auto', boxShadow: '0 20px 50px rgba(0,0,0,0.2)', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" };
-  const inputStyle = { width: '100%', padding: '9px 11px', fontSize: '13px', border: '1px solid #E5E7EB', borderRadius: '9px', background: '#F9FAFB', outline: 'none', fontFamily: 'inherit', fontWeight: 500, color: '#1A1A1A', boxSizing: 'border-box' };
+  const inputStyle = { width: '100%', padding: '9px 11px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '9px', background: '#F9FAFB', outline: 'none', fontFamily: 'inherit', fontWeight: 500, color: '#1A1A1A', boxSizing: 'border-box' };
   const labelStyle = { fontSize: '11px', color: '#6B7280', fontWeight: 700, margin: '0 0 5px', display: 'block' };
 
   return (
@@ -828,7 +831,7 @@ function StudentEditModal({ student, onClose, onSubmit, teachers = [] }) {
             <h2 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>학생 정보 수정</h2>
             <p style={{ fontSize: '11px', color: '#6B7280', margin: '2px 0 0' }}>{student.name} 학생</p>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '20px', color: '#6B7280', cursor: 'pointer' }}>×</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '20px', color: '#6B7280', cursor: 'pointer', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>×</button>
         </div>
 
         {/* 입력 */}
@@ -877,7 +880,7 @@ function StudentEditModal({ student, onClose, onSubmit, teachers = [] }) {
                   <div style={{ background: '#E6F1FB', color: '#185FA5', width: '22px', height: '22px', borderRadius: '5px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>{idx + 1}</div>
                   <input value={t.name} onChange={(e) => updateTextbook(t.id, e.target.value)} style={inputStyle} />
                   {textbooks.length > 1 && (
-                    <button onClick={() => removeTextbook(t.id)} style={{ background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer', fontSize: '16px', flexShrink: 0 }}>×</button>
+                    <button onClick={() => removeTextbook(t.id)} style={{ background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer', fontSize: '16px', flexShrink: 0, width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>×</button>
                   )}
                 </div>
               ))}
@@ -962,7 +965,7 @@ function StudentEditModal({ student, onClose, onSubmit, teachers = [] }) {
                       style={{ borderRadius: '8px', overflow: 'hidden', cursor: 'pointer', border: skinColor === sk.main ? '2.5px solid #185FA5' : '2px solid #E5E7EB' }}>
                       <div style={{ height: '24px', background: sk.main }}></div>
                       <div style={{ padding: '3px', background: '#F9FAFB', textAlign: 'center' }}>
-                        <span style={{ fontSize: '8px', fontWeight: 700, color: skinColor === sk.main ? '#185FA5' : '#6B7280' }}>{sk.name}</span>
+                        <span style={{ fontSize: '10px', fontWeight: 700, color: skinColor === sk.main ? '#185FA5' : '#6B7280' }}>{sk.name}</span>
                       </div>
                     </div>
                   ))}
@@ -971,7 +974,7 @@ function StudentEditModal({ student, onClose, onSubmit, teachers = [] }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#F9FAFB', borderRadius: '10px', padding: '10px' }}>
                   <div style={{ position: 'relative', width: '36px', height: '36px', borderRadius: '10px', background: skinColor || '#185FA5', border: '2px solid rgba(0,0,0,0.08)', overflow: 'hidden', flexShrink: 0 }}>
                     <input type="color" value={skinColor || '#185FA5'} onChange={(e) => setSkinColor(e.target.value)}
-                      style={{ position: 'absolute', inset: '-4px', width: 'calc(100%+8px)', height: 'calc(100%+8px)', border: 'none', cursor: 'pointer', opacity: 0 }} />
+                      style={{ position: 'absolute', inset: '-4px', width: 'calc(100% + 8px)', height: 'calc(100% + 8px)', border: 'none', cursor: 'pointer', opacity: 0 }} />
                   </div>
                   <div>
                     <p style={{ fontSize: '11px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>직접 색상 선택</p>
@@ -1069,9 +1072,9 @@ function HistoryView({ reports, students, reportViews = [], onDelete, onEdit }) 
         <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
           <input value={searchText} onChange={e => setSearchText(e.target.value)}
             placeholder="학생명·교재·코멘트 검색"
-            style={{ flex: 1, padding: '9px 12px', fontSize: '13px', border: '1px solid #E5E7EB', borderRadius: '10px', outline: 'none', fontFamily: 'inherit' }} />
+            style={{ flex: 1, padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', outline: 'none', fontFamily: 'inherit' }} />
           <select value={studentFilter} onChange={e => setStudentFilter(e.target.value)}
-            style={{ padding: '9px 10px', fontSize: '12px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', background: '#fff' }}>
+            style={{ padding: '9px 10px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', background: '#fff' }}>
             <option value="">전체</option>
             {(students||[]).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
@@ -1106,7 +1109,7 @@ function HistoryView({ reports, students, reportViews = [], onDelete, onEdit }) 
                   </div>
                   <p style={{ fontSize: '12px', color: '#6B7280', margin: 0 }}>{fmtDate(selected)} · {selected.teacherName}</p>
                 </div>
-                <button onClick={() => setSelectedId(null)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#6B7280' }}>×</button>
+                <button onClick={() => setSelectedId(null)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#6B7280', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>×</button>
               </div>
 
               {(selected.textbook || selected.unit) && (
@@ -1202,15 +1205,15 @@ function HistoryView({ reports, students, reportViews = [], onDelete, onEdit }) 
         <div style={{ padding: '12px 14px', borderBottom: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column', gap: '8px', flexShrink: 0 }}>
           <input value={searchText} onChange={e => setSearchText(e.target.value)}
             placeholder="검색..."
-            style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '1px solid #E5E7EB', borderRadius: '8px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box', background: '#FAFAFA' }} />
+            style={{ width: '100%', padding: '7px 10px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '8px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box', background: '#FAFAFA' }} />
           <div style={{ display: 'flex', gap: '6px' }}>
             <select value={studentFilter} onChange={e => setStudentFilter(e.target.value)}
-              style={{ flex: 1, padding: '6px 8px', fontSize: '11px', border: '1px solid #E5E7EB', borderRadius: '7px', fontFamily: 'inherit', background: '#fff', color: '#374151' }}>
+              style={{ flex: 1, padding: '6px 8px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '7px', fontFamily: 'inherit', background: '#fff', color: '#374151' }}>
               <option value="">전체 학생</option>
               {(students||[]).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
             <select value={periodFilter} onChange={e => setPeriodFilter(e.target.value)}
-              style={{ flex: 1, padding: '6px 8px', fontSize: '11px', border: '1px solid #E5E7EB', borderRadius: '7px', fontFamily: 'inherit', background: '#fff', color: '#374151' }}>
+              style={{ flex: 1, padding: '6px 8px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '7px', fontFamily: 'inherit', background: '#fff', color: '#374151' }}>
               <option value="all">전체 기간</option>
               <option value="week">이번 주</option>
               <option value="month">이번 달</option>
@@ -1447,6 +1450,7 @@ function ReportPreviewModal({ report: r, allReports, onClose, onDelete, onEdit }
     : '날짜 없음';
   const cardRef = React.useRef(null);
   const [downloading, setDownloading] = React.useState(false);
+  const [confirmingDelete, setConfirmingDelete] = React.useState(false);
 
   const studentReports = (allReports || []).filter(x => x.studentId === r.studentId);
   const stageInfo = getStageInfo(calculateTotalPoints(studentReports));
@@ -1491,10 +1495,10 @@ function ReportPreviewModal({ report: r, allReports, onClose, onDelete, onEdit }
             }} style={{ background: '#1A5CB8', color: '#fff', border: 'none', borderRadius: '9px', padding: '7px 14px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
               링크 복사
             </button>
-            <button onClick={handleDownload} disabled={downloading} style={{ background: '#0F6E56', color: '#fff', border: 'none', borderRadius: '9px', padding: '7px 14px', fontSize: '12px', fontWeight: 700, cursor: downloading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+            <button onClick={handleDownload} disabled={downloading} style={{ background: downloading ? '#E5E7EB' : '#0F6E56', color: downloading ? '#9CA3AF' : '#fff', border: 'none', borderRadius: '9px', padding: '7px 14px', fontSize: '12px', fontWeight: 700, cursor: downloading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
               {downloading ? '저장 중...' : '📥 이미지 저장'}
             </button>
-            <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '20px', color: '#6B7280', cursor: 'pointer' }}>×</button>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '20px', color: '#6B7280', cursor: 'pointer', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>×</button>
           </div>
         </div>
 
@@ -1663,11 +1667,12 @@ function ReportPreviewModal({ report: r, allReports, onClose, onDelete, onEdit }
             </button>
           )}
           <button
-            onClick={() => { if (window.__confirmDelete) { onDelete(r.id); onClose(); window.__confirmDelete = false; } else { window.__confirmDelete = true; setTimeout(() => { window.__confirmDelete = false; }, 3000); } }}
-            onMouseEnter={e => { if (!window.__confirmDelete) e.target.textContent = '한번 더 클릭 시 삭제'; }}
-            onMouseLeave={e => { if (!window.__confirmDelete) e.target.textContent = '🗑 리포트 삭제'; }}
+            onClick={() => {
+              if (confirmingDelete) { onDelete(r.id); onClose(); }
+              else { setConfirmingDelete(true); setTimeout(() => setConfirmingDelete(false), 3000); }
+            }}
             style={{ flex: 1, padding: '12px', fontSize: '13px', fontWeight: 700, borderRadius: '12px', border: '1px solid #FCA5A5', background: '#FEF2F2', color: '#DC2626', cursor: 'pointer', fontFamily: 'inherit' }}>
-            삭제
+            {confirmingDelete ? '한번 더 클릭 시 삭제' : '🗑 리포트 삭제'}
           </button>
         </div>
       </div>
@@ -1684,10 +1689,12 @@ function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDele
   });
   const [saving, setSaving] = React.useState(false);
   const [saved, setSaved] = React.useState(false);
+  const colorInputRef = React.useRef(null);
 
   // 강사 이름 수정
   const [editingTeacherId, setEditingTeacherId] = React.useState(null);
   const [editingTeacherName, setEditingTeacherName] = React.useState('');
+  const [confirmingTeacherDelete, setConfirmingTeacherDelete] = React.useState(null);
 
   // 강사 계정 생성
   const [newTeacherEmail, setNewTeacherEmail] = React.useState('');
@@ -1758,7 +1765,7 @@ function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDele
             >
               <div style={{ height: '32px', background: sk.main }}></div>
               <div style={{ padding: '5px 4px', background: '#F9FAFB', textAlign: 'center' }}>
-                <span style={{ fontSize: '9px', fontWeight: 700, color: globalColor === sk.main ? '#185FA5' : '#6B7280' }}>{sk.name}</span>
+                <span style={{ fontSize: '10px', fontWeight: 700, color: globalColor === sk.main ? '#185FA5' : '#6B7280' }}>{sk.name}</span>
               </div>
             </div>
           ))}
@@ -1768,7 +1775,7 @@ function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDele
         <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 700, marginBottom: '8px' }}>🎨 직접 선택</p>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: '#F9FAFB', borderRadius: '12px', padding: '12px', marginBottom: '14px' }}>
           <div style={{ position: 'relative', width: '44px', height: '44px', borderRadius: '12px', background: globalColor, flexShrink: 0, border: '2px solid rgba(0,0,0,0.08)', overflow: 'hidden' }}>
-            <input type="color" value={globalColor} onChange={(e) => setGlobalColor(e.target.value)}
+            <input ref={colorInputRef} type="color" value={globalColor} onChange={(e) => setGlobalColor(e.target.value)}
               style={{ position: 'absolute', inset: '-4px', width: 'calc(100% + 8px)', height: 'calc(100% + 8px)', border: 'none', padding: 0, cursor: 'pointer', opacity: 0 }} />
           </div>
           <div style={{ flex: 1 }}>
@@ -1776,7 +1783,7 @@ function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDele
             <p style={{ fontSize: '11px', fontWeight: 600, color: '#9B80C0', margin: 0, fontFamily: 'monospace' }}>{globalColor}</p>
           </div>
           <button
-            onClick={() => document.querySelector('input[type=color]').click()}
+            onClick={() => colorInputRef.current?.click()}
             style={{ background: '#E6F1FB', color: '#185FA5', border: 'none', borderRadius: '8px', padding: '6px 12px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
             변경
           </button>
@@ -1827,7 +1834,7 @@ function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDele
                     value={editingTeacherName}
                     onChange={e => setEditingTeacherName(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && handleTeacherNameSave(t)}
-                    style={{ flex: 1, padding: '6px 10px', fontSize: '13px', border: '1px solid #185FA5', borderRadius: '8px', fontFamily: 'inherit', outline: 'none' }}
+                    style={{ flex: 1, padding: '6px 10px', fontSize: '16px', border: '1px solid #185FA5', borderRadius: '8px', fontFamily: 'inherit', outline: 'none' }}
                     autoFocus
                   />
                   <button onClick={() => handleTeacherNameSave(t)} style={{ background: '#185FA5', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 12px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>저장</button>
@@ -1837,22 +1844,16 @@ function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDele
                 <>
                   <span style={{ flex: 1, fontSize: '13px', fontWeight: 600, color: '#1A1A1A' }}>{t.name}</span>
                   <button onClick={() => { setEditingTeacherId(t.id); setEditingTeacherName(t.name); }} style={{ background: '#E6F1FB', color: '#185FA5', border: 'none', borderRadius: '8px', padding: '5px 10px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>수정</button>
-                  <button onClick={(e) => { 
-                    if (window.__confirmTeacher === t.id) { 
-                      onDeleteTeacher(t.id); window.__confirmTeacher = null; 
-                    } else { 
-                      window.__confirmTeacher = t.id; 
-                      e.target.textContent = '확인 (재클릭)';
-                      e.target.style.background = '#DC2626';
-                      e.target.style.color = '#fff';
-                      setTimeout(() => { 
-                        window.__confirmTeacher = null;
-                        e.target.textContent = '삭제';
-                        e.target.style.background = '#FEF2F2';
-                        e.target.style.color = '#DC2626';
-                      }, 3000); 
-                    } 
-                  }} style={{ background: '#FEF2F2', color: '#DC2626', border: 'none', borderRadius: '8px', padding: '5px 10px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>삭제</button>
+                  <button onClick={() => {
+                    if (confirmingTeacherDelete === t.id) {
+                      onDeleteTeacher(t.id); setConfirmingTeacherDelete(null);
+                    } else {
+                      setConfirmingTeacherDelete(t.id);
+                      setTimeout(() => setConfirmingTeacherDelete(prev => prev === t.id ? null : prev), 3000);
+                    }
+                  }} style={{ background: confirmingTeacherDelete === t.id ? '#DC2626' : '#FEF2F2', color: confirmingTeacherDelete === t.id ? '#fff' : '#DC2626', border: 'none', borderRadius: '8px', padding: '5px 10px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    {confirmingTeacherDelete === t.id ? '확인 (재클릭)' : '삭제'}
+                  </button>
                 </>
               )}
             </div>
@@ -1863,9 +1864,9 @@ function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDele
         <div style={{ borderTop: '1px dashed #E5E7EB', paddingTop: '14px' }}>
           <p style={{ fontSize: '11px', fontWeight: 700, color: '#374151', marginBottom: '10px' }}>새 강사 계정 생성</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <input value={newTeacherName} onChange={e => setNewTeacherName(e.target.value)} placeholder="강사 이름 (예: 영동 선생님)" style={{ padding: '9px 12px', fontSize: '13px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
-            <input value={newTeacherEmail} onChange={e => setNewTeacherEmail(e.target.value)} placeholder="이메일" type="email" style={{ padding: '9px 12px', fontSize: '13px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
-            <input value={newTeacherPassword} onChange={e => setNewTeacherPassword(e.target.value)} placeholder="비밀번호 (6자 이상)" type="password" style={{ padding: '9px 12px', fontSize: '13px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
+            <input value={newTeacherName} onChange={e => setNewTeacherName(e.target.value)} placeholder="강사 이름 (예: 영동 선생님)" style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
+            <input value={newTeacherEmail} onChange={e => setNewTeacherEmail(e.target.value)} placeholder="이메일" type="email" style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
+            <input value={newTeacherPassword} onChange={e => setNewTeacherPassword(e.target.value)} placeholder="비밀번호 (6자 이상)" type="password" style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
             <button onClick={handleCreateTeacherAccount} disabled={accountCreating} style={{ background: accountCreating ? '#E5E7EB' : '#0F6E56', color: '#fff', border: 'none', borderRadius: '10px', padding: '11px', fontSize: '13px', fontWeight: 700, cursor: accountCreating ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
               {accountCreating ? '생성 중...' : '강사 계정 생성'}
             </button>
@@ -2398,7 +2399,7 @@ function GrowthDashboard({ reports, students, onSwitchTab }) {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
               <p style={{ fontSize: '15px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>{s?.name}</p>
               <button onClick={() => { setDrawerOpen(false); setSelId(null); }}
-                style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#98A1AC' }}>×</button>
+                style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#98A1AC', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>×</button>
             </div>
 
             {/* 상태 배지 */}
@@ -2550,7 +2551,7 @@ function StudentProfileModal({ student, reports, onClose, DIAG_MAP }) {
           </div>
           <p style={{ fontFamily: "'Noto Serif KR', serif", fontSize: '22px', fontWeight: 700, color: '#fff', margin: '0 0 4px' }}>{student.name}</p>
           <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.55)', margin: 0 }}>총 {sorted.length}회 수업 누적</p>
-          <button onClick={onClose} style={{ position: 'absolute', top: '16px', right: '18px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: '22px', cursor: 'pointer', lineHeight: 1 }}>×</button>
+          <button onClick={onClose} style={{ position: 'absolute', top: '16px', right: '18px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: '22px', cursor: 'pointer', lineHeight: 1, width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>×</button>
         </div>
 
         <div style={{ padding: '20px 22px' }}>
@@ -2973,7 +2974,7 @@ function DirectorView({ reports, students }) {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
-            style={{ padding: '6px 10px', fontSize: '12px', border: '1px solid rgba(201,162,39,0.5)', borderRadius: '6px', background: 'rgba(255,255,255,0.1)', color: '#C9A227', fontFamily: 'inherit', cursor: 'pointer' }}
+            style={{ padding: '6px 10px', fontSize: '16px', border: '1px solid rgba(201,162,39,0.5)', borderRadius: '6px', background: 'rgba(255,255,255,0.1)', color: '#C9A227', fontFamily: 'inherit', cursor: 'pointer' }}
           />
         </div>
       </div>
@@ -3143,12 +3144,12 @@ function DirectorView({ reports, students }) {
                         onChange={e => setMemos(prev => ({ ...prev, [r.id]: e.target.value }))}
                         placeholder="상담 포인트, 학부모 통화 내용, 학생 컨디션 등 원장님만 보는 메모"
                         rows={2}
-                        style={{ flex: 1, padding: '8px 10px', fontSize: '12px', border: '0.5px solid #E8E6E0', borderRadius: '8px', fontFamily: 'inherit', resize: 'vertical', lineHeight: 1.6 }}
+                        style={{ flex: 1, padding: '8px 10px', fontSize: '16px', border: '0.5px solid #E8E6E0', borderRadius: '8px', fontFamily: 'inherit', resize: 'vertical', lineHeight: 1.6 }}
                       />
                       <button
                         onClick={() => handleMemoSave(r.id, memos[r.id] ?? r.directorMemo ?? '')}
                         disabled={savingMemo === r.id}
-                        style={{ padding: '8px 14px', fontSize: '12px', fontWeight: 700, background: '#0D2D6B', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit', alignSelf: 'flex-start' }}>
+                        style={{ padding: '8px 14px', fontSize: '12px', fontWeight: 700, background: savingMemo === r.id ? '#E5E7EB' : '#0D2D6B', color: savingMemo === r.id ? '#9CA3AF' : '#fff', border: 'none', borderRadius: '8px', cursor: savingMemo === r.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit', alignSelf: 'flex-start' }}>
                         {savingMemo === r.id ? '저장 중' : '저장'}
                       </button>
                     </div>
@@ -3292,7 +3293,7 @@ function AnalysisView({ students, reports }) {
     <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
       <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '16px', letterSpacing: '-0.02em' }}>종합 분석</h2>
       <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: `1px solid #E5E7EB`, marginBottom: '16px' }}>
-        <select value={selectedId} onChange={(e) => setSelectedId(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontSize: '14px', fontWeight: 500, border: `1px solid #E5E7EB`, borderRadius: '10px', background: '#F9FAFB', outline: 'none', fontFamily: 'inherit' }}>
+        <select value={selectedId} onChange={(e) => setSelectedId(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontSize: '16px', fontWeight: 500, border: `1px solid #E5E7EB`, borderRadius: '10px', background: '#F9FAFB', outline: 'none', fontFamily: 'inherit' }}>
           <option value="">학생을 선택하세요</option>
           {students.map(s => <option key={s.id} value={s.id}>{s.name} · {s.school}</option>)}
         </select>
@@ -3315,10 +3316,10 @@ function AnalysisView({ students, reports }) {
             {periodMode === 'custom' && (
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)}
-                  style={{ flex: 1, padding: '8px 10px', fontSize: '12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontFamily: 'inherit' }} />
+                  style={{ flex: 1, padding: '8px 10px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '8px', fontFamily: 'inherit' }} />
                 <span style={{ fontSize: '12px', color: '#9CA3AF' }}>~</span>
                 <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)}
-                  style={{ flex: 1, padding: '8px 10px', fontSize: '12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontFamily: 'inherit' }} />
+                  style={{ flex: 1, padding: '8px 10px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '8px', fontFamily: 'inherit' }} />
               </div>
             )}
           </div>

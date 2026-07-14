@@ -43,7 +43,8 @@ export default function GrowthAward() {
     : null;
   const allAttended = sorted.length > 0 && sorted.every(r => r.attendance === '출석');
   const bestReport = [...sorted].sort((a, b) => (b.conceptRating || 0) - (a.conceptRating || 0))[0];
-  const teacherName = (sorted[sorted.length - 1]?.teacherName || '').replace(/선생님?$/, '').trim() + ' 선생님';
+  const rawTeacherName = sorted[sorted.length - 1]?.teacherName || '';
+  const teacherName = rawTeacherName ? rawTeacherName.replace(/선생님?$/, '').trim() + ' 선생님' : '담당 교사';
 
   // 마일스톤
   const milestones = [];

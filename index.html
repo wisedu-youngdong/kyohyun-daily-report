@@ -2,7 +2,9 @@
 <html lang="ko">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <link rel="icon" type="image/png" href="/kyohyun-logo.png" />
+    <link rel="apple-touch-icon" href="/kyohyun-logo.png" />
 
     <!-- 기본 SEO -->
     <title>교현학원 데일리 리포트</title>
@@ -33,9 +35,11 @@
     <meta name="mobile-web-app-capable" content="yes" />
 
     <!-- 폰트 -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       rel="stylesheet"
-      as="style"
       crossorigin
       href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css"
     />
@@ -46,13 +50,17 @@
 
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
+      html { -webkit-tap-highlight-color: transparent; }
       body {
         font-family: 'Pretendard Variable', Pretendard, -apple-system, sans-serif;
         background: #F9FAFB;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
+        overscroll-behavior-y: none;
       }
-      button { cursor: pointer; }
+      button { cursor: pointer; font: inherit; border: none; background: none; }
+      button:active { transform: scale(0.97); opacity: 0.85; }
+      img { max-width: 100%; display: block; }
       input, textarea, select { font-family: inherit; }
       /* iOS 입력창 줌 방지 */
       input[type="text"], input[type="email"], input[type="number"], textarea, select {
