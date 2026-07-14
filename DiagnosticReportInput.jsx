@@ -54,11 +54,14 @@ async function compressImage(file) {
       processFile = new File([blob], file.name.replace(/\.heic$/i, '.jpg'), { type: 'image/jpeg' });
     }
 
-    // AI용 압축(1024px) + 썸네일(canvas) 병렬 처리 → imageCompression 1회로 줄여 속도 2배
+    // AI용 압축(1200px, 0.5MB) + 썸네일(canvas) 병렬 처리
     const [aiFile, thumbDataUrl] = await Promise.all([
       imageCompression(processFile, {
-        maxSizeMB: 1, maxWidthOrHeight: 1024,
-        fileType: 'image/jpeg', useWebWorker: false, initialQuality: 0.85,
+        maxSizeMB: 0.5,
+        maxWidthOrHeight: 1200,
+        fileType: 'image/jpeg',
+        useWebWorker: false,
+        initialQuality: 0.82,
       }),
       makeThumbnail(processFile, 300),
     ]);
