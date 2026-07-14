@@ -1098,7 +1098,7 @@ export default function DiagnosticReportInput({
                                 { key: 'unread', label: '문제 안 읽음', bg: '#FFF8EC', color: '#8A5A00', border: '#C9A22740' },
                               ];
                               return (
-                                <div key={idx} style={{ border: '1px solid #DC262630', borderRadius: '10px', padding: '10px', marginBottom: '8px', background: '#FFF5F5' }}>
+                                <div key={item.number || idx} style={{ border: '1px solid #DC262630', borderRadius: '10px', padding: '10px', marginBottom: '8px', background: '#FFF5F5' }}>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
                                     <span style={{ background: '#DC2626', color: '#fff', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '6px' }}>
                                       {item.number}번 오답
@@ -1115,7 +1115,7 @@ export default function DiagnosticReportInput({
                                       const active = item.tags.includes(tag.key);
                                       return (
                                         <button type="button" key={tag.key}
-                                          onClick={() => setWrongItems(prev => prev.map((w, i) => i === idx ? {
+                                          onClick={() => setWrongItems(prev => prev.map((w) => w.number === item.number ? {
                                             ...w,
                                             tags: active ? w.tags.filter(t => t !== tag.key) : [...w.tags, tag.key]
                                           } : w))}
@@ -1135,7 +1135,7 @@ export default function DiagnosticReportInput({
                                   </div>
                                   <input
                                     value={item.memo}
-                                    onChange={e => setWrongItems(prev => prev.map((w, i) => i === idx ? { ...w, memo: e.target.value } : w))}
+                                    onChange={e => setWrongItems(prev => prev.map((w) => w.number === item.number ? { ...w, memo: e.target.value } : w))}
                                     placeholder="직접 입력 (선택) — 답 잘못 씀, 문제 안 읽음 등"
                                     style={{ width: '100%', padding: '6px 10px', fontSize: '11px', border: `1px solid ${TOKENS.border}`, borderRadius: '8px', fontFamily: 'inherit', outline: 'none', background: '#fff', boxSizing: 'border-box', color: TOKENS.text }}
                                   />
