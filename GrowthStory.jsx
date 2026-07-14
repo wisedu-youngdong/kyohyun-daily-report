@@ -323,13 +323,13 @@ export default function GrowthStory() {
   };
 
   if (loading) return (
-    <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Pretendard Variable', Pretendard, -apple-system, sans-serif", color: '#0D2D6B', fontSize: '14px', fontWeight: 600 }}>
+    <div style={{ height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Pretendard Variable', Pretendard, -apple-system, sans-serif", color: '#0D2D6B', fontSize: '14px', fontWeight: 600 }}>
       성장 기록을 불러오는 중...
     </div>
   );
 
   if (!student) return (
-    <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Pretendard Variable', Pretendard, -apple-system, sans-serif", color: '#8A8A8A', fontSize: '14px' }}>
+    <div style={{ height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Pretendard Variable', Pretendard, -apple-system, sans-serif", color: '#8A8A8A', fontSize: '14px' }}>
       학생 정보를 찾을 수 없습니다.
     </div>
   );
@@ -338,7 +338,8 @@ export default function GrowthStory() {
   const teacherDisplay = teacherName ? teacherName.replace(/선생님?$/, '').trim() + ' 선생님' : '담당 교사';
 
   const S = {
-    wrap: { maxWidth: '420px', margin: '0 auto', fontFamily: "'Noto Sans KR', 'Pretendard Variable', Pretendard, sans-serif", background: '#F5F5F0', minHeight: '100vh' },
+    wrap: { background: '#F5F5F0', minHeight: '100dvh', padding: '24px 16px', display: 'flex', justifyContent: 'center', fontFamily: "'Noto Sans KR', 'Pretendard Variable', Pretendard, sans-serif" },
+    card: { width: '100%', maxWidth: '420px', background: '#fff', borderRadius: '4px', overflow: 'hidden', boxShadow: '0 2px 20px rgba(0,0,0,0.10)' },
     header: { background: '#0D2D6B', padding: '32px 24px 28px', position: 'relative', overflow: 'hidden' },
     section: { background: '#fff', padding: '22px', borderBottom: '1px solid #EEECEA' },
     label: { fontSize: '10px', fontWeight: 700, color: '#0D2D6B', letterSpacing: '0.14em', marginBottom: '16px' },
@@ -347,6 +348,7 @@ export default function GrowthStory() {
   return (
     <div style={S.wrap}>
       <style>{FONT_STYLE}</style>
+      <div style={S.card}>
 
       {/* 헤더 */}
       <div style={S.header}>
@@ -508,7 +510,7 @@ export default function GrowthStory() {
                 </p>
                 {u.scores.map((s, si) => {
                   const isMax = s.score === Math.max(...u.scores.map(x => x.score));
-                  const pct = Math.round((s.score / 100) * 100);
+                  const pct = Math.min(100, Math.round((s.score / 100) * 100));
                   const barColor = pct < 60 ? '#C0C0C0' : pct < 75 ? '#7BA4D4' : isMax ? 'linear-gradient(90deg, #0D2D6B, #C9A227)' : '#0D2D6B';
                   const prev = si > 0 ? u.scores[si - 1].score : null;
                   const delta = prev !== null ? s.score - prev : null;
@@ -518,7 +520,7 @@ export default function GrowthStory() {
                       <div style={{ flex: 1, height: '6px', background: '#F3F4F6', borderRadius: '6px', overflow: 'hidden' }}>
                         <div style={{ height: '100%', width: `${pct}%`, borderRadius: '6px', background: barColor }} />
                       </div>
-                      <span style={{ fontSize: '12px', fontWeight: 700, color: isMax ? '#0D2D6B' : '#2C2C2C', width: '36px', textAlign: 'right', flexShrink: 0 }}>{s.score}점</span>
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: isMax ? '#0D2D6B' : '#2C2C2C', width: '42px', textAlign: 'right', flexShrink: 0 }}>{s.score}점</span>
                       <span style={{ fontSize: '10px', fontWeight: 600, width: '36px', flexShrink: 0, color: delta > 0 ? '#0F6E56' : delta < 0 ? '#A32D2D' : '#B0B0B0', display: 'flex', alignItems: 'center', gap: '3px' }}>
                         {delta === null ? '—' : delta > 0 ? `+${delta}` : `${delta}`}
                         {isMax && <span style={{ fontSize: '9px', background: '#C9A227', color: '#fff', padding: '2px 5px', borderRadius: '3px', lineHeight: 1, display: 'inline-flex', alignItems: 'center' }}>최고</span>}
@@ -653,6 +655,7 @@ export default function GrowthStory() {
         <span style={{ fontSize: '10px', color: '#8A8A8A' }}>{new Date().getFullYear()}년 {new Date().getMonth() + 1}월</span>
       </div>
 
+      </div>
     </div>
   );
 }

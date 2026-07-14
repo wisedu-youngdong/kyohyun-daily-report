@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { db } from './firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
+import { useMediaQuery } from './hooks.js';
 
 export default function GrowthAward() {
   const { studentId } = useParams();
+  const isNarrow = !useMediaQuery('(min-width: 600px)');
   const [student, setStudent] = useState(null);
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -59,23 +61,23 @@ export default function GrowthAward() {
     : '';
 
   if (loading) return (
-    <div style={{ height: '100vh', background: '#060E1F', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#C9A227', fontSize: '14px', fontFamily: "'Pretendard Variable', Pretendard, -apple-system, sans-serif" }}>
+    <div style={{ height: '100dvh', background: '#060E1F', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#C9A227', fontSize: '14px', fontFamily: "'Pretendard Variable', Pretendard, -apple-system, sans-serif" }}>
       성장 기록 불러오는 중...
     </div>
   );
 
   if (!student) return (
-    <div style={{ height: '100vh', background: '#060E1F', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8A8A8A', fontSize: '14px' }}>
+    <div style={{ height: '100dvh', background: '#060E1F', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8A8A8A', fontSize: '14px' }}>
       학생 정보를 찾을 수 없습니다.
     </div>
   );
 
   return (
     <div style={{
-      minHeight: '100vh', background: '#060E1F',
+      minHeight: '100dvh', background: '#060E1F',
       fontFamily: "'Pretendard Variable', Pretendard, -apple-system, sans-serif",
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: '40px 32px', position: 'relative', overflow: 'hidden'
+      padding: 'clamp(20px, 6vw, 40px) clamp(16px, 5vw, 32px)', position: 'relative', overflow: 'hidden'
     }}>
       {/* 배경 글로우 */}
       <div style={{ position: 'fixed', top: '-100px', left: '-100px', width: '400px', height: '400px', background: 'radial-gradient(circle, rgba(13,45,107,0.4) 0%, transparent 70%)', borderRadius: '50%', pointerEvents: 'none' }} />
@@ -97,12 +99,19 @@ export default function GrowthAward() {
         </div>
 
         {/* 마일스톤 타임라인 */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '48px' }}>
+        <div style={isNarrow
+          ? { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '4px', marginBottom: '48px', paddingLeft: '8px' }
+          : { display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '48px' }
+        }>
           {milestones.map((m, i) => (
             <React.Fragment key={i}>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <div style={isNarrow
+                ? { display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '14px' }
+                : { display: 'flex', flexDirection: 'column', alignItems: 'center' }
+              }>
                 <div style={{
                   width: 'clamp(52px, 6vw, 68px)', height: 'clamp(52px, 6vw, 68px)',
+                  flexShrink: 0,
                   borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: 'clamp(10px, 1.4vw, 13px)', fontWeight: 700,
                   background: m.active ? 'linear-gradient(135deg, #C9A227, #E8C547)' : m.done ? 'rgba(13,45,107,0.6)' : 'transparent',
@@ -114,17 +123,21 @@ export default function GrowthAward() {
                     ? <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 10l4 4 8-8" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                     : m.label}
                 </div>
-                <p style={{ fontSize: 'clamp(9px, 1.2vw, 12px)', color: m.active ? '#C9A227' : 'rgba(255,255,255,0.3)', marginTop: '8px', fontWeight: m.active ? 700 : 400, textAlign: 'center' }}>{m.date}</p>
+                <p style={{ fontSize: 'clamp(9px, 1.2vw, 12px)', color: m.active ? '#C9A227' : 'rgba(255,255,255,0.3)', marginTop: isNarrow ? 0 : '8px', fontWeight: m.active ? 700 : 400, textAlign: isNarrow ? 'left' : 'center' }}>
+                  {isNarrow ? `${m.label} · ${m.date}` : m.date}
+                </p>
               </div>
               {i < milestones.length - 1 && (
-                <div style={{ flex: 1, height: '2px', minWidth: '20px', maxWidth: '80px', background: m.done ? 'linear-gradient(90deg, rgba(13,45,107,0.8), rgba(201,162,39,0.4))' : 'rgba(255,255,255,0.06)', margin: '0 4px', marginBottom: '28px' }} />
+                isNarrow
+                  ? <div style={{ width: '2px', height: '20px', marginLeft: 'clamp(26px, 3vw, 34px)', background: m.done ? 'linear-gradient(180deg, rgba(13,45,107,0.8), rgba(201,162,39,0.4))' : 'rgba(255,255,255,0.06)' }} />
+                  : <div style={{ flex: 1, height: '2px', minWidth: '20px', maxWidth: '80px', background: m.done ? 'linear-gradient(90deg, rgba(13,45,107,0.8), rgba(201,162,39,0.4))' : 'rgba(255,255,255,0.06)', margin: '0 4px', marginBottom: '28px' }} />
               )}
             </React.Fragment>
           ))}
         </div>
 
         {/* 수치 그리드 */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '48px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '16px', marginBottom: '48px' }}>
           {[
             { label: '최고 단원평가', value: maxScore ? `${maxScore}점` : '—', note: '100점 만점' },
             { label: '과제 수행 평균', value: hwAvg ? `${hwAvg}점` : '—', note: '5점 만점' },

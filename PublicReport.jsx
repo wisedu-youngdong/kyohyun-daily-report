@@ -85,12 +85,12 @@ export default function PublicReport() {
   }, [reportId]);
 
   if (loading) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F5F5F0', fontFamily: 'Pretendard, sans-serif' }}>
+    <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F5F5F0', fontFamily: 'Pretendard, sans-serif' }}>
       <p style={{ color: '#6B7280', fontSize: '14px' }}>리포트를 불러오는 중...</p>
     </div>
   );
   if (error) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F5F5F0' }}>
+    <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F5F5F0' }}>
       <p style={{ color: '#4B5563', fontSize: '15px' }}>{error}</p>
     </div>
   );
@@ -119,7 +119,7 @@ export default function PublicReport() {
   const body = "'Pretendard Variable', Pretendard, sans-serif";
 
   return (
-    <div style={{ background: '#F5F5F0', minHeight: '100vh', padding: '24px 16px', display: 'flex', justifyContent: 'center', fontFamily: body }}>
+    <div style={{ background: '#F5F5F0', minHeight: '100dvh', padding: '24px 16px', display: 'flex', justifyContent: 'center', fontFamily: body }}>
       <div style={{ width: '100%', maxWidth: '390px' }}>
         <div style={{ background: '#fff', borderRadius: '4px', overflow: 'hidden', boxShadow: '0 2px 20px rgba(0,0,0,0.10)' }}>
 
@@ -187,8 +187,8 @@ export default function PublicReport() {
               <>
                 <div style={{ marginBottom: '18px' }}>
                   <p style={{ fontSize: '10px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 8px' }}>TEST RESULT</p>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap' }}>
                       <p style={{ fontSize: '28px', fontWeight: 800, color: navy, margin: 0, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{r.testScore}<span style={{ fontSize: '13px', fontWeight: 600, color: inkMute, marginLeft: '2px' }}>점</span></p>
                       <p style={{ fontSize: '12px', color: inkSub, margin: 0 }}>{r.testName}</p>
                     </div>

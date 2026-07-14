@@ -10,6 +10,7 @@ const getHeic2any = async () => {
   return heic2anyLib;
 };
 import React, { useState, useMemo, useEffect } from 'react';
+import { useMediaQuery } from './hooks.js';
 import {
   User, Clock, Target, MessageCircle, ArrowRight,
   FileText, Sparkles, Send, Plus, X, Check,
@@ -213,6 +214,7 @@ export default function DiagnosticReportInput({
   editingReport = null,
   onEditDone = () => {},
 }) {
+  const isWide = useMediaQuery('(min-width: 901px)');
   const [showStudentModal, setShowStudentModal] = useState(false);
   const [showTeacherPanel, setShowTeacherPanel] = useState(false);
   const [selectedSkin, setSelectedSkin] = useState('navy');
@@ -679,7 +681,7 @@ export default function DiagnosticReportInput({
       fontFamily: "'Pretendard Variable', Pretendard, -apple-system, sans-serif",
       letterSpacing: '-0.02em',
       background: TOKENS.bgSoft,
-      minHeight: '100vh',
+      minHeight: '100dvh',
       padding: '20px',
       color: TOKENS.text,
     }}>
@@ -688,10 +690,11 @@ export default function DiagnosticReportInput({
         <div style={{
           maxWidth: '1100px', margin: '0 auto 16px',
           background: '#FFF8E7', border: '1.5px solid #F5A623', borderRadius: '10px',
-          padding: '12px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+          padding: '12px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          flexWrap: 'wrap', gap: '10px'
         }}>
-          <div>
-            <p style={{ fontSize: '12px', fontWeight: 800, color: '#7A5200', margin: 0 }}>
+          <div style={{ minWidth: 0 }}>
+            <p style={{ fontSize: '12px', fontWeight: 800, color: '#7A5200', margin: 0, wordBreak: 'keep-all' }}>
               수정 모드 — {editingReport.studentName} 리포트를 수정 중입니다
             </p>
             <p style={{ fontSize: '11px', color: '#9A6800', margin: '2px 0 0' }}>
@@ -699,7 +702,7 @@ export default function DiagnosticReportInput({
             </p>
           </div>
           <button onClick={() => { onEditDone(); setStudentId(''); }}
-            style={{ background: 'none', border: '1px solid #F5A623', borderRadius: '6px', padding: '5px 12px', fontSize: '11px', fontWeight: 700, color: '#7A5200', cursor: 'pointer' }}>
+            style={{ background: 'none', border: '1px solid #F5A623', borderRadius: '6px', padding: '5px 12px', fontSize: '11px', fontWeight: 700, color: '#7A5200', cursor: 'pointer', flexShrink: 0 }}>
             취소
           </button>
         </div>
@@ -707,7 +710,7 @@ export default function DiagnosticReportInput({
       <div style={{
         maxWidth: '1100px', margin: '0 auto',
         display: 'grid',
-        gridTemplateColumns: window.innerWidth > 900 ? '1fr 360px' : '1fr',
+        gridTemplateColumns: isWide ? '1fr 360px' : '1fr',
         gap: '20px', alignItems: 'flex-start',
       }}>
         {/* 좌측 입력 폼 */}
@@ -953,7 +956,7 @@ export default function DiagnosticReportInput({
                 )}
                 {photos.length > 0 && (
                   <div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '10px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))', gap: '8px', marginBottom: '10px' }}>
                       {photos.map((p, i) => (
                         <div key={i} style={{ position: 'relative', borderRadius: '10px', overflow: 'hidden', aspectRatio: '3/4', background: '#F3F4F6' }}>
                           <img
@@ -1115,7 +1118,7 @@ export default function DiagnosticReportInput({
                                     <span style={{ background: '#DC2626', color: '#fff', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '6px' }}>
                                       {item.number}번 오답
                                     </span>
-                                    <span style={{ fontSize: '11px', color: TOKENS.textSub }}>{item.type}</span>
+                                    <span style={{ fontSize: '11px', color: TOKENS.textSub, flex: '1 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.type}</span>
                                     {item.correctRate && (
                                       <span style={{ fontSize: '10px', color: '#DC2626', fontWeight: 600, marginLeft: 'auto' }}>
                                         정답률 {item.correctRate}
@@ -1355,7 +1358,10 @@ export default function DiagnosticReportInput({
         </div>
 
         {/* 우측 미리보기 */}
-        <div style={{ position: 'sticky', top: '20px' }}>
+        <div style={isWide
+          ? { position: 'sticky', top: '20px', maxHeight: 'calc(100vh - 40px)', overflowY: 'auto' }
+          : { position: 'static' }
+        }>
           <p style={{ fontSize: '11px', color: TOKENS.textMute, fontWeight: 700, marginBottom: '8px' }}>학부모 발송 미리보기</p>
 
           {/* 스킨 표시 — 학생 개별 스킨 or 선택 스킨 */}
@@ -1917,7 +1923,14 @@ const inputStyle = {
   fontFamily: "'Pretendard Variable', Pretendard, sans-serif",
   fontWeight: 500, color: '#1A1A1A', letterSpacing: '-0.02em', boxSizing: 'border-box',
 };
-const selectStyle = { ...inputStyle, cursor: 'pointer', appearance: 'none' };
+const selectStyle = {
+  ...inputStyle, cursor: 'pointer', appearance: 'none',
+  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236B7280' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+  backgroundRepeat: 'no-repeat',
+  backgroundPosition: 'right 12px center',
+  backgroundSize: '10px 6px',
+  paddingRight: '32px',
+};
 const chipStyle = (active) => ({
   padding: '6px 12px', fontSize: '12px', fontWeight: active ? 700 : 500,
   borderRadius: '9px', border: `1px solid ${active ? '#185FA5' : '#E5E7EB'}`,

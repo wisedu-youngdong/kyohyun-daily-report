@@ -15,6 +15,7 @@ import {
   LayoutDashboard, Users, FileText, History, BarChart2, LogOut
 } from 'lucide-react';
 import { calculateTotalPoints, getStageInfo, calculateReportPoints, STAGES } from './growth.js';
+import { useMediaQuery } from './hooks.js';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LabelList
 } from 'recharts';
@@ -105,7 +106,7 @@ function LoginScreen() {
 
   return (
     <div style={{
-      minHeight: '100vh', background: T.bgSoft,
+      minHeight: '100dvh', background: T.bgSoft,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       fontFamily: "'Pretendard Variable', Pretendard, sans-serif",
       padding: '20px',
@@ -392,7 +393,7 @@ export default function App() {
   };
 
   if (authLoading) return (
-    <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Pretendard Variable', Pretendard, sans-serif", color: T.brand, fontSize: '14px', fontWeight: 600 }}>
+    <div style={{ height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Pretendard Variable', Pretendard, sans-serif", color: T.brand, fontSize: '14px', fontWeight: 600 }}>
       교현학원 연결 중...
     </div>
   );
@@ -434,19 +435,19 @@ export default function App() {
   );
 
   return (
-    <div style={{ minHeight: '100vh', background: T.bgSoft, paddingBottom: '80px' }}>
+    <div style={{ minHeight: '100dvh', background: T.bgSoft, paddingBottom: 'calc(80px + env(safe-area-inset-bottom))' }}>
       <header style={{ background: T.bg, borderBottom: `1px solid ${T.border}`, padding: '14px 20px', display: 'flex', alignItems: 'center', gap: '10px', position: 'sticky', top: 0, zIndex: 100 }}>
         <div style={{ width: '28px', height: '28px', background: T.brand, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <span style={{ color: '#fff', fontSize: '13px', fontWeight: 700 }}>K</span>
         </div>
-        <h1 style={{ fontSize: '16px', fontWeight: 700, color: T.text, letterSpacing: '-0.02em' }}>교현학원 데일리 리포트</h1>
-        <span style={{ marginLeft: 'auto', fontSize: '10px', color: T.textMute, fontWeight: 500, background: T.bgSoft, padding: '3px 8px', borderRadius: '6px', border: `1px solid ${T.border}` }}>
+        <h1 style={{ fontSize: '16px', fontWeight: 700, color: T.text, letterSpacing: '-0.02em', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>교현학원 데일리 리포트</h1>
+        <span style={{ marginLeft: 'auto', fontSize: '10px', color: T.textMute, fontWeight: 500, background: T.bgSoft, padding: '3px 8px', borderRadius: '6px', border: `1px solid ${T.border}`, flexShrink: 0 }}>
           {new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
         </span>
 
 
 
-        <span style={{ fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '6px', background: isDirector ? '#EAF0F9' : '#E1F5EE', color: isDirector ? '#0D2D6B' : '#0F6E56' }}>
+        <span style={{ fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '6px', background: isDirector ? '#EAF0F9' : '#E1F5EE', color: isDirector ? '#0D2D6B' : '#0F6E56', flexShrink: 0 }}>
           {isDirector ? '원장' : (teachers.find(t => t.id === userTeacherId)?.name || '강사')}
         </span>
         <button onClick={() => signOut(auth)} style={{ background: 'none', border: 'none', color: T.textMute, cursor: 'pointer', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, WebkitTapHighlightColor: 'transparent' }} title="로그아웃">
@@ -457,7 +458,7 @@ export default function App() {
       {/* 앱 레벨 토스트 */}
       {appToast && (
         <div style={{
-          position: 'fixed', bottom: '80px', left: '50%', transform: 'translateX(-50%)',
+          position: 'fixed', bottom: 'calc(80px + env(safe-area-inset-bottom))', left: '50%', transform: 'translateX(-50%)',
           background: appToast.type === 'success' ? '#0F6E56' : '#0D2D6B',
           color: '#fff', padding: '10px 20px', borderRadius: '20px',
           fontSize: '13px', fontWeight: 600, zIndex: 9999,
@@ -562,7 +563,7 @@ export default function App() {
         )}
       </main>
 
-      <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: T.bg, borderTop: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', padding: '6px 0 8px', zIndex: 100, boxShadow: '0 -4px 20px rgba(0,0,0,0.04)' }}>
+      <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: T.bg, borderTop: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', padding: 'calc(6px) 0 calc(8px + env(safe-area-inset-bottom))', zIndex: 100, boxShadow: '0 -4px 20px rgba(0,0,0,0.04)' }}>
         {tabs.map(tab => {
           const active = activeTab === tab.key;
           return (
@@ -1064,7 +1065,7 @@ function HistoryView({ reports, students, reportViews = [], onDelete, onEdit }) 
   };
 
   // PC: 스플릿 뷰 / 모바일: 카드 리스트
-  const isMobile = window.innerWidth < 768;
+  const isMobile = !useMediaQuery('(min-width: 768px)');
 
   if (isMobile) {
     return (
@@ -1196,7 +1197,7 @@ function HistoryView({ reports, students, reportViews = [], onDelete, onEdit }) 
   // PC: 스플릿 뷰
   return (
     <>
-    <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', height: 'calc(100vh - 120px)', overflow: 'hidden' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', height: 'calc(100dvh - 120px)', overflow: 'hidden' }}>
 
       {/* 좌측 목록 */}
       <div style={{ borderRight: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -2046,6 +2047,7 @@ function InsightCard({ reports }) {
 // 성장 대시보드 — 전체 학생 개념이해도 추이
 // ============================================================
 function GrowthDashboard({ reports, students, onSwitchTab }) {
+  const isMobile = !useMediaQuery('(min-width: 768px)');
   const [period, setPeriod] = React.useState('week');
   const [sortMode, setSortMode] = React.useState('decline');
   const [selId, setSelId] = React.useState(null);
@@ -2162,7 +2164,7 @@ function GrowthDashboard({ reports, students, onSwitchTab }) {
 
       {/* TOP 위젯 + 기간 필터 */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px', marginBottom: '12px', flexWrap: 'wrap' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '8px', flex: 1, minWidth: '280px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '8px', flex: 1, minWidth: '280px' }}>
           {[
             { label: '🚨 관심 필요', value: `${atRisk}명`, sub: `주의 ${caution}명 포함`, c: '#A32D2D', bg: '#FCEBEB', bd: '#A32D2D' },
             { label: '전체 평균', value: `${overallAvg}점`, sub: periodLabel, c: '#0D2D6B', bg: '#fff', bd: '#E8E6E0' },
@@ -2279,8 +2281,8 @@ function GrowthDashboard({ reports, students, onSwitchTab }) {
 
       {/* 학생 리스트 */}
       <div style={{ background: '#fff', border: '0.5px solid #E8E6E0', borderRadius: '12px', overflow: 'hidden' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 65px 80px 70px 55px', padding: '8px 14px', borderBottom: '0.5px solid #E8E6E0', background: '#FAFAFA' }}>
-          {['학생', '현재', '변화량', '추이', '상태'].map((h, i) => (
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 50px 60px 55px' : '1fr 65px 80px 70px 55px', padding: '8px 14px', borderBottom: '0.5px solid #E8E6E0', background: '#FAFAFA' }}>
+          {(isMobile ? ['학생', '현재', '변화량', '상태'] : ['학생', '현재', '변화량', '추이', '상태']).map((h, i) => (
             <p key={i} style={{ fontSize: '10px', color: '#98A1AC', margin: 0, textAlign: i === 0 ? 'left' : 'center', letterSpacing: '0.06em' }}>{h}</p>
           ))}
         </div>
@@ -2314,7 +2316,7 @@ function GrowthDashboard({ reports, students, onSwitchTab }) {
             <div key={s.id}
               onClick={() => { setSelId(isSel ? null : s.id); setDrawerOpen(!isSel); }}
               style={{
-                display: 'grid', gridTemplateColumns: '1fr 65px 80px 70px 55px',
+                display: 'grid', gridTemplateColumns: isMobile ? '1fr 50px 60px 55px' : '1fr 65px 80px 70px 55px',
                 padding: '10px 14px', borderBottom: '0.5px solid #F3F4F6', cursor: 'pointer',
                 background: isSel ? '#EAF0F9' : '#fff', transition: 'background 0.12s',
               }}
@@ -2332,20 +2334,22 @@ function GrowthDashboard({ reports, students, onSwitchTab }) {
               <div style={{ textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <span style={{ fontSize: '13px', fontWeight: 700, color: trendColor }}>{trendStr}</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {rs.length >= 2 ? (
-                  <svg viewBox={`0 0 ${sparkW} ${sparkH}`} width={sparkW} height={sparkH} style={{ overflow: 'visible' }}>
-                    <path d={sparkPath} fill="none" stroke={status.color} strokeWidth="1.8"
-                      strokeLinejoin="round" strokeLinecap="round" />
-                    {sparkPts.length > 0 && (
-                      <circle cx={sparkPts[sparkPts.length-1][0]} cy={sparkPts[sparkPts.length-1][1]}
-                        r="2.5" fill={status.color} />
-                    )}
-                  </svg>
-                ) : (
-                  <span style={{ fontSize: '10px', color: '#98A1AC' }}>데이터 없음</span>
-                )}
-              </div>
+              {!isMobile && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {rs.length >= 2 ? (
+                    <svg viewBox={`0 0 ${sparkW} ${sparkH}`} width={sparkW} height={sparkH} style={{ overflow: 'visible' }}>
+                      <path d={sparkPath} fill="none" stroke={status.color} strokeWidth="1.8"
+                        strokeLinejoin="round" strokeLinecap="round" />
+                      {sparkPts.length > 0 && (
+                        <circle cx={sparkPts[sparkPts.length-1][0]} cy={sparkPts[sparkPts.length-1][1]}
+                          r="2.5" fill={status.color} />
+                      )}
+                    </svg>
+                  ) : (
+                    <span style={{ fontSize: '10px', color: '#98A1AC' }}>데이터 없음</span>
+                  )}
+                </div>
+              )}
               <div style={{ textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <span style={{ fontSize: '11px', fontWeight: 700, color: status.color, background: status.bg, padding: '3px 8px', borderRadius: '20px', border: `1px solid ${status.border}` }}>
                   {status.label}
@@ -2388,14 +2392,29 @@ function GrowthDashboard({ reports, students, onSwitchTab }) {
           }
         };
 
+        const closeDrawer = () => { setDrawerOpen(false); setSelId(null); };
+
         return (
-          <div style={{
-            position: 'fixed', top: 0, right: 0, bottom: 0, width: '290px',
-            background: '#fff', borderLeft: '0.5px solid #E8E6E0',
-            padding: '18px', overflowY: 'auto', zIndex: 200,
-            fontFamily: "'Pretendard Variable', Pretendard, sans-serif",
-            boxShadow: '-4px 0 20px rgba(0,0,0,0.08)',
-          }}>
+          <>
+            <div onClick={closeDrawer} style={{
+              position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 199,
+            }} />
+            <div style={isMobile
+              ? {
+                  position: 'fixed', left: 0, right: 0, bottom: 0, maxHeight: '85vh', width: '100%',
+                  background: '#fff', borderTopLeftRadius: '16px', borderTopRightRadius: '16px',
+                  padding: '18px', paddingBottom: 'calc(18px + env(safe-area-inset-bottom))', overflowY: 'auto', zIndex: 200,
+                  fontFamily: "'Pretendard Variable', Pretendard, sans-serif",
+                  boxShadow: '0 -4px 20px rgba(0,0,0,0.12)',
+                }
+              : {
+                  position: 'fixed', top: 0, right: 0, bottom: 0, width: '290px',
+                  background: '#fff', borderLeft: '0.5px solid #E8E6E0',
+                  padding: '18px', overflowY: 'auto', zIndex: 200,
+                  fontFamily: "'Pretendard Variable', Pretendard, sans-serif",
+                  boxShadow: '-4px 0 20px rgba(0,0,0,0.08)',
+                }
+            }>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
               <p style={{ fontSize: '15px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>{s?.name}</p>
               <button onClick={() => { setDrawerOpen(false); setSelId(null); }}
@@ -2478,6 +2497,7 @@ function GrowthDashboard({ reports, students, onSwitchTab }) {
               }}>📈 성장 스토리 열기</button>
             </div>
           </div>
+          </>
         );
       })()}
 
@@ -2982,7 +3002,7 @@ function DirectorView({ reports, students }) {
       <p style={{ fontSize: '13px', fontWeight: 600, color: '#5A6472', margin: '0 0 12px' }}>{fmtDate(selectedDate)}</p>
 
       {/* 핵심 지표 */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '8px', marginBottom: '14px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '8px', marginBottom: '14px' }}>
         {[
           { label: '총 수업', value: `${todayReports.length}회`, color: '#0D2D6B' },
           { label: '정시 출석', value: `${totalOnTime}명`, color: '#0F6E56' },
