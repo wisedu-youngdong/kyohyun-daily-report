@@ -508,29 +508,101 @@ export default function DiagnosticReportInput({
 
   // Gemini Vision 분석 요청 (mode: 'auto'|'calculation'|'concept'|'mock_exam' — 재지정 시 override로 재호출)
   // 여러 장을 한 번에 보내 페이지 간 연산 집계를 누적한다.
+  // Canvas로 이미지 영역 크롭
+  const cropImageRegion = (base64, mimeType, region, imgW, imgH) => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const sx = Math.floor((region.x / 100) * imgW);
+        const sy = Math.floor((region.y / 100) * imgH);
+        const sw = Math.floor((region.w / 100) * imgW);
+        const sh = Math.floor((region.h / 100) * imgH);
+        const canvas = document.createElement('canvas');
+        // 2배 확대로 해상도 향상
+        canvas.width = sw * 2;
+        canvas.height = sh * 2;
+        const ctx = canvas.getContext('2d');
+        ctx.scale(2, 2);
+        ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+        resolve({ base64: dataUrl.split(',')[1], mimeType: 'image/jpeg', number: region.number });
+      };
+      img.onerror = () => resolve(null);
+      img.src = `data:${mimeType};base64,${base64}`;
+    });
+  };
+
+  // 이미지 크기 가져오기
+  const getImageSize = (base64, mimeType) => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve({ w: img.width, h: img.height });
+      img.onerror = () => resolve({ w: 1000, h: 1400 });
+      img.src = `data:${mimeType};base64,${base64}`;
+    });
+  };
+
   const handleAnalyzePhoto = async (modeOverride) => {
     if (photos.length === 0) return;
     setAnalyzingPhoto(true);
     setPhotoError('');
     try {
       const images = photos.map(p => ({ imageBase64: p.base64, mimeType: p.mimeType || 'image/jpeg' }));
+
+      // 1단계: 문항 위치 추출 (첫 번째 이미지 기준)
+      showToast('문항 위치 파악 중...', 'info');
+      let croppedImages = images; // 폴백: 크롭 실패 시 원본 사용
+
+      try {
+        const regionRes = await fetch('/api/extract-regions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ images: images.slice(0, 1) }), // 첫 페이지만 좌표 추출
+        });
+        const regionData = await regionRes.json();
+
+        if (regionData.regions?.length > 0) {
+          showToast(`${regionData.regions.length}개 문항 감지, 크롭 중...`, 'info');
+
+          // 2단계: 각 문항 크롭
+          const firstImg = images[0];
+          const size = await getImageSize(firstImg.imageBase64, firstImg.mimeType);
+          const crops = await Promise.all(
+            regionData.regions.map(region => cropImageRegion(firstImg.imageBase64, firstImg.mimeType, region, size.w, size.h))
+          );
+          const validCrops = crops.filter(Boolean);
+
+          if (validCrops.length > 0) {
+            // 크롭 이미지들 + 나머지 페이지 원본
+            croppedImages = [
+              ...validCrops,
+              ...images.slice(1), // 2페이지 이후는 원본
+            ];
+            showToast(`${validCrops.length}개 문항 크롭 완료, AI 분석 중...`, 'info');
+          }
+        }
+      } catch (cropErr) {
+        console.warn('크롭 실패, 원본으로 분석:', cropErr);
+      }
+
+      // 3단계: 채점 분석
       const response = await fetch('/api/analyze-photo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ images, hintTextbook: textbook, hintUnit: unit, hintSubject: subject, mode: modeOverride || 'auto' }),
+        body: JSON.stringify({
+          images: croppedImages,
+          hintTextbook: textbook, hintUnit: unit, hintSubject: subject,
+          mode: modeOverride || 'auto',
+          isCropped: croppedImages !== images, // 크롭 여부 전달
+        }),
       });
       const data = await response.json();
       if (data.error) {
         setPhotoError(data.error);
       } else {
         setPhotoAnalysis(data);
-        // 오답 문제별 태그+메모 초기화
         if (data.wrongItems?.length > 0) {
-          setWrongItems(data.wrongItems.map(item => ({
-            ...item,
-            tags: [],
-            memo: '',
-          })));
+          setWrongItems(data.wrongItems.map(item => ({ ...item, tags: [], memo: '' })));
         } else {
           setWrongItems([]);
         }
