@@ -803,9 +803,9 @@ export default function DiagnosticReportInput({
                   ))}
                 </div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <Clock size={13} style={{ color: TOKENS.textMute }} />
+                  <Clock size={13} style={{ color: TOKENS.textMute, flexShrink: 0 }} />
                   <input type="time" value={arrivalTime} onChange={(e) => setArrivalTime(e.target.value)}
-                    style={{ ...inputStyle, width: '120px' }} />
+                    style={{ ...inputStyle, width: '160px', minWidth: '160px' }} />
                 </div>
               </FormSection>
 
@@ -1900,7 +1900,21 @@ function FieldLabel({ children }) {
 function RatingPicker({ label, value, onChange }) {
   return (
     <div>
-      <FieldLabel>{label}</FieldLabel>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px' }}>
+        <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 700, margin: 0 }}>{label}</p>
+        <input
+          type="number" inputMode="numeric" min={1} max={5} step={1}
+          value={value || ''}
+          onChange={(e) => {
+            const raw = e.target.value;
+            if (raw === '') { onChange(0); return; }
+            const n = Math.min(5, Math.max(1, Math.round(Number(raw))));
+            if (!Number.isNaN(n)) onChange(n);
+          }}
+          placeholder="1~5"
+          style={{ width: '46px', padding: '3px 4px', fontSize: '13px', textAlign: 'center', border: '1px solid #E5E7EB', borderRadius: '6px', fontFamily: 'inherit', fontWeight: 700, color: '#1A1A1A', outline: 'none' }}
+        />
+      </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '5px' }}>
         {RATING_LEVELS.map(r => {
           const active = value === r.level;
