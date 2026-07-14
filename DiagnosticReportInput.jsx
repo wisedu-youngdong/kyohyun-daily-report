@@ -19,8 +19,26 @@ import { calculateReportPoints } from './growth.js';
 import { storage } from './firebase.js';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
-// 사진을 캔버스로 리사이즈/압축해서 base64로 반환 (업로드 용량 절감, API 페이로드 제한 대응)
-// maxDim/quality를 다소 넉넉히 잡음 — 한 페이지에 문항이 많을수록 글씨가 작아 판독력이 중요
+// 빠른 썸네일 생성 (canvas, 미리보기 전용 — imageCompression 생략으로 속도 2배)
+function makeThumbnail(file, maxPx = 300) {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let w = img.width, h = img.height;
+      if (w > h && w > maxPx) { h = Math.round(h * maxPx / w); w = maxPx; }
+      else if (h > maxPx) { w = Math.round(w * maxPx / h); h = maxPx; }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/jpeg', 0.75));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+    img.src = url;
+  });
+}
+
 // browser-image-compression 기반 이미지 처리 (HEIC 자동변환 포함)
 async function compressImage(file) {
   try {
@@ -36,27 +54,26 @@ async function compressImage(file) {
       processFile = new File([blob], file.name.replace(/\.heic$/i, '.jpg'), { type: 'image/jpeg' });
     }
 
-    const [aiFile, thumbFile] = await Promise.all([
+    // AI용 압축(1024px) + 썸네일(canvas) 병렬 처리 → imageCompression 1회로 줄여 속도 2배
+    const [aiFile, thumbDataUrl] = await Promise.all([
       imageCompression(processFile, {
         maxSizeMB: 1, maxWidthOrHeight: 1024,
         fileType: 'image/jpeg', useWebWorker: false, initialQuality: 0.85,
       }),
-      imageCompression(processFile, {
-        maxSizeMB: 0.05, maxWidthOrHeight: 200,
-        fileType: 'image/jpeg', useWebWorker: false, initialQuality: 0.8,
-      }),
+      makeThumbnail(processFile, 300),
     ]);
 
-    const [aiDataUrl, thumbDataUrl] = await Promise.all([
-      new Promise((res, rej) => { const r = new FileReader(); r.onerror = rej; r.onload = e => res(e.target.result); r.readAsDataURL(aiFile); }),
-      new Promise((res, rej) => { const r = new FileReader(); r.onerror = rej; r.onload = e => res(e.target.result); r.readAsDataURL(thumbFile); }),
-    ]);
+    const aiDataUrl = await new Promise((res, rej) => {
+      const r = new FileReader(); r.onerror = rej;
+      r.onload = e => res(e.target.result);
+      r.readAsDataURL(aiFile);
+    });
 
     return {
       aiBase64: aiDataUrl.split(',')[1],
       mimeType: 'image/jpeg',
       blob: aiFile,
-      preview: (thumbDataUrl?.startsWith('data:')) ? thumbDataUrl : aiDataUrl,
+      preview: thumbDataUrl || aiDataUrl,
     };
   } catch (e) {
     console.warn('compressImage 실패, 폴백:', e);
