@@ -228,6 +228,8 @@ export default function DiagnosticReportInput({
   commentTemplates = [],
   onSaveCommentTemplate = async () => {},
   onDeleteCommentTemplate = async () => {},
+  currentTeacherId = null,
+  isDirector = false,
 }) {
   const isWide = useMediaQuery('(min-width: 901px)');
   const [showStudentModal, setShowStudentModal] = useState(false);
@@ -429,7 +431,10 @@ export default function DiagnosticReportInput({
   // 학생 등록 — Firebase에 저장
   const handleAddStudent = async (newStudent) => {
     try {
-      await onSaveStudent(newStudent);
+      // 담당 강사 배정 — 강사는 자기 담당 학생만 보이므로, 배정 없이 저장하면
+      // 방금 등록한 학생이 즉시 목록에서 사라져 리포트를 쓸 수 없게 됨
+      const assignedTeacherId = newStudent.assignedTeacherId || (isDirector ? '' : currentTeacherId || '');
+      await onSaveStudent({ ...newStudent, assignedTeacherId });
       setShowStudentModal(false);
     } catch (e) {
       console.error('학생 저장 오류:', e);
@@ -1612,7 +1617,7 @@ export default function DiagnosticReportInput({
 
       {/* 학생 등록 모달 */}
       {showStudentModal && (
-        <StudentModal onClose={() => setShowStudentModal(false)} onSubmit={handleAddStudent} />
+        <StudentModal onClose={() => setShowStudentModal(false)} onSubmit={handleAddStudent} teachers={teachers} isDirector={isDirector} />
       )}
 
     </div>
@@ -1623,13 +1628,14 @@ export default function DiagnosticReportInput({
 // ============================================================
 // 학생 등록 모달
 // ============================================================
-function StudentModal({ onClose, onSubmit }) {
+function StudentModal({ onClose, onSubmit, teachers = [], isDirector = false }) {
   const [name, setName] = useState('');
   const [school, setSchool] = useState('');
   const [parentPhone, setParentPhone] = useState('');
   const [memo, setMemo] = useState('');
   const [textbooks, setTextbooks] = useState([{ id: Date.now(), name: '' }]);
   const [studentType, setStudentType] = useState('new'); // 'new' | 'returning'
+  const [assignedTeacherId, setAssignedTeacherId] = useState('');
   const [saving, setSaving] = useState(false);
 
   const isValid = name.trim() && school.trim() && textbooks.some(t => t.name.trim());
@@ -1648,6 +1654,7 @@ function StudentModal({ onClose, onSubmit }) {
       memo: memo.trim(),
       textbooks: textbooks.filter(t => t.name.trim()),
       studentType,
+      ...(assignedTeacherId ? { assignedTeacherId } : {}),
     });
     setSaving(false);
   };
@@ -1703,6 +1710,17 @@ function StudentModal({ onClose, onSubmit }) {
               <input value={school} onChange={(e) => setSchool(e.target.value)} placeholder="예: 교현초 5학년" style={inputStyle} />
             </div>
           </div>
+
+          {/* 담당 강사 — 원장만 선택 가능. 강사가 등록하면 본인에게 자동 배정됨 */}
+          {isDirector && teachers.length > 0 && (
+            <div style={{ marginBottom: '12px' }}>
+              <FieldLabel>담당 강사</FieldLabel>
+              <select value={assignedTeacherId} onChange={(e) => setAssignedTeacherId(e.target.value)} style={selectStyle}>
+                <option value="">미배정 (원장님 직접 관리)</option>
+                {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            </div>
+          )}
 
           <div style={{ marginBottom: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>

@@ -567,7 +567,23 @@ export default function App() {
 
       <main>
       <ErrorBoundary key={activeTab} minHeight="400px">
-        {activeTab === 'dashboard' && (dataReady ? <DashboardView students={visibleStudents} reports={visibleReports} onTabChange={setActiveTab} /> : <SkeletonBlock rows={3} cardHeight={90} />)}
+        {activeTab === 'dashboard' && (dataReady
+          ? <DashboardView
+              students={visibleStudents} reports={visibleReports} onTabChange={setActiveTab}
+              onWriteFor={(student, done) => {
+                // 완료된 학생이면 오늘 리포트를 수정 모드로, 대기면 새로 작성 — 랜딩에서 작업까지 한 번에
+                if (done) {
+                  const todayKst = new Date(Date.now() + 9 * 3600 * 1000).toISOString().split('T')[0];
+                  const todayReport = visibleReports.find(r =>
+                    r.studentId === student.id && r.createdAt?.seconds &&
+                    new Date(r.createdAt.seconds * 1000 + 9 * 3600 * 1000).toISOString().split('T')[0] === todayKst
+                  );
+                  if (todayReport) setEditingReport(todayReport);
+                }
+                setActiveTab('write');
+              }}
+            />
+          : <SkeletonBlock rows={3} cardHeight={90} />)}
         {activeTab === 'write' && (
           <>
             {/* 오늘 리포트 상태바 */}
@@ -625,6 +641,8 @@ export default function App() {
               commentTemplates={commentTemplates}
               onSaveCommentTemplate={handleSaveCommentTemplate}
               onDeleteCommentTemplate={handleDeleteCommentTemplate}
+              currentTeacherId={userTeacherId}
+              isDirector={isDirector}
             />
           </>
         )}
@@ -697,33 +715,61 @@ export default function App() {
   );
 }
 
-function DashboardView({ students, reports, onTabChange }) {
-  const today = new Date().toLocaleDateString('ko-KR');
-  const todayReports = reports.filter(r => r.createdAt?.seconds && new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR') === today);
+function DashboardView({ students, reports, onTabChange, onWriteFor }) {
+  // 발송 완료 판정 — 자동저장 draft(코멘트 없이 문서만 생성됨)를 완료로 세지 않도록
+  // 리포트 탭 상태바(App.jsx의 '오늘 학생 현황' 칩)와 동일한 기준 사용
+  const isSent = (r) => !!(r.teacherNote && r.teacherNote.trim());
+  // 타임존 규약 통일 — DirectorView와 동일하게 KST 기준 날짜로 비교
+  const kstDay = (seconds) => new Date(seconds * 1000 + 9 * 3600 * 1000).toISOString().split('T')[0];
+  const todayKst = kstDay(Date.now() / 1000);
+  const todayReports = reports.filter(r => r.createdAt?.seconds && isSent(r) && kstDay(r.createdAt.seconds) === todayKst);
+
+  const doneOf = (s) => todayReports.some(r => r.studentId === s.id);
+  // 대기 학생을 먼저 — 할 일이 완료된 학생들 사이에 묻히지 않도록
+  const orderedStudents = [...students].sort((a, b) =>
+    (doneOf(a) === doneOf(b) ? (a.name || '').localeCompare(b.name || '') : (doneOf(a) ? 1 : -1))
+  );
+  const pendingCount = students.length - todayReports.length;
+
   return (
-    <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
+    <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto', boxSizing: 'border-box' }}>
       <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '16px', letterSpacing: '-0.02em' }}>오늘의 현황</h2>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
-        <StatCard label="관리 학생" value={students.length} unit="명" />
-        <StatCard label="오늘 리포트" value={todayReports.length} unit="건" />
+        <StatCard label="오늘 미작성" value={Math.max(0, pendingCount)} unit="명" />
+        <StatCard label="오늘 발송" value={todayReports.length} unit="건" />
       </div>
-      <div style={{ background: '#fff', borderRadius: '16px', border: `1px solid #E5E7EB`, overflow: 'hidden' }}>
+      <div style={{ background: T.bg, borderRadius: '16px', border: `1px solid ${T.border}`, overflow: 'hidden' }}>
         <div style={{ padding: '14px 18px', borderBottom: `1px solid #F3F4F6`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h3 style={{ fontSize: '13px', fontWeight: 700 }}>오늘 학생 현황</h3>
-          <button onClick={() => onTabChange('write')} style={{ background: '#185FA5', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 14px', fontSize: '12px', fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}>리포트 작성</button>
+          <button onClick={() => onTabChange('write')} style={{ background: T.brand, color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 14px', fontSize: '12px', fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}>리포트 작성</button>
         </div>
         {students.length === 0
-          ? <div style={{ padding: '40px', textAlign: 'center', color: '#9CA3AF', fontSize: '13px' }}>등록된 학생이 없습니다</div>
-          : students.map(s => {
-            const done = todayReports.some(r => r.studentId === s.id);
+          ? (
+            <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+              <p style={{ color: T.textSub, fontSize: '13px', margin: '0 0 12px' }}>등록된 학생이 없습니다</p>
+              <button onClick={() => onTabChange('write')} style={{ background: T.brandLight, color: T.brand, border: 'none', borderRadius: '8px', padding: '8px 16px', fontSize: '12px', fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}>
+                + 첫 학생 등록하기
+              </button>
+            </div>
+          )
+          : orderedStudents.map(s => {
+            const done = doneOf(s);
+            const avatarUrl = AVATARS.find(a => a.key === s.avatar)?.url;
             return (
-              <div key={s.id} style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: '12px', borderBottom: `1px solid #F9FAFB` }}>
-                <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: done ? '#185FA5' : '#F3F4F6', color: done ? '#fff' : '#9CA3AF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 700 }}>{s.name?.[0]}</div>
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: '14px', fontWeight: 600, margin: 0 }}>{s.name}</p>
-                  <p style={{ fontSize: '11px', color: '#6B7280', margin: 0, fontWeight: 500 }}>{s.school}</p>
+              <div key={s.id} onClick={() => onWriteFor?.(s, done)}
+                style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: '12px', borderBottom: `1px solid ${T.bgSoft}`, cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '10px', overflow: 'hidden', background: done ? T.brand : '#F3F4F6', color: done ? '#fff' : T.textMute, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 700, flexShrink: 0 }}>
+                  {avatarUrl ? <img src={avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : s.name?.[0]}
                 </div>
-                <span style={{ fontSize: '11px', fontWeight: 700, color: done ? '#185FA5' : '#D1D5DB' }}>{done ? '완료 ✓' : '대기'}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: '14px', fontWeight: 600, margin: 0 }}>{s.name}</p>
+                  <p style={{ fontSize: '11px', color: T.textSub, margin: 0, fontWeight: 500 }}>{s.school}</p>
+                </div>
+                {/* 대기가 유일한 '할 일' 신호 — 완료보다 눈에 띄어야 함 */}
+                <span style={{
+                  fontSize: '11px', fontWeight: 700, padding: '4px 10px', borderRadius: '12px', flexShrink: 0,
+                  color: done ? T.textMute : '#8A5A00', background: done ? 'transparent' : '#FFF8EC',
+                }}>{done ? '완료 ✓' : '대기'}</span>
               </div>
             );
           })}
