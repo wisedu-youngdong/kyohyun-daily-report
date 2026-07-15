@@ -15,6 +15,13 @@ export const R = {
   body: "'Pretendard Variable', Pretendard, sans-serif",
 };
 
+export const RADIUS = { sm: 8, md: 12, lg: 16, pill: 20 };
+
+export const FONT = {
+  body: "'Pretendard Variable', Pretendard, sans-serif",
+  serif: R.serif,
+};
+
 // 학부모 리포트 공용 카드 래퍼 — 연한 배경 위 중앙 정렬된 흰 카드
 export function ReportCard({ children, maxWidth = '390px', fontFamily = R.body }) {
   return (

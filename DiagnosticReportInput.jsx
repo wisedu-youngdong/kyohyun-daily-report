@@ -562,19 +562,12 @@ export default function DiagnosticReportInput({
     setAnalyzingPhoto(false);
   };
 
-  // AI 초안 코멘트를 강사 메모에 이어붙이기 (덮어쓰지 않음)
-  const appendDraftComment = () => {
-    if (!photoAnalysis?.draftComment) return;
-    setTeacherNote(prev => prev ? `${prev}\n\n${photoAnalysis.draftComment}` : photoAnalysis.draftComment);
-  };
-
   const removeAllPhotos = () => {
     setPhotos([]);
     photosRef.current = [];
     setPhotoAnalysis(null); setPhotoError('');
     setWrongItems([]);
   };
-;
 
   const handleSubmit = async () => {
     // 단계별 검증
@@ -1971,7 +1964,9 @@ function RatingPicker({ label, value, onChange }) {
         type="range" min={0} max={100} step={10}
         value={pct}
         onChange={(e) => onChange(Number(e.target.value))}
-        style={{ width: '100%', accentColor: '#185FA5', cursor: 'pointer', display: 'block', height: '22px' }}
+        aria-label={label}
+        aria-valuetext={`${pct}% (${ratingLabel(pct) || '노력 필요'})`}
+        style={{ width: '100%', accentColor: '#185FA5', cursor: 'pointer', display: 'block', height: '44px' }}
       />
     </div>
   );

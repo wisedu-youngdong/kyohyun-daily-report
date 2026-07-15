@@ -13,22 +13,6 @@ const FONT_STYLE = `
   * { word-break: keep-all; }
 `;
 
-// ── AI 서사 생성 — Vercel Serverless Function 경유 ──
-async function generateNarrative(studentName, milestones, unitScores, teacherNotes) {
-  try {
-    const response = await fetch('/api/narrative', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ studentName, milestones, unitScores, teacherNotes })
-    });
-    if (!response.ok) throw new Error('서버 오류');
-    return await response.json();
-  } catch (e) {
-    console.error('서사 생성 오류:', e);
-    return null;
-  }
-}
-
 export default function GrowthStory() {
   const { studentId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -37,6 +21,7 @@ export default function GrowthStory() {
   const [narrative, setNarrative] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null); // 'network' | null
+  const [retryKey, setRetryKey] = useState(0);
   const [narLoading, setNarLoading] = useState(false);
   const [editing, setEditing] = useState(null);
   const [editText, setEditText] = useState('');
@@ -72,6 +57,8 @@ export default function GrowthStory() {
 
   useEffect(() => {
     if (!studentId) return;
+    setLoading(true);
+    setLoadError(null);
     async function load() {
       try {
         const [stuSnap, rSnap] = await Promise.all([
@@ -97,7 +84,7 @@ export default function GrowthStory() {
       }
     }
     load();
-  }, [studentId]);
+  }, [studentId, retryKey]);
 
   // 데이터 가공
   // 기간 필터 적용
@@ -354,15 +341,28 @@ export default function GrowthStory() {
   };
 
   if (loading) return (
-    <div style={{ height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Pretendard Variable', Pretendard, -apple-system, sans-serif", color: '#0D2D6B', fontSize: '14px', fontWeight: 600 }}>
-      성장 기록을 불러오는 중...
+    <div style={{ background: '#F5F5F0', minHeight: '100dvh', padding: '24px 16px', display: 'flex', justifyContent: 'center', fontFamily: "'Pretendard Variable', Pretendard, -apple-system, sans-serif" }}>
+      <style>{`@keyframes storyPulse { 0%,100% { opacity: 0.5; } 50% { opacity: 0.9; } }`}</style>
+      <div style={{ width: '100%', maxWidth: '420px' }}>
+        <div style={{ borderRadius: '4px', overflow: 'hidden', boxShadow: '0 2px 20px rgba(0,0,0,0.10)' }}>
+          <div style={{ background: '#0D2D6B', padding: '32px 24px 28px' }}>
+            <div style={{ width: '55%', height: '20px', background: 'rgba(255,255,255,0.2)', borderRadius: '4px', marginBottom: '10px', animation: 'storyPulse 1.4s ease-in-out infinite' }} />
+            <div style={{ width: '35%', height: '12px', background: 'rgba(255,255,255,0.15)', borderRadius: '4px', animation: 'storyPulse 1.4s ease-in-out infinite' }} />
+          </div>
+          <div style={{ background: '#fff', padding: '22px' }}>
+            {[85, 60, 92].map((w, i) => (
+              <div key={i} style={{ width: `${w}%`, height: '12px', background: '#EDEBE7', borderRadius: '4px', marginBottom: '14px', animation: 'storyPulse 1.4s ease-in-out infinite' }} />
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 
   if (loadError) return (
     <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '10px', fontFamily: "'Pretendard Variable', Pretendard, -apple-system, sans-serif", color: '#8A8A8A', fontSize: '14px' }}>
       <p style={{ margin: 0 }}>정보를 불러오지 못했습니다.</p>
-      <button onClick={() => window.location.reload()} style={{ padding: '9px 20px', background: '#0D2D6B', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>다시 시도</button>
+      <button onClick={() => setRetryKey(k => k + 1)} style={{ padding: '9px 20px', background: '#0D2D6B', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>다시 시도</button>
     </div>
   );
 
@@ -382,7 +382,7 @@ export default function GrowthStory() {
   };
 
   return (
-    <ReportCard maxWidth="420px" fontFamily="'Noto Sans KR', 'Pretendard Variable', Pretendard, sans-serif">
+    <ReportCard maxWidth="420px">
       <style>{FONT_STYLE}</style>
 
       {/* 헤더 */}
@@ -451,7 +451,6 @@ export default function GrowthStory() {
           {milestones.map((m, i) => {
             const isChapter1 = i === 0;
             const isChapter2 = i === milestones.length - 1;
-            const chapterField = isChapter1 ? 'chapter1' : isChapter2 ? 'chapter2' : null;
             const chapterText = narrative
               ? (isChapter1 ? narrative.chapter1 : isChapter2 ? narrative.chapter2 : m.desc)
               : m.desc;

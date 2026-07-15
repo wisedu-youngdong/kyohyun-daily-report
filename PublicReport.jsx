@@ -5,11 +5,6 @@ import { doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/fires
 import { R, ReportCard } from './tokens.jsx';
 import { toPct, ratingLabel } from './growth.js';
 
-const DIAGNOSIS_LABELS = {
-  calc: '계산 실수', concept: '개념 누락',
-  apply: '응용 부족', time: '시간 부족', perfect: '개념 완벽',
-};
-
 const DIAG_BADGES = {
   calc:    { label: '⚠ 계산 실수', bg: '#A32D2D' },
   concept: { label: '⚠ 개념 누락', bg: '#A32D2D' },

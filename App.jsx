@@ -608,7 +608,7 @@ export default function App() {
       </ErrorBoundary>
       </main>
 
-      <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: T.bg, borderTop: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', padding: 'calc(6px) 0 calc(8px + env(safe-area-inset-bottom))', zIndex: 100, boxShadow: '0 -4px 20px rgba(0,0,0,0.04)' }}>
+      <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: T.bg, borderTop: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', padding: '6px 0 calc(8px + env(safe-area-inset-bottom))', zIndex: 100, boxShadow: '0 -4px 20px rgba(0,0,0,0.04)' }}>
         {tabs.map(tab => {
           const active = activeTab === tab.key;
           return (
