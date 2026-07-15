@@ -4,6 +4,7 @@ import { db } from './firebase';
 import { collection, getDocs, query, where, doc, setDoc } from 'firebase/firestore';
 import { ReportCard } from './tokens.jsx';
 import { toPct } from './growth.js';
+import { findUnitKey } from './curriculum.js';
 
 const FONT_STYLE = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -91,7 +92,7 @@ export default function GrowthStory() {
   // 과제/개념 평가는 구 리포트(1~5)와 신규 리포트(0~100)가 섞여 있으므로 0~100(%) 기준으로 정규화
   const allSorted = [...reports]
     .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0))
-    .map(r => ({ ...r, conceptRating: toPct(r.conceptRating), homeworkRating: toPct(r.homeworkRating) }));
+    .map(r => ({ ...r, conceptRating: r.conceptRating == null ? null : toPct(r.conceptRating), homeworkRating: r.homeworkRating == null ? null : toPct(r.homeworkRating) }));
   const sorted = period === '3m'
     ? allSorted.filter(r => {
         const ts = r.createdAt?.seconds || 0;
@@ -111,8 +112,9 @@ export default function GrowthStory() {
     if (!r.hasTest || !r.testScore) return;
     // unit → testName → textbook → '단원평가' 순으로 표시용 라벨 결정
     // 그룹 키는 unitKey(표준 단원 정규화)를 우선 사용해, 강사마다 표기가 달라도(예: "3단원"/"소수의 나눗셈") 같은 단원으로 묶임
+    // unitKey가 없는 과거 리포트도 읽기 시점에 정규화 시도 — 구/신 데이터가 두 그룹으로 갈라지는 것 방지
     const unitLabel = (r.unit && r.unit.trim()) || (r.testName && r.testName.trim()) || (r.textbook && r.textbook.trim()) || '단원평가';
-    const groupKey = r.unitKey || unitLabel;
+    const groupKey = r.unitKey || findUnitKey(r.subject || '수학', r.unit || '') || unitLabel;
     const round = r.testRound || '';
     const score = Number(r.testScore);
     if (!unitScoreMap[groupKey]) unitScoreMap[groupKey] = { label: unitLabel, scores: [] };
@@ -128,9 +130,10 @@ export default function GrowthStory() {
 
   // 최고 이해도 수업
   const bestReport = [...sorted].sort((a, b) => (b.conceptRating || 0) - (a.conceptRating || 0))[0];
-  // 과제 평균
-  const hwAvg = sorted.length > 0
-    ? Math.round(sorted.reduce((s, r) => s + (r.homeworkRating || 0), 0) / sorted.length)
+  // 과제 평균 — 미입력(null) 리포트는 분모에서 제외
+  const hwRated = sorted.filter(r => r.homeworkRating != null);
+  const hwAvg = hwRated.length > 0
+    ? Math.round(hwRated.reduce((s, r) => s + r.homeworkRating, 0) / hwRated.length)
     : null;
   // 개근 여부
   const allAttended = sorted.length > 0 && sorted.every(r => r.attendance === '출석');

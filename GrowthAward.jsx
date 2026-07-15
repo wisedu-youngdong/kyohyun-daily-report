@@ -44,12 +44,13 @@ export default function GrowthAward() {
   };
 
   // 과제/개념 평가는 구 리포트(1~5)와 신규 리포트(0~100)가 섞여 있으므로 0~100(%) 기준으로 정규화
-  const sorted = reports.map(r => ({ ...r, conceptRating: toPct(r.conceptRating), homeworkRating: toPct(r.homeworkRating) }));
+  const sorted = reports.map(r => ({ ...r, conceptRating: r.conceptRating == null ? null : toPct(r.conceptRating), homeworkRating: r.homeworkRating == null ? null : toPct(r.homeworkRating) }));
   const allScores = sorted.filter(r => r.hasTest && r.testScore).map(r => Number(r.testScore));
   const maxScore = allScores.length > 0 ? Math.max(...allScores) : null;
   const minScore = allScores.length > 0 ? Math.min(...allScores) : null;
-  const hwAvg = sorted.length > 0
-    ? Math.round(sorted.reduce((s, r) => s + (r.homeworkRating || 0), 0) / sorted.length)
+  const hwRated = sorted.filter(r => r.homeworkRating != null);
+  const hwAvg = hwRated.length > 0
+    ? Math.round(hwRated.reduce((s, r) => s + r.homeworkRating, 0) / hwRated.length)
     : null;
   const allAttended = sorted.length > 0 && sorted.every(r => r.attendance === '출석');
   const bestReport = [...sorted].sort((a, b) => (b.conceptRating || 0) - (a.conceptRating || 0))[0];

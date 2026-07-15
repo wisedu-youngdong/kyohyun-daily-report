@@ -202,7 +202,13 @@ function guessCourseKey(subject, school) {
   if (subject !== '수학' || !school) return null;
   const gradeMatch = school.match(/(\d)\s*학년/);
   const grade = gradeMatch ? parseInt(gradeMatch[1], 10) : null;
-  const level = school.includes('초') ? '초' : school.includes('중') ? '중' : null;
+  // 학교급은 학교명에서 마지막에 나오는 급 글자로 판별 — "초당중"(중), "중앙초"(초) 오분류 방지
+  const namePart = school.split(/\d/)[0]; // 학년 숫자 앞부분만
+  const lastCho = namePart.lastIndexOf('초');
+  const lastJung = namePart.lastIndexOf('중');
+  const lastGo = namePart.lastIndexOf('고');
+  const maxIdx = Math.max(lastCho, lastJung, lastGo);
+  const level = maxIdx < 0 ? null : maxIdx === lastGo ? null : maxIdx === lastJung ? '중' : '초';
   if (!grade || !level) return null;
   const month = new Date().getMonth() + 1;
   const semester = (month >= 3 && month <= 8) ? 1 : 2;
@@ -254,7 +260,8 @@ export default function DiagnosticReportInput({
   const [saving, setSaving] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(null); // { done, total }
   const [toast, setToast] = useState(null);
-  const [savedReportId, setSavedReportId] = useState(null);
+  // 자동저장이 만든 draft 문서 id — 30초마다 새 문서가 쌓이지 않도록 재사용
+  const draftIdRef = React.useRef(null);
   // 학생 선택 변경 시 헤더에 알림
   React.useEffect(() => {
     if (!studentId) return;
@@ -268,26 +275,32 @@ export default function DiagnosticReportInput({
   const handleAutoSave = async () => {
     if (!studentId || saving) return;
     try {
+      const existingId = editingReport?.id || draftIdRef.current;
       const reportPayload = {
-        ...(editingReport ? { id: editingReport.id } : {}),
+        ...(existingId ? { id: existingId } : {}),
         studentId, studentName: student?.name,
         teacherId: teacherId || '', teacherName: teacher?.name || '',
         attendance, arrivalTime,
-        homeworkRating: homeworkRating || 0,
-        conceptRating: conceptRating || 0,
+        // null = 미입력 규약 유지 — 0으로 강제 변환하면 학부모 화면에 "0%"로 표시됨
+        homeworkRating: homeworkRating ?? null,
+        conceptRating: conceptRating ?? null,
         hasTest,
         testName: hasTest ? testName : null,
         testScore: hasTest ? testScore : null,
         testRound: hasTest ? testRound : null,
         textbook, subject, unit, pages,
-        unitKey: findUnitKey(subject, unit),
+        unitKey: findUnitKey(subject, unit, curriculumCourseOverride || guessCourseKey(subject, student?.school)),
         diagnosis: selectedTags,
         teacherNote: teacherNote || '',
         nextPlan, nextPlanDetail,
-        photoUrls: [],
         photoAnalysis: photoAnalysis || null,
+        // photoUrls는 수정 모드에서 기존 사진을 지우지 않도록 신규 draft일 때만 포함
+        ...(existingId ? {} : { photoUrls: [] }),
       };
-      await onSave(reportPayload);
+      const savedId = await onSave(reportPayload);
+      if (!editingReport && savedId && !draftIdRef.current) {
+        draftIdRef.current = savedId;
+      }
       setLastSaved(new Date());
       setAutoSaveError(false);
     } catch (e) {
@@ -329,14 +342,16 @@ export default function DiagnosticReportInput({
     setTeacherId(editingReport.teacherId || '');
     setAttendance(editingReport.attendance || '정시');
     setArrivalTime(editingReport.arrivalTime || '15:30');
-    setHomeworkRating(toPct(editingReport.homeworkRating));
-    setConceptRating(toPct(editingReport.conceptRating));
+    // null(미입력)은 그대로 유지 — toPct(null)=0으로 변환되면 미입력이 0%로 확정 저장됨
+    setHomeworkRating(editingReport.homeworkRating == null ? null : toPct(editingReport.homeworkRating));
+    setConceptRating(editingReport.conceptRating == null ? null : toPct(editingReport.conceptRating));
     setHasTest(editingReport.hasTest || false);
     setTestName(editingReport.testName || '');
     setTestScore(editingReport.testScore || '');
     setTestRound(editingReport.testRound || '');
     setTextbook(editingReport.textbook || '');
     setSubject(editingReport.subject || '수학');
+    setCurriculumCourseOverride(null);
     setUnit(editingReport.unit || '');
     setPages(editingReport.pages || '');
     setSelectedTags(editingReport.diagnosis || []);
@@ -616,7 +631,8 @@ export default function DiagnosticReportInput({
       }
 
       const reportPayload = {
-        ...(editingReport ? { id: editingReport.id } : {}),
+        // 자동저장이 만든 draft가 있으면 그 문서를 확정본으로 업데이트 (중복 문서 방지)
+        ...(editingReport ? { id: editingReport.id } : draftIdRef.current ? { id: draftIdRef.current } : {}),
         studentId, studentName: student?.name,
         teacherId, teacherName: teacher?.name,
         attendance, arrivalTime,
@@ -626,7 +642,7 @@ export default function DiagnosticReportInput({
         testScore: hasTest ? testScore : null,
         testRound: hasTest ? testRound : null,
         textbook, subject, unit, pages,
-        unitKey: findUnitKey(subject, unit),
+        unitKey: findUnitKey(subject, unit, curriculumCourseOverride || guessCourseKey(subject, student?.school)),
         diagnosis: selectedTags,
         teacherNote: aiPolishedNote || teacherNote,
         nextPlan, nextPlanDetail,
@@ -636,6 +652,7 @@ export default function DiagnosticReportInput({
       };
       reportPayload.points = calculateReportPoints(reportPayload);
       const savedId = await onSave(reportPayload);
+      draftIdRef.current = null;
       setStudentId(''); setHomeworkRating(null); setConceptRating(null);
       setHasTest(false); setTestName(''); setTestScore(''); setTestRound('');
       setTextbook(''); setSubject('수학'); setUnit(''); setPages('');
@@ -650,7 +667,6 @@ export default function DiagnosticReportInput({
       } else {
         setStudentId(''); // 완료 후 학생 선택 초기화
         setAttendance('정시'); setArrivalTime('15:30');
-        setHomeworkRating(0); setConceptRating(0);
         showToast('저장 완료! 링크를 복사해서 카카오톡으로 전송하세요.', 'success', savedId);
       }
     } catch (e) {
@@ -795,6 +811,7 @@ export default function DiagnosticReportInput({
 
               // 새 학생 전환 시 입력 초기화
               if (newId && !editingReport) {
+                draftIdRef.current = null; // 이전 학생 draft에 이어쓰지 않도록
                 setHomeworkRating(null); setConceptRating(null);
                 setHasTest(false); setTestScore(''); setTestName(''); setTestRound('');
                 setTextbook(''); setSubject('수학'); setUnit(''); setPages('');
@@ -899,7 +916,7 @@ export default function DiagnosticReportInput({
                     { label: '영어', color: '#0F6E56' },
                     { label: '기타', color: '#4A4A4A' },
                   ].map(({ label, color }) => (
-                    <button key={label} onClick={() => setSubject(label)}
+                    <button key={label} onClick={() => { setSubject(label); setCurriculumCourseOverride(null); }}
                       style={{
                         display: 'flex', alignItems: 'center', gap: 0,
                         padding: 0, border: `1px solid ${subject === label ? color : '#E5E7EB'}`,
@@ -974,19 +991,18 @@ export default function DiagnosticReportInput({
                   const units = activeCourse ? getUnits(subject, activeCourse) : [];
                   return (
                     <div style={{ marginBottom: '8px' }}>
-                      {(!guessedCourse || curriculumCourseOverride) && (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: units.length > 0 ? '5px' : 0 }}>
-                          {courses.map(c => (
-                            <button key={c} type="button" onClick={() => setCurriculumCourseOverride(c)}
-                              style={{
-                                padding: '3px 9px', borderRadius: '8px', border: '1px solid #E5E7EB',
-                                background: activeCourse === c ? '#185FA5' : '#fff',
-                                color: activeCourse === c ? '#fff' : '#6B7280',
-                                fontSize: '10px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-                              }}>{c}</button>
-                          ))}
-                        </div>
-                      )}
+                      {/* 코스 칩 — 항상 노출해 추정이 틀렸을 때(복습, 학기 경계 등) 직접 바꿀 수 있게 */}
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: units.length > 0 ? '5px' : 0 }}>
+                        {courses.map(c => (
+                          <button key={c} type="button" onClick={() => setCurriculumCourseOverride(prev => prev === c ? null : c)}
+                            style={{
+                              padding: '3px 9px', borderRadius: '8px', border: '1px solid #E5E7EB',
+                              background: activeCourse === c ? '#185FA5' : '#fff',
+                              color: activeCourse === c ? '#fff' : '#6B7280',
+                              fontSize: '10px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                            }}>{c}</button>
+                        ))}
+                      </div>
                       {units.length > 0 && (
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
                           {units.map(u => (
@@ -2008,13 +2024,17 @@ function FieldLabel({ children }) {
 }
 
 function RatingPicker({ label, value, onChange }) {
-  const pct = value || 0;
+  const isEmpty = value == null;
+  const pct = value ?? 0;
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
         <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 700, margin: 0 }}>{label}</p>
-        <span style={{ fontSize: '12px', fontWeight: 800, color: '#185FA5', background: '#E6F1FB', padding: '2px 11px', borderRadius: '20px', fontVariantNumeric: 'tabular-nums' }}>
-          {pct}%
+        <span style={{
+          fontSize: '12px', fontWeight: 800, padding: '2px 11px', borderRadius: '20px', fontVariantNumeric: 'tabular-nums',
+          color: isEmpty ? '#9CA3AF' : '#185FA5', background: isEmpty ? '#F3F4F6' : '#E6F1FB',
+        }}>
+          {isEmpty ? '미입력' : `${pct}%`}
         </span>
       </div>
       <input
@@ -2022,8 +2042,8 @@ function RatingPicker({ label, value, onChange }) {
         value={pct}
         onChange={(e) => onChange(Number(e.target.value))}
         aria-label={label}
-        aria-valuetext={`${pct}% (${ratingLabel(pct) || '노력 필요'})`}
-        style={{ width: '100%', accentColor: '#185FA5', cursor: 'pointer', display: 'block', height: '44px' }}
+        aria-valuetext={isEmpty ? '미입력' : `${pct}% (${ratingLabel(pct) || '노력 필요'})`}
+        style={{ width: '100%', accentColor: isEmpty ? '#9CA3AF' : '#185FA5', cursor: 'pointer', display: 'block', height: '44px' }}
       />
     </div>
   );

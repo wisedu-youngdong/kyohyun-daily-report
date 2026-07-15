@@ -71,21 +71,46 @@ export const CURRICULUM = {
 // 매칭 성공 시 '{과목}|{코스}|{단원명}' 형태의 unitKey 반환, 실패 시 null.
 // 리포트 저장 시 unit(자유 텍스트)과 별도로 unitKey를 함께 저장해두면
 // 종합/3개월 리포트 집계 때 입력 표기가 달라도 같은 단원으로 묶임.
-export function findUnitKey(subject, freeText) {
+//
+// 매칭 규칙 (오매칭 방지):
+// 1) 전 코스에서 정확 일치를 최우선 — "분수"는 초3-2 '분수'에 정확히 매칭
+//    (preferredCourse가 주어지면 해당 코스의 정확 일치를 먼저 확인)
+// 2) 부분 일치는 "입력이 단원명을 포함"하는 방향만 허용하고("소수의 나눗셈 연습" → '소수의 나눗셈'),
+//    후보가 여럿이면 가장 긴 단원명 선택 — "소수의 나눗셈"이 '나눗셈'보다 우선
+// 3) 3글자 미만 단원명('원' 등)은 부분 일치 대상에서 제외 — "원기둥"이 '원'에 흡수되는 것 방지
+export function findUnitKey(subject, freeText, preferredCourse = null) {
   if (!freeText || !CURRICULUM[subject]) return null;
   // "3단원 소수의 나눗셈" → "소수의나눗셈" 처럼 번호/공백 제거 후 비교
   const clean = freeText.replace(/^\d+\s*단원\s*/, '').replace(/\s/g, '');
   if (!clean) return null;
 
-  for (const [course, units] of Object.entries(CURRICULUM[subject])) {
+  const courseEntries = Object.entries(CURRICULUM[subject]);
+  // preferredCourse가 있으면 그 코스를 맨 앞으로 (동명 단원의 코스 결정에 사용)
+  if (preferredCourse && CURRICULUM[subject][preferredCourse]) {
+    courseEntries.sort(([a], [b]) => (a === preferredCourse ? -1 : b === preferredCourse ? 1 : 0));
+  }
+
+  // 1차: 정확 일치
+  for (const [course, units] of courseEntries) {
     for (const unit of units) {
-      const unitClean = unit.replace(/\s/g, '');
-      if (clean === unitClean || clean.includes(unitClean) || unitClean.includes(clean)) {
+      if (clean === unit.replace(/\s/g, '')) {
         return `${subject}|${course}|${unit}`;
       }
     }
   }
-  return null;
+
+  // 2차: 입력이 단원명을 포함하는 경우만, 가장 긴 단원명 우선
+  let best = null;
+  for (const [course, units] of courseEntries) {
+    for (const unit of units) {
+      const unitClean = unit.replace(/\s/g, '');
+      if (unitClean.length < 3) continue;
+      if (clean.includes(unitClean) && (!best || unitClean.length > best.len)) {
+        best = { key: `${subject}|${course}|${unit}`, len: unitClean.length };
+      }
+    }
+  }
+  return best ? best.key : null;
 }
 
 // 자동완성 제안: 특정 코스의 단원 목록 반환 (칩 UI용)

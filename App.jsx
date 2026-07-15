@@ -1596,14 +1596,14 @@ function ReportPreviewModal({ report: r, allReports, onClose, onDelete, onEdit }
                 <p style={{ fontSize: '24px', fontWeight: 800, color: '#0D2D6B', margin: 0, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
                   {r.homeworkRating ? toPct(r.homeworkRating) : '-'}<span style={{ fontSize: '12px', fontWeight: 500, color: '#98A1AC' }}>%</span>
                 </p>
-                <p style={{ fontSize: '10px', fontWeight: 600, color: '#5A6472', margin: '3px 0 0' }}>{ratingLabel(toPct(r.homeworkRating))}</p>
+                <p style={{ fontSize: '10px', fontWeight: 600, color: '#5A6472', margin: '3px 0 0' }}>{r.homeworkRating != null ? ratingLabel(toPct(r.homeworkRating)) : ''}</p>
               </div>
               <div style={{ borderRight: '1px solid #E8E6E0', padding: '0 14px', textAlign: 'center' }}>
                 <p style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.08em', margin: '0 0 4px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>개념 이해</p>
                 <p style={{ fontSize: '24px', fontWeight: 800, color: '#0D2D6B', margin: 0, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
                   {r.conceptRating ? toPct(r.conceptRating) : '-'}<span style={{ fontSize: '12px', fontWeight: 500, color: '#98A1AC' }}>%</span>
                 </p>
-                <p style={{ fontSize: '10px', fontWeight: 600, color: '#5A6472', margin: '3px 0 0' }}>{ratingLabel(toPct(r.conceptRating))}</p>
+                <p style={{ fontSize: '10px', fontWeight: 600, color: '#5A6472', margin: '3px 0 0' }}>{r.conceptRating != null ? ratingLabel(toPct(r.conceptRating)) : ''}</p>
               </div>
               <div style={{ paddingLeft: '14px', textAlign: 'center' }}>
                 <p style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.08em', margin: '0 0 4px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>출결</p>
@@ -2023,7 +2023,11 @@ function buildInsights(reports) {
   const sorted = [...reports].sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
 
   const avgOf = (arr, key) => arr.length ? arr.reduce((s, r) => s + (r[key] || 0), 0) / arr.length : 0;
-  const avgPctOf = (arr, key) => arr.length ? arr.reduce((s, r) => s + toPct(r[key]), 0) / arr.length : 0;
+  // 미입력(null)은 분모에서 제외
+  const avgPctOf = (arr, key) => {
+    const rated = arr.filter(r => r[key] != null);
+    return rated.length ? rated.reduce((s, r) => s + toPct(r[key]), 0) / rated.length : 0;
+  };
   const overallHw = avgPctOf(sorted, 'homeworkRating');
   const overallCc = avgPctOf(sorted, 'conceptRating');
 
@@ -2602,13 +2606,16 @@ function StudentProfileModal({ student, reports, onClose, DIAG_MAP }) {
   }, []);
 
   // 과제/개념 평가는 구 리포트(1~5)와 신규 리포트(0~100)가 섞여 있으므로 0~100(%) 기준으로 정규화
+  // null(미입력)은 보존 — 평균 계산에서 제외해 미입력이 평균을 끌어내리지 않도록
   const sorted = [...reports]
     .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0))
-    .map(r => ({ ...r, conceptRating: toPct(r.conceptRating), homeworkRating: toPct(r.homeworkRating) }));
+    .map(r => ({ ...r, conceptRating: r.conceptRating == null ? null : toPct(r.conceptRating), homeworkRating: r.homeworkRating == null ? null : toPct(r.homeworkRating) }));
   const recent = sorted.slice(-10); // 최근 10회
 
-  const avgConcept = sorted.length ? Math.round(sorted.reduce((s, r) => s + (r.conceptRating || 0), 0) / sorted.length) : 0;
-  const avgHomework = sorted.length ? Math.round(sorted.reduce((s, r) => s + (r.homeworkRating || 0), 0) / sorted.length) : 0;
+  const conceptRated = sorted.filter(r => r.conceptRating != null);
+  const homeworkRated = sorted.filter(r => r.homeworkRating != null);
+  const avgConcept = conceptRated.length ? Math.round(conceptRated.reduce((s, r) => s + r.conceptRating, 0) / conceptRated.length) : 0;
+  const avgHomework = homeworkRated.length ? Math.round(homeworkRated.reduce((s, r) => s + r.homeworkRating, 0) / homeworkRated.length) : 0;
   const attendanceRate = sorted.length ? Math.round(sorted.filter(r => r.attendance === '정시').length / sorted.length * 100) : 0;
 
   // 약점 집계
@@ -3268,8 +3275,8 @@ function DirectorView({ reports, students, reportViews = [] }) {
                           ``,
                           `안녕하세요, ${r.studentName} 학생 ${dateStr} 수업 리포트입니다.`,
                           ``,
-                          `▸ 과제 수행: ${toPct(r.homeworkRating)}% (${ratingLabel(toPct(r.homeworkRating))})`,
-                          `▸ 개념 이해: ${toPct(r.conceptRating)}% (${ratingLabel(toPct(r.conceptRating))})`,
+                          r.homeworkRating != null ? `▸ 과제 수행: ${toPct(r.homeworkRating)}% (${ratingLabel(toPct(r.homeworkRating))})` : `▸ 과제 수행: 미평가`,
+                          r.conceptRating != null ? `▸ 개념 이해: ${toPct(r.conceptRating)}% (${ratingLabel(toPct(r.conceptRating))})` : `▸ 개념 이해: 미평가`,
                           `▸ 출결: ${r.attendance}`,
                           r.hasTest && r.testScore ? `▸ 시험: ${r.testName || ''} ${r.testScore}점` : '',
                           diagText ? `▸ 진단: ${diagText}` : '',
@@ -3362,7 +3369,10 @@ function AnalysisView({ students, reports }) {
       })
     : studentReports;
 
-  const periodAvg = (key) => periodReports.length ? Math.round(periodReports.reduce((a, r) => a + toPct(r[key]), 0) / periodReports.length) : 0;
+  const periodAvg = (key) => {
+    const rated = periodReports.filter(r => r[key] != null);
+    return rated.length ? Math.round(rated.reduce((a, r) => a + toPct(r[key]), 0) / rated.length) : 0;
+  };
 
   return (
     <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
@@ -3760,9 +3770,12 @@ function WeeklySummaryCard({ student, reports, teachers }) {
     .filter(r => r.studentId === student?.id && r.createdAt?.seconds * 1000 >= weekStart.getTime())
     .sort((a, b) => (a.createdAt?.seconds||0) - (b.createdAt?.seconds||0));
 
-  const avg = (key) => weekReports.length
-    ? Math.round(weekReports.reduce((s, r) => s + toPct(r[key]), 0) / weekReports.length)
-    : '—';
+  const avg = (key) => {
+    const rated = weekReports.filter(r => r[key] != null);
+    return rated.length
+      ? Math.round(rated.reduce((s, r) => s + toPct(r[key]), 0) / rated.length)
+      : '—';
+  };
 
   const attendRate = weekReports.length
     ? Math.round(weekReports.filter(r => r.attendance === '정시').length / weekReports.length * 100)
