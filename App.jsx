@@ -1318,10 +1318,11 @@ function HistoryView({ reports, students, reportViews = [], onDelete, onEdit }) 
         </div>
       </div>
 
-      {/* 우측 상세 — 콘텐츠 폭을 제한해 넓은 모니터에서 버튼/내용이 화면 끝까지 흩어지지 않게 */}
+      {/* 우측 상세 — 본문(폭 제한) + 학생 맥락 사이드 패널 */}
       {selected ? (
         <div style={{ overflowY: 'auto', padding: '24px 28px', background: '#FAFAFA' }}>
-          <div style={{ maxWidth: '720px' }}>
+          <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          <div style={{ flex: '1 1 460px', maxWidth: '720px', minWidth: 0 }}>
 
           {/* 헤더 */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid #E5E7EB' }}>
@@ -1464,6 +1465,78 @@ function HistoryView({ reports, students, reportViews = [], onDelete, onEdit }) 
               </div>
             </div>
           )}
+          </div>
+
+          {/* 학생 맥락 사이드 패널 — 넓은 화면의 우측 여백 활용 */}
+          {(() => {
+            const hist = reports
+              .filter(r => r.studentId === selected.studentId)
+              .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+            const others = hist.filter(r => r.id !== selected.id).slice(0, 5);
+            const recentAsc = [...hist].slice(0, 6).reverse();
+            const diagCountMap = {};
+            hist.forEach(r => (r.diagnosis || []).forEach(d => {
+              if (d.key !== 'perfect') diagCountMap[d.key] = (diagCountMap[d.key] || 0) + 1;
+            }));
+            const topDiag = Object.entries(diagCountMap).sort((a, b) => b[1] - a[1]).slice(0, 3);
+            const cardStyle = { background: '#fff', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '14px 16px' };
+            const cardTitle = { fontSize: '11px', color: '#9CA3AF', margin: '0 0 10px', fontWeight: 600, letterSpacing: '0.06em' };
+            return (
+              <aside style={{ flex: '0 1 300px', minWidth: '260px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {/* 최근 평가 추이 */}
+                {recentAsc.length >= 2 && (
+                  <div style={cardStyle}>
+                    <p style={cardTitle}>최근 평가 추이 (최근 {recentAsc.length}회)</p>
+                    {[['과제', 'homeworkRating', '#0D2D6B'], ['개념', 'conceptRating', '#0F6E56']].map(([label, key, color]) => (
+                      <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '10px', color: '#6B7280', width: '26px', flexShrink: 0, fontWeight: 600 }}>{label}</span>
+                        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px', height: '32px', flex: 1 }}>
+                          {recentAsc.map((r, i) => {
+                            const v = r[key] != null ? toPct(r[key]) : null;
+                            return (
+                              <div key={i} title={v != null ? `${v}%` : '미입력'}
+                                style={{ flex: 1, height: v != null ? `${Math.max(3, v * 0.32)}px` : '3px', background: r.id === selected.id ? '#C9A227' : v != null ? color : '#E5E7EB', borderRadius: '2px', opacity: r.id === selected.id ? 1 : 0.75 }} />
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                    <p style={{ fontSize: '9px', color: '#B0B0B0', margin: 0 }}>금색 = 현재 보는 리포트 · 회색 = 미입력</p>
+                  </div>
+                )}
+
+                {/* 이전 리포트 바로가기 */}
+                {others.length > 0 && (
+                  <div style={cardStyle}>
+                    <p style={cardTitle}>이 학생의 다른 리포트</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      {others.map(r => (
+                        <button key={r.id} onClick={() => setSelectedId(r.id)}
+                          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', padding: '8px 10px', border: 'none', borderRadius: '8px', background: '#F9FAFB', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', width: '100%' }}>
+                          <span style={{ fontSize: '11px', color: '#374151', fontWeight: 600 }}>{fmtDate(r)}</span>
+                          <span style={{ fontSize: '10px', color: '#9CA3AF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.unit || r.textbook || ''}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 반복 진단 */}
+                {topDiag.length > 0 && (
+                  <div style={cardStyle}>
+                    <p style={cardTitle}>반복 진단 TOP {topDiag.length}</p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                      {topDiag.map(([key, count]) => (
+                        <span key={key} style={{ fontSize: '11px', fontWeight: 600, background: DIAG_COLORS[key]?.bg || '#F3F4F6', color: DIAG_COLORS[key]?.color || '#374151', border: `1px solid ${DIAG_COLORS[key]?.border || '#E5E7EB'}`, padding: '4px 10px', borderRadius: '12px' }}>
+                          {DIAG_LABELS[key] || key} ×{count}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </aside>
+            );
+          })()}
           </div>
         </div>
       ) : (
