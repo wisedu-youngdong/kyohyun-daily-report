@@ -478,24 +478,32 @@ export default function App() {
     { key: 'manage',    label: '관리',      icon: <Users size={20} />,           roles: ['director'] },
   ];
   const tabs = mainTabs.filter(t => t.roles.includes(userRole || 'director'));
-  const renderSubTabBar = (group, items) => {
+  // widths: 숫자면 항상 그 폭, {key: 폭} 객체면 현재 활성 서브탭에 맞는 폭을 사용
+  // (서브탭마다 콘텐츠 컨테이너 폭이 다르면 탭 전환 시 탭 바도 같이 맞춰줘야 정렬이 유지됨)
+  const renderSubTabBar = (group, items, widths) => {
+    const maxWidth = typeof widths === 'object' ? widths[activeSubTab[group]] : widths;
+    const wrapStyle = maxWidth
+      ? { maxWidth: `${maxWidth}px`, margin: '16px auto 0', padding: '0 20px', boxSizing: 'border-box' }
+      : { margin: '16px 20px 0' };
     // 탭이 1개뿐이면 선택 UI 자체가 무의미 — 섹션 제목으로만 표시
     if (items.length <= 1) {
       return (
-        <p style={{ margin: '16px 20px 0', fontSize: '13px', fontWeight: 700, color: '#374151' }}>{items[0]?.label}</p>
+        <p style={{ ...wrapStyle, fontSize: '13px', fontWeight: 700, color: '#374151' }}>{items[0]?.label}</p>
       );
     }
     return (
-      <div style={{ display: 'inline-flex', background: '#F3F4F6', borderRadius: '10px', padding: '3px', margin: '16px 20px 0', gap: '2px' }}>
-        {items.map(item => {
-          const isActive = activeSubTab[group] === item.key;
-          return (
-            <button key={item.key} onClick={() => setSubTab(group, item.key)}
-              style={{ padding: '8px 18px', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: isActive ? 700 : 500, cursor: 'pointer', transition: 'all 0.15s', background: isActive ? '#fff' : 'transparent', color: isActive ? '#0D2D6B' : '#8A8A8A', boxShadow: isActive ? '0 1px 4px rgba(0,0,0,0.10)' : 'none', fontFamily: "'Pretendard Variable', Pretendard, sans-serif", whiteSpace: 'nowrap' }}>
-              {item.label}
-            </button>
-          );
-        })}
+      <div style={wrapStyle}>
+        <div style={{ display: 'inline-flex', background: '#F3F4F6', borderRadius: '10px', padding: '3px', gap: '2px' }}>
+          {items.map(item => {
+            const isActive = activeSubTab[group] === item.key;
+            return (
+              <button key={item.key} onClick={() => setSubTab(group, item.key)}
+                style={{ padding: '8px 18px', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: isActive ? 700 : 500, cursor: 'pointer', transition: 'all 0.15s', background: isActive ? '#fff' : 'transparent', color: isActive ? '#0D2D6B' : '#8A8A8A', boxShadow: isActive ? '0 1px 4px rgba(0,0,0,0.10)' : 'none', fontFamily: "'Pretendard Variable', Pretendard, sans-serif", whiteSpace: 'nowrap' }}>
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
     );
   };
@@ -612,7 +620,7 @@ export default function App() {
             {renderSubTabBar('insight', [
               { key: 'director', label: '원장 보고서' },
               { key: 'analysis', label: '종합 분석' },
-            ])}
+            ], { director: 960, analysis: 600 })}
             <div style={{ marginTop: '12px' }}>
               {activeSubTab.insight === 'director' && (dataReady
                 ? <div><DirectorView reports={reports} students={students} reportViews={reportViews} /><GrowthDashboard reports={reports} students={students} onSwitchTab={setActiveTab} /></div>
@@ -630,7 +638,7 @@ export default function App() {
             {renderSubTabBar('manage', [
               { key: 'students', label: '학생 관리' },
               { key: 'settings', label: '설정' },
-            ])}
+            ], 600)}
             <div style={{ marginTop: '12px' }}>
               {activeSubTab.manage === 'students' && (dataReady
                 ? <StudentsView students={students} reports={reports} onSave={handleSaveStudent} onDelete={handleDeleteStudent} teachers={teachers} />
@@ -760,7 +768,7 @@ function StudentsView({ students, reports, onSave, onDelete, teachers = [] }) {
     });
 
   return (
-    <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
+    <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto', boxSizing: 'border-box' }}>
 
       {/* 학생 프로필 모달 */}
       {profileStudent && (
@@ -1967,7 +1975,7 @@ function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDele
   const derived = deriveColors(globalColor);
 
   return (
-    <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
+    <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto', boxSizing: 'border-box' }}>
       <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '4px', letterSpacing: '-0.02em' }}>스킨 설정</h2>
       <p style={{ fontSize: '12px', color: '#6B7280', marginBottom: '20px', fontWeight: 500 }}>학원 기본 색상을 설정하세요. 학생별로 다르게 설정할 수 있습니다.</p>
 
@@ -3161,7 +3169,7 @@ function DirectorView({ reports, students, reportViews = [] }) {
   };
 
   return (
-    <div style={{ maxWidth: '960px', margin: '0 auto', padding: '20px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>
+    <div style={{ maxWidth: '960px', margin: '0 auto', padding: '20px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif", boxSizing: 'border-box' }}>
 
       {/* 학생 종합 프로필 모달 */}
       {profileStudent && (
@@ -3568,7 +3576,7 @@ function AnalysisView({ students, reports }) {
   };
 
   return (
-    <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
+    <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto', boxSizing: 'border-box' }}>
       <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '16px', letterSpacing: '-0.02em' }}>종합 분석</h2>
       <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: `1px solid #E5E7EB`, marginBottom: '16px' }}>
         <select value={selectedId} onChange={(e) => setSelectedId(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontSize: '16px', fontWeight: 500, border: `1px solid #E5E7EB`, borderRadius: '10px', background: '#F9FAFB', outline: 'none', fontFamily: 'inherit' }}>
