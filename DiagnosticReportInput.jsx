@@ -917,11 +917,9 @@ export default function DiagnosticReportInput({
                 <FieldLabel>과목</FieldLabel>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '14px' }}>
                   {[
-                    { label: '과학', color: '#7A4F00' },
-                    { label: '국어', color: '#8A2020' },
-                    { label: '사회', color: '#4A3080' },
+                    // 국어/사회/과학/역사는 현재 교현학원에서 운영하지 않는 과목이라 선택지에서 제외.
+                    // 해당 과목 수업을 시작하면 여기에 다시 추가 + curriculum.js에 단원표 추가.
                     { label: '수학', color: '#0D2D6B' },
-                    { label: '역사', color: '#1A5C3A' },
                     { label: '영어', color: '#0F6E56' },
                     { label: '기타', color: '#4A4A4A' },
                   ].map(({ label, color }) => (
