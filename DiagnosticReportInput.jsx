@@ -1630,7 +1630,7 @@ export default function DiagnosticReportInput({
 // ============================================================
 // 학생 등록 모달
 // ============================================================
-function StudentModal({ onClose, onSubmit, teachers = [], isDirector = false }) {
+export function StudentModal({ onClose, onSubmit, teachers = [], isDirector = false }) {
   const [name, setName] = useState('');
   const [school, setSchool] = useState('');
   const [parentPhone, setParentPhone] = useState('');

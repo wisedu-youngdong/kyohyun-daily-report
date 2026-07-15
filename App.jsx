@@ -11,7 +11,7 @@ import {
   signOut,
   onAuthStateChanged
 } from 'firebase/auth';
-import DiagnosticReportInput from './DiagnosticReportInput';
+import DiagnosticReportInput, { StudentModal } from './DiagnosticReportInput';
 import {
   LayoutDashboard, Users, FileText, History, BarChart2, LogOut
 } from 'lucide-react';
@@ -712,7 +712,7 @@ export default function App() {
             ], 600)}
             <div style={{ marginTop: '12px' }}>
               {activeSubTab.manage === 'students' && (dataReady
-                ? <StudentsView students={students} reports={reports} onSave={handleSaveStudent} onDelete={handleDeleteStudent} teachers={teachers} />
+                ? <StudentsView students={students} reports={reports} onSave={handleSaveStudent} onDelete={handleDeleteStudent} teachers={teachers} currentTeacherId={userTeacherId} isDirector={isDirector} />
                 : <SkeletonBlock rows={5} cardHeight={56} />
               )}
               {activeSubTab.manage === 'settings' && (dataReady
@@ -875,12 +875,20 @@ function StatCard({ label, value, unit }) {
   );
 }
 
-function StudentsView({ students, reports, onSave, onDelete, teachers = [] }) {
+function StudentsView({ students, reports, onSave, onDelete, teachers = [], currentTeacherId = null, isDirector = false }) {
+  const [showAddStudent, setShowAddStudent] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
   const [profileStudent, setProfileStudent] = useState(null);
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState('name');
   const [deleteConfirm, setDeleteConfirm] = useState(null); // studentId
+  const deleteTimerRef = React.useRef(null);
+  // A의 ×를 누른 뒤 3초 안에 B의 ×를 누르면 A의 타이머가 B의 확인 상태를 꺼버리던 문제
+  const askDeleteConfirm = (id) => {
+    if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current);
+    setDeleteConfirm(id);
+    deleteTimerRef.current = setTimeout(() => setDeleteConfirm(null), 3000);
+  };
 
   const DIAG_MAP = {
     calc:    { label: '계산 실수', bg: '#A32D2D', prefix: '⚠' },
@@ -923,7 +931,27 @@ function StudentsView({ students, reports, onSave, onDelete, teachers = [] }) {
         />
       )}
 
-      <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '14px', letterSpacing: '-0.02em' }}>학생 관리</h2>
+      {/* 학생 등록 모달 — 리포트 작성 화면과 동일한 컴포넌트 재사용 */}
+      {showAddStudent && (
+        <StudentModal
+          teachers={teachers}
+          isDirector={isDirector}
+          onClose={() => setShowAddStudent(false)}
+          onSubmit={async (newStudent) => {
+            const assignedTeacherId = newStudent.assignedTeacherId || (isDirector ? '' : currentTeacherId || '');
+            await onSave({ ...newStudent, assignedTeacherId });
+            setShowAddStudent(false);
+          }}
+        />
+      )}
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+        <h2 style={{ fontSize: '20px', fontWeight: 700, letterSpacing: '-0.02em', margin: 0 }}>학생 관리</h2>
+        <button onClick={() => setShowAddStudent(true)}
+          style={{ background: T.brand, color: '#fff', border: 'none', borderRadius: '9px', padding: '8px 14px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
+          + 학생 추가
+        </button>
+      </div>
 
       {/* 검색 + 정렬 */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
@@ -957,7 +985,15 @@ function StudentsView({ students, reports, onSave, onDelete, teachers = [] }) {
       )}
 
       {students.length === 0
-        ? <div style={{ background: '#fff', borderRadius: '16px', border: `1px solid #E5E7EB`, padding: '60px 20px', textAlign: 'center', color: '#9CA3AF', fontSize: '13px' }}>리포트 작성 화면에서 학생을 추가하세요</div>
+        ? (
+          <div style={{ background: '#fff', borderRadius: '16px', border: `1px solid ${T.border}`, padding: '60px 20px', textAlign: 'center' }}>
+            <p style={{ color: T.textSub, fontSize: '13px', margin: '0 0 12px' }}>등록된 학생이 없습니다</p>
+            <button onClick={() => setShowAddStudent(true)}
+              style={{ background: T.brandLight, color: T.brand, border: 'none', borderRadius: '9px', padding: '9px 18px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+              + 첫 학생 등록하기
+            </button>
+          </div>
+        )
         : <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {filtered.map(s => {
             const sReports = reports.filter(r => r.studentId === s.id);
@@ -987,18 +1023,21 @@ function StudentsView({ students, reports, onSave, onDelete, teachers = [] }) {
                     ✏️ 수정
                   </button>
                   {deleteConfirm === s.id ? (
-                    <div style={{ display: 'flex', gap: '4px' }} onClick={e => e.stopPropagation()}>
-                      <button onClick={() => { onDelete(s.id); setDeleteConfirm(null); }}
-                        style={{ background: '#DC2626', border: 'none', color: '#fff', fontSize: '11px', fontWeight: 700, padding: '5px 10px', borderRadius: '6px', cursor: 'pointer' }}>
+                    <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                      <button onClick={() => {
+                        if (sReports.length > 0 && !window.confirm(`${s.name} 학생의 리포트 ${sReports.length}건은 삭제되지 않고 남습니다.\n이미 학부모에게 공유된 링크도 그대로 열립니다.\n\n정말 삭제할까요?`)) return;
+                        onDelete(s.id); setDeleteConfirm(null);
+                      }}
+                        style={{ background: '#DC2626', border: 'none', color: '#fff', fontSize: '11px', fontWeight: 700, padding: '10px 12px', borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit' }}>
                         삭제 확인
                       </button>
                       <button onClick={() => setDeleteConfirm(null)}
-                        style={{ background: '#F3F4F6', border: 'none', color: '#6B7280', fontSize: '11px', fontWeight: 600, padding: '5px 10px', borderRadius: '6px', cursor: 'pointer' }}>
+                        style={{ background: '#F3F4F6', border: 'none', color: '#6B7280', fontSize: '11px', fontWeight: 600, padding: '10px 12px', borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit' }}>
                         취소
                       </button>
                     </div>
                   ) : (
-                    <button onClick={(e) => { e.stopPropagation(); setDeleteConfirm(s.id); setTimeout(() => setDeleteConfirm(null), 3000); }}
+                    <button onClick={(e) => { e.stopPropagation(); askDeleteConfirm(s.id); }}
                       style={{ background: 'none', border: 'none', color: '#D1D5DB', fontSize: '18px', cursor: 'pointer', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, WebkitTapHighlightColor: 'transparent' }}>×</button>
                   )}
                 </div>
@@ -1040,10 +1079,13 @@ function StudentEditModal({ student, onClose, onSubmit, teachers = [] }) {
   const [skinColor, setSkinColor] = useState(student.skinColor || '');
   const [useCustomSkin, setUseCustomSkin] = useState(!!student.skinColor);
   const [assignedTeacherId, setAssignedTeacherId] = useState(student.assignedTeacherId || '');
-  const [studentType, setStudentType] = useState(student.studentType || 'returning');
+  // studentType이 없던 시절 학생은 빈 값으로 둠 — 'returning'으로 기본값을 주면 다른 항목만
+  // 수정해도 재학생으로 확정돼, GrowthStory의 리포트 수 기반 자동 판정 폴백이 영구히 꺼짐
+  const [studentType, setStudentType] = useState(student.studentType || '');
   const [saving, setSaving] = useState(false);
 
-  const isValid = name.trim() && school.trim();
+  // 등록 모달과 동일하게 교재를 필수로 — 등록 때 필수였던 교재가 수정 한 번에 사라지던 문제 방지
+  const isValid = name.trim() && school.trim() && textbooks.some(t => t.name.trim());
 
   const addTextbook = () => setTextbooks(prev => [...prev, { id: Date.now(), name: '' }]);
   const updateTextbook = (id, value) => setTextbooks(prev => prev.map(t => t.id === id ? { ...t, name: value } : t));
@@ -1061,7 +1103,8 @@ function StudentEditModal({ student, onClose, onSubmit, teachers = [] }) {
       avatar: avatar,
       skinColor: useCustomSkin ? skinColor : '',
       assignedTeacherId: assignedTeacherId || '',
-      studentType,
+      // 미선택(레거시 학생)이면 필드를 아예 보내지 않아 자동 판정 폴백을 유지
+      ...(studentType ? { studentType } : {}),
     });
     setSaving(false);
   };
@@ -1114,13 +1157,15 @@ function StudentEditModal({ student, onClose, onSubmit, teachers = [] }) {
             </div>
             <div>
               <label style={labelStyle}>학교 / 학년 *</label>
-              <input value={school} onChange={(e) => setSchool(e.target.value)} style={inputStyle} />
+              {/* placeholder 필수 — guessCourseKey가 이 문자열에서 학년/학교급을 파싱해
+                  단원 추천을 만들기 때문에, 형식이 깨지면 추천이 조용히 죽음 */}
+              <input value={school} onChange={(e) => setSchool(e.target.value)} placeholder="예: 교현초 5학년" style={inputStyle} />
             </div>
           </div>
 
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-              <label style={labelStyle}>교재</label>
+              <label style={labelStyle}>교재 *</label>
               <button onClick={addTextbook} style={{ background: '#E6F1FB', color: '#185FA5', border: 'none', borderRadius: '5px', padding: '3px 9px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>+ 추가</button>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
