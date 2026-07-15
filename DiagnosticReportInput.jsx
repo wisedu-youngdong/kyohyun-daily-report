@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { calculateReportPoints, toPct, ratingLabel } from './growth.js';
 import { findUnitKey, getUnits, getCourses } from './curriculum.js';
+import { formatPhone, isValidPhone } from './phone.js';
 import { storage } from './firebase.js';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
@@ -1640,7 +1641,8 @@ export function StudentModal({ onClose, onSubmit, teachers = [], isDirector = fa
   const [assignedTeacherId, setAssignedTeacherId] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const isValid = name.trim() && school.trim() && textbooks.some(t => t.name.trim());
+  const phoneOk = isValidPhone(parentPhone);
+  const isValid = name.trim() && school.trim() && textbooks.some(t => t.name.trim()) && phoneOk;
 
   const addTextbook = () => setTextbooks(prev => [...prev, { id: Date.now(), name: '' }]);
   const updateTextbook = (id, value) => setTextbooks(prev => prev.map(t => t.id === id ? { ...t, name: value } : t));
@@ -1744,7 +1746,9 @@ export function StudentModal({ onClose, onSubmit, teachers = [], isDirector = fa
 
           <div style={{ marginBottom: '12px' }}>
             <FieldLabel>학부모 연락처 (선택)</FieldLabel>
-            <input type="tel" value={parentPhone} onChange={(e) => setParentPhone(e.target.value)} placeholder="010-0000-0000" style={inputStyle} />
+            <input type="tel" value={parentPhone} onChange={(e) => setParentPhone(formatPhone(e.target.value))} placeholder="010-0000-0000"
+              style={{ ...inputStyle, borderColor: phoneOk ? '#E5E7EB' : TOKENS.dangerBorder }} />
+            {!phoneOk && <p style={{ fontSize: '11px', color: TOKENS.danger, margin: '4px 0 0' }}>휴대폰 번호 형식이 올바르지 않습니다 (예: 010-1234-5678)</p>}
           </div>
 
           <div>

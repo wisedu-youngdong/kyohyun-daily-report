@@ -18,6 +18,7 @@ import {
 import { calculateTotalPoints, getStageInfo, calculateReportPoints, STAGES, toPct, ratingLabel } from './growth.js';
 import { useMediaQuery } from './hooks.js';
 import { findUnitKey } from './curriculum.js';
+import { formatPhone, isValidPhone } from './phone.js';
 import ErrorBoundary from './ErrorBoundary.jsx';
 import { T } from './tokens.jsx';
 import {
@@ -1125,8 +1126,9 @@ function StudentEditModal({ student, onClose, onSubmit, teachers = [] }) {
   const [studentType, setStudentType] = useState(student.studentType || '');
   const [saving, setSaving] = useState(false);
 
+  const phoneOk = isValidPhone(parentPhone);
   // 등록 모달과 동일하게 교재를 필수로 — 등록 때 필수였던 교재가 수정 한 번에 사라지던 문제 방지
-  const isValid = name.trim() && school.trim() && textbooks.some(t => t.name.trim());
+  const isValid = name.trim() && school.trim() && textbooks.some(t => t.name.trim()) && phoneOk;
 
   const addTextbook = () => setTextbooks(prev => [...prev, { id: Date.now(), name: '' }]);
   const updateTextbook = (id, value) => setTextbooks(prev => prev.map(t => t.id === id ? { ...t, name: value } : t));
@@ -1224,7 +1226,9 @@ function StudentEditModal({ student, onClose, onSubmit, teachers = [] }) {
 
           <div>
             <label style={labelStyle}>학부모 연락처</label>
-            <input type="tel" value={parentPhone} onChange={(e) => setParentPhone(e.target.value)} placeholder="010-0000-0000" style={inputStyle} />
+            <input type="tel" value={parentPhone} onChange={(e) => setParentPhone(formatPhone(e.target.value))} placeholder="010-0000-0000"
+              style={{ ...inputStyle, borderColor: phoneOk ? '#E5E7EB' : '#A32D2D' }} />
+            {!phoneOk && <p style={{ fontSize: '11px', color: '#A32D2D', margin: '4px 0 0' }}>휴대폰 번호 형식이 올바르지 않습니다 (예: 010-1234-5678)</p>}
           </div>
 
           {teachers.length > 0 && (
