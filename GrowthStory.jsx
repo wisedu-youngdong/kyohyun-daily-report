@@ -109,14 +109,16 @@ export default function GrowthStory() {
   const unitScoreMap = {};
   sorted.forEach(r => {
     if (!r.hasTest || !r.testScore) return;
-    // unit → testName → textbook → '단원평가' 순으로 fallback
-    const unit = (r.unit && r.unit.trim()) || (r.testName && r.testName.trim()) || (r.textbook && r.textbook.trim()) || '단원평가';
+    // unit → testName → textbook → '단원평가' 순으로 표시용 라벨 결정
+    // 그룹 키는 unitKey(표준 단원 정규화)를 우선 사용해, 강사마다 표기가 달라도(예: "3단원"/"소수의 나눗셈") 같은 단원으로 묶임
+    const unitLabel = (r.unit && r.unit.trim()) || (r.testName && r.testName.trim()) || (r.textbook && r.textbook.trim()) || '단원평가';
+    const groupKey = r.unitKey || unitLabel;
     const round = r.testRound || '';
     const score = Number(r.testScore);
-    if (!unitScoreMap[unit]) unitScoreMap[unit] = [];
-    unitScoreMap[unit].push({ round, score, date: fmtDate(r) });
+    if (!unitScoreMap[groupKey]) unitScoreMap[groupKey] = { label: unitLabel, scores: [] };
+    unitScoreMap[groupKey].scores.push({ round, score, date: fmtDate(r) });
   });
-  const unitScores = Object.entries(unitScoreMap).map(([unit, scores]) => ({ unit, scores }));
+  const unitScores = Object.values(unitScoreMap).map(({ label, scores }) => ({ unit: label, scores }));
 
   // 전체 평균 추이 (차수별)
   const allScores = sorted.filter(r => r.hasTest && r.testScore).map(r => Number(r.testScore));

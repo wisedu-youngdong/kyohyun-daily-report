@@ -17,6 +17,7 @@ import {
   UserPlus, GraduationCap, Settings, Trash2
 } from 'lucide-react';
 import { calculateReportPoints, toPct, ratingLabel } from './growth.js';
+import { findUnitKey, getUnits, getCourses } from './curriculum.js';
 import { storage } from './firebase.js';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
@@ -195,6 +196,19 @@ function AlertModal({ message, onClose }) {
   );
 }
 
+// 학생의 학교 문자열("교현초 5학년")과 현재 월로 커리큘럼 코스 키 추정 ('초5-1' 등)
+// 고등/영어는 학년만으로 코스를 특정할 수 없어 null 반환 — 강사가 코스 칩으로 직접 선택
+function guessCourseKey(subject, school) {
+  if (subject !== '수학' || !school) return null;
+  const gradeMatch = school.match(/(\d)\s*학년/);
+  const grade = gradeMatch ? parseInt(gradeMatch[1], 10) : null;
+  const level = school.includes('초') ? '초' : school.includes('중') ? '중' : null;
+  if (!grade || !level) return null;
+  const month = new Date().getMonth() + 1;
+  const semester = (month >= 3 && month <= 8) ? 1 : 2;
+  return `${level}${grade}-${semester}`;
+}
+
 export default function DiagnosticReportInput({
   students = [],
   teachers = [],
@@ -216,6 +230,7 @@ export default function DiagnosticReportInput({
 
   const [studentId, setStudentId] = useState('');
   const [teacherId, setTeacherId] = useState('');
+  const [curriculumCourseOverride, setCurriculumCourseOverride] = useState(null);
 
   const [attendance, setAttendance] = useState('정시');
   const [arrivalTime, setArrivalTime] = useState('15:30');
@@ -265,6 +280,7 @@ export default function DiagnosticReportInput({
         testScore: hasTest ? testScore : null,
         testRound: hasTest ? testRound : null,
         textbook, subject, unit, pages,
+        unitKey: findUnitKey(subject, unit),
         diagnosis: selectedTags,
         teacherNote: teacherNote || '',
         nextPlan, nextPlanDetail,
@@ -610,6 +626,7 @@ export default function DiagnosticReportInput({
         testScore: hasTest ? testScore : null,
         testRound: hasTest ? testRound : null,
         textbook, subject, unit, pages,
+        unitKey: findUnitKey(subject, unit),
         diagnosis: selectedTags,
         teacherNote: aiPolishedNote || teacherNote,
         nextPlan, nextPlanDetail,
@@ -619,9 +636,10 @@ export default function DiagnosticReportInput({
       };
       reportPayload.points = calculateReportPoints(reportPayload);
       const savedId = await onSave(reportPayload);
-      setStudentId(''); setHomeworkRating(0); setConceptRating(0);
+      setStudentId(''); setHomeworkRating(null); setConceptRating(null);
       setHasTest(false); setTestName(''); setTestScore(''); setTestRound('');
       setTextbook(''); setSubject('수학'); setUnit(''); setPages('');
+      setCurriculumCourseOverride(null);
       setSelectedTags([]); setTeacherNote(''); setAiPolishedNote('');
       setNextPlan(''); setNextPlanDetail('');
       removeAllPhotos();
@@ -780,6 +798,7 @@ export default function DiagnosticReportInput({
                 setHomeworkRating(null); setConceptRating(null);
                 setHasTest(false); setTestScore(''); setTestName(''); setTestRound('');
                 setTextbook(''); setSubject('수학'); setUnit(''); setPages('');
+                setCurriculumCourseOverride(null);
                 setTeacherNote(''); setSelectedTags([]);
                 setAiPolishedNote('');
                 setNextPlan(''); setNextPlanDetail('');
@@ -943,6 +962,44 @@ export default function DiagnosticReportInput({
                           {item.textbook} · {item.unit}
                         </button>
                       ))}
+                    </div>
+                  );
+                })()}
+                {/* 표준 단원표 제안 — 학년/학기로 자동 추정, 안 맞으면 코스 칩으로 직접 선택 */}
+                {(() => {
+                  const courses = getCourses(subject);
+                  if (courses.length === 0) return null;
+                  const guessedCourse = guessCourseKey(subject, student?.school);
+                  const activeCourse = curriculumCourseOverride || guessedCourse;
+                  const units = activeCourse ? getUnits(subject, activeCourse) : [];
+                  return (
+                    <div style={{ marginBottom: '8px' }}>
+                      {(!guessedCourse || curriculumCourseOverride) && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: units.length > 0 ? '5px' : 0 }}>
+                          {courses.map(c => (
+                            <button key={c} type="button" onClick={() => setCurriculumCourseOverride(c)}
+                              style={{
+                                padding: '3px 9px', borderRadius: '8px', border: '1px solid #E5E7EB',
+                                background: activeCourse === c ? '#185FA5' : '#fff',
+                                color: activeCourse === c ? '#fff' : '#6B7280',
+                                fontSize: '10px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                              }}>{c}</button>
+                          ))}
+                        </div>
+                      )}
+                      {units.length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                          {units.map(u => (
+                            <button key={u} type="button" onClick={() => setUnit(u)}
+                              style={{
+                                padding: '4px 10px', borderRadius: '10px', border: '1px solid #E6F1FB',
+                                background: unit === u ? '#185FA5' : '#F0F7FC',
+                                color: unit === u ? '#fff' : '#0C447C',
+                                fontSize: '11px', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
+                              }}>{u}</button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
                 })()}
