@@ -55,7 +55,9 @@ export default function GrowthStory() {
     else setSearchParams({});
   };
 
-  const startEdit = (field) => { setEditing(field); setEditText(narrative[field] || ''); };
+  // AI가 생성한 원문이 150자를 넘을 수 있어 편집창을 열 때부터 잘라서 불러옴
+  // (maxLength는 신규 타이핑만 막고, 이미 불러온 긴 값은 못 막기 때문)
+  const startEdit = (field) => { setEditing(field); setEditText((narrative[field] || '').slice(0, NARRATIVE_MAX_LEN)); };
   const saveEdit = async () => {
     const previous = narrative;
     const updated = { ...narrative, [editing]: editText };
