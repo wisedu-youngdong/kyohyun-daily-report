@@ -205,6 +205,7 @@ export default function App() {
   const [teachers, setTeachers] = useState([]);
   const [reports, setReports] = useState([]);
   const [reportViews, setReportViews] = useState([]);
+  const [commentTemplates, setCommentTemplates] = useState([]);
   const [studentsReady, setStudentsReady] = useState(false);
   const [reportsReady, setReportsReady] = useState(false);
   const dataReady = studentsReady && reportsReady;
@@ -303,7 +304,13 @@ export default function App() {
       setReportViews(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     }, (e) => { console.error('열람 기록 구독 실패:', e); });
 
-    return () => { unsubStudents(); unsubTeachers(); unsubReports(); unsubViews(); };
+    // 코멘트 즐겨찾기 — 학원 공용(모든 강사가 함께 씀)
+    const unsubTemplates = onSnapshot(collection(db, 'commentTemplates'), (snap) => {
+      setCommentTemplates(snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0)));
+    }, (e) => { console.error('코멘트 즐겨찾기 구독 실패:', e); });
+
+    return () => { unsubStudents(); unsubTeachers(); unsubReports(); unsubViews(); unsubTemplates(); };
   }, [user]);
 
   const handleSaveStudent = async (d) => {
@@ -347,6 +354,22 @@ export default function App() {
     } catch (e) {
       console.error('로고 저장 실패:', e);
       showAppToast('로고 저장에 실패했습니다.', 'error');
+    }
+  };
+  const handleSaveCommentTemplate = async (label, text) => {
+    try {
+      await addDoc(collection(db, 'commentTemplates'), { label, text, createdAt: serverTimestamp() });
+    } catch (e) {
+      console.error('코멘트 즐겨찾기 저장 실패:', e);
+      showAppToast('즐겨찾기 저장에 실패했습니다.', 'error');
+    }
+  };
+  const handleDeleteCommentTemplate = async (id) => {
+    try {
+      await deleteDoc(doc(db, 'commentTemplates', id));
+    } catch (e) {
+      console.error('코멘트 즐겨찾기 삭제 실패:', e);
+      showAppToast('즐겨찾기 삭제에 실패했습니다.', 'error');
     }
   };
   const handleDeleteTeacher = async (id) => {
@@ -599,7 +622,9 @@ export default function App() {
               onSave={handleSaveReport}
               editingReport={editingReport}
               onEditDone={() => setEditingReport(null)}
-
+              commentTemplates={commentTemplates}
+              onSaveCommentTemplate={handleSaveCommentTemplate}
+              onDeleteCommentTemplate={handleDeleteCommentTemplate}
             />
           </>
         )}
@@ -2788,6 +2813,11 @@ function GrowthDashboard({ reports, students, onSwitchTab }) {
 // ============================================================
 function StudentProfileModal({ student, reports, onClose, DIAG_MAP }) {
   const [showWeekly, setShowWeekly] = useState(false);
+  const [calMonth, setCalMonth] = useState(() => {
+    const last = [...reports].sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))[0];
+    const d = last?.createdAt?.seconds ? new Date(last.createdAt.seconds * 1000) : new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  });
 
   // 모바일 뒤로가기 지원 — SPA history 보호
   useEffect(() => {
@@ -2862,6 +2892,70 @@ function StudentProfileModal({ student, reports, onClose, DIAG_MAP }) {
               </div>
             ))}
           </div>
+
+          {/* 출결 캘린더 */}
+          {(() => {
+            const ATTEND_COLORS = { '정시': '#0F6E56', '지각': '#C9A227', '결석': '#A32D2D', '조퇴': '#8A5A00' };
+            const attendanceByDate = {};
+            sorted.forEach(r => {
+              if (!r.createdAt?.seconds) return;
+              const d = new Date(r.createdAt.seconds * 1000);
+              attendanceByDate[`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`] = r.attendance;
+            });
+            const calYear = calMonth.getFullYear();
+            const calMonthIdx = calMonth.getMonth();
+            const firstDayOfWeek = new Date(calYear, calMonthIdx, 1).getDay();
+            const daysInMonth = new Date(calYear, calMonthIdx + 1, 0).getDate();
+            const today = new Date();
+            const todayKey = `${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`;
+            return (
+              <div style={{ marginBottom: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                  <p style={{ fontSize: '14px', fontWeight: 700, margin: 0, color: '#1A1A1A' }}>출결 캘린더</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <button onClick={() => setCalMonth(new Date(calYear, calMonthIdx - 1, 1))}
+                      style={{ background: 'none', border: 'none', color: '#6B7280', cursor: 'pointer', fontSize: '14px', padding: '4px', width: '28px', height: '28px' }}>‹</button>
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: '#374151' }}>{calYear}년 {calMonthIdx + 1}월</span>
+                    <button onClick={() => setCalMonth(new Date(calYear, calMonthIdx + 1, 1))}
+                      style={{ background: 'none', border: 'none', color: '#6B7280', cursor: 'pointer', fontSize: '14px', padding: '4px', width: '28px', height: '28px' }}>›</button>
+                  </div>
+                </div>
+                <div style={{ width: '32px', height: '2px', background: '#C9A227', marginBottom: '12px' }} />
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', marginBottom: '4px' }}>
+                  {['일', '월', '화', '수', '목', '금', '토'].map(d => (
+                    <p key={d} style={{ textAlign: 'center', fontSize: '10px', color: '#9CA3AF', margin: 0, fontWeight: 600 }}>{d}</p>
+                  ))}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
+                  {Array.from({ length: firstDayOfWeek }).map((_, i) => <div key={`e${i}`} />)}
+                  {Array.from({ length: daysInMonth }).map((_, i) => {
+                    const day = i + 1;
+                    const key = `${calYear}-${calMonthIdx}-${day}`;
+                    const att = attendanceByDate[key];
+                    const isToday = key === todayKey;
+                    return (
+                      <div key={day} style={{
+                        aspectRatio: '1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                        borderRadius: '8px', background: att ? `${ATTEND_COLORS[att] || '#8A5A00'}12` : 'transparent',
+                        border: isToday ? '1.5px solid #185FA5' : '1px solid transparent',
+                      }}>
+                        <span style={{ fontSize: '11px', fontWeight: att ? 700 : 400, color: att ? (ATTEND_COLORS[att] || '#374151') : '#C0C0C0' }}>{day}</span>
+                        {att && <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: ATTEND_COLORS[att] || '#8A5A00', marginTop: '2px' }} />}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div style={{ display: 'flex', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>
+                  {Object.entries(ATTEND_COLORS).map(([label, color]) => (
+                    <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: color, display: 'inline-block' }} />
+                      <span style={{ fontSize: '10px', color: '#6B7280' }}>{label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* 날짜별 수업 카드 리스트 */}
           <div style={{ marginBottom: '20px' }}>

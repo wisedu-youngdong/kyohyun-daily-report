@@ -225,6 +225,9 @@ export default function DiagnosticReportInput({
   onSave = async () => {},
   editingReport = null,
   onEditDone = () => {},
+  commentTemplates = [],
+  onSaveCommentTemplate = async () => {},
+  onDeleteCommentTemplate = async () => {},
 }) {
   const isWide = useMediaQuery('(min-width: 901px)');
   const [showStudentModal, setShowStudentModal] = useState(false);
@@ -1397,9 +1400,42 @@ export default function DiagnosticReportInput({
 
                 <FieldLabel>강사 메모 (평소 카톡 톤으로 자유롭게)</FieldLabel>
 
+                {/* 코멘트 즐겨찾기 — 학원 공용, 탭하면 메모에 이어붙임 */}
+                {commentTemplates.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: '8px' }}>
+                    {commentTemplates.map(t => (
+                      <span key={t.id} style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '4px',
+                        background: '#FFF8E7', border: '1px solid #F5D76E', borderRadius: '20px',
+                        padding: '4px 6px 4px 12px', fontSize: '11px', color: '#7A5200', fontWeight: 500,
+                      }}>
+                        <button type="button" onClick={() => setTeacherNote(prev => prev ? `${prev}\n${t.text}` : t.text)}
+                          style={{ background: 'none', border: 'none', color: '#7A5200', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', padding: 0, maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          ⭐ {t.label}
+                        </button>
+                        <button type="button" onClick={() => { if (window.confirm(`"${t.label}" 즐겨찾기를 삭제할까요?`)) onDeleteCommentTemplate(t.id); }}
+                          style={{ background: 'none', border: 'none', color: '#B08900', cursor: 'pointer', padding: '2px', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <X size={11} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+
                 <textarea value={teacherNote} onChange={(e) => setTeacherNote(e.target.value)}
                   placeholder="예: 3단원 자릿수 실수 2번, 응용은 시간 부족으로 못 풂. 개념은 알고 있음"
                   rows={3} style={{ ...inputStyle, fontFamily: 'inherit', resize: 'vertical' }} />
+                <button type="button" onClick={() => {
+                  if (!teacherNote.trim()) return;
+                  const label = window.prompt('즐겨찾기 이름을 입력해주세요 (예: 계산실수 안내)', teacherNote.trim().slice(0, 12));
+                  if (label && label.trim()) onSaveCommentTemplate(label.trim(), teacherNote.trim());
+                }} disabled={!teacherNote.trim()} style={{
+                  marginTop: '6px', width: '100%', padding: '7px', fontSize: '11px', fontWeight: 700, borderRadius: '8px',
+                  border: `1px solid ${teacherNote.trim() ? '#C9A227' : '#E5E7EB'}`, background: '#fff',
+                  color: teacherNote.trim() ? '#8A5A00' : '#9CA3AF', cursor: teacherNote.trim() ? 'pointer' : 'not-allowed', fontFamily: 'inherit',
+                }}>
+                  ⭐ 현재 메모 즐겨찾기에 저장
+                </button>
                 <button onClick={handleAIPolish} disabled={!teacherNote.trim() || polishing} style={aiButtonStyle(!teacherNote.trim() || polishing)}>
                   <Sparkles size={13} /> {polishing ? '다듬는 중...' : 'AI로 학부모 톤으로 다듬기'}
                 </button>
