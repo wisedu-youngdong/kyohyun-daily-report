@@ -25,6 +25,7 @@ export default function GrowthStory() {
   const [retryKey, setRetryKey] = useState(0);
   const [narLoading, setNarLoading] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [showAllUnits, setShowAllUnits] = useState(false);
   const [editText, setEditText] = useState('');
 
   // 기간 토글 — URL 파라미터 연동
@@ -36,6 +37,7 @@ export default function GrowthStory() {
 
   const handlePeriodChange = (val) => {
     setPeriod(val);
+    setShowAllUnits(false);
     if (val === '3m') setSearchParams({ period: '3m' });
     else setSearchParams({});
   };
@@ -117,10 +119,14 @@ export default function GrowthStory() {
     const groupKey = r.unitKey || findUnitKey(r.subject || '수학', r.unit || '') || unitLabel;
     const round = r.testRound || '';
     const score = Number(r.testScore);
-    if (!unitScoreMap[groupKey]) unitScoreMap[groupKey] = { label: unitLabel, scores: [] };
+    if (!unitScoreMap[groupKey]) unitScoreMap[groupKey] = { label: unitLabel, scores: [], lastSeconds: 0 };
     unitScoreMap[groupKey].scores.push({ round, score, date: fmtDate(r) });
+    unitScoreMap[groupKey].lastSeconds = r.createdAt?.seconds || unitScoreMap[groupKey].lastSeconds;
   });
-  const unitScores = Object.values(unitScoreMap).map(({ label, scores }) => ({ unit: label, scores }));
+  // 최근에 다룬 단원이 먼저 보이도록 정렬 — "전체" 기간처럼 단원이 많을 때 최신순으로 우선 노출
+  const unitScores = Object.values(unitScoreMap)
+    .sort((a, b) => b.lastSeconds - a.lastSeconds)
+    .map(({ label, scores }) => ({ unit: label, scores }));
 
   // 전체 평균 추이 (차수별)
   const allScores = sorted.filter(r => r.hasTest && r.testScore).map(r => Number(r.testScore));
@@ -534,13 +540,17 @@ export default function GrowthStory() {
       </div>
 
       {/* 단원별 평가 추이 */}
-      {unitScores.length > 0 && (
+      {unitScores.length > 0 && (() => {
+        const UNIT_CAP = 6;
+        const visibleUnits = showAllUnits ? unitScores : unitScores.slice(0, UNIT_CAP);
+        const hiddenCount = unitScores.length - visibleUnits.length;
+        return (
         <div style={S.section}>
           <p style={S.label}>단원별 평가 추이 — 진솔한 성장의 기록</p>
-          {unitScores.map((u, ui) => {
+          {visibleUnits.map((u, ui) => {
             const maxS = Math.max(...u.scores.map(s => s.score), 1);
             return (
-              <div key={ui} style={{ marginBottom: ui < unitScores.length - 1 ? '16px' : 0 }}>
+              <div key={ui} style={{ marginBottom: ui < visibleUnits.length - 1 ? '16px' : 0 }}>
                 <p style={{ fontSize: '11px', fontWeight: 700, color: '#2C2C2C', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   {u.unit}
                   <span style={{ fontSize: '9px', color: '#0D2D6B', background: '#EAF0F9', padding: '2px 7px', borderRadius: '3px', fontWeight: 600 }}>
@@ -570,6 +580,12 @@ export default function GrowthStory() {
               </div>
             );
           })}
+          {hiddenCount > 0 && (
+            <button onClick={() => setShowAllUnits(true)}
+              style={{ width: '100%', marginTop: '10px', padding: '9px', fontSize: '11px', fontWeight: 700, color: '#0D2D6B', background: '#F0F7FC', border: '1px solid #E6F1FB', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit' }}>
+              + {hiddenCount}개 단원 더보기
+            </button>
+          )}
           {/* 전체 요약 — 2회 이상 평가 시만 표시 */}
           {allScores.length >= 2 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', background: '#F7F5F1', borderRadius: '4px', borderLeft: '2px solid #C9A227', marginTop: '12px' }}>
@@ -590,7 +606,8 @@ export default function GrowthStory() {
             </div>
           )}
         </div>
-      )}
+        );
+      })()}
 
       {/* 핵심 지표 */}
       <div style={S.section}>
