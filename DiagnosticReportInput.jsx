@@ -306,6 +306,7 @@ export default function DiagnosticReportInput({
         teacherNote: teacherNote || '',
         nextPlan, nextPlanDetail,
         photoAnalysis: photoAnalysis || null,
+        isDraft: true, // 자동저장본 — 복습 일정 생성은 최종 저장 때만
         // photoUrls는 수정 모드에서 기존 사진을 지우지 않도록 신규 draft일 때만 포함
         ...(existingId ? {} : { photoUrls: [] }),
       };
@@ -659,6 +660,7 @@ export default function DiagnosticReportInput({
         photoUrls,
         photoAnalysis: photoAnalysis || null,
         wrongItems: wrongItems.length > 0 ? wrongItems : null,
+        isDraft: false, // 최종 저장 — 이 시점에 복습 일정 생성
       };
       reportPayload.points = calculateReportPoints(reportPayload);
       const savedId = await onSave(reportPayload);

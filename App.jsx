@@ -206,6 +206,7 @@ export default function App() {
   const [reports, setReports] = useState([]);
   const [reportViews, setReportViews] = useState([]);
   const [commentTemplates, setCommentTemplates] = useState([]);
+  const [reviews, setReviews] = useState([]);
   const [studentsReady, setStudentsReady] = useState(false);
   const [reportsReady, setReportsReady] = useState(false);
   const dataReady = studentsReady && reportsReady;
@@ -310,8 +311,22 @@ export default function App() {
         .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0)));
     }, (e) => { console.error('코멘트 즐겨찾기 구독 실패:', e); });
 
-    return () => { unsubStudents(); unsubTeachers(); unsubReports(); unsubViews(); unsubTemplates(); };
+    // 복습 일정 — 약점 태그가 있는 리포트 저장 시 7/14/30일 후로 자동 생성됨
+    const unsubReviews = onSnapshot(collection(db, 'reviews'), (snap) => {
+      setReviews(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (e) => { console.error('복습 일정 구독 실패:', e); });
+
+    return () => { unsubStudents(); unsubTeachers(); unsubReports(); unsubViews(); unsubTemplates(); unsubReviews(); };
   }, [user]);
+
+  const handleCompleteReview = async (id) => {
+    try {
+      await updateDoc(doc(db, 'reviews', id), { status: 'done', completedAt: serverTimestamp() });
+    } catch (e) {
+      console.error('복습 완료 처리 실패:', e);
+      showAppToast('복습 완료 처리에 실패했습니다.', 'error');
+    }
+  };
 
   const handleSaveStudent = async (d) => {
   try {
@@ -424,8 +439,18 @@ export default function App() {
     }
 
     // ── 약점 태그 감지 → 복습 일정 자동 생성 ──
+    // 자동저장(isDraft)은 건너뜀 — draft 시점의 미완성 태그로 일정이 만들어지고,
+    // 정작 최종 저장 때는 draft id가 있어서 생성이 안 되던 문제 방지.
+    // 이미 이 리포트로 만든 일정이 있으면 중복 생성하지 않음(수정 저장 대응).
     const weakTags = (d.diagnosis || []).filter(t => ['calc','concept','apply','time'].includes(t.key));
-    if (weakTags.length > 0 && !d.id) { // 신규 저장 시만 생성
+    let alreadyHasReviews = false;
+    if (weakTags.length > 0 && !d.isDraft) {
+      try {
+        const existing = await getDocs(query(collection(db, 'reviews'), where('reportId', '==', reportId)));
+        alreadyHasReviews = existing.docs.length > 0;
+      } catch (e) { console.warn('복습 일정 조회 실패:', e); }
+    }
+    if (weakTags.length > 0 && !d.isDraft && !alreadyHasReviews) {
       const now = new Date();
       const schedules = [7, 14, 30].map(days => {
         const dueDate = new Date(now);
@@ -570,6 +595,8 @@ export default function App() {
         {activeTab === 'dashboard' && (dataReady
           ? <DashboardView
               students={visibleStudents} reports={visibleReports} onTabChange={setActiveTab}
+              reviews={isDirector ? reviews : reviews.filter(rv => visibleStudents.some(s => s.id === rv.studentId))}
+              onCompleteReview={handleCompleteReview}
               onWriteFor={(student, done) => {
                 // 완료된 학생이면 오늘 리포트를 수정 모드로, 대기면 새로 작성 — 랜딩에서 작업까지 한 번에
                 if (done) {
@@ -715,7 +742,7 @@ export default function App() {
   );
 }
 
-function DashboardView({ students, reports, onTabChange, onWriteFor }) {
+function DashboardView({ students, reports, onTabChange, onWriteFor, reviews = [], onCompleteReview }) {
   // 발송 완료 판정 — 자동저장 draft(코멘트 없이 문서만 생성됨)를 완료로 세지 않도록
   // 리포트 탭 상태바(App.jsx의 '오늘 학생 현황' 칩)와 동일한 기준 사용
   const isSent = (r) => !!(r.teacherNote && r.teacherNote.trim());
@@ -738,6 +765,50 @@ function DashboardView({ students, reports, onTabChange, onWriteFor }) {
         <StatCard label="오늘 미작성" value={Math.max(0, pendingCount)} unit="명" />
         <StatCard label="오늘 발송" value={todayReports.length} unit="건" />
       </div>
+      {/* 복습 알림 — 약점 태그가 있던 리포트는 7/14/30일 후 복습 일정이 자동 생성됨 */}
+      {(() => {
+        const dueReviews = reviews
+          .filter(rv => rv.status !== 'done' && rv.dueDate && rv.dueDate <= todayKst)
+          .sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
+        if (dueReviews.length === 0) return null;
+        return (
+          <div style={{ background: '#FFF8E7', borderRadius: '16px', border: '1px solid #F5D76E', overflow: 'hidden', marginBottom: '20px' }}>
+            <div style={{ padding: '12px 18px', borderBottom: '1px solid #F5D76E60' }}>
+              <h3 style={{ fontSize: '13px', fontWeight: 700, color: '#7A5200', margin: 0 }}>
+                🔁 복습할 때가 됐어요 · {dueReviews.length}건
+              </h3>
+              <p style={{ fontSize: '11px', color: '#9A6800', margin: '2px 0 0' }}>이전에 약점으로 진단된 내용이에요</p>
+            </div>
+            {dueReviews.slice(0, 5).map(rv => {
+              const overdueDays = Math.floor((new Date(todayKst) - new Date(rv.dueDate)) / 86400000);
+              return (
+                <div key={rv.id} style={{ padding: '10px 18px', display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid #F5D76E30' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>
+                      {rv.studentName} <span style={{ fontSize: '10px', fontWeight: 600, color: '#9A6800' }}>{rv.round}차 복습</span>
+                      {overdueDays > 0 && <span style={{ fontSize: '10px', fontWeight: 700, color: '#A32D2D', marginLeft: '5px' }}>{overdueDays}일 지남</span>}
+                    </p>
+                    <p style={{ fontSize: '11px', color: '#6B7280', margin: '1px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {[rv.textbook, rv.unit].filter(Boolean).join(' · ')}
+                      {rv.weakTypes?.length > 0 && ` — ${rv.weakTypes.map(w => w.label).join(', ')}`}
+                    </p>
+                  </div>
+                  <button onClick={() => onCompleteReview?.(rv.id)}
+                    style={{ flexShrink: 0, padding: '6px 12px', fontSize: '11px', fontWeight: 700, borderRadius: '8px', border: '1px solid #C9A227', background: '#fff', color: '#7A5200', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    완료
+                  </button>
+                </div>
+              );
+            })}
+            {dueReviews.length > 5 && (
+              <p style={{ padding: '8px 18px', fontSize: '11px', color: '#9A6800', margin: 0, textAlign: 'center' }}>
+                외 {dueReviews.length - 5}건 더 있어요
+              </p>
+            )}
+          </div>
+        );
+      })()}
+
       <div style={{ background: T.bg, borderRadius: '16px', border: `1px solid ${T.border}`, overflow: 'hidden' }}>
         <div style={{ padding: '14px 18px', borderBottom: `1px solid #F3F4F6`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h3 style={{ fontSize: '13px', fontWeight: 700 }}>오늘 학생 현황</h3>
