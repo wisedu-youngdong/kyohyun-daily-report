@@ -3,7 +3,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { db } from './firebase';
 import { collection, getDocs, query, where, doc, setDoc } from 'firebase/firestore';
 import { ReportCard } from './tokens.jsx';
-import { toPct } from './growth.js';
+import { toPct, isNewStudent as computeIsNewStudent } from './growth.js';
 import { findUnitKey } from './curriculum.js';
 
 const FONT_STYLE = `
@@ -149,9 +149,7 @@ export default function GrowthStory() {
   const over70 = sorted.find(r => r.hasTest && Number(r.testScore) >= 70);
 
   // 신규생/재학생 분기
-  const isNewStudent = student?.studentType
-    ? student.studentType === 'new'
-    : sorted.length <= 5;
+  const isNewStudent = computeIsNewStudent(student, sorted.length);
 
   // PHASE 마일스톤 — 날짜 기반 4개 고정 생성
   const milestones = [];

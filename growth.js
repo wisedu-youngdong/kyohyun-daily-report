@@ -30,6 +30,11 @@ export function ratingLabel(pct) {
   return RATING_LABELS[idx];
 }
 
+// 신규생/재학생 판정 — studentType이 명시돼 있으면 그대로, 없으면(레거시 학생) 리포트 수로 추정
+export function isNewStudent(student, reportCount) {
+  return student?.studentType ? student.studentType === 'new' : reportCount <= 5;
+}
+
 // 출결 → 포인트
 const ATTENDANCE_POINTS = { '정시': 3, '지각': 1, '결석': 0, '조퇴': 1 };
 

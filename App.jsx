@@ -15,7 +15,7 @@ import DiagnosticReportInput, { StudentModal } from './DiagnosticReportInput';
 import {
   LayoutDashboard, Users, FileText, History, BarChart2, LogOut
 } from 'lucide-react';
-import { calculateTotalPoints, getStageInfo, calculateReportPoints, STAGES, toPct, ratingLabel } from './growth.js';
+import { calculateTotalPoints, getStageInfo, calculateReportPoints, STAGES, toPct, ratingLabel, isNewStudent } from './growth.js';
 import { useMediaQuery } from './hooks.js';
 import { findUnitKey } from './curriculum.js';
 import { formatPhone, isValidPhone } from './phone.js';
@@ -898,6 +898,7 @@ function StudentsView({ students, reports, onSave, onDelete, onRestore, teachers
   const [profileStudent, setProfileStudent] = useState(null);
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState('name');
+  const [teacherFilter, setTeacherFilter] = useState('all'); // 'all' | 'unassigned' | teacherId
   const [deleteConfirm, setDeleteConfirm] = useState(null); // studentId
   const deleteTimerRef = React.useRef(null);
   // A의 ×를 누른 뒤 3초 안에 B의 ×를 누르면 A의 타이머가 B의 확인 상태를 꺼버리던 문제
@@ -917,6 +918,13 @@ function StudentsView({ students, reports, onSave, onDelete, onRestore, teachers
 
   const archivedCount = students.filter(s => s.archived).length;
 
+  // 마지막 리포트 기준 경과일 — "2주째 리포트 없음" 신호에 사용
+  const daysSinceLastReport = (sid) => {
+    const last = reports.filter(r => r.studentId === sid).sort((a,b) => (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0))[0];
+    if (!last?.createdAt?.seconds) return null;
+    return Math.floor((Date.now() - last.createdAt.seconds * 1000) / 86400000);
+  };
+
   // 검색 + 정렬 — 보관된 학생은 "보관함 보기"를 켰을 때만
   const filtered = students
     .filter(s => showArchived ? s.archived : !s.archived)
@@ -924,6 +932,11 @@ function StudentsView({ students, reports, onSave, onDelete, onRestore, teachers
       const q = search.trim().toLowerCase();
       if (!q) return true;
       return s.name?.toLowerCase().includes(q) || s.school?.toLowerCase().includes(q);
+    })
+    .filter(s => {
+      if (teacherFilter === 'all') return true;
+      if (teacherFilter === 'unassigned') return !s.assignedTeacherId;
+      return s.assignedTeacherId === teacherFilter;
     })
     .sort((a, b) => {
       if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '');
@@ -1009,6 +1022,21 @@ function StudentsView({ students, reports, onSave, onDelete, onRestore, teachers
         </select>
       </div>
 
+      {/* 강사별 필터 — 원장만, 강사 등록돼 있을 때만 */}
+      {isDirector && teachers.length > 0 && (
+        <div style={{ display: 'flex', gap: '6px', marginBottom: '14px', overflowX: 'auto', paddingBottom: '2px' }}>
+          {[{ id: 'all', name: '전체' }, { id: 'unassigned', name: '미배정' }, ...teachers].map(t => (
+            <button key={t.id} onClick={() => setTeacherFilter(t.id)}
+              style={{
+                flexShrink: 0, padding: '6px 12px', fontSize: '12px', fontWeight: 700, borderRadius: '20px', cursor: 'pointer', fontFamily: 'inherit',
+                border: teacherFilter === t.id ? '1.5px solid #185FA5' : '1px solid #E5E7EB',
+                background: teacherFilter === t.id ? '#E6F1FB' : '#fff',
+                color: teacherFilter === t.id ? '#185FA5' : '#6B7280',
+              }}>{t.name}</button>
+          ))}
+        </div>
+      )}
+
       {/* 검색 결과 없음 — 검색어가 있을 때만. 학생 0명 상태의 빈 화면과 겹치지 않도록 */}
       {search && filtered.length === 0 && (
         <div style={{ background: '#fff', borderRadius: '16px', border: `1px solid ${T.border}`, padding: '40px 20px', textAlign: 'center', color: T.textSub, fontSize: '13px' }}>
@@ -1034,8 +1062,11 @@ function StudentsView({ students, reports, onSave, onDelete, onRestore, teachers
           {filtered.map(s => {
             const sReports = reports.filter(r => r.studentId === s.id);
             const assignedTeacher = teachers.find(t => t.id === s.assignedTeacherId);
+            const daysSince = daysSinceLastReport(s.id);
+            const isStale = !s.archived && (daysSince === null ? false : daysSince >= 14);
+            const isNew = isNewStudent(s, sReports.length);
             return (
-              <div key={s.id} style={{ background: s.archived ? T.bgSoft : '#fff', borderRadius: '16px', padding: '16px 18px', border: `1px solid ${T.border}`, cursor: 'pointer', opacity: s.archived ? 0.85 : 1 }}
+              <div key={s.id} style={{ background: s.archived ? T.bgSoft : '#fff', borderRadius: '16px', padding: '16px 18px', border: isStale ? '1px solid #EF9F27' : `1px solid ${T.border}`, cursor: 'pointer', opacity: s.archived ? 0.85 : 1 }}
                 onClick={() => setProfileStudent(s)}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: '#E6F1FB', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -1048,9 +1079,13 @@ function StudentsView({ students, reports, onSave, onDelete, onRestore, teachers
                     <p style={{ fontSize: '15px', fontWeight: 700, margin: 0 }}>{s.name}</p>
                     <p style={{ fontSize: '11px', color: '#6B7280', margin: '2px 0 0', fontWeight: 500 }}>{s.school} · 리포트 {sReports.length}건</p>
                   </div>
-                  {assignedTeacher && (
+                  {assignedTeacher ? (
                     <span style={{ fontSize: '10px', fontWeight: 700, color: '#0F6E56', background: '#E1F5EE', padding: '3px 8px', borderRadius: '6px', flexShrink: 0 }}>
                       {assignedTeacher.name}
+                    </span>
+                  ) : !s.archived && (
+                    <span style={{ fontSize: '10px', fontWeight: 700, color: '#8A5A00', background: '#FFF8EC', padding: '3px 8px', borderRadius: '6px', flexShrink: 0 }}>
+                      미배정
                     </span>
                   )}
                   {s.archived ? (
@@ -1083,9 +1118,17 @@ function StudentsView({ students, reports, onSave, onDelete, onRestore, teachers
                   )}
                   </>)}
                 </div>
-                {s.textbooks?.length > 0 && (
+                {(isNew || isStale || s.textbooks?.length > 0) && (
                   <div style={{ marginTop: '10px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                    {s.textbooks.map((t, i) => <span key={i} style={{ background: '#E6F1FB', color: '#185FA5', fontSize: '11px', fontWeight: 600, padding: '3px 8px', borderRadius: '6px' }}>{t.name}</span>)}
+                    {isNew && !s.archived && (
+                      <span style={{ background: '#EAF0F9', color: '#0D2D6B', fontSize: '11px', fontWeight: 700, padding: '3px 8px', borderRadius: '6px' }}>🌱 신규생</span>
+                    )}
+                    {isStale && (
+                      <span style={{ background: '#FAEEDA', color: '#8A5A00', fontSize: '11px', fontWeight: 700, padding: '3px 8px', borderRadius: '6px' }}>
+                        ⚠ {daysSince >= 21 ? `${Math.floor(daysSince / 7)}주째` : '2주째'} 리포트 없음
+                      </span>
+                    )}
+                    {s.textbooks?.map((t, i) => <span key={i} style={{ background: '#E6F1FB', color: '#185FA5', fontSize: '11px', fontWeight: 600, padding: '3px 8px', borderRadius: '6px' }}>{t.name}</span>)}
                   </div>
                 )}
               </div>
