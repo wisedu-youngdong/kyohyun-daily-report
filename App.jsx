@@ -2919,6 +2919,10 @@ function GrowthDashboard({ reports, students, onSwitchTab }) {
           const query = storyPeriod === '3m' ? '?period=3m' : '';
           window.open(`/story/${s?.id}${query}`, '_blank');
         };
+        const openGrowthStoryEdit = () => {
+          const query = storyPeriod === '3m' ? '&period=3m' : '';
+          window.open(`/story/${s?.id}?edit=1${query}`, '_blank');
+        };
 
         const closeDrawer = () => { setDrawerOpen(false); setSelId(null); setStoryPeriod('all'); };
 
@@ -3029,6 +3033,11 @@ function GrowthDashboard({ reports, students, onSwitchTab }) {
                 border: 'none', background: 'linear-gradient(135deg, #185FA5, #0C447C)', color: '#fff',
                 cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
               }}>📈 성장 스토리 보기 (학부모 공개 페이지)</button>
+              <button onClick={openGrowthStoryEdit} style={{
+                width: '100%', padding: '9px 12px', fontSize: '11px', fontWeight: 700, borderRadius: '8px', marginTop: '6px',
+                border: '1px solid #C9A227', background: '#FFF9EC', color: '#8A6500',
+                cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+              }}>✏️ AI 서사 편집 모드로 열기</button>
             </div>
           </div>
           </>
@@ -3420,6 +3429,12 @@ function StudentProfileModal({ student, reports, onClose, DIAG_MAP }) {
                     style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px', background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: '8px', textDecoration: 'none', marginTop: '4px' }}>
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 8h12M8 2v12" stroke="#0D2D6B" strokeWidth="1.5" strokeLinecap="round"/><rect x="2" y="2" width="12" height="12" rx="2" stroke="#0D2D6B" strokeWidth="1.2"/></svg>
                     <span style={{ fontSize: '12px', color: '#0D2D6B', fontWeight: 600 }}>성장 스토리 보기</span>
+                  </a>
+
+                  {/* AI 서사 편집 모드 */}
+                  <a href={`/story/${student.id}?edit=1`} target="_blank" rel="noopener noreferrer"
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px', background: '#FFF9EC', border: '1px solid #C9A227', borderRadius: '8px', textDecoration: 'none', marginTop: '4px' }}>
+                    <span style={{ fontSize: '12px', color: '#8A6500', fontWeight: 700 }}>✏️ AI 서사 편집 모드로 열기</span>
                   </a>
 
                   {/* 주간 요약 카드 */}
