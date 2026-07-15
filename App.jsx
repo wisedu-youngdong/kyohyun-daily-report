@@ -341,12 +341,24 @@ export default function App() {
     alert('저장 실패: ' + e.message);
   }
 };
+  // 소프트 삭제 — 학생 문서를 지우면 그 학생의 리포트가 studentId만 든 채 고아가 되고
+  // (학부모에게 이미 나간 공개 링크도 그대로 열림), 복구도 불가능. archived 플래그로 숨김 처리.
   const handleDeleteStudent = async (id) => {
     try {
-      await deleteDoc(doc(db, 'students', id));
+      await updateDoc(doc(db, 'students', id), { archived: true, archivedAt: serverTimestamp() });
+      showAppToast('학생을 목록에서 숨겼습니다. 리포트 기록은 그대로 보관됩니다.');
     } catch (e) {
       console.error('학생 삭제 실패:', e);
       showAppToast('학생 삭제에 실패했습니다.', 'error');
+    }
+  };
+  const handleRestoreStudent = async (id) => {
+    try {
+      await updateDoc(doc(db, 'students', id), { archived: false });
+      showAppToast('학생을 목록에 다시 표시합니다.');
+    } catch (e) {
+      console.error('학생 복원 실패:', e);
+      showAppToast('학생 복원에 실패했습니다.', 'error');
     }
   };
 
@@ -509,10 +521,13 @@ export default function App() {
 
   const isDirector = userRole === 'director';
 
+  // 보관 처리(소프트 삭제)된 학생은 일반 화면에서 제외 — 학생관리에서만 별도로 조회 가능
+  const activeStudents = students.filter(s => !s.archived);
+
   // 강사는 담당 학생만, 원장은 전체
   const visibleStudents = isDirector
-    ? students
-    : students.filter(s => s.assignedTeacherId === userTeacherId);
+    ? activeStudents
+    : activeStudents.filter(s => s.assignedTeacherId === userTeacherId);
 
   // 강사는 본인 작성 리포트만, 원장은 전체
   const visibleReports = isDirector
@@ -712,7 +727,7 @@ export default function App() {
             ], 600)}
             <div style={{ marginTop: '12px' }}>
               {activeSubTab.manage === 'students' && (dataReady
-                ? <StudentsView students={students} reports={reports} onSave={handleSaveStudent} onDelete={handleDeleteStudent} teachers={teachers} currentTeacherId={userTeacherId} isDirector={isDirector} />
+                ? <StudentsView students={students} reports={reports} onSave={handleSaveStudent} onDelete={handleDeleteStudent} onRestore={handleRestoreStudent} teachers={teachers} currentTeacherId={userTeacherId} isDirector={isDirector} />
                 : <SkeletonBlock rows={5} cardHeight={56} />
               )}
               {activeSubTab.manage === 'settings' && (dataReady
@@ -875,8 +890,9 @@ function StatCard({ label, value, unit }) {
   );
 }
 
-function StudentsView({ students, reports, onSave, onDelete, teachers = [], currentTeacherId = null, isDirector = false }) {
+function StudentsView({ students, reports, onSave, onDelete, onRestore, teachers = [], currentTeacherId = null, isDirector = false }) {
   const [showAddStudent, setShowAddStudent] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
   const [profileStudent, setProfileStudent] = useState(null);
   const [search, setSearch] = useState('');
@@ -898,8 +914,11 @@ function StudentsView({ students, reports, onSave, onDelete, teachers = [], curr
     perfect: { label: '개념 완벽', bg: '#0F6E56', prefix: '✓' },
   };
 
-  // 검색 + 정렬
+  const archivedCount = students.filter(s => s.archived).length;
+
+  // 검색 + 정렬 — 보관된 학생은 "보관함 보기"를 켰을 때만
   const filtered = students
+    .filter(s => showArchived ? s.archived : !s.archived)
     .filter(s => {
       const q = search.trim().toLowerCase();
       if (!q) return true;
@@ -945,12 +964,24 @@ function StudentsView({ students, reports, onSave, onDelete, teachers = [], curr
         />
       )}
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-        <h2 style={{ fontSize: '20px', fontWeight: 700, letterSpacing: '-0.02em', margin: 0 }}>학생 관리</h2>
-        <button onClick={() => setShowAddStudent(true)}
-          style={{ background: T.brand, color: '#fff', border: 'none', borderRadius: '9px', padding: '8px 14px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
-          + 학생 추가
-        </button>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', gap: '8px' }}>
+        <h2 style={{ fontSize: '20px', fontWeight: 700, letterSpacing: '-0.02em', margin: 0 }}>
+          {showArchived ? '보관된 학생' : '학생 관리'}
+        </h2>
+        <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+          {archivedCount > 0 && (
+            <button onClick={() => { setShowArchived(v => !v); setSearch(''); }}
+              style={{ background: showArchived ? T.brandLight : '#fff', color: showArchived ? T.brand : T.textSub, border: `1px solid ${T.border}`, borderRadius: '9px', padding: '8px 12px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+              {showArchived ? '← 현재 학생' : `보관함 ${archivedCount}`}
+            </button>
+          )}
+          {!showArchived && (
+            <button onClick={() => setShowAddStudent(true)}
+              style={{ background: T.brand, color: '#fff', border: 'none', borderRadius: '9px', padding: '8px 14px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+              + 학생 추가
+            </button>
+          )}
+        </div>
       </div>
 
       {/* 검색 + 정렬 */}
@@ -977,21 +1008,25 @@ function StudentsView({ students, reports, onSave, onDelete, teachers = [], curr
         </select>
       </div>
 
-      {/* 검색 결과 없음 */}
+      {/* 검색 결과 없음 — 검색어가 있을 때만. 학생 0명 상태의 빈 화면과 겹치지 않도록 */}
       {search && filtered.length === 0 && (
-        <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #E5E7EB', padding: '40px 20px', textAlign: 'center', color: '#9CA3AF', fontSize: '13px' }}>
+        <div style={{ background: '#fff', borderRadius: '16px', border: `1px solid ${T.border}`, padding: '40px 20px', textAlign: 'center', color: T.textSub, fontSize: '13px' }}>
           "{search}"에 해당하는 학생이 없습니다
         </div>
       )}
 
-      {students.length === 0
+      {!search && filtered.length === 0
         ? (
           <div style={{ background: '#fff', borderRadius: '16px', border: `1px solid ${T.border}`, padding: '60px 20px', textAlign: 'center' }}>
-            <p style={{ color: T.textSub, fontSize: '13px', margin: '0 0 12px' }}>등록된 학생이 없습니다</p>
-            <button onClick={() => setShowAddStudent(true)}
-              style={{ background: T.brandLight, color: T.brand, border: 'none', borderRadius: '9px', padding: '9px 18px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-              + 첫 학생 등록하기
-            </button>
+            <p style={{ color: T.textSub, fontSize: '13px', margin: '0 0 12px' }}>
+              {showArchived ? '보관된 학생이 없습니다' : '등록된 학생이 없습니다'}
+            </p>
+            {!showArchived && (
+              <button onClick={() => setShowAddStudent(true)}
+                style={{ background: T.brandLight, color: T.brand, border: 'none', borderRadius: '9px', padding: '9px 18px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                + 첫 학생 등록하기
+              </button>
+            )}
           </div>
         )
         : <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -999,7 +1034,7 @@ function StudentsView({ students, reports, onSave, onDelete, teachers = [], curr
             const sReports = reports.filter(r => r.studentId === s.id);
             const assignedTeacher = teachers.find(t => t.id === s.assignedTeacherId);
             return (
-              <div key={s.id} style={{ background: '#fff', borderRadius: '16px', padding: '16px 18px', border: `1px solid #E5E7EB`, cursor: 'pointer' }}
+              <div key={s.id} style={{ background: s.archived ? T.bgSoft : '#fff', borderRadius: '16px', padding: '16px 18px', border: `1px solid ${T.border}`, cursor: 'pointer', opacity: s.archived ? 0.85 : 1 }}
                 onClick={() => setProfileStudent(s)}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: '#E6F1FB', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -1017,19 +1052,23 @@ function StudentsView({ students, reports, onSave, onDelete, teachers = [], curr
                       {assignedTeacher.name}
                     </span>
                   )}
+                  {s.archived ? (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onRestore?.(s.id); }}
+                      style={{ background: T.brandLight, border: 'none', color: T.brand, fontSize: '12px', fontWeight: 700, padding: '10px 14px', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
+                      ↩ 복원
+                    </button>
+                  ) : (<>
                   <button
                     onClick={(e) => { e.stopPropagation(); setEditingStudent(s); }}
-                    style={{ background: '#E6F1FB', border: 'none', color: '#185FA5', fontSize: '12px', fontWeight: 700, padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', marginRight: '6px' }}>
+                    style={{ background: '#E6F1FB', border: 'none', color: '#185FA5', fontSize: '12px', fontWeight: 700, padding: '10px 12px', borderRadius: '8px', cursor: 'pointer', marginRight: '6px', fontFamily: 'inherit', flexShrink: 0 }}>
                     ✏️ 수정
                   </button>
                   {deleteConfirm === s.id ? (
                     <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
-                      <button onClick={() => {
-                        if (sReports.length > 0 && !window.confirm(`${s.name} 학생의 리포트 ${sReports.length}건은 삭제되지 않고 남습니다.\n이미 학부모에게 공유된 링크도 그대로 열립니다.\n\n정말 삭제할까요?`)) return;
-                        onDelete(s.id); setDeleteConfirm(null);
-                      }}
-                        style={{ background: '#DC2626', border: 'none', color: '#fff', fontSize: '11px', fontWeight: 700, padding: '10px 12px', borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit' }}>
-                        삭제 확인
+                      <button onClick={() => { onDelete(s.id); setDeleteConfirm(null); }}
+                        style={{ background: '#8A5A00', border: 'none', color: '#fff', fontSize: '11px', fontWeight: 700, padding: '10px 12px', borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                        보관 확인
                       </button>
                       <button onClick={() => setDeleteConfirm(null)}
                         style={{ background: '#F3F4F6', border: 'none', color: '#6B7280', fontSize: '11px', fontWeight: 600, padding: '10px 12px', borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -1038,8 +1077,10 @@ function StudentsView({ students, reports, onSave, onDelete, teachers = [], curr
                     </div>
                   ) : (
                     <button onClick={(e) => { e.stopPropagation(); askDeleteConfirm(s.id); }}
-                      style={{ background: 'none', border: 'none', color: '#D1D5DB', fontSize: '18px', cursor: 'pointer', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, WebkitTapHighlightColor: 'transparent' }}>×</button>
+                      title="목록에서 숨기기 (기록은 보관됨)"
+                      style={{ background: 'none', border: 'none', color: T.textMute, fontSize: '18px', cursor: 'pointer', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, WebkitTapHighlightColor: 'transparent' }}>×</button>
                   )}
+                  </>)}
                 </div>
                 {s.textbooks?.length > 0 && (
                   <div style={{ marginTop: '10px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
