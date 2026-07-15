@@ -1016,7 +1016,10 @@ export default function DiagnosticReportInput({
                         )}
                       </div>
                       {units.length > 0 && (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                        <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: `1px solid ${TOKENS.border}` }}>
+                          {/* 단원이 어느 코스 소속인지 캡션으로 명시 — 목록이 길 때 바로 위 항목 소속처럼 보이는 착시 방지 */}
+                          <p style={{ fontSize: '10px', fontWeight: 700, color: TOKENS.brand, margin: '0 0 6px' }}>▸ {activeCourse} 단원</p>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
                           {units.map(u => (
                             <button key={u} type="button" onClick={() => setUnit(u)}
                               style={{
@@ -1026,6 +1029,7 @@ export default function DiagnosticReportInput({
                                 fontSize: '11px', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
                               }}>{u}</button>
                           ))}
+                          </div>
                         </div>
                       )}
                     </div>
