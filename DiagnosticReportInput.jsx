@@ -979,16 +979,34 @@ export default function DiagnosticReportInput({
                   return (
                     <div style={{ marginBottom: '8px' }}>
                       {/* 코스 칩 — 항상 노출해 추정이 틀렸을 때(복습, 학기 경계 등) 직접 바꿀 수 있게 */}
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: units.length > 0 ? '5px' : 0 }}>
-                        {visibleCourses.map(c => (
-                          <button key={c} type="button" onClick={() => setCurriculumCourseOverride(prev => prev === c ? null : c)}
-                            style={{
-                              padding: '3px 9px', borderRadius: '8px', border: '1px solid #E5E7EB',
-                              background: activeCourse === c ? '#185FA5' : '#fff',
-                              color: activeCourse === c ? '#fff' : '#6B7280',
-                              fontSize: '10px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-                            }}>{c}</button>
-                        ))}
+                      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '5px', marginBottom: units.length > 0 ? '5px' : 0 }}>
+                        {(() => {
+                          let lastGroup = null;
+                          const groupOf = (c) => c.startsWith('고등') ? '고등' : c.startsWith('중') ? '중등' : c.startsWith('초') ? '초등' : '';
+                          return visibleCourses.map(c => {
+                            const group = groupOf(c);
+                            // "전체 학년 보기"로 펼쳤을 때만 학교급 사이에 얇은 구분선 표시 — 평시엔 그대로 pill만
+                            const showDivider = showAllCourses && group && group !== lastGroup;
+                            lastGroup = group;
+                            return (
+                              <React.Fragment key={c}>
+                                {showDivider && (
+                                  <div style={{ flexBasis: '100%', display: 'flex', alignItems: 'center', gap: '6px', margin: '4px 0 1px' }}>
+                                    <span style={{ fontSize: '9px', fontWeight: 700, color: TOKENS.textMute, letterSpacing: '0.05em' }}>{group}</span>
+                                    <div style={{ flex: 1, height: '1px', background: TOKENS.border }} />
+                                  </div>
+                                )}
+                                <button type="button" onClick={() => setCurriculumCourseOverride(prev => prev === c ? null : c)}
+                                  style={{
+                                    padding: '3px 9px', borderRadius: '8px', border: `1px solid ${TOKENS.border}`,
+                                    background: activeCourse === c ? TOKENS.brand : TOKENS.bg,
+                                    color: activeCourse === c ? '#fff' : TOKENS.textSub,
+                                    fontSize: '10px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                                  }}>{c}</button>
+                              </React.Fragment>
+                            );
+                          });
+                        })()}
                         {canNarrow && (
                           <button type="button" onClick={() => setShowAllCourses(v => !v)}
                             style={{
