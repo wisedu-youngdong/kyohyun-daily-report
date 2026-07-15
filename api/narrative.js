@@ -16,6 +16,7 @@ export default async function handler(req, res) {
 
   const prompt = isNewStudent
     ? `학생 ${studentName}의 성장 스토리를 JSON으로 작성. 한국어. 수업 ${totalReports}회 신규생.
+문체: 모든 문장은 반드시 "-습니다/했습니다/입니다"체(존댓말, 학부모 대상 보고서 어투)로 끝낼 것. "-다/했다/이다"로 끝나는 문어체·논문체 절대 금지.
 톤: 따뜻하고 격려하는 — 적응 과정과 첫 성취의 의미에 집중.
 데이터: ${phaseText}. ${scoreText}. 선생님 메모: ${lastNote.slice(0, 120)}
 [중요] 아래 "데이터"에 실제로 나온 단원명만 인용할 것. 데이터에 없는 단원명을 절대 지어내지 말 것.
@@ -26,6 +27,7 @@ nextChapter: 다음 목표 1문장. 위 데이터에 나온 실제 단원명 포
 JSON만 반환 (코드블록 없이, 순수 JSON만): {"chapter1":"...","chapter2":"...","teacherWord":"...","nextChapter":"..."}`
 
     : `학생 ${studentName}의 성장 스토리를 JSON으로 작성. 한국어. 수업 ${totalReports}회 재학생.
+문체: 모든 문장은 반드시 "-습니다/했습니다/입니다"체(존댓말, 학부모 대상 보고서 어투)로 끝낼 것. "-다/했다/이다"로 끝나는 문어체·논문체 절대 금지.
 톤: 데이터 기반 통찰 — 약점 극복과 사고력 고도화에 집중. 거시적 평가.
 데이터: ${phaseText}. ${scoreText}. 선생님 메모: ${allNotes.slice(0, 200)}
 [중요] 아래 "데이터"에 실제로 나온 단원명·점수만 인용할 것. 데이터에 없는 단원명이나 수치를 절대 지어내지 말 것.
