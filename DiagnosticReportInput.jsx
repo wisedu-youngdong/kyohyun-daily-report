@@ -244,6 +244,7 @@ export default function DiagnosticReportInput({
   const [studentId, setStudentId] = useState('');
   const [teacherId, setTeacherId] = useState('');
   const [curriculumCourseOverride, setCurriculumCourseOverride] = useState(null);
+  const [showAllCourses, setShowAllCourses] = useState(false);
 
   const [attendance, setAttendance] = useState('정시');
   const [arrivalTime, setArrivalTime] = useState('15:30');
@@ -358,7 +359,7 @@ export default function DiagnosticReportInput({
     setTestRound(editingReport.testRound || '');
     setTextbook(editingReport.textbook || '');
     setSubject(editingReport.subject || '수학');
-    setCurriculumCourseOverride(null);
+    setCurriculumCourseOverride(null); setShowAllCourses(false);
     setUnit(editingReport.unit || '');
     setPages(editingReport.pages || '');
     setSelectedTags(editingReport.diagnosis || []);
@@ -640,7 +641,7 @@ export default function DiagnosticReportInput({
       setStudentId(''); setHomeworkRating(null); setConceptRating(null);
       setHasTest(false); setTestName(''); setTestScore(''); setTestRound('');
       setTextbook(''); setSubject('수학'); setUnit(''); setPages('');
-      setCurriculumCourseOverride(null);
+      setCurriculumCourseOverride(null); setShowAllCourses(false);
       setSelectedTags([]); setTeacherNote(''); setAiPolishedNote('');
       setNextPlan(''); setNextPlanDetail('');
       removeAllPhotos();
@@ -795,7 +796,7 @@ export default function DiagnosticReportInput({
                 setHomeworkRating(null); setConceptRating(null);
                 setHasTest(false); setTestScore(''); setTestName(''); setTestRound('');
                 setTextbook(''); setSubject('수학'); setUnit(''); setPages('');
-                setCurriculumCourseOverride(null);
+                setCurriculumCourseOverride(null); setShowAllCourses(false);
                 setTeacherNote(''); setSelectedTags([]);
                 setAiPolishedNote('');
                 setNextPlan(''); setNextPlanDetail('');
@@ -896,7 +897,7 @@ export default function DiagnosticReportInput({
                     { label: '영어', color: '#0F6E56' },
                     { label: '기타', color: '#4A4A4A' },
                   ].map(({ label, color }) => (
-                    <button key={label} onClick={() => { setSubject(label); setCurriculumCourseOverride(null); }}
+                    <button key={label} onClick={() => { setSubject(label); setCurriculumCourseOverride(null); setShowAllCourses(false); }}
                       style={{
                         display: 'flex', alignItems: 'center', gap: 0,
                         padding: 0, border: `1px solid ${subject === label ? color : '#E5E7EB'}`,
@@ -969,11 +970,17 @@ export default function DiagnosticReportInput({
                   const guessedCourse = guessCourseKey(subject, student?.school);
                   const activeCourse = curriculumCourseOverride || guessedCourse;
                   const units = activeCourse ? getUnits(subject, activeCourse) : [];
+                  // 코스가 많을 때(수학 24개) 기본으로는 추정 학년 앞뒤 학기만 보여주고, 필요하면 전체 펼치기
+                  const activeIdx = activeCourse ? courses.indexOf(activeCourse) : -1;
+                  const canNarrow = courses.length > 6 && activeIdx >= 0;
+                  const visibleCourses = (showAllCourses || !canNarrow)
+                    ? courses
+                    : courses.slice(Math.max(0, activeIdx - 1), activeIdx + 2);
                   return (
                     <div style={{ marginBottom: '8px' }}>
                       {/* 코스 칩 — 항상 노출해 추정이 틀렸을 때(복습, 학기 경계 등) 직접 바꿀 수 있게 */}
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: units.length > 0 ? '5px' : 0 }}>
-                        {courses.map(c => (
+                        {visibleCourses.map(c => (
                           <button key={c} type="button" onClick={() => setCurriculumCourseOverride(prev => prev === c ? null : c)}
                             style={{
                               padding: '3px 9px', borderRadius: '8px', border: '1px solid #E5E7EB',
@@ -982,6 +989,13 @@ export default function DiagnosticReportInput({
                               fontSize: '10px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
                             }}>{c}</button>
                         ))}
+                        {canNarrow && (
+                          <button type="button" onClick={() => setShowAllCourses(v => !v)}
+                            style={{
+                              padding: '3px 9px', borderRadius: '8px', border: '1px dashed #C9C9C9',
+                              background: '#fff', color: '#9CA3AF', fontSize: '10px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                            }}>{showAllCourses ? '접기' : '전체 학년 보기'}</button>
+                        )}
                       </div>
                       {units.length > 0 && (
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
