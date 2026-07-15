@@ -1318,9 +1318,10 @@ function HistoryView({ reports, students, reportViews = [], onDelete, onEdit }) 
         </div>
       </div>
 
-      {/* 우측 상세 */}
+      {/* 우측 상세 — 콘텐츠 폭을 제한해 넓은 모니터에서 버튼/내용이 화면 끝까지 흩어지지 않게 */}
       {selected ? (
         <div style={{ overflowY: 'auto', padding: '24px 28px', background: '#FAFAFA' }}>
+          <div style={{ maxWidth: '720px' }}>
 
           {/* 헤더 */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid #E5E7EB' }}>
@@ -1463,6 +1464,7 @@ function HistoryView({ reports, students, reportViews = [], onDelete, onEdit }) 
               </div>
             </div>
           )}
+          </div>
         </div>
       ) : (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9CA3AF', fontSize: '13px', background: '#FAFAFA' }}>
@@ -1811,7 +1813,11 @@ function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDele
 
       {/* 학원 기본 스킨 */}
       <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB', marginBottom: '14px' }}>
-        <p style={{ fontSize: '13px', fontWeight: 700, marginBottom: '14px' }}>🏫 학원 기본 스킨</p>
+        <p style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>🏫 학원 기본 스킨</p>
+        <p style={{ fontSize: '11px', color: '#6B7280', margin: '0 0 14px', lineHeight: 1.6 }}>
+          리포트 작성 화면의 미리보기 카드 기본 색상입니다. 리포트 작성 시 "학원 기본" 스킨으로 표시되며,
+          학생별 개별 색상이 설정된 학생에게는 개별 색상이 우선 적용됩니다.
+        </p>
 
         {/* 프리셋 */}
         <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 700, marginBottom: '8px' }}>프리셋 선택</p>
@@ -2644,7 +2650,7 @@ function StudentProfileModal({ student, reports, onClose, DIAG_MAP }) {
             <div style={{ width: '4px', height: '18px', background: '#C9A227', borderRadius: '0', flexShrink: 0 }} />
             <span style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.6)', letterSpacing: '0.15em' }}>와이즈에듀 교현학원 · 학생 종합 프로필</span>
           </div>
-          <p style={{ fontFamily: "'Noto Serif KR', serif", fontSize: '22px', fontWeight: 700, color: '#fff', margin: '0 0 4px' }}>{student.name}</p>
+          <p style={{ fontSize: '22px', fontWeight: 700, color: '#fff', margin: '0 0 4px' }}>{student.name}</p>
           <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.55)', margin: 0 }}>총 {sorted.length}회 수업 누적</p>
           <button onClick={onClose} style={{ position: 'absolute', top: '16px', right: '18px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: '22px', cursor: 'pointer', lineHeight: 1, width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>×</button>
         </div>
@@ -2667,7 +2673,7 @@ function StudentProfileModal({ student, reports, onClose, DIAG_MAP }) {
 
           {/* 날짜별 수업 카드 리스트 */}
           <div style={{ marginBottom: '20px' }}>
-            <p style={{ fontFamily: "'Noto Serif KR', serif", fontSize: '14px', fontWeight: 700, margin: '0 0 6px', color: '#1A1A1A' }}>수업 기록</p>
+            <p style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 6px', color: '#1A1A1A' }}>수업 기록</p>
             <div style={{ width: '32px', height: '2px', background: '#C9A227', marginBottom: '12px' }} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
               {[...sorted].reverse().slice(0, 5).map((r, i) => {
@@ -2759,7 +2765,7 @@ function StudentProfileModal({ student, reports, onClose, DIAG_MAP }) {
           {/* 반복 약점 TOP3 */}
           {weakTop3.length > 0 && (
             <div style={{ marginBottom: '20px' }}>
-              <p style={{ fontFamily: "'Noto Serif KR', serif", fontSize: '14px', fontWeight: 700, margin: '0 0 6px', color: '#1A1A1A' }}>반복 약점 패턴</p>
+              <p style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 6px', color: '#1A1A1A' }}>반복 약점 패턴</p>
               <div style={{ width: '32px', height: '2px', background: '#C9A227', marginBottom: '12px' }} />
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {weakTop3.map(([key, count], i) => {
@@ -2783,7 +2789,7 @@ function StudentProfileModal({ student, reports, onClose, DIAG_MAP }) {
           {/* 최근 학습 단원 */}
           {unitHistory.length > 0 && (
             <div style={{ marginBottom: '20px' }}>
-              <p style={{ fontFamily: "'Noto Serif KR', serif", fontSize: '14px', fontWeight: 700, margin: '0 0 6px', color: '#1A1A1A' }}>최근 학습 단원</p>
+              <p style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 6px', color: '#1A1A1A' }}>최근 학습 단원</p>
               <div style={{ width: '32px', height: '2px', background: '#C9A227', marginBottom: '12px' }} />
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {unitHistory.map((unit, i) => (
@@ -2800,7 +2806,7 @@ function StudentProfileModal({ student, reports, onClose, DIAG_MAP }) {
           {/* 최근 선생님 코멘트 */}
           {sorted.filter(r => r.teacherNote).length > 0 && (
             <div style={{ marginBottom: '20px' }}>
-              <p style={{ fontFamily: "'Noto Serif KR', serif", fontSize: '14px', fontWeight: 700, margin: '0 0 6px', color: '#1A1A1A' }}>최근 선생님 코멘트</p>
+              <p style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 6px', color: '#1A1A1A' }}>최근 선생님 코멘트</p>
               <div style={{ width: '32px', height: '2px', background: '#C9A227', marginBottom: '12px' }} />
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {sorted.filter(r => r.teacherNote).slice(-3).reverse().map((r, i) => (
@@ -2815,7 +2821,7 @@ function StudentProfileModal({ student, reports, onClose, DIAG_MAP }) {
 
           {/* 원장님 상담 메모 */}
           <div>
-            <p style={{ fontFamily: "'Noto Serif KR', serif", fontSize: '14px', fontWeight: 700, margin: '0 0 6px', color: '#1A1A1A' }}>원장님 상담 메모</p>
+            <p style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 6px', color: '#1A1A1A' }}>원장님 상담 메모</p>
             <div style={{ width: '32px', height: '2px', background: '#C9A227', marginBottom: '12px' }} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {sorted.filter(r => r.directorMemo).slice(-3).reverse().map((r, i) => (
@@ -2832,7 +2838,7 @@ function StudentProfileModal({ student, reports, onClose, DIAG_MAP }) {
 
           {/* 성장 스토리 공유 */}
           <div style={{ marginTop: '24px', paddingTop: '20px', borderTop: '1px solid #EEECEA' }}>
-            <p style={{ fontFamily: "'Noto Serif KR', serif", fontSize: '14px', fontWeight: 700, margin: '0 0 6px', color: '#1A1A1A' }}>성장 스토리 공유</p>
+            <p style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 6px', color: '#1A1A1A' }}>성장 스토리 공유</p>
             <div style={{ width: '32px', height: '2px', background: '#C9A227', marginBottom: '14px' }} />
 
             {/* 링크 생성 */}
@@ -2972,7 +2978,7 @@ function DirectorView({ reports, students, reportViews = [] }) {
   };
 
   return (
-    <div style={{ maxWidth: '780px', margin: '0 auto', padding: '20px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>
+    <div style={{ maxWidth: '960px', margin: '0 auto', padding: '20px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>
 
       {/* 학생 종합 프로필 모달 */}
       {profileStudent && (
@@ -3053,12 +3059,16 @@ function DirectorView({ reports, students, reportViews = [] }) {
       <div style={{ background: '#0D2D6B', borderRadius: '4px', padding: '16px 20px', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
           <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)', letterSpacing: '0.15em', margin: '0 0 3px' }}>와이즈에듀 교현학원</p>
-          <p style={{ fontSize: '17px', fontWeight: 700, color: '#fff', margin: 0, fontFamily: "'Noto Serif KR', serif" }}>원장님 데일리 보고서</p>
+          <p style={{ fontSize: '17px', fontWeight: 700, color: '#fff', margin: 0 }}>원장님 데일리 보고서</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
-            style={{ padding: '6px 10px', fontSize: '16px', border: '1px solid rgba(201,162,39,0.5)', borderRadius: '6px', background: 'rgba(255,255,255,0.1)', color: '#C9A227', fontFamily: 'inherit', cursor: 'pointer' }}
-          />
+          <label style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '8px 14px', background: '#fff', borderRadius: '8px', cursor: 'pointer', boxShadow: '0 1px 4px rgba(0,0,0,0.15)' }}>
+            <span style={{ fontSize: '14px', lineHeight: 1 }}>📅</span>
+            <span style={{ fontSize: '12px', fontWeight: 700, color: '#0D2D6B' }}>날짜 선택</span>
+            <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
+              style={{ padding: 0, fontSize: '16px', border: 'none', background: 'transparent', color: '#0D2D6B', fontFamily: 'inherit', cursor: 'pointer', fontWeight: 600, width: '125px' }}
+            />
+          </label>
         </div>
       </div>
 
@@ -3079,10 +3089,10 @@ function DirectorView({ reports, students, reportViews = [] }) {
         ))}
       </div>
 
-      {/* 학생 카드 목록 */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '14px' }}>
+      {/* 학생 카드 목록 — PC에선 2열 그리드, 펼친 카드는 전체 폭 사용 */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: '8px', marginBottom: '14px', alignItems: 'start' }}>
         {todayReports.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '48px 20px', color: '#9CA3AF', background: '#fff', borderRadius: '10px', border: '0.5px solid #E8E6E0' }}>
+          <div style={{ textAlign: 'center', padding: '48px 20px', color: '#9CA3AF', background: '#fff', borderRadius: '10px', border: '0.5px solid #E8E6E0', gridColumn: '1 / -1' }}>
             <p style={{ fontSize: '28px', marginBottom: '8px' }}>📋</p>
             <p style={{ fontSize: '14px', fontWeight: 600, margin: '0 0 4px' }}>이 날짜의 리포트가 없습니다</p>
             <p style={{ fontSize: '12px', margin: 0 }}>다른 날짜를 선택해보세요</p>
@@ -3107,7 +3117,7 @@ function DirectorView({ reports, students, reportViews = [] }) {
           const viewSrc = lastView?.src === 'kakao' ? '카카오' : lastView?.src === 'copy' ? '링크복사' : '직접';
 
           return (
-            <div key={r.id} style={{ background: '#fff', border: `0.5px solid ${borderColor}`, borderRadius: '10px', overflow: 'hidden' }}>
+            <div key={r.id} style={{ background: '#fff', border: `0.5px solid ${borderColor}`, borderRadius: '10px', overflow: 'hidden', gridColumn: isOpen ? '1 / -1' : 'auto' }}>
 
               {/* 요약 행 */}
               <div style={{ padding: '12px 14px', cursor: 'pointer' }}

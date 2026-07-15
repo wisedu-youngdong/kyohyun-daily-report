@@ -14,7 +14,7 @@ import { useMediaQuery } from './hooks.js';
 import {
   User, Clock, Target, MessageCircle, ArrowRight,
   FileText, Sparkles, Send, Plus, X, Check,
-  UserPlus, GraduationCap, Settings, Trash2
+  UserPlus, GraduationCap
 } from 'lucide-react';
 import { calculateReportPoints, toPct, ratingLabel } from './growth.js';
 import { findUnitKey, getUnits, getCourses } from './curriculum.js';
@@ -228,8 +228,12 @@ export default function DiagnosticReportInput({
 }) {
   const isWide = useMediaQuery('(min-width: 901px)');
   const [showStudentModal, setShowStudentModal] = useState(false);
-  const [showTeacherPanel, setShowTeacherPanel] = useState(false);
-  const [selectedSkin, setSelectedSkin] = useState('navy');
+  // 스킨 기본값 — 관리>설정의 "학원 기본 스킨" 색상을 따름 (없으면 navy)
+  const globalSkin = React.useMemo(() => {
+    const c = localStorage.getItem('globalSkinColor');
+    return c ? { ...deriveColorsToSkin(c), key: 'global', name: '학원 기본', dots: [c] } : null;
+  }, []);
+  const [selectedSkin, setSelectedSkin] = useState(globalSkin ? 'global' : 'navy');
   const autoSaveTimer = React.useRef(null);
   const [lastSaved, setLastSaved] = useState(null);
   const [autoSaveError, setAutoSaveError] = useState(false);
@@ -406,29 +410,6 @@ export default function DiagnosticReportInput({
     } catch (e) {
       console.error('학생 저장 오류:', e);
       setAlertMessage('학생 저장 중 오류가 발생했습니다.');
-    }
-  };
-
-  // 강사 등록 — Firebase에 저장
-  const handleAddTeacher = async (name) => {
-    try {
-      await onSaveTeacher({ name });
-    } catch (e) {
-      console.error('강사 저장 오류:', e);
-      setAlertMessage('강사 저장 중 오류가 발생했습니다.');
-    }
-  };
-
-  const handleDeleteTeacher = async (id) => {
-    if (teachers.length <= 1) {
-      setAlertMessage('최소 1명의 강사는 등록되어 있어야 합니다.');
-      return;
-    }
-    try {
-      await onDeleteTeacher(id);
-      if (teacherId === id) setTeacherId('');
-    } catch (e) {
-      console.error('강사 삭제 오류:', e);
     }
   };
 
@@ -786,13 +767,9 @@ export default function DiagnosticReportInput({
                   {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                 </select>
               )}
-              <button onClick={() => setShowTeacherPanel(true)} style={{
-                marginLeft: 'auto', background: 'none', border: 'none',
-                color: TOKENS.brand, fontSize: '11px', fontWeight: 700,
-                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px', fontFamily: 'inherit',
-              }}>
-                <Settings size={11} /> 강사 관리
-              </button>
+              <span style={{ marginLeft: 'auto', fontSize: '10px', color: TOKENS.textMute }}>
+                강사 추가/수정은 관리 › 설정에서
+              </span>
             </div>
           </div>
 
@@ -1506,7 +1483,7 @@ export default function DiagnosticReportInput({
               </div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
-                {Object.values(SKINS).map(sk => (
+                {[...(globalSkin ? [globalSkin] : []), ...Object.values(SKINS)].map(sk => (
                   <button
                     key={sk.key}
                     onClick={() => setSelectedSkin(sk.key)}
@@ -1535,7 +1512,7 @@ export default function DiagnosticReportInput({
             diagnosis={selectedTags}
             teacherNote={aiPolishedNote || teacherNote}
             nextPlan={nextPlan} nextPlanDetail={nextPlanDetail}
-            skin={SKINS[selectedSkin]}
+            skin={selectedSkin === 'global' && globalSkin ? globalSkin : SKINS[selectedSkin] || SKINS.navy}
           />
         </div>
       </div>
@@ -1545,15 +1522,6 @@ export default function DiagnosticReportInput({
         <StudentModal onClose={() => setShowStudentModal(false)} onSubmit={handleAddStudent} />
       )}
 
-      {/* 강사 관리 패널 */}
-      {showTeacherPanel && (
-        <TeacherPanel
-          teachers={teachers}
-          onAdd={handleAddTeacher}
-          onDelete={handleDeleteTeacher}
-          onClose={() => setShowTeacherPanel(false)}
-        />
-      )}
     </div>
     </>
   );
@@ -1677,73 +1645,6 @@ function StudentModal({ onClose, onSubmit }) {
           <button onClick={handleSubmit} disabled={!isValid || saving} style={{ padding: '9px 18px', fontSize: '13px', fontWeight: 700, borderRadius: '9px', border: 'none', background: isValid ? '#185FA5' : '#E5E7EB', color: isValid ? '#fff' : '#9CA3AF', cursor: isValid ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: '5px', fontFamily: 'inherit' }}>
             <Check size={14} /> {saving ? '등록 중...' : '등록 완료'}
           </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ============================================================
-// 강사 관리 패널
-// ============================================================
-function TeacherPanel({ teachers, onAdd, onDelete, onClose }) {
-  const [newName, setNewName] = useState('');
-  const [saving, setSaving] = useState(false);
-
-  const handleAdd = async () => {
-    if (!newName.trim()) return;
-    setSaving(true);
-    await onAdd(newName.trim());
-    setNewName('');
-    setSaving(false);
-  };
-
-  return (
-    <div style={overlayStyle} onClick={onClose}>
-      <div style={{ ...modalStyle, maxWidth: '420px' }} onClick={(e) => e.stopPropagation()}>
-        <div style={modalHeaderStyle}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ background: '#E6F1FB', padding: '7px', borderRadius: '9px' }}>
-              <GraduationCap size={16} style={{ color: '#185FA5' }} />
-            </div>
-            <div>
-              <h2 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>강사 관리</h2>
-              <p style={{ fontSize: '11px', color: '#6B7280', margin: '2px 0 0', fontWeight: 500 }}>리포트에 표시될 강사 이름을 관리합니다</p>
-            </div>
-          </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#6B7280', cursor: 'pointer', padding: '4px' }}><X size={18} /></button>
-        </div>
-
-        <div style={{ padding: '18px 22px' }}>
-          <FieldLabel>현재 등록된 강사</FieldLabel>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginBottom: '14px' }}>
-            {teachers.length === 0 ? (
-              <p style={{ fontSize: '12px', color: '#9CA3AF', margin: 0 }}>등록된 강사가 없습니다</p>
-            ) : teachers.map(t => (
-              <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#F9FAFB', padding: '9px 12px', borderRadius: '9px' }}>
-                <span style={{ fontSize: '13px', fontWeight: 600 }}>{t.name}</span>
-                {teachers.length > 1 && (
-                  <button onClick={() => onDelete(t.id)} style={{ background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer', padding: '3px' }}>
-                    <Trash2 size={13} />
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-
-          <FieldLabel>새 강사 추가</FieldLabel>
-          <div style={{ display: 'flex', gap: '6px' }}>
-            <input value={newName} onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-              placeholder="예: 박선생님" style={inputStyle} />
-            <button onClick={handleAdd} disabled={!newName.trim() || saving} style={{ padding: '10px 14px', fontSize: '12px', fontWeight: 700, borderRadius: '9px', border: 'none', background: newName.trim() ? '#185FA5' : '#E5E7EB', color: newName.trim() ? '#fff' : '#9CA3AF', cursor: newName.trim() ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: '4px', fontFamily: 'inherit', flexShrink: 0 }}>
-              <Plus size={13} /> {saving ? '...' : '추가'}
-            </button>
-          </div>
-        </div>
-
-        <div style={{ padding: '12px 22px', borderTop: `1px solid #E5E7EB`, display: 'flex', justifyContent: 'flex-end', background: '#F9FAFB', borderRadius: '0 0 18px 18px' }}>
-          <button onClick={onClose} style={{ padding: '9px 20px', fontSize: '13px', fontWeight: 700, borderRadius: '9px', border: 'none', background: '#185FA5', color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>완료</button>
         </div>
       </div>
     </div>
