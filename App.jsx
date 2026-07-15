@@ -2317,6 +2317,7 @@ function GrowthDashboard({ reports, students, onSwitchTab }) {
   const [selId, setSelId] = React.useState(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [tooltip, setTooltip] = React.useState(null);
+  const [storyPeriod, setStoryPeriod] = React.useState('all'); // 성장 스토리 열기 전 선택하는 기간
   const svgRef = React.useRef(null);
 
   const DIAG_MAP = {
@@ -2640,7 +2641,6 @@ function GrowthDashboard({ reports, students, onSwitchTab }) {
         const trend = getTrend(selId);
         const trendStr = trend === null ? '―' : trend > 0 ? `▲${Math.abs(trend)}` : trend < 0 ? `▼${Math.abs(trend)}` : '―';
         const trendColor = trend === null ? '#98A1AC' : trend > 0 ? '#0F6E56' : trend < 0 ? '#A32D2D' : '#98A1AC';
-        const latestReport = rsAll[rsAll.length - 1];
 
         const diagCount = {};
         rs.forEach(r => (r.diagnosis || []).forEach(d => {
@@ -2648,18 +2648,12 @@ function GrowthDashboard({ reports, students, onSwitchTab }) {
         }));
         const topWeak = Object.entries(diagCount).sort((a, b) => b[1] - a[1])[0];
 
-        const handleAction = (type) => {
-          if (type === 'link') {
-            if (latestReport?.id) {
-              const url = `${window.location.origin}/report/${latestReport.id}`;
-              navigator.clipboard.writeText(url).then(() => showAppToast('링크 복사됐어요!'));
-            } else { showAppToast('최근 리포트가 없습니다.', 'info'); }
-          } else if (type === 'profile') {
-            window.open(`/story/${s?.id}`, '_blank');
-          }
+        const openGrowthStory = () => {
+          const query = storyPeriod === '3m' ? '?period=3m' : '';
+          window.open(`/story/${s?.id}${query}`, '_blank');
         };
 
-        const closeDrawer = () => { setDrawerOpen(false); setSelId(null); };
+        const closeDrawer = () => { setDrawerOpen(false); setSelId(null); setStoryPeriod('all'); };
 
         return (
           <>
@@ -2684,7 +2678,7 @@ function GrowthDashboard({ reports, students, onSwitchTab }) {
             }>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
               <p style={{ fontSize: '15px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>{s?.name}</p>
-              <button onClick={() => { setDrawerOpen(false); setSelId(null); }}
+              <button onClick={closeDrawer}
                 style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#98A1AC', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>×</button>
             </div>
 
@@ -2750,18 +2744,24 @@ function GrowthDashboard({ reports, students, onSwitchTab }) {
               </div>
             </div>
 
-            {/* 액션 버튼 — 핵심만 */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <button onClick={() => handleAction('link')} style={{
-                padding: '10px 12px', fontSize: '12px', fontWeight: 600, borderRadius: '8px',
-                border: '0.5px solid #1A5CB8', background: '#EAF0F9', color: '#0D2D6B',
-                cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
-              }}>🔗 최근 리포트 링크 복사</button>
-              <button onClick={() => handleAction('profile')} style={{
-                padding: '10px 12px', fontSize: '12px', fontWeight: 600, borderRadius: '8px',
-                border: '0.5px solid #E8E6E0', background: '#fff', color: '#1A1A1A',
-                cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
-              }}>📈 성장 스토리 열기</button>
+            {/* 성장 스토리 진입 — 기간 선택 후 학부모 공개 페이지로 이동 */}
+            <div>
+              <div style={{ display: 'flex', gap: '5px', marginBottom: '6px' }}>
+                {[['all', '전체'], ['3m', '최근 3개월']].map(([key, label]) => (
+                  <button key={key} onClick={() => setStoryPeriod(key)}
+                    style={{
+                      flex: 1, padding: '6px 8px', fontSize: '11px', fontWeight: 700, borderRadius: '7px', cursor: 'pointer', fontFamily: 'inherit',
+                      border: storyPeriod === key ? '1.5px solid #185FA5' : '1px solid #E5E7EB',
+                      background: storyPeriod === key ? '#E6F1FB' : '#fff',
+                      color: storyPeriod === key ? '#185FA5' : '#6B7280',
+                    }}>{label}</button>
+                ))}
+              </div>
+              <button onClick={openGrowthStory} style={{
+                width: '100%', padding: '10px 12px', fontSize: '12px', fontWeight: 700, borderRadius: '8px',
+                border: 'none', background: 'linear-gradient(135deg, #185FA5, #0C447C)', color: '#fff',
+                cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+              }}>📈 성장 스토리 보기 (학부모 공개 페이지)</button>
             </div>
           </div>
           </>
