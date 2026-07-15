@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { calculateTotalPoints, getStageInfo, calculateReportPoints, STAGES, toPct, ratingLabel } from './growth.js';
 import { useMediaQuery } from './hooks.js';
+import { findUnitKey } from './curriculum.js';
 import ErrorBoundary from './ErrorBoundary.jsx';
 import { T } from './tokens.jsx';
 import {
@@ -3635,9 +3636,11 @@ function AnalysisView({ students, reports }) {
               const TARGET = 80;
               const unitMap = {};
               periodReports.forEach(r => {
-                const key = [r.unit, r.textbook].filter(Boolean).join(' ');
-                if (!key) return;
-                if (!unitMap[key]) unitMap[key] = { name: key, correct: 0, total: 0 };
+                const label = [r.unit, r.textbook].filter(Boolean).join(' ');
+                if (!label) return;
+                // unitKey(표준 단원 정규화) 우선 그룹핑 — 강사마다 표기가 달라도 같은 단원이면 하나로 묶임
+                const key = r.unitKey || findUnitKey(r.subject || '수학', r.unit || '') || label;
+                if (!unitMap[key]) unitMap[key] = { name: label, correct: 0, total: 0 };
                 if (r.hasTest && r.testScore) {
                   unitMap[key].correct += Number(r.testScore);
                   unitMap[key].total += 100;
@@ -3688,15 +3691,17 @@ function AnalysisView({ students, reports }) {
                 time:    { label: '시간 부족', color: '#4A3080' },
               };
 
-              // 오답 유형별 집계 + 단원 매핑
+              // 오답 유형별 집계 + 단원 매핑 — unitKey 기준으로 그룹핑, 표시는 라벨 텍스트 사용
               const diagMap = {};
               periodReports.forEach(r => {
-                const unitName = [r.unit, r.textbook].filter(Boolean).join(' ') || '';
+                const unitLabel = [r.unit, r.textbook].filter(Boolean).join(' ') || '';
+                const unitGroupKey = unitLabel ? (r.unitKey || findUnitKey(r.subject || '수학', r.unit || '') || unitLabel) : '';
                 (r.diagnosis || []).forEach(d => {
                   if (!diagMap[d.key]) diagMap[d.key] = { count: 0, units: {} };
                   diagMap[d.key].count++;
-                  if (unitName) {
-                    diagMap[d.key].units[unitName] = (diagMap[d.key].units[unitName] || 0) + 1;
+                  if (unitGroupKey) {
+                    if (!diagMap[d.key].units[unitGroupKey]) diagMap[d.key].units[unitGroupKey] = { label: unitLabel, count: 0 };
+                    diagMap[d.key].units[unitGroupKey].count++;
                   }
                 });
               });
@@ -3715,7 +3720,7 @@ function AnalysisView({ students, reports }) {
                       const info = DIAG_COLORS[key] || { label: key, color: '#4A4A4A' };
                       // 단원별 TOP 2
                       const topUnits = Object.entries(val.units)
-                        .sort((a, b) => b[1] - a[1])
+                        .sort((a, b) => b[1].count - a[1].count)
                         .slice(0, 2);
                       return (
                         <div key={key}>
@@ -3732,13 +3737,13 @@ function AnalysisView({ students, reports }) {
                           {/* 단원 서브 태그 */}
                           {topUnits.length > 0 && (
                             <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                              {topUnits.map(([uName, uCnt]) => (
-                                <span key={uName} style={{
+                              {topUnits.map(([uKey, uVal]) => (
+                                <span key={uKey} style={{
                                   fontSize: '9px', padding: '2px 7px', borderRadius: '10px',
                                   background: `${info.color}12`,
                                   border: `0.5px solid ${info.color}40`,
                                   color: info.color, fontWeight: 600,
-                                }}>{uName} {uCnt}회</span>
+                                }}>{uVal.label} {uVal.count}회</span>
                               ))}
                             </div>
                           )}
@@ -3749,43 +3754,6 @@ function AnalysisView({ students, reports }) {
                 </div>
               );
             })()}
-          </div>
-
-          {/* 성장 스토리 열기 버튼 */}
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button
-              onClick={() => {
-                const student = students.find(s => s.id === selectedId);
-                if (student) window.open(`/story/${student.id}`, '_blank');
-              }}
-              disabled={!selectedId}
-              style={{
-                flex: 1, padding: '14px', fontSize: '14px', fontWeight: 700, borderRadius: '14px', border: 'none',
-                background: !selectedId ? '#E5E7EB' : 'linear-gradient(135deg, #185FA5, #0C447C)',
-                color: !selectedId ? '#9CA3AF' : '#fff',
-                cursor: !selectedId ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-              }}>
-              📈 성장 스토리 열기
-            </button>
-            <button
-              onClick={() => {
-                const student = students.find(s => s.id === selectedId);
-                if (student) {
-                  const url = `${window.location.origin}/story/${student.id}?period=3m`;
-                  navigator.clipboard.writeText(url).then(() => showAppToast('3개월 성장 스토리 링크 복사됐어요!'));
-                }
-              }}
-              disabled={!selectedId}
-              style={{
-                padding: '14px 16px', fontSize: '13px', fontWeight: 700, borderRadius: '14px',
-                border: '1.5px solid #185FA5', background: '#fff',
-                color: !selectedId ? '#9CA3AF' : '#185FA5',
-                cursor: !selectedId ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
-                display: 'flex', alignItems: 'center', gap: '6px',
-              }}>
-              📤 3개월 공유
-            </button>
           </div>
         </div>
       )}
