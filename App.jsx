@@ -15,7 +15,7 @@ import DiagnosticReportInput, { StudentModal } from './DiagnosticReportInput';
 import {
   LayoutDashboard, Users, FileText, History, BarChart2, LogOut
 } from 'lucide-react';
-import { calculateTotalPoints, getStageInfo, calculateReportPoints, STAGES, toPct, ratingLabel, isNewStudent } from './growth.js';
+import { calculateTotalPoints, getStageInfo, calculateReportPoints, STAGES, toPct, ratingLabel, isNewStudent, kstDay, isReportSent } from './growth.js';
 import { useMediaQuery } from './hooks.js';
 import { findUnitKey } from './curriculum.js';
 import { formatPhone, isValidPhone } from './phone.js';
@@ -629,13 +629,10 @@ export default function App() {
           : <SkeletonBlock rows={3} cardHeight={90} />)}
         {activeTab === 'write' && (
           <>
-            {/* 오늘 리포트 상태바 */}
+            {/* 오늘 리포트 상태바 — 발송 여부와 무관하게 오늘 작성된 모든 리포트(초안 포함, 재개 가능하도록) */}
             {(() => {
-              const today = new Date().toLocaleDateString('ko-KR');
-              const todayReports = visibleReports.filter(r => {
-                const rDate = new Date((r.createdAt?.seconds||0)*1000).toLocaleDateString('ko-KR');
-                return rDate === today;
-              });
+              const todayKstNow = kstDay(Date.now() / 1000);
+              const todayReports = visibleReports.filter(r => r.createdAt?.seconds && kstDay(r.createdAt.seconds) === todayKstNow);
               if (todayReports.length === 0) return null;
 
               const allLinks = todayReports
@@ -759,13 +756,9 @@ export default function App() {
 }
 
 function DashboardView({ students, reports, onTabChange, onWriteFor, reviews = [], onCompleteReview }) {
-  // 발송 완료 판정 — 자동저장 draft(코멘트 없이 문서만 생성됨)를 완료로 세지 않도록
-  // 리포트 탭 상태바(App.jsx의 '오늘 학생 현황' 칩)와 동일한 기준 사용
-  const isSent = (r) => !!(r.teacherNote && r.teacherNote.trim());
-  // 타임존 규약 통일 — DirectorView와 동일하게 KST 기준 날짜로 비교
-  const kstDay = (seconds) => new Date(seconds * 1000 + 9 * 3600 * 1000).toISOString().split('T')[0];
+  // 발송 완료 판정 + 날짜 비교 — 리포트 탭 상태바/원장 보고서와 동일한 공용 기준(growth.js) 사용
   const todayKst = kstDay(Date.now() / 1000);
-  const todayReports = reports.filter(r => r.createdAt?.seconds && isSent(r) && kstDay(r.createdAt.seconds) === todayKst);
+  const todayReports = reports.filter(r => r.createdAt?.seconds && isReportSent(r) && kstDay(r.createdAt.seconds) === todayKst);
 
   const doneOf = (s) => todayReports.some(r => r.studentId === s.id);
   // 대기 학생을 먼저 — 할 일이 완료된 학생들 사이에 묻히지 않도록
@@ -1504,10 +1497,10 @@ function HistoryView({ reports, students, reportViews = [], onDelete, onEdit }) 
                 </p>
               )}
 
-              {(selected.homeworkRating > 0 || selected.conceptRating > 0 || selected.testScore) && (
+              {(selected.homeworkRating != null || selected.conceptRating != null || selected.testScore) && (
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
-                  {selected.homeworkRating > 0 && <span style={{ fontSize: '12px', background: '#EAF1FB', color: '#0D2D6B', padding: '4px 10px', borderRadius: '8px', fontWeight: 600 }}>과제 {toPct(selected.homeworkRating)}%</span>}
-                  {selected.conceptRating > 0 && <span style={{ fontSize: '12px', background: '#EAF1FB', color: '#0D2D6B', padding: '4px 10px', borderRadius: '8px', fontWeight: 600 }}>개념 {toPct(selected.conceptRating)}%</span>}
+                  {selected.homeworkRating != null && <span style={{ fontSize: '12px', background: '#EAF1FB', color: '#0D2D6B', padding: '4px 10px', borderRadius: '8px', fontWeight: 600 }}>과제 {toPct(selected.homeworkRating)}%</span>}
+                  {selected.conceptRating != null && <span style={{ fontSize: '12px', background: '#EAF1FB', color: '#0D2D6B', padding: '4px 10px', borderRadius: '8px', fontWeight: 600 }}>개념 {toPct(selected.conceptRating)}%</span>}
                   {selected.hasTest && selected.testScore && <span style={{ fontSize: '12px', background: '#FFF8EC', color: '#7A4F00', padding: '4px 10px', borderRadius: '8px', fontWeight: 600 }}>시험 {selected.testScore}점</span>}
                 </div>
               )}
@@ -1678,8 +1671,8 @@ function HistoryView({ reports, students, reportViews = [], onDelete, onEdit }) 
           {/* 평가 지표 */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '20px' }}>
             {[
-              { label: '과제 평가', value: selected.homeworkRating ? `${toPct(selected.homeworkRating)}%` : '—', color: '#0D2D6B' },
-              { label: '개념 평가', value: selected.conceptRating ? `${toPct(selected.conceptRating)}%` : '—', color: '#0D2D6B' },
+              { label: '과제 평가', value: selected.homeworkRating != null ? `${toPct(selected.homeworkRating)}%` : '—', color: '#0D2D6B' },
+              { label: '개념 평가', value: selected.conceptRating != null ? `${toPct(selected.conceptRating)}%` : '—', color: '#0D2D6B' },
               { label: '단원평가', value: selected.hasTest && selected.testScore ? `${selected.testScore}점` : '—', color: '#1A1A1A' },
             ].map((s, i) => (
               <div key={i} style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: '10px', padding: '14px 16px' }}>
@@ -2031,14 +2024,14 @@ function ReportPreviewModal({ report: r, allReports, onClose, onDelete, onEdit }
               <div style={{ borderRight: '1px solid #E8E6E0', paddingRight: '14px', textAlign: 'center' }}>
                 <p style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.08em', margin: '0 0 4px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>과제 수행</p>
                 <p style={{ fontSize: '24px', fontWeight: 800, color: '#0D2D6B', margin: 0, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
-                  {r.homeworkRating ? toPct(r.homeworkRating) : '-'}<span style={{ fontSize: '12px', fontWeight: 500, color: '#98A1AC' }}>%</span>
+                  {r.homeworkRating != null ? toPct(r.homeworkRating) : '-'}<span style={{ fontSize: '12px', fontWeight: 500, color: '#98A1AC' }}>%</span>
                 </p>
                 <p style={{ fontSize: '10px', fontWeight: 600, color: '#5A6472', margin: '3px 0 0' }}>{r.homeworkRating != null ? ratingLabel(toPct(r.homeworkRating)) : ''}</p>
               </div>
               <div style={{ borderRight: '1px solid #E8E6E0', padding: '0 14px', textAlign: 'center' }}>
                 <p style={{ fontSize: '9px', fontWeight: 700, color: '#98A1AC', letterSpacing: '0.08em', margin: '0 0 4px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>개념 이해</p>
                 <p style={{ fontSize: '24px', fontWeight: 800, color: '#0D2D6B', margin: 0, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
-                  {r.conceptRating ? toPct(r.conceptRating) : '-'}<span style={{ fontSize: '12px', fontWeight: 500, color: '#98A1AC' }}>%</span>
+                  {r.conceptRating != null ? toPct(r.conceptRating) : '-'}<span style={{ fontSize: '12px', fontWeight: 500, color: '#98A1AC' }}>%</span>
                 </p>
                 <p style={{ fontSize: '10px', fontWeight: 600, color: '#5A6472', margin: '3px 0 0' }}>{r.conceptRating != null ? ratingLabel(toPct(r.conceptRating)) : ''}</p>
               </div>
@@ -2609,7 +2602,7 @@ function GrowthDashboard({ reports, students, onSwitchTab }) {
   const getStudentReports = React.useCallback((studentId) => {
     const cutoff = Date.now() - PERIODS[period] * 24 * 60 * 60 * 1000;
     return reports
-      .filter(r => r.studentId === studentId && r.createdAt?.seconds * 1000 >= cutoff && r.conceptRating > 0)
+      .filter(r => r.studentId === studentId && r.createdAt?.seconds * 1000 >= cutoff && r.conceptRating != null)
       .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0))
       .map(r => ({ ...r, conceptRating: toPct(r.conceptRating), homeworkRating: toPct(r.homeworkRating) }));
   }, [reports, period]);
@@ -2665,7 +2658,7 @@ function GrowthDashboard({ reports, students, onSwitchTab }) {
   const globalPoints = React.useMemo(() => {
     const allRs = reports.filter(r => {
       const cutoff = Date.now() - PERIODS[period] * 24 * 60 * 60 * 1000;
-      return r.createdAt?.seconds * 1000 >= cutoff && r.conceptRating > 0;
+      return r.createdAt?.seconds * 1000 >= cutoff && r.conceptRating != null;
     }).sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
     if (!allRs.length) return [];
     // 날짜별 그룹
@@ -2972,7 +2965,7 @@ function GrowthDashboard({ reports, students, onSwitchTab }) {
                   const diagLabels = { calc: '계산 실수', concept: '개념 누락', apply: '응용 부족', time: '시간 부족', perfect: '개념 완벽' };
                   const tags = (r.diagnosis || []).filter(d => d.key !== 'perfect');
                   const hasPerfect = (r.diagnosis || []).some(d => d.key === 'perfect');
-                  const isWarning = r.conceptRating > 0 && r.conceptRating <= 40;
+                  const isWarning = r.conceptRating != null && r.conceptRating <= 40;
                   const dateStr = r.createdAt?.seconds
                     ? `${new Date(r.createdAt.seconds*1000).getMonth()+1}/${new Date(r.createdAt.seconds*1000).getDate()}`
                     : '';
@@ -2987,8 +2980,8 @@ function GrowthDashboard({ reports, students, onSwitchTab }) {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
                         <span style={{ fontSize: '11px', fontWeight: 600, color: '#1A1A1A' }}>{dateStr}</span>
                         <div style={{ display: 'flex', gap: '6px' }}>
-                          {r.homeworkRating > 0 && <span style={{ fontSize: '10px', color: '#6B7280' }}>과제 <strong style={{ color: '#0D2D6B' }}>{r.homeworkRating}%</strong></span>}
-                          {r.conceptRating > 0 && <span style={{ fontSize: '10px', color: '#6B7280' }}>개념 <strong style={{ color: '#0D2D6B' }}>{r.conceptRating}%</strong></span>}
+                          {r.homeworkRating != null && <span style={{ fontSize: '10px', color: '#6B7280' }}>과제 <strong style={{ color: '#0D2D6B' }}>{r.homeworkRating}%</strong></span>}
+                          {r.conceptRating != null && <span style={{ fontSize: '10px', color: '#6B7280' }}>개념 <strong style={{ color: '#0D2D6B' }}>{r.conceptRating}%</strong></span>}
                           {r.hasTest && r.testScore && <span style={{ fontSize: '10px', color: '#C9A227', fontWeight: 700 }}>시험 {r.testScore}점</span>}
                         </div>
                       </div>
@@ -3222,7 +3215,7 @@ function StudentProfileModal({ student, reports, onClose, DIAG_MAP }) {
                 };
                 const tags = (r.diagnosis || []).filter(d => d.key !== 'perfect');
                 const hasPerfect = (r.diagnosis || []).some(d => d.key === 'perfect');
-                const isWarning = r.conceptRating > 0 && r.conceptRating <= 40;
+                const isWarning = r.conceptRating != null && r.conceptRating <= 40;
                 const rawNote = r.teacherNote || '';
                 const cleanNote = rawNote.replace(/\[([^\]]+)\]\s*/g, '').trim();
 
@@ -3238,12 +3231,12 @@ function StudentProfileModal({ student, reports, onClose, DIAG_MAP }) {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                       <span style={{ fontSize: '11px', fontWeight: 600, color: '#1A1A1A' }}>{fmtDate(r)}</span>
                       <div style={{ display: 'flex', gap: '8px' }}>
-                        {r.homeworkRating > 0 && (
+                        {r.homeworkRating != null && (
                           <span style={{ fontSize: '10px', color: '#6B7280' }}>
                             과제 <strong style={{ color: '#0D2D6B' }}>{r.homeworkRating}%</strong>
                           </span>
                         )}
-                        {r.conceptRating > 0 && (
+                        {r.conceptRating != null && (
                           <span style={{ fontSize: '10px', color: '#6B7280' }}>
                             개념 <strong style={{ color: '#0D2D6B' }}>{r.conceptRating}%</strong>
                           </span>
@@ -3479,13 +3472,8 @@ function DirectorView({ reports, students, reportViews = [] }) {
     perfect: { label: '개념 완벽', bg: '#0F6E56', prefix: '✓' },
   };
 
-  // 선택 날짜 리포트 필터 (KST 기준)
-  const todayReports = reports.filter(r => {
-    if (!r.createdAt?.seconds) return false;
-    const kst = new Date(r.createdAt.seconds * 1000 + 9 * 60 * 60 * 1000);
-    const d = kst.toISOString().split('T')[0];
-    return d === selectedDate;
-  });
+  // 선택 날짜 리포트 필터 (KST 기준) — 원장 보고서는 발송 여부와 무관하게 해당 날짜의 모든 작성 활동을 보여줌
+  const todayReports = reports.filter(r => r.createdAt?.seconds && kstDay(r.createdAt.seconds) === selectedDate);
 
   // 오늘 수업한 학생 ID 목록
   const reportedIds = new Set(todayReports.map(r => r.studentId));
@@ -4124,12 +4112,13 @@ function UnitErrorDashboard({ reports }) {
     return now - ts <= cutoffs[tab] * 24 * 60 * 60 * 1000;
   });
 
-  // 단원별 집계
+  // 단원별 집계 — unitKey(표준 단원 정규화) 우선, 강사마다 표기가 달라도 같은 단원으로 묶임
   const unitMap = {};
   filtered.forEach(r => {
-    const key = [r.unit, r.textbook].filter(Boolean).join(' ');
-    if (!key) return;
-    if (!unitMap[key]) unitMap[key] = { name: key, correct: 0, total: 0, diags: {} };
+    const label = [r.unit, r.textbook].filter(Boolean).join(' ');
+    if (!label) return;
+    const key = r.unitKey || findUnitKey(r.subject || '수학', r.unit || '') || label;
+    if (!unitMap[key]) unitMap[key] = { name: label, correct: 0, total: 0, diags: {} };
     if (r.hasTest && r.testScore) {
       unitMap[key].correct += Number(r.testScore);
       unitMap[key].total += 100;
@@ -4293,12 +4282,13 @@ function WeeklySummaryCard({ student, reports, teachers }) {
     ? Math.round(weekReports.filter(r => r.attendance === '정시').length / weekReports.length * 100)
     : 0;
 
-  // 단원별 집계
+  // 단원별 집계 — unitKey(표준 단원 정규화) 우선
   const unitMap = {};
   weekReports.forEach(r => {
-    const key = [r.unit, r.textbook].filter(Boolean).join(' · ');
-    if (!key) return;
-    if (!unitMap[key]) unitMap[key] = { name: key, scores: [], teacher: r.teacherName };
+    const label = [r.unit, r.textbook].filter(Boolean).join(' · ');
+    if (!label) return;
+    const key = r.unitKey || findUnitKey(r.subject || '수학', r.unit || '') || label;
+    if (!unitMap[key]) unitMap[key] = { name: label, scores: [], teacher: r.teacherName };
     if (r.hasTest && r.testScore) unitMap[key].scores.push(Number(r.testScore));
   });
   const units = Object.values(unitMap);

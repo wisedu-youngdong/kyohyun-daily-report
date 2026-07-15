@@ -145,7 +145,7 @@ export default function GrowthStory() {
   const allAttended = sorted.length > 0 && sorted.every(r => r.attendance === '출석');
 
   // 공통 변수
-  const firstPerfect = sorted.find(r => r.homeworkRating >= 100);
+  const firstPerfect = sorted.find(r => r.conceptRating >= 100);
   const over70 = sorted.find(r => r.hasTest && Number(r.testScore) >= 70);
 
   // 신규생/재학생 분기
@@ -199,7 +199,7 @@ export default function GrowthStory() {
       },
       {
         phase: 'PHASE 2 · 개념 흡수',
-        title: firstPerfect ? '첫 만점 과제 달성' : '기본 개념 반복 학습 진행 중',
+        title: firstPerfect ? '첫 개념 이해 만점 달성' : '기본 개념 반복 학습 진행 중',
         desc: '개념의 구조를 하나씩 이해하며 자신만의 풀이 패턴을 만들어가고 있습니다.',
         badge: '개념 내면화 진행',
         active: false,
@@ -282,10 +282,10 @@ export default function GrowthStory() {
         ? cleanNote.slice(0, 50) + '...'
         : cleanNote;
 
-      // 이전 PHASE 대비 평점 변화 (PHASE 2 이상)
+      // 이전 PHASE 대비 평점 변화 (PHASE 2 이상) — 둘 다 실제로 평가된 경우만 계산
       const prevR = pi > 0 ? sorted[idx[pi - 1]] : null;
-      const hwDelta = prevR
-        ? (r.homeworkRating || 0) - (prevR.homeworkRating || 0)
+      const hwDelta = (prevR && r.homeworkRating != null && prevR.homeworkRating != null)
+        ? r.homeworkRating - prevR.homeworkRating
         : null;
 
       milestones.push({
@@ -296,8 +296,8 @@ export default function GrowthStory() {
           textbook: r.textbook || '',
           unit: r.unit || '',
           pages: r.pages || '',
-          homeworkRating: r.homeworkRating || 0,
-          conceptRating: r.conceptRating || 0,
+          homeworkRating: r.homeworkRating,
+          conceptRating: r.conceptRating,
           testScore: r.hasTest ? r.testScore : null,
           diagTags,
           notePreview,
@@ -487,7 +487,7 @@ export default function GrowthStory() {
                   )}
                   {/* 평점 */}
                   <div style={{ display: 'flex', gap: '10px', marginBottom: m.realData.diagTags.length > 0 || m.realData.testScore || m.realData.notePreview ? '5px' : 0 }}>
-                    {m.realData.homeworkRating > 0 && (
+                    {m.realData.homeworkRating != null && (
                       <span style={{ fontSize: '12px', color: '#374151' }}>
                         과제 <strong style={{ color: '#0D2D6B' }}>{m.realData.homeworkRating}%</strong>
                         {m.realData.hwDelta !== null && m.realData.hwDelta !== 0 && (
@@ -497,7 +497,7 @@ export default function GrowthStory() {
                         )}
                       </span>
                     )}
-                    {m.realData.conceptRating > 0 && (
+                    {m.realData.conceptRating != null && (
                       <span style={{ fontSize: '12px', color: '#374151' }}>
                         개념 <strong style={{ color: '#0D2D6B' }}>{m.realData.conceptRating}%</strong>
                       </span>

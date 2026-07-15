@@ -4,6 +4,16 @@
 // 사진분석(photoAnalysis)은 서술형 코멘트 초안 용도이며 점수에 절대 반영하지 않음.
 // ─────────────────────────────────────────────
 
+// KST(UTC+9) 기준 날짜 문자열(YYYY-MM-DD) — Firestore createdAt.seconds 기준으로 "오늘" 판정에 사용
+export function kstDay(seconds) {
+  return new Date(seconds * 1000 + 9 * 3600 * 1000).toISOString().split('T')[0];
+}
+
+// 리포트 발송 완료 판정 — 자동저장 draft(코멘트 없이 문서만 생성됨)를 완료로 세지 않도록
+export function isReportSent(r) {
+  return !!(r?.teacherNote && r.teacherNote.trim());
+}
+
 // 과제/개념 평가 척도 변환 — 구 리포트(1~5)와 신규 리포트(0~100, 10단위)가 섞여 있음.
 // 구 값은 항상 1~5, 신규 값은 항상 0 또는 10의 배수라 겹치지 않으므로 안전하게 구분 가능.
 export function toPct(rating) {

@@ -60,7 +60,7 @@ export default function GrowthAward() {
   // 마일스톤
   const milestones = [];
   if (sorted.length > 0) milestones.push({ label: '태도 형성', date: fmtDate(sorted[0]), done: true });
-  if (sorted.find(r => r.homeworkRating >= 100)) milestones.push({ label: '개념 흡수', date: fmtDate(sorted.find(r => r.homeworkRating >= 100)), done: true });
+  if (sorted.find(r => r.conceptRating >= 100)) milestones.push({ label: '개념 흡수', date: fmtDate(sorted.find(r => r.conceptRating >= 100)), done: true });
   if (sorted.find(r => r.hasTest && Number(r.testScore) >= 70)) milestones.push({ label: '판단 기준', date: fmtDate(sorted.find(r => r.hasTest && Number(r.testScore) >= 70)), done: true });
   if (bestReport) milestones.push({ label: '전략 완성', date: fmtDate(bestReport), done: true, active: true });
   milestones.push({ label: '전략 고도화', date: '다음 목표', done: false });
