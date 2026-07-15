@@ -2368,34 +2368,33 @@ function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDele
         </div>
       </div>
 
-      {/* 학생별 스킨 */}
-      <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB' }}>
-        <p style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>👨‍🎓 학생별 스킨 커스텀</p>
-        <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 500, marginBottom: '14px' }}>학생 관리 탭 → 수정 버튼에서 개별 설정 가능</p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {students.map(s => {
-            const skinColor = s.skinColor || globalColor;
-            return (
-              <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#F9FAFB', borderRadius: '10px', padding: '10px 12px' }}>
-                <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#E6F1FB', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  {s.avatar
-                    ? <img src={`/avatars/${s.avatar}.png`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    : <span style={{ fontSize: '14px', fontWeight: 700, color: '#185FA5' }}>{s.name?.[0]}</span>
-                  }
-                </div>
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: '12px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>{s.name}</p>
-                  <p style={{ fontSize: '10px', color: '#6B7280', margin: '1px 0 0', fontWeight: 500 }}>{s.school}</p>
-                </div>
-                <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: skinColor, border: '2px solid rgba(0,0,0,0.08)', flexShrink: 0 }}></div>
-                <span style={{ fontSize: '10px', color: s.skinColor ? '#185FA5' : '#9CA3AF', fontWeight: 600 }}>
-                  {s.skinColor ? '개별 설정' : '기본 사용'}
-                </span>
+      {/* 학생별 스킨 — 요약만. 전체 학생을 나열해봐야 여기선 아무것도 못 하고
+          "학생 관리 탭에서 하세요"로 보내던 죽은 목록이라 요약 한 줄로 축약 */}
+      {(() => {
+        const activeStudents = students.filter(s => !s.archived);
+        const customized = activeStudents.filter(s => s.skinColor);
+        return (
+          <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: `1px solid ${T.border}` }}>
+            <p style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>👨‍🎓 학생별 스킨 커스텀</p>
+            <p style={{ fontSize: '11px', color: T.textSub, fontWeight: 500, marginBottom: '12px', lineHeight: 1.6 }}>
+              {customized.length > 0
+                ? <>전체 {activeStudents.length}명 중 <strong style={{ color: T.brand }}>{customized.length}명</strong>이 개별 색상을 쓰고 있어요. 나머지는 위 학원 기본 스킨을 따릅니다.</>
+                : <>모든 학생이 위 학원 기본 스킨을 사용 중입니다. 특정 학생만 다른 색을 쓰려면 개별 설정할 수 있어요.</>}
+            </p>
+            {customized.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '12px' }}>
+                {customized.map(s => (
+                  <span key={s.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: T.bgSoft, border: `1px solid ${T.border}`, borderRadius: '20px', padding: '4px 10px' }}>
+                    <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: s.skinColor, border: '1px solid rgba(0,0,0,0.08)', flexShrink: 0 }} />
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: T.text }}>{s.name}</span>
+                  </span>
+                ))}
               </div>
-            );
-          })}
-        </div>
-      </div>
+            )}
+            <p style={{ fontSize: '11px', color: T.textMute, margin: 0 }}>학생 관리 탭 → ✏️ 수정에서 개별 설정할 수 있습니다</p>
+          </div>
+        );
+      })()}
     </div>
   );
 }
