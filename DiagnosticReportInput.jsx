@@ -245,6 +245,8 @@ export default function DiagnosticReportInput({
   const [teacherId, setTeacherId] = useState('');
   const [curriculumCourseOverride, setCurriculumCourseOverride] = useState(null);
   const [showAllCourses, setShowAllCourses] = useState(false);
+  // null = 자동(최근 이력 없을 때만 펼침), true/false = 사용자가 직접 토글한 값
+  const [showCoursePicker, setShowCoursePicker] = useState(null);
 
   const [attendance, setAttendance] = useState('정시');
   const [arrivalTime, setArrivalTime] = useState('15:30');
@@ -359,7 +361,7 @@ export default function DiagnosticReportInput({
     setTestRound(editingReport.testRound || '');
     setTextbook(editingReport.textbook || '');
     setSubject(editingReport.subject || '수학');
-    setCurriculumCourseOverride(null); setShowAllCourses(false);
+    setCurriculumCourseOverride(null); setShowAllCourses(false); setShowCoursePicker(null);
     setUnit(editingReport.unit || '');
     setPages(editingReport.pages || '');
     setSelectedTags(editingReport.diagnosis || []);
@@ -403,6 +405,24 @@ export default function DiagnosticReportInput({
 
   const student = useMemo(() => students.find(s => s.id === studentId), [students, studentId]);
   const teacher = useMemo(() => teachers.find(t => t.id === teacherId), [teachers, teacherId]);
+
+  // 이 학생의 최근 교재+단원 이력(최대 3개) — 단원 추천 칩과 "표준 단원표" 자동펼침 여부에 공용으로 사용
+  const recentUnits = useMemo(() => {
+    const list = [];
+    const seen = new Set();
+    const studentReports = [...reports]
+      .filter(r => r.studentId === studentId && r.textbook && r.unit)
+      .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+    for (const r of studentReports) {
+      const key = `${r.textbook}|||${r.unit}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        list.push({ textbook: r.textbook, unit: r.unit });
+        if (list.length >= 3) break;
+      }
+    }
+    return list;
+  }, [reports, studentId]);
   const isValid = studentId && homeworkRating != null && conceptRating != null && teacherId;
   const isReadyToSend = isValid && (teacherNote.trim() || aiPolishedNote.trim()); // 선생님 코멘트까지 있어야 완전한 리포트
 
@@ -641,7 +661,7 @@ export default function DiagnosticReportInput({
       setStudentId(''); setHomeworkRating(null); setConceptRating(null);
       setHasTest(false); setTestName(''); setTestScore(''); setTestRound('');
       setTextbook(''); setSubject('수학'); setUnit(''); setPages('');
-      setCurriculumCourseOverride(null); setShowAllCourses(false);
+      setCurriculumCourseOverride(null); setShowAllCourses(false); setShowCoursePicker(null);
       setSelectedTags([]); setTeacherNote(''); setAiPolishedNote('');
       setNextPlan(''); setNextPlanDetail('');
       removeAllPhotos();
@@ -796,7 +816,7 @@ export default function DiagnosticReportInput({
                 setHomeworkRating(null); setConceptRating(null);
                 setHasTest(false); setTestScore(''); setTestName(''); setTestRound('');
                 setTextbook(''); setSubject('수학'); setUnit(''); setPages('');
-                setCurriculumCourseOverride(null); setShowAllCourses(false);
+                setCurriculumCourseOverride(null); setShowAllCourses(false); setShowCoursePicker(null);
                 setTeacherNote(''); setSelectedTags([]);
                 setAiPolishedNote('');
                 setNextPlan(''); setNextPlanDetail('');
@@ -897,7 +917,7 @@ export default function DiagnosticReportInput({
                     { label: '영어', color: '#0F6E56' },
                     { label: '기타', color: '#4A4A4A' },
                   ].map(({ label, color }) => (
-                    <button key={label} onClick={() => { setSubject(label); setCurriculumCourseOverride(null); setShowAllCourses(false); }}
+                    <button key={label} onClick={() => { setSubject(label); setCurriculumCourseOverride(null); setShowAllCourses(false); setShowCoursePicker(null); }}
                       style={{
                         display: 'flex', alignItems: 'center', gap: 0,
                         padding: 0, border: `1px solid ${subject === label ? color : '#E5E7EB'}`,
@@ -932,19 +952,6 @@ export default function DiagnosticReportInput({
                 <FieldLabel>단원</FieldLabel>
                 {/* 최근 단원 히스토리 — 교재+단원 세트 원클릭 */}
                 {(() => {
-                  const recentUnits = [];
-                  const seen = new Set();
-                  const studentReports = [...reports]
-                    .filter(r => r.studentId === studentId && r.textbook && r.unit)
-                    .sort((a, b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0));
-                  for (const r of studentReports) {
-                    const key = `${r.textbook}|||${r.unit}`;
-                    if (!seen.has(key)) {
-                      seen.add(key);
-                      recentUnits.push({ textbook: r.textbook, unit: r.unit });
-                      if (recentUnits.length >= 3) break;
-                    }
-                  }
                   if (recentUnits.length === 0) return null;
                   return (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: '8px' }}>
@@ -963,10 +970,20 @@ export default function DiagnosticReportInput({
                     </div>
                   );
                 })()}
-                {/* 표준 단원표 제안 — 학년/학기로 자동 추정, 안 맞으면 코스 칩으로 직접 선택 */}
+                {/* 표준 단원표 제안 — 최근 이력이 있으면 기본적으로 접어둠(중복 정보라 화면만 차지),
+                    이력이 없는 신규 학생은 추천할 게 이것뿐이라 자동으로 펼침 */}
                 {(() => {
                   const courses = getCourses(subject);
                   if (courses.length === 0) return null;
+                  const isOpen = showCoursePicker != null ? showCoursePicker : recentUnits.length === 0;
+                  if (!isOpen) {
+                    return (
+                      <button type="button" onClick={() => setShowCoursePicker(true)}
+                        style={{ background: 'none', border: 'none', color: TOKENS.brand, fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', padding: '2px 0', marginBottom: '4px' }}>
+                        표준 단원표에서 찾기 ›
+                      </button>
+                    );
+                  }
                   const guessedCourse = guessCourseKey(subject, student?.school);
                   const activeCourse = curriculumCourseOverride || guessedCourse;
                   const units = activeCourse ? getUnits(subject, activeCourse) : [];
@@ -978,6 +995,10 @@ export default function DiagnosticReportInput({
                     : courses.slice(Math.max(0, activeIdx - 1), activeIdx + 2);
                   return (
                     <div style={{ marginBottom: '8px' }}>
+                      <button type="button" onClick={() => setShowCoursePicker(false)}
+                        style={{ background: 'none', border: 'none', color: TOKENS.textMute, fontSize: '10px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', padding: 0, marginBottom: '6px' }}>
+                        ‹ 표준 단원표 접기
+                      </button>
                       {/* 코스 칩 — 항상 노출해 추정이 틀렸을 때(복습, 학기 경계 등) 직접 바꿀 수 있게 */}
                       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '5px', marginBottom: units.length > 0 ? '5px' : 0 }}>
                         {(() => {
