@@ -44,7 +44,7 @@ JSON만 반환 (코드블록 없이, 순수 JSON만): {"chapter1":"...","chapter
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 0.7,
-          maxOutputTokens: 4096,
+          maxOutputTokens: 8192,
         }
       })
     });
@@ -65,31 +65,39 @@ JSON만 반환 (코드블록 없이, 순수 JSON만): {"chapter1":"...","chapter
       .replace(/```\s*/g, '')
       .trim();
 
+    // 필드 일부만 와도(응답이 잘린 경우) 조용히 성공 처리하지 않도록, 4개 필드가 모두
+    // 있어야만 200을 반환 — 하나라도 비면 폴백 문구가 사용자 모르게 노출되는 것을 방지
+    const REQUIRED_FIELDS = ['chapter1', 'chapter2', 'teacherWord', 'nextChapter'];
+    const extractFields = (str) => {
+      const result = {};
+      REQUIRED_FIELDS.forEach(key => {
+        const m = str.match(new RegExp(`"${key}"\\s*:\\s*"([^"]*)"`, 's'));
+        if (m) result[key] = m[1];
+      });
+      return result;
+    };
+    const isComplete = (obj) => REQUIRED_FIELDS.every(k => obj[k]);
+
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      // fallback — 필드 개별 추출 시도
-      const fallback = {};
-      ['chapter1','chapter2','teacherWord','nextChapter'].forEach(key => {
-        const m = cleaned.match(new RegExp(`"${key}"\\s*:\\s*"([^"]*)"`, 's'));
-        if (m) fallback[key] = m[1];
-      });
-      if (Object.keys(fallback).length > 0) return res.status(200).json(fallback);
-      return res.status(500).json({ error: 'JSON 없음: ' + cleaned.slice(0, 150) });
+      const fallback = extractFields(cleaned);
+      if (isComplete(fallback)) return res.status(200).json(fallback);
+      return res.status(500).json({ error: '응답이 잘렸거나 형식이 맞지 않습니다. 다시 시도해주세요. (' + Object.keys(fallback).join(',') + '만 생성됨)' });
     }
 
     try {
-      res.status(200).json(JSON.parse(jsonMatch[0]));
+      const parsed = JSON.parse(jsonMatch[0]);
+      if (!isComplete(parsed)) {
+        return res.status(500).json({ error: '일부 항목이 비어서 생성됐습니다. 다시 시도해주세요. (' + Object.keys(parsed).filter(k => parsed[k]).join(',') + '만 생성됨)' });
+      }
+      res.status(200).json(parsed);
     } catch (parseErr) {
       // JSON이 잘렸을 경우 — 가능한 필드만 추출
-      const fallback = {};
-      ['chapter1','chapter2','teacherWord','nextChapter'].forEach(key => {
-        const m = cleaned.match(new RegExp(`"${key}"\\s*:\\s*"([^"]*)"`, 's'));
-        if (m) fallback[key] = m[1];
-      });
-      if (Object.keys(fallback).length > 0) {
+      const fallback = extractFields(cleaned);
+      if (isComplete(fallback)) {
         res.status(200).json(fallback);
       } else {
-        res.status(500).json({ error: 'JSON 파싱 실패: ' + parseErr.message });
+        res.status(500).json({ error: '응답이 잘렸습니다. 다시 시도해주세요. (' + Object.keys(fallback).join(',') + '만 생성됨)' });
       }
     }
   } catch (e) {
