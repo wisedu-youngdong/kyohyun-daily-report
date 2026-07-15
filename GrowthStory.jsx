@@ -56,6 +56,7 @@ export default function GrowthStory() {
 
   const startEdit = (field) => { setEditing(field); setEditText(narrative[field] || ''); };
   const saveEdit = async () => {
+    const previous = narrative;
     const updated = { ...narrative, [editing]: editText };
     setNarrative(updated);
     setEditing(null);
@@ -63,6 +64,7 @@ export default function GrowthStory() {
       await setDoc(doc(db, 'students', studentId), { narrative: updated }, { merge: true });
     } catch (e) {
       console.error('서사 저장 실패:', e);
+      setNarrative(previous);
       alert('저장에 실패했습니다. 네트워크를 확인하고 다시 시도해주세요.');
     }
   };

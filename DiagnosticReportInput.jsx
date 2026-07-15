@@ -248,7 +248,7 @@ export default function DiagnosticReportInput({
       handleAutoSave();
     }, 30000);
     return () => clearTimeout(autoSaveTimer.current);
-  }, [studentId, teacherNote, homeworkRating, conceptRating, selectedTags, textbook, unit, pages, subject]);
+  }, [studentId, teacherNote, homeworkRating, conceptRating, selectedTags, textbook, unit, pages, subject, attendance, arrivalTime, hasTest, testName, testScore, testRound, nextPlan, nextPlanDetail]);
 
   const handleAutoSave = async () => {
     if (!studentId || saving) return;
@@ -782,8 +782,20 @@ export default function DiagnosticReportInput({
 
               setStudentId(newId);
 
-              // 최근 리포트 자동 불러오기
+              // 새 학생 전환 시 입력 초기화
               if (newId && !editingReport) {
+                setHomeworkRating(null); setConceptRating(null);
+                setHasTest(false); setTestScore(''); setTestName(''); setTestRound('');
+                setTextbook(''); setSubject('수학'); setUnit(''); setPages('');
+                setTeacherNote(''); setSelectedTags([]);
+                setAiPolishedNote('');
+                setNextPlan(''); setNextPlanDetail('');
+                setPhotos([]); setPhotoAnalysis(null);
+                setWrongItems([]);
+                setLastSaved(null);
+                setAutoSaveError(false);
+
+                // 최근 리포트 자동 불러오기 — 초기화 이후에 덮어써야 실제로 반영됨
                 const lastReport = [...reports]
                   .filter(r => r.studentId === newId)
                   .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))[0];
@@ -792,17 +804,6 @@ export default function DiagnosticReportInput({
                   if (lastReport.subject) setSubject(lastReport.subject);
                   if (lastReport.unit) setUnit(lastReport.unit);
                 }
-                // 새 학생 전환 시 입력 초기화
-                setHomeworkRating(0); setConceptRating(0);
-                setHasTest(false); setTestScore(''); setTestName(''); setTestRound('');
-                setUnit(''); setPages('');
-                setTeacherNote(''); setSelectedTags([]);
-                setAiPolishedNote('');
-                setNextPlan(''); setNextPlanDetail('');
-                setPhotos([]); setPhotoAnalysis(null);
-                setWrongItems([]);
-                setLastSaved(null);
-                setAutoSaveError(false);
               }
             }} style={selectStyle}>
               <option value="">학생을 선택해주세요</option>
@@ -1053,7 +1054,11 @@ export default function DiagnosticReportInput({
                         )}
 
                         {/* 재분석 버튼 — 결과가 틀렸을 때 사진 재업로드 없이 다시 시도 */}
-                        <button type="button" onClick={() => handleAnalyzePhoto('auto')} disabled={analyzingPhoto}
+                        <button type="button" onClick={() => {
+                          const hasManualInput = wrongItems.some(w => w.tags.length > 0 || w.memo?.trim());
+                          if (hasManualInput && !window.confirm('오답 카드에 입력한 태그/메모가 초기화됩니다. 다시 분석할까요?')) return;
+                          handleAnalyzePhoto('auto');
+                        }} disabled={analyzingPhoto}
                           style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '10px', padding: '5px 10px', fontSize: '11px', fontWeight: 700, border: `1px solid ${TOKENS.success}`, borderRadius: '20px', background: '#fff', color: TOKENS.success, cursor: analyzingPhoto ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: analyzingPhoto ? 0.6 : 1 }}>
                           <Sparkles size={11} /> 결과가 다르다면 다시 분석
                         </button>

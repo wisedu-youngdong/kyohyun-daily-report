@@ -580,7 +580,10 @@ export default function App() {
                 ? <div><DirectorView reports={reports} students={students} reportViews={reportViews} /><GrowthDashboard reports={reports} students={students} onSwitchTab={setActiveTab} /></div>
                 : <SkeletonBlock rows={4} cardHeight={70} />
               )}
-              {activeSubTab.insight === 'analysis' && <AnalysisView students={students} reports={reports} />}
+              {activeSubTab.insight === 'analysis' && (dataReady
+                ? <AnalysisView students={students} reports={reports} />
+                : <SkeletonBlock rows={4} cardHeight={70} />
+              )}
             </div>
           </div>
         )}
@@ -595,7 +598,10 @@ export default function App() {
                 ? <StudentsView students={students} reports={reports} onSave={handleSaveStudent} onDelete={handleDeleteStudent} teachers={teachers} />
                 : <SkeletonBlock rows={5} cardHeight={56} />
               )}
-              {activeSubTab.manage === 'settings' && <SettingsView students={students} onSaveStudent={handleSaveStudent} teachers={teachers} onSaveTeacher={handleSaveTeacher} onDeleteTeacher={handleDeleteTeacher} />}
+              {activeSubTab.manage === 'settings' && (dataReady
+                ? <SettingsView students={students} onSaveStudent={handleSaveStudent} teachers={teachers} onSaveTeacher={handleSaveTeacher} onDeleteTeacher={handleDeleteTeacher} />
+                : <SkeletonBlock rows={4} cardHeight={70} />
+              )}
             </div>
           </div>
         )}
