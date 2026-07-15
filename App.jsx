@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { db, auth } from './firebase';
+import { db, auth, storage } from './firebase';
 import {
   collection, addDoc, updateDoc, deleteDoc,
-  doc, onSnapshot, serverTimestamp, orderBy, query, where, getDocs
+  doc, onSnapshot, setDoc, serverTimestamp, orderBy, query, where, getDocs
 } from 'firebase/firestore';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -82,7 +83,7 @@ function deriveColors(mainHex) {
 // 기본 스킨 (네이비)
 const DEFAULT_SKIN_COLOR = '#1A2540';
 
-function LoginScreen() {
+function LoginScreen({ logoUrl }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -102,25 +103,31 @@ function LoginScreen() {
 
   return (
     <div style={{
-      minHeight: '100dvh', background: T.bgSoft,
+      minHeight: '100dvh',
+      background: `radial-gradient(circle at 15% 10%, ${T.brandLight} 0%, transparent 45%), radial-gradient(circle at 85% 90%, ${T.brandLight} 0%, transparent 45%), ${T.bgSoft}`,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       fontFamily: "'Pretendard Variable', Pretendard, sans-serif",
-      padding: '20px',
+      padding: '20px', position: 'relative', overflow: 'hidden',
     }}>
+      {/* 은은한 배경 도형 — 로그인 화면 장식 */}
+      <div style={{ position: 'absolute', top: '-60px', right: '-60px', width: '220px', height: '220px', borderRadius: '50%', background: T.brandLight, opacity: 0.6, pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', bottom: '-80px', left: '-80px', width: '260px', height: '260px', borderRadius: '50%', border: `2px solid ${T.brandLight}`, opacity: 0.8, pointerEvents: 'none' }} />
+
       <div style={{
         background: '#fff', borderRadius: '20px',
         border: `1px solid ${T.border}`, padding: '40px 36px',
         width: '100%', maxWidth: '380px',
         boxShadow: '0 8px 32px rgba(24, 95, 165, 0.08)',
+        position: 'relative', zIndex: 1,
       }}>
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
           <div style={{
-            width: '48px', height: '48px', background: T.brand,
+            width: '48px', height: '48px', background: logoUrl ? 'transparent' : T.brand,
             borderRadius: '14px', display: 'flex',
             alignItems: 'center', justifyContent: 'center',
-            margin: '0 auto 16px',
+            margin: '0 auto 16px', overflow: 'hidden',
           }}>
-            <span style={{ color: '#fff', fontSize: '20px', fontWeight: 700 }}>K</span>
+            {logoUrl ? <img src={logoUrl} alt="로고" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ color: '#fff', fontSize: '20px', fontWeight: 700 }}>K</span>}
           </div>
           <h1 style={{ fontSize: '20px', fontWeight: 700, margin: '0 0 4px', letterSpacing: '-0.02em' }}>
             교현학원
@@ -202,6 +209,17 @@ export default function App() {
   const dataReady = studentsReady && reportsReady;
   const [appToast, setAppToast] = useState(null);
   const appToastTimerRef = React.useRef(null);
+  const [logoUrl, setLogoUrl] = useState(null);
+
+  // 학원 로고 — 로그인 전(비인증) 화면에서도 보여야 해서 App 최상위에서 구독
+  // 권한 규칙상 읽기가 막혀 있어도(비로그인 상태) 조용히 실패하고 기본 "K" 배지로 대체
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'settings', 'branding'),
+      (snap) => setLogoUrl(snap.exists() ? snap.data().logoUrl || null : null),
+      () => setLogoUrl(null)
+    );
+    return () => unsub();
+  }, []);
 
   const showAppToast = (msg, type = 'success') => {
     if (appToastTimerRef.current) clearTimeout(appToastTimerRef.current);
@@ -318,6 +336,18 @@ export default function App() {
       showAppToast('강사 정보 저장에 실패했습니다.', 'error');
     }
   };
+  const handleSaveLogo = async (file) => {
+    try {
+      const path = `branding/logo_${Date.now()}.${file.name.split('.').pop() || 'png'}`;
+      const fileRef = storageRef(storage, path);
+      await uploadBytes(fileRef, file);
+      const url = await getDownloadURL(fileRef);
+      await setDoc(doc(db, 'settings', 'branding'), { logoUrl: url }, { merge: true });
+    } catch (e) {
+      console.error('로고 저장 실패:', e);
+      showAppToast('로고 저장에 실패했습니다.', 'error');
+    }
+  };
   const handleDeleteTeacher = async (id) => {
     try {
       await deleteDoc(doc(db, 'teachers', id));
@@ -426,7 +456,7 @@ export default function App() {
     </div>
   );
 
-  if (!user) return <LoginScreen />;
+  if (!user) return <LoginScreen logoUrl={logoUrl} />;
 
   const isDirector = userRole === 'director';
 
@@ -448,25 +478,33 @@ export default function App() {
     { key: 'manage',    label: '관리',      icon: <Users size={20} />,           roles: ['director'] },
   ];
   const tabs = mainTabs.filter(t => t.roles.includes(userRole || 'director'));
-  const renderSubTabBar = (group, items) => (
-    <div style={{ display: 'flex', background: '#F3F4F6', borderRadius: '10px', padding: '3px', margin: '16px 20px 0', gap: '2px' }}>
-      {items.map(item => {
-        const isActive = activeSubTab[group] === item.key;
-        return (
-          <button key={item.key} onClick={() => setSubTab(group, item.key)}
-            style={{ flex: 1, padding: '8px 4px', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: isActive ? 700 : 500, cursor: 'pointer', transition: 'all 0.15s', background: isActive ? '#fff' : 'transparent', color: isActive ? '#0D2D6B' : '#8A8A8A', boxShadow: isActive ? '0 1px 4px rgba(0,0,0,0.10)' : 'none', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>
-            {item.label}
-          </button>
-        );
-      })}
-    </div>
-  );
+  const renderSubTabBar = (group, items) => {
+    // 탭이 1개뿐이면 선택 UI 자체가 무의미 — 섹션 제목으로만 표시
+    if (items.length <= 1) {
+      return (
+        <p style={{ margin: '16px 20px 0', fontSize: '13px', fontWeight: 700, color: '#374151' }}>{items[0]?.label}</p>
+      );
+    }
+    return (
+      <div style={{ display: 'inline-flex', background: '#F3F4F6', borderRadius: '10px', padding: '3px', margin: '16px 20px 0', gap: '2px' }}>
+        {items.map(item => {
+          const isActive = activeSubTab[group] === item.key;
+          return (
+            <button key={item.key} onClick={() => setSubTab(group, item.key)}
+              style={{ padding: '8px 18px', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: isActive ? 700 : 500, cursor: 'pointer', transition: 'all 0.15s', background: isActive ? '#fff' : 'transparent', color: isActive ? '#0D2D6B' : '#8A8A8A', boxShadow: isActive ? '0 1px 4px rgba(0,0,0,0.10)' : 'none', fontFamily: "'Pretendard Variable', Pretendard, sans-serif", whiteSpace: 'nowrap' }}>
+              {item.label}
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
 
   return (
     <div style={{ minHeight: '100dvh', background: T.bgSoft, paddingBottom: 'calc(80px + env(safe-area-inset-bottom))' }}>
       <header style={{ background: T.bg, borderBottom: `1px solid ${T.border}`, padding: '14px 20px', display: 'flex', alignItems: 'center', gap: '10px', position: 'sticky', top: 0, zIndex: 100 }}>
-        <div style={{ width: '28px', height: '28px', background: T.brand, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <span style={{ color: '#fff', fontSize: '13px', fontWeight: 700 }}>K</span>
+        <div style={{ width: '28px', height: '28px', background: logoUrl ? 'transparent' : T.brand, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
+          {logoUrl ? <img src={logoUrl} alt="로고" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ color: '#fff', fontSize: '13px', fontWeight: 700 }}>K</span>}
         </div>
         <h1 style={{ fontSize: '16px', fontWeight: 700, color: T.text, letterSpacing: '-0.02em', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>교현학원 데일리 리포트</h1>
         <span style={{ marginLeft: 'auto', fontSize: '10px', color: T.textMute, fontWeight: 500, background: T.bgSoft, padding: '3px 8px', borderRadius: '6px', border: `1px solid ${T.border}`, flexShrink: 0 }}>
@@ -599,7 +637,7 @@ export default function App() {
                 : <SkeletonBlock rows={5} cardHeight={56} />
               )}
               {activeSubTab.manage === 'settings' && (dataReady
-                ? <SettingsView students={students} onSaveStudent={handleSaveStudent} teachers={teachers} onSaveTeacher={handleSaveTeacher} onDeleteTeacher={handleDeleteTeacher} />
+                ? <SettingsView students={students} onSaveStudent={handleSaveStudent} teachers={teachers} onSaveTeacher={handleSaveTeacher} onDeleteTeacher={handleDeleteTeacher} logoUrl={logoUrl} onSaveLogo={handleSaveLogo} />
                 : <SkeletonBlock rows={4} cardHeight={70} />
               )}
             </div>
@@ -1861,13 +1899,22 @@ function ReportPreviewModal({ report: r, allReports, onClose, onDelete, onEdit }
 // ============================================================
 // 설정 뷰
 // ============================================================
-function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDeleteTeacher }) {
+function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDeleteTeacher, logoUrl, onSaveLogo }) {
   const [globalColor, setGlobalColor] = React.useState(() => {
     return localStorage.getItem('globalSkinColor') || DEFAULT_SKIN_COLOR;
   });
   const [saving, setSaving] = React.useState(false);
   const [saved, setSaved] = React.useState(false);
   const colorInputRef = React.useRef(null);
+  const [logoUploading, setLogoUploading] = React.useState(false);
+  const logoInputRef = React.useRef(null);
+
+  const handleLogoFile = async (file) => {
+    if (!file) return;
+    setLogoUploading(true);
+    await onSaveLogo(file);
+    setLogoUploading(false);
+  };
 
   // 강사 이름 수정
   const [editingTeacherId, setEditingTeacherId] = React.useState(null);
@@ -1923,6 +1970,29 @@ function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDele
     <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
       <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '4px', letterSpacing: '-0.02em' }}>스킨 설정</h2>
       <p style={{ fontSize: '12px', color: '#6B7280', marginBottom: '20px', fontWeight: 500 }}>학원 기본 색상을 설정하세요. 학생별로 다르게 설정할 수 있습니다.</p>
+
+      {/* 학원 로고 */}
+      <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB', marginBottom: '14px' }}>
+        <p style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>🖼️ 학원 로고</p>
+        <p style={{ fontSize: '11px', color: '#6B7280', margin: '0 0 14px', lineHeight: 1.6 }}>
+          로그인 화면과 앱 상단 헤더에 표시됩니다. 정사각형에 가까운 이미지가 가장 깔끔하게 나옵니다.
+        </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{ width: '56px', height: '56px', borderRadius: '14px', background: logoUrl ? 'transparent' : '#F9FAFB', border: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
+            {logoUrl
+              ? <img src={logoUrl} alt="현재 로고" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : <span style={{ fontSize: '10px', color: '#9CA3AF' }}>미설정</span>}
+          </div>
+          <div style={{ flex: 1 }}>
+            <input ref={logoInputRef} type="file" accept="image/*" style={{ display: 'none' }}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleLogoFile(f); e.target.value = ''; }} />
+            <button onClick={() => logoInputRef.current?.click()} disabled={logoUploading}
+              style={{ padding: '9px 16px', fontSize: '12px', fontWeight: 700, borderRadius: '9px', border: '1px solid #185FA5', background: logoUploading ? '#F9FAFB' : '#E6F1FB', color: logoUploading ? '#9CA3AF' : '#185FA5', cursor: logoUploading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+              {logoUploading ? '업로드 중...' : logoUrl ? '로고 변경' : '로고 업로드'}
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* 학원 기본 스킨 */}
       <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB', marginBottom: '14px' }}>
