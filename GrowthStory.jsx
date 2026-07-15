@@ -6,6 +6,19 @@ import { ReportCard } from './tokens.jsx';
 import { toPct, isNewStudent as computeIsNewStudent } from './growth.js';
 import { findUnitKey } from './curriculum.js';
 
+// 학부모에게 저장 즉시 노출되는 서사 문구 — 강사가 너무 길게/짧게 써서 카드 UI가
+// 무너지지 않도록 최대 글자 수를 두고, 입력창에 남은 글자 수를 보여준다.
+const NARRATIVE_MAX_LEN = 150;
+function EditCharCount({ text, dark }) {
+  const len = (text || '').length;
+  const over = len >= NARRATIVE_MAX_LEN;
+  return (
+    <p style={{ fontSize: '10px', textAlign: 'right', margin: '4px 0 0', color: over ? '#DC2626' : dark ? 'rgba(255,255,255,0.4)' : '#9CA3AF' }}>
+      {len}/{NARRATIVE_MAX_LEN}자
+    </p>
+  );
+}
+
 const FONT_STYLE = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { 
@@ -460,6 +473,7 @@ export default function GrowthStory() {
           {milestones.map((m, i) => {
             const isChapter1 = i === 0;
             const isChapter2 = i === milestones.length - 1;
+            const chapterField = isChapter1 ? 'chapter1' : isChapter2 ? 'chapter2' : null;
             const chapterText = narrative
               ? (isChapter1 ? narrative.chapter1 : isChapter2 ? narrative.chapter2 : m.desc)
               : m.desc;
@@ -525,9 +539,27 @@ export default function GrowthStory() {
                 </div>
               )}
 
-              <p style={{ fontSize: '12px', color: '#4A4A4A', lineHeight: 1.8, wordBreak: 'keep-all', marginBottom: '6px' }}>
-                {chapterText}
-              </p>
+              {chapterField && editing === chapterField ? (
+                <div style={{ marginBottom: '6px' }}>
+                  <textarea value={editText} onChange={e => setEditText(e.target.value.slice(0, NARRATIVE_MAX_LEN))} maxLength={NARRATIVE_MAX_LEN}
+                    style={{ width: '100%', minHeight: '70px', padding: '10px', border: '1px solid #E5E5E5', borderRadius: '8px', color: '#2C2C2C', fontSize: '16px', lineHeight: 1.8, fontFamily: 'inherit', resize: 'vertical', outline: 'none' }} />
+                  <EditCharCount text={editText} />
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                    <button onClick={saveEdit} style={{ flex: 1, padding: '7px', background: '#0D2D6B', border: 'none', borderRadius: '6px', color: '#fff', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>저장</button>
+                    <button onClick={cancelEdit} style={{ flex: 1, padding: '7px', background: '#F3F4F6', border: 'none', borderRadius: '6px', color: '#6B7280', fontSize: '11px', cursor: 'pointer' }}>취소</button>
+                  </div>
+                </div>
+              ) : (
+                <p style={{ fontSize: '12px', color: '#4A4A4A', lineHeight: 1.8, wordBreak: 'keep-all', marginBottom: '6px' }}>
+                  {chapterText}
+                  {isEditor && narrative && chapterField && (
+                    <button onClick={() => startEdit(chapterField)}
+                      style={{ marginLeft: '6px', background: '#F0EDE8', border: 'none', color: '#8A8A8A', fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '6px', cursor: 'pointer', verticalAlign: 'middle' }}>
+                      ✏️ 편집
+                    </button>
+                  )}
+                </p>
+              )}
 
               <span style={{ display: 'inline-block', fontSize: '10px', fontWeight: 700, color: m.active ? '#8A6500' : '#0D2D6B', background: m.active ? 'rgba(201,162,39,0.12)' : '#EAF0F9', padding: '3px 9px', borderRadius: '3px' }}>{m.badge}</span>
             </div>
@@ -653,8 +685,9 @@ export default function GrowthStory() {
         </div>
         {editing === 'teacherWord' ? (
           <div>
-            <textarea value={editText} onChange={e => setEditText(e.target.value)}
+            <textarea value={editText} onChange={e => setEditText(e.target.value.slice(0, NARRATIVE_MAX_LEN))} maxLength={NARRATIVE_MAX_LEN}
               style={{ width: '100%', minHeight: '100px', padding: '12px', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '8px', color: '#fff', fontSize: '16px', lineHeight: 1.8, fontFamily: 'inherit', resize: 'vertical', outline: 'none' }} />
+            <EditCharCount text={editText} dark />
             <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
               <button onClick={saveEdit} style={{ flex: 1, padding: '8px', background: '#C9A227', border: 'none', borderRadius: '6px', color: '#fff', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>저장</button>
               <button onClick={cancelEdit} style={{ flex: 1, padding: '8px', background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '6px', color: 'rgba(255,255,255,0.6)', fontSize: '12px', cursor: 'pointer' }}>취소</button>
@@ -685,8 +718,9 @@ export default function GrowthStory() {
         </div>
         {editing === 'nextChapter' ? (
           <div style={{ marginBottom: '14px' }}>
-            <textarea value={editText} onChange={e => setEditText(e.target.value)}
+            <textarea value={editText} onChange={e => setEditText(e.target.value.slice(0, NARRATIVE_MAX_LEN))} maxLength={NARRATIVE_MAX_LEN}
               style={{ width: '100%', minHeight: '80px', padding: '12px', border: '1px solid #E5E5E5', borderRadius: '8px', color: '#2C2C2C', fontSize: '16px', lineHeight: 1.8, fontFamily: 'inherit', resize: 'vertical', outline: 'none' }} />
+            <EditCharCount text={editText} />
             <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
               <button onClick={saveEdit} style={{ flex: 1, padding: '8px', background: '#0D2D6B', border: 'none', borderRadius: '6px', color: '#fff', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>저장</button>
               <button onClick={cancelEdit} style={{ flex: 1, padding: '8px', background: '#F3F4F6', border: 'none', borderRadius: '6px', color: '#6B7280', fontSize: '12px', cursor: 'pointer' }}>취소</button>
