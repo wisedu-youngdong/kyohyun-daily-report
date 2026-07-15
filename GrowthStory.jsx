@@ -161,8 +161,8 @@ export default function GrowthStory() {
     // 4개 구간 인덱스 (중복 없이)
     const idx = [
       0,
-      Math.max(1, Math.floor(len * 0.33)),
-      Math.max(2, Math.floor(len * 0.66)),
+      Math.min(len - 1, Math.max(1, Math.floor(len * 0.33))),
+      Math.min(len - 1, Math.max(2, Math.floor(len * 0.66))),
       len - 1,
     ].filter((v, i, arr) => arr.indexOf(v) === i); // 중복 제거
 

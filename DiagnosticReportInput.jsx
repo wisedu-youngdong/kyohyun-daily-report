@@ -219,8 +219,8 @@ export default function DiagnosticReportInput({
 
   const [attendance, setAttendance] = useState('정시');
   const [arrivalTime, setArrivalTime] = useState('15:30');
-  const [homeworkRating, setHomeworkRating] = useState(0);
-  const [conceptRating, setConceptRating] = useState(0);
+  const [homeworkRating, setHomeworkRating] = useState(null);
+  const [conceptRating, setConceptRating] = useState(null);
   const [hasTest, setHasTest] = useState(false);
   const [testName, setTestName] = useState('');
   const [testScore, setTestScore] = useState('');
@@ -351,7 +351,7 @@ export default function DiagnosticReportInput({
   }, [teachers]);
 
   // 작성 중 이탈 방지 — 데이터 입력 시작 후 탭 닫기/뒤로가기 경고
-  const isDirty = !!(studentId || teacherNote || homeworkRating || conceptRating || selectedTags.length);
+  const isDirty = !!(studentId || teacherNote || homeworkRating != null || conceptRating != null || selectedTags.length);
   useEffect(() => {
     const handler = (e) => {
       if (!isDirty) return;
@@ -364,7 +364,7 @@ export default function DiagnosticReportInput({
 
   const student = useMemo(() => students.find(s => s.id === studentId), [students, studentId]);
   const teacher = useMemo(() => teachers.find(t => t.id === teacherId), [teachers, teacherId]);
-  const isValid = studentId && homeworkRating && conceptRating && teacherId;
+  const isValid = studentId && homeworkRating != null && conceptRating != null && teacherId;
   const isReadyToSend = isValid && (teacherNote.trim() || aiPolishedNote.trim()); // 선생님 코멘트까지 있어야 완전한 리포트
 
   // 학생 등록 — Firebase에 저장
@@ -580,7 +580,7 @@ export default function DiagnosticReportInput({
     // 단계별 검증
     if (!studentId) return setAlertMessage('학생을 먼저 선택해주세요.');
     if (!teacherId) return setAlertMessage('담당 강사를 선택해주세요.');
-    if (!homeworkRating || !conceptRating) return setAlertMessage('과제 수행과 개념 이해 평가를 입력해주세요.');
+    if (homeworkRating == null || conceptRating == null) return setAlertMessage('과제 수행과 개념 이해 평가를 입력해주세요.');
     if (polishing) return setAlertMessage('AI가 코멘트를 다듬는 중입니다. 완료 후 다시 저장해주세요.');
     if (!teacherNote.trim() && !aiPolishedNote.trim()) return setAlertMessage('선생님 코멘트를 입력해주세요.\n학부모에게 전달되는 핵심 내용입니다.');
 
@@ -797,6 +797,7 @@ export default function DiagnosticReportInput({
                 setHasTest(false); setTestScore(''); setTestName(''); setTestRound('');
                 setUnit(''); setPages('');
                 setTeacherNote(''); setSelectedTags([]);
+                setAiPolishedNote('');
                 setNextPlan(''); setNextPlanDetail('');
                 setPhotos([]); setPhotoAnalysis(null);
                 setWrongItems([]);
@@ -1781,13 +1782,13 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
         )}
 
         {/* 평가 + 출결 그리드 — 이모지 제거, 숫자+텍스트 레이블로 */}
-        {(homeworkRating || conceptRating) && (
+        {(homeworkRating != null || conceptRating != null) && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
 
             {/* 과제 수행 — 다크 */}
             <div style={{ background: s.cardDarkBg, borderRadius: '14px', padding: '12px 12px' }}>
               {cardLabel('과제 수행', true)}
-              {homeworkPct > 0 ? (
+              {homeworkRating != null ? (
                 <>
                   <p style={{ fontSize: '26px', fontWeight: 800, color: '#ffffff', margin: '2px 0 2px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
                     {homeworkPct}<span style={{ fontSize: '12px', fontWeight: 600, marginLeft: '2px', opacity: 0.7 }}>%</span>
@@ -1800,7 +1801,7 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
             {/* 개념 이해 — 라이트 */}
             <div style={{ background: s.cardBg, borderRadius: '14px', padding: '12px 12px' }}>
               {cardLabel('개념 이해', false)}
-              {conceptPct > 0 ? (
+              {conceptRating != null ? (
                 <>
                   <p style={{ fontSize: '26px', fontWeight: 800, color: s.cardText, margin: '2px 0 2px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
                     {conceptPct}<span style={{ fontSize: '12px', fontWeight: 600, marginLeft: '2px', opacity: 0.6 }}>%</span>

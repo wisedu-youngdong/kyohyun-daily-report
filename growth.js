@@ -25,7 +25,7 @@ function conceptPoints(pct) {
 // 0~100(%) → 5단계 정성 라벨 (구 1~5점 척도와 동일 구간)
 const RATING_LABELS = ['노력 필요', '아쉬움', '보통', '잘함', '아주 잘함'];
 export function ratingLabel(pct) {
-  if (!pct || pct <= 0) return '';
+  if (pct == null || pct < 0) return '';
   const idx = Math.min(5, Math.max(1, Math.ceil(pct / 20))) - 1;
   return RATING_LABELS[idx];
 }
