@@ -1505,19 +1505,27 @@ function HistoryView({ reports, students, reportViews = [], onDelete, onEdit }) 
                               const isCurrent = p.r.id === selected.id;
                               const cy = p.v != null ? yOf(p.v) : chartH - 4;
                               const content = [p.r.unit, p.r.textbook].filter(Boolean)[0] || '내용 없음';
+                              const colW = (chartW - padX * 2) / Math.max(1, pts.length - 1 || 1);
+                              const onHover = (e) => setTrendTooltip({
+                                x: e.clientX, y: e.clientY,
+                                text: `${fmtDate(p.r)} · ${label} ${p.v != null ? `${p.v}%` : '미입력'} · ${content}`,
+                              });
                               return (
-                                <circle key={idx} cx={xOf(p.i)} cy={cy}
-                                  r={isCurrent ? 4.5 : p.v != null ? 3 : 2}
-                                  fill={isCurrent ? '#C9A227' : p.v != null ? color : '#E5E7EB'}
-                                  stroke="#fff" strokeWidth={isCurrent ? 1.5 : 1}
-                                  style={{ cursor: 'pointer' }}
-                                  onMouseEnter={(e) => setTrendTooltip({
-                                    x: e.clientX, y: e.clientY,
-                                    text: `${fmtDate(p.r)} · ${label} ${p.v != null ? `${p.v}%` : '미입력'} · ${content}`,
-                                  })}
-                                  onMouseMove={(e) => setTrendTooltip(t => t && ({ ...t, x: e.clientX, y: e.clientY }))}
-                                  onMouseLeave={() => setTrendTooltip(null)}
-                                />
+                                <g key={idx}>
+                                  <circle cx={xOf(p.i)} cy={cy}
+                                    r={isCurrent ? 4.5 : p.v != null ? 3 : 2}
+                                    fill={isCurrent ? '#C9A227' : p.v != null ? color : '#E5E7EB'}
+                                    stroke="#fff" strokeWidth={isCurrent ? 1.5 : 1}
+                                    style={{ pointerEvents: 'none' }}
+                                  />
+                                  {/* 넓은 히트 영역 — 실제 점은 작지만 마우스 인식 범위는 열 전체로 */}
+                                  <rect x={xOf(p.i) - colW / 2} y={0} width={colW} height={chartH}
+                                    fill="transparent" style={{ cursor: 'pointer' }}
+                                    onMouseEnter={onHover}
+                                    onMouseMove={onHover}
+                                    onMouseLeave={() => setTrendTooltip(null)}
+                                  />
+                                </g>
                               );
                             })}
                           </svg>
