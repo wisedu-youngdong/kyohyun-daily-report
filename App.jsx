@@ -1073,6 +1073,7 @@ function HistoryView({ reports, students, reportViews = [], onDelete, onEdit }) 
   const [searchText, setSearchText] = useState('');
   const [periodFilter, setPeriodFilter] = useState('all');
   const [copied, setCopied] = useState(false);
+  const [trendTooltip, setTrendTooltip] = useState(null); // { x, y, text }
 
   // 삭제된 리포트가 selectedId면 자동 초기화
   React.useEffect(() => {
@@ -1481,27 +1482,49 @@ function HistoryView({ reports, students, reportViews = [], onDelete, onEdit }) 
             const topDiag = Object.entries(diagCountMap).sort((a, b) => b[1] - a[1]).slice(0, 3);
             const cardStyle = { background: '#fff', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '14px 16px' };
             const cardTitle = { fontSize: '11px', color: '#9CA3AF', margin: '0 0 10px', fontWeight: 600, letterSpacing: '0.06em' };
+            const chartW = 260, chartH = 40, padX = 8;
+            const xOf = (i) => padX + (i / Math.max(1, recentAsc.length - 1)) * (chartW - padX * 2);
+            const yOf = (v) => chartH - 4 - (v / 100) * (chartH - 10);
             return (
-              <aside style={{ flex: '0 1 300px', minWidth: '260px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <aside style={{ flex: '0 1 340px', minWidth: '300px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {/* 최근 평가 추이 */}
                 {recentAsc.length >= 2 && (
                   <div style={cardStyle}>
                     <p style={cardTitle}>최근 평가 추이 (최근 {recentAsc.length}회)</p>
-                    {[['과제', 'homeworkRating', '#0D2D6B'], ['개념', 'conceptRating', '#0F6E56']].map(([label, key, color]) => (
-                      <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                        <span style={{ fontSize: '10px', color: '#6B7280', width: '26px', flexShrink: 0, fontWeight: 600 }}>{label}</span>
-                        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px', height: '32px', flex: 1 }}>
-                          {recentAsc.map((r, i) => {
-                            const v = r[key] != null ? toPct(r[key]) : null;
-                            return (
-                              <div key={i} title={v != null ? `${v}%` : '미입력'}
-                                style={{ flex: 1, height: v != null ? `${Math.max(3, v * 0.32)}px` : '3px', background: r.id === selected.id ? '#C9A227' : v != null ? color : '#E5E7EB', borderRadius: '2px', opacity: r.id === selected.id ? 1 : 0.75 }} />
-                            );
-                          })}
+                    {[['과제', 'homeworkRating', '#0D2D6B'], ['개념', 'conceptRating', '#0F6E56']].map(([label, key, color]) => {
+                      const pts = recentAsc.map((r, i) => ({ r, i, v: r[key] != null ? toPct(r[key]) : null }));
+                      const withVal = pts.filter(p => p.v != null);
+                      const linePath = withVal.map((p, idx) => `${idx === 0 ? 'M' : 'L'}${xOf(p.i)},${yOf(p.v)}`).join(' ');
+                      return (
+                        <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                          <span style={{ fontSize: '10px', color: '#6B7280', width: '26px', flexShrink: 0, fontWeight: 600 }}>{label}</span>
+                          <svg viewBox={`0 0 ${chartW} ${chartH}`} width="100%" height={chartH} style={{ overflow: 'visible', flex: 1 }}>
+                            <line x1={padX} y1={chartH - 4} x2={chartW - padX} y2={chartH - 4} stroke="#F0F0F0" strokeWidth="1" />
+                            {linePath && <path d={linePath} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />}
+                            {pts.map((p, idx) => {
+                              const isCurrent = p.r.id === selected.id;
+                              const cy = p.v != null ? yOf(p.v) : chartH - 4;
+                              const content = [p.r.unit, p.r.textbook].filter(Boolean)[0] || '내용 없음';
+                              return (
+                                <circle key={idx} cx={xOf(p.i)} cy={cy}
+                                  r={isCurrent ? 4.5 : p.v != null ? 3 : 2}
+                                  fill={isCurrent ? '#C9A227' : p.v != null ? color : '#E5E7EB'}
+                                  stroke="#fff" strokeWidth={isCurrent ? 1.5 : 1}
+                                  style={{ cursor: 'pointer' }}
+                                  onMouseEnter={(e) => setTrendTooltip({
+                                    x: e.clientX, y: e.clientY,
+                                    text: `${fmtDate(p.r)} · ${label} ${p.v != null ? `${p.v}%` : '미입력'} · ${content}`,
+                                  })}
+                                  onMouseMove={(e) => setTrendTooltip(t => t && ({ ...t, x: e.clientX, y: e.clientY }))}
+                                  onMouseLeave={() => setTrendTooltip(null)}
+                                />
+                              );
+                            })}
+                          </svg>
                         </div>
-                      </div>
-                    ))}
-                    <p style={{ fontSize: '9px', color: '#B0B0B0', margin: 0 }}>금색 = 현재 보는 리포트 · 회색 = 미입력</p>
+                      );
+                    })}
+                    <p style={{ fontSize: '9px', color: '#B0B0B0', margin: 0 }}>금색 = 현재 보는 리포트 · 점에 마우스를 올리면 상세가 보여요</p>
                   </div>
                 )}
 
@@ -1568,6 +1591,15 @@ function HistoryView({ reports, students, reportViews = [], onDelete, onEdit }) 
             </div>
           </div>
         </div>
+      )}
+
+      {trendTooltip && (
+        <div style={{
+          position: 'fixed', left: trendTooltip.x + 14, top: trendTooltip.y - 12,
+          background: '#1A1A1A', color: '#fff', fontSize: '11px', padding: '6px 10px',
+          borderRadius: '7px', pointerEvents: 'none', zIndex: 10001, fontFamily: 'inherit',
+          whiteSpace: 'nowrap', boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+        }}>{trendTooltip.text}</div>
       )}
     </>
   );
