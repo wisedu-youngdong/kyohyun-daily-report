@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { db } from './firebase';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDoc, getDocs, query, where, doc } from 'firebase/firestore';
 import { useMediaQuery } from './hooks.js';
 import { toPct } from './growth.js';
 import { R } from './tokens.jsx';
@@ -20,9 +20,13 @@ export default function GrowthAward() {
     setLoadError(null);
     async function load() {
       try {
-        const stuSnap = await getDocs(query(collection(db, 'students'), where('__name__', '==', studentId)));
-        if (!stuSnap.empty) setStudent({ id: stuSnap.docs[0].id, ...stuSnap.docs[0].data() });
-        const rSnap = await getDocs(query(collection(db, 'reports'), where('studentId', '==', studentId)));
+        // studentIndex에서 academyId를 먼저 찾은 뒤 실제 학원 서브컬렉션을 조회 (멀티테넌시 전환)
+        const indexSnap = await getDoc(doc(db, 'studentIndex', studentId));
+        if (!indexSnap.exists()) { setLoading(false); return; }
+        const { academyId } = indexSnap.data();
+        const stuSnap = await getDoc(doc(db, 'academies', academyId, 'students', studentId));
+        if (stuSnap.exists()) setStudent({ id: stuSnap.id, ...stuSnap.data() });
+        const rSnap = await getDocs(query(collection(db, 'academies', academyId, 'reports'), where('studentId', '==', studentId)));
         const rList = rSnap.docs
           .map(d => ({ id: d.id, ...d.data() }))
           .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));

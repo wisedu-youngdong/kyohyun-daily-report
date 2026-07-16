@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { db, auth, storage } from './firebase';
 import {
   collection, addDoc, updateDoc, deleteDoc,
-  doc, onSnapshot, setDoc, serverTimestamp, query, where, getDocs
+  doc, getDoc, onSnapshot, setDoc, serverTimestamp, query, where, getDocs, writeBatch
 } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import {
@@ -44,6 +44,7 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [userRole, setUserRole] = useState(null);
   const [userTeacherId, setUserTeacherId] = useState(null);
+  const [academyId, setAcademyId] = useState(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [activeSubTab, setActiveSubTab] = useState({ record: 'history', insight: 'director', manage: 'students' });
   const setSubTab = (group, key) => setActiveSubTab(prev => ({ ...prev, [group]: key }));
@@ -61,13 +62,20 @@ export default function App() {
   const [appToast, setAppToast] = useState(null);
   const appToastTimerRef = React.useRef(null);
   const [logoUrl, setLogoUrl] = useState(null);
+  const [academySkinColor, setAcademySkinColor] = useState(null);
 
-  // 학원 로고 — 로그인 전(비인증) 화면에서도 보여야 해서 App 최상위에서 구독
+  // 학원 브랜딩(로고+기본 스킨색) — 로그인 전(비인증) 화면에서도 로고가 보여야 해서 App 최상위에서 구독.
+  // 아직 학원을 URL/서브도메인으로 구분 안 해서(1단계 범위 밖) academyId를 모르는 로그인 전 상태에선
+  // 'kyohyun'으로 하드코딩 — 두 번째 학원이 생기면 그때 실제 테넌트 구분 라우팅을 설계해야 함.
   // 권한 규칙상 읽기가 막혀 있어도(비로그인 상태) 조용히 실패하고 기본 "K" 배지로 대체
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, 'settings', 'branding'),
-      (snap) => setLogoUrl(snap.exists() ? snap.data().logoUrl || null : null),
-      () => setLogoUrl(null)
+    const unsub = onSnapshot(doc(db, 'academies', 'kyohyun'),
+      (snap) => {
+        const data = snap.exists() ? snap.data() : {};
+        setLogoUrl(data.logoUrl || null);
+        setAcademySkinColor(data.globalSkinColor || null);
+      },
+      () => { setLogoUrl(null); setAcademySkinColor(null); }
     );
     return () => unsub();
   }, []);
@@ -102,24 +110,34 @@ export default function App() {
     const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u);
       if (u) {
-        // users 컬렉션에서 role 조회
+        // users/{uid} 고정 경로에서 role·academyId 조회
+        // (예전엔 addDoc으로 자동 ID 문서를 만들고 uid 필드로 쿼리해서 찾았는데,
+        // 이러면 "내 문서인지"를 보안 규칙에서 안전하게 확인할 방법이 list 권한을
+        // 전체 열어주는 것뿐이라 — 다른 학원 직원 이메일/역할까지 다 보이게 됨.
+        // uid를 문서 ID로 고정하면 get()으로 본인 문서만 안전하게 조회 가능)
         try {
-          const userSnap = await getDocs(query(collection(db, 'users'), where('uid', '==', u.uid)));
-          if (!userSnap.empty) {
-            const userData = userSnap.docs[0].data();
+          const userSnap = await getDoc(doc(db, 'users', u.uid));
+          if (userSnap.exists()) {
+            const userData = userSnap.data();
             setUserRole(userData.role || 'director');
             setUserTeacherId(userData.teacherId || null);
+            // platform_admin은 특정 학원에 안 묶임 — academyId 없이도 정상
+            setAcademyId(userData.academyId || null);
           } else {
-            // users 문서 없으면 director (기존 원장님 계정)
+            // users 문서 없으면 director (기존 원장님 계정 — 마이그레이션 스크립트가
+            // 이 경우를 찾아서 채워주지만, 혹시 놓친 계정이 있어도 앱이 안 죽게 폴백 유지)
             setUserRole('director');
             setUserTeacherId(null);
+            setAcademyId('kyohyun');
           }
         } catch (e) {
           setUserRole('director');
+          setAcademyId('kyohyun');
         }
       } else {
         setUserRole(null);
         setUserTeacherId(null);
+        setAcademyId(null);
       }
       setAuthLoading(false);
     });
@@ -127,49 +145,49 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !academyId) return;
     setStudentsReady(false);
     setReportsReady(false);
-    const unsubStudents = onSnapshot(collection(db, 'students'), (snap) => {
+    const unsubStudents = onSnapshot(collection(db, 'academies', academyId, 'students'), (snap) => {
       setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       setStudentsReady(true);
     }, (e) => { console.error('학생 목록 구독 실패:', e); showAppToast('학생 목록을 불러오지 못했습니다. 새로고침해주세요.', 'error'); });
-    const unsubTeachers = onSnapshot(collection(db, 'teachers'), (snap) => {
+    const unsubTeachers = onSnapshot(collection(db, 'academies', academyId, 'teachers'), (snap) => {
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       if (list.length === 0) {
-        addDoc(collection(db, 'teachers'), { name: '김선생님', createdAt: serverTimestamp() });
+        addDoc(collection(db, 'academies', academyId, 'teachers'), { name: '김선생님', createdAt: serverTimestamp() });
       } else {
         setTeachers(list);
       }
     }, (e) => { console.error('강사 목록 구독 실패:', e); showAppToast('강사 목록을 불러오지 못했습니다.', 'error'); });
-    const unsubReports = onSnapshot(collection(db, 'reports'), (snap) => {
+    const unsubReports = onSnapshot(collection(db, 'academies', academyId, 'reports'), (snap) => {
       setReports(snap.docs.map(d => ({ id: d.id, ...d.data() }))
         .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
       setReportsReady(true);
     }, (e) => { console.error('리포트 목록 구독 실패:', e); showAppToast('리포트 목록을 불러오지 못했습니다. 새로고침해주세요.', 'error'); });
 
     // 열람 기록 실시간 구독
-    const unsubViews = onSnapshot(collection(db, 'reportViews'), (snap) => {
+    const unsubViews = onSnapshot(collection(db, 'academies', academyId, 'reportViews'), (snap) => {
       setReportViews(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     }, (e) => { console.error('열람 기록 구독 실패:', e); });
 
     // 코멘트 즐겨찾기 — 학원 공용(모든 강사가 함께 씀)
-    const unsubTemplates = onSnapshot(collection(db, 'commentTemplates'), (snap) => {
+    const unsubTemplates = onSnapshot(collection(db, 'academies', academyId, 'commentTemplates'), (snap) => {
       setCommentTemplates(snap.docs.map(d => ({ id: d.id, ...d.data() }))
         .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0)));
     }, (e) => { console.error('코멘트 즐겨찾기 구독 실패:', e); });
 
     // 복습 일정 — 약점 태그가 있는 리포트 저장 시 7/14/30일 후로 자동 생성됨
-    const unsubReviews = onSnapshot(collection(db, 'reviews'), (snap) => {
+    const unsubReviews = onSnapshot(collection(db, 'academies', academyId, 'reviews'), (snap) => {
       setReviews(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     }, (e) => { console.error('복습 일정 구독 실패:', e); });
 
     return () => { unsubStudents(); unsubTeachers(); unsubReports(); unsubViews(); unsubTemplates(); unsubReviews(); };
-  }, [user]);
+  }, [user, academyId]);
 
   const handleCompleteReview = async (id) => {
     try {
-      await updateDoc(doc(db, 'reviews', id), { status: 'done', completedAt: serverTimestamp() });
+      await updateDoc(doc(db, 'academies', academyId, 'reviews', id), { status: 'done', completedAt: serverTimestamp() });
     } catch (e) {
       console.error('복습 완료 처리 실패:', e);
       showAppToast('복습 완료 처리에 실패했습니다.', 'error');
@@ -180,9 +198,15 @@ export default function App() {
   try {
     if (d.id) {
       const { id, ...data } = d;
-      await updateDoc(doc(db, 'students', id), data);
+      await updateDoc(doc(db, 'academies', academyId, 'students', id), data);
     } else {
-      await addDoc(collection(db, 'students'), { ...d, createdAt: serverTimestamp() });
+      // 공개 성장스토리 페이지(studentIndex 조회)가 새 학생도 바로 찾을 수 있도록
+      // 학생 문서 생성과 인덱스 문서 생성을 하나의 배치로 원자적 처리
+      const studentRef = doc(collection(db, 'academies', academyId, 'students'));
+      const batch = writeBatch(db);
+      batch.set(studentRef, { ...d, createdAt: serverTimestamp() });
+      batch.set(doc(db, 'studentIndex', studentRef.id), { academyId });
+      await batch.commit();
     }
   } catch (e) {
     console.error('학생 저장 실패:', e);
@@ -193,7 +217,7 @@ export default function App() {
   // (학부모에게 이미 나간 공개 링크도 그대로 열림), 복구도 불가능. archived 플래그로 숨김 처리.
   const handleDeleteStudent = async (id) => {
     try {
-      await updateDoc(doc(db, 'students', id), { archived: true, archivedAt: serverTimestamp() });
+      await updateDoc(doc(db, 'academies', academyId, 'students', id), { archived: true, archivedAt: serverTimestamp() });
       showAppToast('학생을 목록에서 숨겼습니다. 리포트 기록은 그대로 보관됩니다.');
     } catch (e) {
       console.error('학생 삭제 실패:', e);
@@ -202,7 +226,7 @@ export default function App() {
   };
   const handleRestoreStudent = async (id) => {
     try {
-      await updateDoc(doc(db, 'students', id), { archived: false });
+      await updateDoc(doc(db, 'academies', academyId, 'students', id), { archived: false });
       showAppToast('학생을 목록에 다시 표시합니다.');
     } catch (e) {
       console.error('학생 복원 실패:', e);
@@ -212,8 +236,8 @@ export default function App() {
 
   const handleSaveTeacher = async (d) => {
     try {
-      if (d.id) { const { id, ...data } = d; await updateDoc(doc(db, 'teachers', id), data); }
-      else await addDoc(collection(db, 'teachers'), { ...d, createdAt: serverTimestamp() });
+      if (d.id) { const { id, ...data } = d; await updateDoc(doc(db, 'academies', academyId, 'teachers', id), data); }
+      else await addDoc(collection(db, 'academies', academyId, 'teachers'), { ...d, createdAt: serverTimestamp() });
     } catch (e) {
       console.error('강사 저장 실패:', e);
       showAppToast('강사 정보 저장에 실패했습니다.', 'error');
@@ -225,7 +249,7 @@ export default function App() {
       const fileRef = storageRef(storage, path);
       await uploadBytes(fileRef, file);
       const url = await getDownloadURL(fileRef);
-      await setDoc(doc(db, 'settings', 'branding'), { logoUrl: url }, { merge: true });
+      await setDoc(doc(db, 'academies', academyId), { logoUrl: url }, { merge: true });
     } catch (e) {
       console.error('로고 저장 실패:', e);
       showAppToast('로고 저장에 실패했습니다.', 'error');
@@ -233,7 +257,7 @@ export default function App() {
   };
   const handleDeleteLogo = async () => {
     try {
-      await setDoc(doc(db, 'settings', 'branding'), { logoUrl: null }, { merge: true });
+      await setDoc(doc(db, 'academies', academyId), { logoUrl: null }, { merge: true });
     } catch (e) {
       console.error('로고 삭제 실패:', e);
       showAppToast('로고 삭제에 실패했습니다.', 'error');
@@ -241,7 +265,7 @@ export default function App() {
   };
   const handleSaveCommentTemplate = async (label, text) => {
     try {
-      await addDoc(collection(db, 'commentTemplates'), { label, text, createdAt: serverTimestamp() });
+      await addDoc(collection(db, 'academies', academyId, 'commentTemplates'), { label, text, createdAt: serverTimestamp() });
     } catch (e) {
       console.error('코멘트 즐겨찾기 저장 실패:', e);
       showAppToast('즐겨찾기 저장에 실패했습니다.', 'error');
@@ -249,7 +273,7 @@ export default function App() {
   };
   const handleDeleteCommentTemplate = async (id) => {
     try {
-      await deleteDoc(doc(db, 'commentTemplates', id));
+      await deleteDoc(doc(db, 'academies', academyId, 'commentTemplates', id));
     } catch (e) {
       console.error('코멘트 즐겨찾기 삭제 실패:', e);
       showAppToast('즐겨찾기 삭제에 실패했습니다.', 'error');
@@ -257,7 +281,7 @@ export default function App() {
   };
   const handleDeleteTeacher = async (id) => {
     try {
-      await deleteDoc(doc(db, 'teachers', id));
+      await deleteDoc(doc(db, 'academies', academyId, 'teachers', id));
     } catch (e) {
       console.error('강사 삭제 실패:', e);
       showAppToast('강사 삭제에 실패했습니다.', 'error');
@@ -299,11 +323,17 @@ export default function App() {
     let reportId;
     if (d.id) {
       const { id, ...data } = d;
-      await updateDoc(doc(db, 'reports', id), { ...data, weakTypesSummary, updatedAt: serverTimestamp() });
+      await updateDoc(doc(db, 'academies', academyId, 'reports', id), { ...data, weakTypesSummary, updatedAt: serverTimestamp() });
       reportId = id;
     } else {
-      const ref = await addDoc(collection(db, 'reports'), { ...d, weakTypesSummary, createdAt: serverTimestamp() });
-      reportId = ref.id;
+      // 공개 리포트 페이지(reportIndex 조회)가 새 리포트도 바로 찾을 수 있도록
+      // 리포트 문서 생성과 인덱스 문서 생성을 하나의 배치로 원자적 처리
+      const reportRef = doc(collection(db, 'academies', academyId, 'reports'));
+      const batch = writeBatch(db);
+      batch.set(reportRef, { ...d, weakTypesSummary, createdAt: serverTimestamp() });
+      batch.set(doc(db, 'reportIndex', reportRef.id), { academyId });
+      await batch.commit();
+      reportId = reportRef.id;
     }
 
     // ── 약점 태그 감지 → 복습 일정 자동 생성 ──
@@ -314,7 +344,7 @@ export default function App() {
     let alreadyHasReviews = false;
     if (weakTags.length > 0 && !d.isDraft) {
       try {
-        const existing = await getDocs(query(collection(db, 'reviews'), where('reportId', '==', reportId)));
+        const existing = await getDocs(query(collection(db, 'academies', academyId, 'reviews'), where('reportId', '==', reportId)));
         alreadyHasReviews = existing.docs.length > 0;
       } catch (e) { console.warn('복습 일정 조회 실패:', e); }
     }
@@ -343,13 +373,14 @@ export default function App() {
           createdAt: serverTimestamp(),
         };
       });
-      await Promise.all(schedules.map(s => addDoc(collection(db, 'reviews'), s)));
+      await Promise.all(schedules.map(s => addDoc(collection(db, 'academies', academyId, 'reviews'), s)));
     }
     return reportId;
   };
   const handleDeleteReport = async (id) => {
     try {
-      await deleteDoc(doc(db, 'reports', id));
+      await deleteDoc(doc(db, 'academies', academyId, 'reports', id));
+      await deleteDoc(doc(db, 'reportIndex', id)).catch(() => {}); // 인덱스 문서 정리, 없어도 무시
     } catch (e) {
       console.error('리포트 삭제 실패:', e);
       showAppToast('리포트 삭제에 실패했습니다.', 'error');
@@ -357,10 +388,10 @@ export default function App() {
     }
     // 연결된 복습 일정 삭제 (reportId 기준)
     try {
-      const q = query(collection(db, 'reviews'), where('reportId', '==', id));
+      const q = query(collection(db, 'academies', academyId, 'reviews'), where('reportId', '==', id));
       const snap = await getDocs(q);
       if (snap.docs.length > 0) {
-        await Promise.all(snap.docs.map(d => deleteDoc(doc(db, 'reviews', d.id))));
+        await Promise.all(snap.docs.map(d => deleteDoc(doc(db, 'academies', academyId, 'reviews', d.id))));
       }
     } catch (e) {
       console.warn('복습 일정 삭제 중 오류 (무시 가능):', e);
@@ -567,7 +598,7 @@ export default function App() {
             ], { director: 960, analysis: 600 })}
             <div style={{ marginTop: '12px' }}>
               {activeSubTab.insight === 'director' && (dataReady
-                ? <div><DirectorView reports={reports} students={students} reportViews={reportViews} onToast={showAppToast} /><GrowthDashboard reports={reports} students={students} onSwitchTab={setActiveTab} /></div>
+                ? <div><DirectorView reports={reports} students={students} reportViews={reportViews} onToast={showAppToast} academyId={academyId} /><GrowthDashboard reports={reports} students={students} onSwitchTab={setActiveTab} /></div>
                 : <SkeletonBlock rows={4} cardHeight={70} />
               )}
               {activeSubTab.insight === 'analysis' && (dataReady
@@ -589,7 +620,7 @@ export default function App() {
                 : <SkeletonBlock rows={5} cardHeight={56} />
               )}
               {activeSubTab.manage === 'settings' && (dataReady
-                ? <SettingsView students={students} onSaveStudent={handleSaveStudent} teachers={teachers} onSaveTeacher={handleSaveTeacher} onDeleteTeacher={handleDeleteTeacher} logoUrl={logoUrl} onSaveLogo={handleSaveLogo} onDeleteLogo={handleDeleteLogo} />
+                ? <SettingsView students={students} onSaveStudent={handleSaveStudent} teachers={teachers} onSaveTeacher={handleSaveTeacher} onDeleteTeacher={handleDeleteTeacher} logoUrl={logoUrl} onSaveLogo={handleSaveLogo} onDeleteLogo={handleDeleteLogo} academyId={academyId} academySkinColor={academySkinColor} />
                 : <SkeletonBlock rows={4} cardHeight={70} />
               )}
             </div>

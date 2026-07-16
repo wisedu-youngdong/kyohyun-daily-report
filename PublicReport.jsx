@@ -48,7 +48,12 @@ export default function PublicReport() {
     setErrorType(null);
     (async () => {
       try {
-        const rSnap = await getDoc(doc(db, 'reports', reportId));
+        // 리포트는 academies/{academyId}/reports 밑에 있어서, 우선 최상위 reportIndex에서
+        // 이 ID가 어느 학원 소속인지 찾은 다음 실제 문서를 조회한다 (멀티테넌시 전환).
+        const indexSnap = await getDoc(doc(db, 'reportIndex', reportId));
+        if (!indexSnap.exists()) { setErrorType('notfound'); setLoading(false); return; }
+        const { academyId } = indexSnap.data();
+        const rSnap = await getDoc(doc(db, 'academies', academyId, 'reports', reportId));
         if (!rSnap.exists()) { setErrorType('notfound'); setLoading(false); return; }
         const r = { id: rSnap.id, ...rSnap.data() };
         setReport(r);
@@ -59,7 +64,7 @@ export default function PublicReport() {
           viewLoggedRef.current = true;
           const params = new URLSearchParams(location.search);
           const src = params.get('src') || 'direct';
-          addDoc(collection(db, 'reportViews'), {
+          addDoc(collection(db, 'academies', academyId, 'reportViews'), {
             reportId,
             studentId: r.studentId,
             studentName: r.studentName,

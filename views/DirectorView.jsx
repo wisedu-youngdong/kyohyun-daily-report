@@ -6,7 +6,7 @@ import { kstDay, toPct, ratingLabel } from '../growth.js';
 import { C } from '../tokens.jsx';
 import { StudentProfileModal } from './StudentProfileModal.jsx';
 
-export default function DirectorView({ reports, students, reportViews = [], onToast }) {
+export default function DirectorView({ reports, students, reportViews = [], onToast, academyId }) {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [expandedId, setExpandedId] = useState(null);
   const [memos, setMemos] = useState({});
@@ -40,7 +40,7 @@ export default function DirectorView({ reports, students, reportViews = [], onTo
 
   const handleMemoSave = async (reportId, memo) => {
     setSavingMemo(reportId);
-    await updateDoc(doc(db, 'reports', reportId), { directorMemo: memo });
+    await updateDoc(doc(db, 'academies', academyId, 'reports', reportId), { directorMemo: memo });
     setSavingMemo(null);
   };
 

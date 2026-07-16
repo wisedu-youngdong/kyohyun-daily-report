@@ -3,3 +3,11 @@ dist
 .env
 .env.local
 .DS_Store
+
+# Firebase 에뮬레이터 / 마이그레이션 스크립트 관련 — 절대 커밋하면 안 됨
+firestore-debug.log
+ui-debug.log
+firebase-debug.log
+.firebase/
+serviceAccountKey*.json
+*-service-account*.json

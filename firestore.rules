@@ -1,0 +1,84 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── 헬퍼 ──────────────────────────────────────────
+    function isSignedIn() { return request.auth != null; }
+    function myProfile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    function isPlatformAdmin() {
+      return isSignedIn() && myProfile().role == 'platform_admin';
+    }
+    function isStaffOfAcademy(academyId) {
+      return isSignedIn() && (isPlatformAdmin() || myProfile().academyId == academyId);
+    }
+    // GrowthStory.jsx의 비로그인 AI 서사 저장 — narrative 필드만 바뀌는 요청만 허용
+    function narrativeOnlyUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['narrative']);
+    }
+
+    // ── users — 로그인 계정의 role/academyId 정보 ──────
+    match /users/{uid} {
+      allow get:   if isSignedIn() && (request.auth.uid == uid || isPlatformAdmin());
+      allow list:  if isPlatformAdmin();
+      allow write: if isPlatformAdmin() || (isSignedIn() && request.auth.uid == uid);
+    }
+
+    // ── academies/{academyId} — 학원 문서(브랜딩 필드 포함) ──
+    match /academies/{academyId} {
+      // 로그인 전 화면(로그인 헤더 로고)에서도 읽어야 해서 읽기는 공개.
+      // 이 문서엔 브랜딩 필드(logoUrl/academyName/globalSkinColor)만 두고,
+      // 민감 정보(연락처, 결제 정보 등)는 나중에 academies/{id}/private/* 서브문서로 분리할 것.
+      allow read: if true;
+      allow write: if isStaffOfAcademy(academyId);
+    }
+
+    // ── 학원 소속 직원 전용 데이터 ──────────────────────
+    match /academies/{academyId}/teachers/{docId} {
+      allow read, write: if isStaffOfAcademy(academyId);
+    }
+    match /academies/{academyId}/reviews/{docId} {
+      allow read, write: if isStaffOfAcademy(academyId);
+    }
+    match /academies/{academyId}/commentTemplates/{docId} {
+      allow read, write: if isStaffOfAcademy(academyId);
+    }
+
+    // ── students: 직원 전체 접근 + 공개 단건 조회/narrative만 비로그인 수정 ──
+    match /academies/{academyId}/students/{studentId} {
+      allow get:    if true;                          // 성장스토리 공개 페이지 — 무작위 ID를 알아야 접근 가능
+      allow list:   if isStaffOfAcademy(academyId);    // 목록 조회는 직원 전용
+      allow update: if isStaffOfAcademy(academyId) || narrativeOnlyUpdate();
+      allow create, delete: if isStaffOfAcademy(academyId);
+    }
+
+    // ── reports: 직원 전체 접근 + 공개 단건 조회 ──────
+    match /academies/{academyId}/reports/{reportId} {
+      allow get:  if true;                             // 학부모 공개 리포트 페이지
+      // 성장스토리의 "학생별 리포트 목록" 조회용 — 완전히 막을 순 없어 최대 200건으로 범위만 제한.
+      // (studentId를 이미 아는 사람만 의미있게 쓸 수 있고, 이는 오늘 flat 컬렉션 구조와 동일한 리스크 수준)
+      allow list: if isStaffOfAcademy(academyId) || request.query.limit <= 200;
+      allow write: if isStaffOfAcademy(academyId);
+    }
+
+    // ── reportViews: 열람 로그. 비로그인 생성만 허용(정해진 필드만) ──
+    match /academies/{academyId}/reportViews/{viewId} {
+      allow create: if request.resource.data.keys().hasOnly(['reportId','studentId','studentName','src','viewedAt','ua'])
+                    && request.resource.data.reportId is string;
+      allow read, update, delete: if isStaffOfAcademy(academyId);
+    }
+
+    // ── ID→academy 조회용 인덱스: get만 허용, list는 절대 금지(전체 학원 열거 방지) ──
+    match /reportIndex/{id} {
+      allow get:  if true;
+      allow list: if false;
+      allow write: if isSignedIn();
+    }
+    match /studentIndex/{id} {
+      allow get:  if true;
+      allow list: if false;
+      allow write: if isSignedIn();
+    }
+  }
+}

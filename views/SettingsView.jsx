@@ -1,7 +1,7 @@
 import React from 'react';
 import { auth, db } from '../firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Pencil, AlertTriangle, Check } from 'lucide-react';
 import { T, C } from '../tokens.jsx';
 import { PRESET_SKINS } from './shared.jsx';
@@ -36,10 +36,15 @@ function deriveColors(mainHex) {
   };
 }
 
-export default function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDeleteTeacher, logoUrl, onSaveLogo, onDeleteLogo }) {
+export default function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDeleteTeacher, logoUrl, onSaveLogo, onDeleteLogo, academyId, academySkinColor }) {
+  // academies/{academyId} 문서에 저장된 값이 있으면 그걸 기준으로, 없으면(마이그레이션 직후 등)
+  // 예전 localStorage 값을 폴백으로 사용 — 기기별로 갈리던 색상을 학원 단위로 통일하는 과도기 처리
   const [globalColor, setGlobalColor] = React.useState(() => {
-    return localStorage.getItem('globalSkinColor') || DEFAULT_SKIN_COLOR;
+    return academySkinColor || localStorage.getItem('globalSkinColor') || DEFAULT_SKIN_COLOR;
   });
+  React.useEffect(() => {
+    if (academySkinColor) setGlobalColor(academySkinColor);
+  }, [academySkinColor]);
   const [saving, setSaving] = React.useState(false);
   const [saved, setSaved] = React.useState(false);
   const colorInputRef = React.useRef(null);
@@ -85,10 +90,12 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
     try {
       // 1. Firebase Auth 계정 생성
       const cred = await createUserWithEmailAndPassword(auth, newTeacherEmail, newTeacherPassword);
-      // 2. teachers 컬렉션에 강사 추가
-      const teacherRef = await addDoc(collection(db, 'teachers'), { name: newTeacherName, createdAt: serverTimestamp() });
-      // 3. users 컬렉션에 role 저장
-      await addDoc(collection(db, 'users'), { uid: cred.user.uid, role: 'teacher', teacherId: teacherRef.id, email: newTeacherEmail, createdAt: serverTimestamp() });
+      // 2. 학원 소속 teachers 서브컬렉션에 강사 추가
+      const teacherRef = await addDoc(collection(db, 'academies', academyId, 'teachers'), { name: newTeacherName, createdAt: serverTimestamp() });
+      // 3. users/{uid} 고정 경로에 role·academyId 저장 (uid를 문서 ID로 써야
+      //    보안 규칙에서 "내 문서인지"를 get()으로 안전하게 확인할 수 있음 — 자동 ID였으면
+      //    list 권한을 열어줘야 해서 다른 학원 직원 이메일까지 노출됐을 것)
+      await setDoc(doc(db, 'users', cred.user.uid), { role: 'teacher', teacherId: teacherRef.id, academyId, email: newTeacherEmail, createdAt: serverTimestamp() });
       setAccountResult(`${newTeacherName} 강사 계정 생성 완료!`);
       setAccountSuccess(true);
       setNewTeacherEmail(''); setNewTeacherPassword(''); setNewTeacherName('');
@@ -100,8 +107,9 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
     setAccountCreating(false);
   };
 
-  const saveGlobalColor = () => {
-    localStorage.setItem('globalSkinColor', globalColor);
+  const saveGlobalColor = async () => {
+    localStorage.setItem('globalSkinColor', globalColor); // 즉시 반영용 로컬 캐시, 진짜 저장은 아래 Firestore
+    await setDoc(doc(db, 'academies', academyId), { globalSkinColor: globalColor }, { merge: true });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };

@@ -12,20 +12,30 @@ export default async function handler(req, res) {
   if (id) {
     try {
       // Firebase REST API — Admin SDK 없이 공개 읽기
+      // 리포트가 academies/{academyId}/reports 밑으로 옮겨가면서(멀티테넌시 전환), 이 ID가
+      // 어느 학원 소속인지 최상위 reportIndex에서 먼저 찾은 뒤 실제 문서를 조회해야 함
       const PROJECT = 'kyohyun-daily-report';
-      const url = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents/reports/${id}`;
-      const r = await fetch(url);
-      if (r.ok) {
-        const data = await r.json();
-        const f = data.fields || {};
-        studentName = f.studentName?.stringValue || '학생';
-        unit        = f.unit?.stringValue || '';
-        teacherNote = f.teacherNote?.stringValue || '';
+      const indexUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents/reportIndex/${id}`;
+      const indexRes = await fetch(indexUrl);
+      if (indexRes.ok) {
+        const indexData = await indexRes.json();
+        const academyId = indexData.fields?.academyId?.stringValue;
+        if (academyId) {
+          const url = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents/academies/${academyId}/reports/${id}`;
+          const r = await fetch(url);
+          if (r.ok) {
+            const data = await r.json();
+            const f = data.fields || {};
+            studentName = f.studentName?.stringValue || '학생';
+            unit        = f.unit?.stringValue || '';
+            teacherNote = f.teacherNote?.stringValue || '';
 
-        const ts = f.createdAt?.timestampValue;
-        if (ts) {
-          const d = new Date(ts);
-          dateStr = `${d.getMonth() + 1}월 ${d.getDate()}일`;
+            const ts = f.createdAt?.timestampValue;
+            if (ts) {
+              const d = new Date(ts);
+              dateStr = `${d.getMonth() + 1}월 ${d.getDate()}일`;
+            }
+          }
         }
       }
     } catch (e) {

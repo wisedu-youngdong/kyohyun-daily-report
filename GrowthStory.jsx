@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { db } from './firebase';
-import { collection, getDocs, query, where, doc, setDoc } from 'firebase/firestore';
+import { collection, getDoc, getDocs, query, where, doc, setDoc } from 'firebase/firestore';
 import { ReportCard } from './tokens.jsx';
 import { toPct, isNewStudent as computeIsNewStudent } from './growth.js';
 import { findUnitKey } from './curriculum.js';
@@ -32,6 +32,9 @@ export default function GrowthStory() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [student, setStudent] = useState(null);
   const [reports, setReports] = useState([]);
+  // 학생 문서가 academies/{academyId}/students 밑으로 옮겨가면서, studentIndex에서
+  // 먼저 academyId를 찾아야 실제 문서와 리포트를 조회할 수 있음 — 서사 저장 시에도 재사용
+  const [academyId, setAcademyId] = useState(null);
   const [narrative, setNarrative] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null); // 'network' | null
@@ -64,7 +67,7 @@ export default function GrowthStory() {
     setNarrative(updated);
     setEditing(null);
     try {
-      await setDoc(doc(db, 'students', studentId), { narrative: updated }, { merge: true });
+      await setDoc(doc(db, 'academies', academyId, 'students', studentId), { narrative: updated }, { merge: true });
     } catch (e) {
       console.error('서사 저장 실패:', e);
       setNarrative(previous);
@@ -79,14 +82,19 @@ export default function GrowthStory() {
     setLoadError(null);
     async function load() {
       try {
+        const indexSnap = await getDoc(doc(db, 'studentIndex', studentId));
+        if (!indexSnap.exists()) { setLoading(false); return; } // student 상태가 null로 남아 "찾을 수 없음" 처리됨
+        const foundAcademyId = indexSnap.data().academyId;
+        setAcademyId(foundAcademyId);
+
         const [stuSnap, rSnap] = await Promise.all([
-          getDocs(query(collection(db, 'students'), where('__name__', '==', studentId))),
-          getDocs(query(collection(db, 'reports'), where('studentId', '==', studentId)))
+          getDoc(doc(db, 'academies', foundAcademyId, 'students', studentId)),
+          getDocs(query(collection(db, 'academies', foundAcademyId, 'reports'), where('studentId', '==', studentId)))
         ]);
 
-        if (!stuSnap.empty) {
-          const studentData = stuSnap.docs[0].data();
-          setStudent({ id: stuSnap.docs[0].id, ...studentData });
+        if (stuSnap.exists()) {
+          const studentData = stuSnap.data();
+          setStudent({ id: stuSnap.id, ...studentData });
           if (studentData.narrative) setNarrative(studentData.narrative);
         }
 
@@ -352,7 +360,7 @@ export default function GrowthStory() {
       } else {
         setNarrative(data);
         try {
-          await setDoc(doc(db, 'students', studentId), { narrative: data }, { merge: true });
+          await setDoc(doc(db, 'academies', academyId, 'students', studentId), { narrative: data }, { merge: true });
         } catch (e) {
           console.error('서사 저장 실패:', e);
           alert('서사가 생성됐지만 저장에는 실패했습니다. 네트워크를 확인하고 다시 시도해주세요.');
