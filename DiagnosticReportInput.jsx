@@ -381,6 +381,8 @@ export default function DiagnosticReportInput({
     setPhotoAnalysis(editingReport.photoAnalysis || null);
 
     // 기존 사진 유지 — photoUrls → photos 변환
+    // photosRef도 함께 동기화해야 함 — MAX_PHOTOS 체크가 ref 기준이라, 안 하면
+    // 수정 모드에서 기존 사진 개수를 무시하고 5장을 더 추가할 수 있게 됨
     if (editingReport.photoUrls?.length > 0) {
       const existingPhotos = editingReport.photoUrls.map(url => ({
         preview: url,
@@ -388,8 +390,10 @@ export default function DiagnosticReportInput({
         existingUrl: url // 기존 URL 표시
       }));
       setPhotos(existingPhotos);
+      photosRef.current = existingPhotos;
     } else {
       setPhotos([]);
+      photosRef.current = [];
     }
   }, [editingReport]);
 
@@ -433,7 +437,6 @@ export default function DiagnosticReportInput({
     return list;
   }, [reports, studentId]);
   const isValid = studentId && homeworkRating != null && conceptRating != null && teacherId;
-  const isReadyToSend = isValid && (teacherNote.trim() || aiPolishedNote.trim()); // 선생님 코멘트까지 있어야 완전한 리포트
 
   // 학생 등록 — Firebase에 저장
   const handleAddStudent = async (newStudent) => {
@@ -577,10 +580,17 @@ export default function DiagnosticReportInput({
   // 여러 장을 한 번에 보내 페이지 간 연산 집계를 누적한다.
   const handleAnalyzePhoto = async (modeOverride) => {
     if (photos.length === 0) return;
+    // 수정 모드에서 불러온 기존 사진은 base64가 없음(이미 Storage에 있는 URL만 보유) —
+    // 그대로 보내면 빈 이미지가 전송돼 분석이 깨지므로 분석 가능한 사진만 골라 보냄
+    const analyzable = photos.filter(p => p.base64);
+    if (analyzable.length === 0) {
+      setPhotoError('기존에 저장된 사진은 재분석할 수 없어요. 새 사진을 추가한 뒤 분석해주세요.');
+      return;
+    }
     setAnalyzingPhoto(true);
     setPhotoError('');
     try {
-      const images = photos.map(p => ({ imageBase64: p.base64, mimeType: p.mimeType || 'image/jpeg' }));
+      const images = analyzable.map(p => ({ imageBase64: p.base64, mimeType: p.mimeType || 'image/jpeg' }));
       const response = await fetch('/api/analyze-photo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1544,7 +1554,9 @@ export default function DiagnosticReportInput({
               </FormSection>
 
               {/* 저장 버튼 */}
-              <button onClick={handleSubmit} disabled={!isValid || saving || polishing} style={{ ...submitButtonStyle(isValid && !saving && !polishing), width: '100%' }}>
+              {/* disabled를 !isValid에 걸지 않음 — 뭐가 빠졌는지 handleSubmit의 안내 메시지로
+                  알려줘야 하는데, disabled면 클릭 자체가 막혀 그 메시지에 영영 도달 못 함 */}
+              <button onClick={handleSubmit} disabled={saving || polishing} style={{ ...submitButtonStyle(isValid && !saving && !polishing), width: '100%', cursor: (saving || polishing) ? 'not-allowed' : 'pointer' }}>
                 {saving
                   ? <span style={{ display: 'inline-block', width: 15, height: 15, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
                   : <Send size={15} />} {saving ? (uploadProgress ? `사진 업로드 중 ${uploadProgress.done}/${uploadProgress.total}...` : '저장 중...') : polishing ? 'AI 다듬는 중...' : '리포트 저장 및 발송 준비'}

@@ -9,9 +9,10 @@ export function kstDay(seconds) {
   return new Date(seconds * 1000 + 9 * 3600 * 1000).toISOString().split('T')[0];
 }
 
-// 리포트 발송 완료 판정 — 자동저장 draft(코멘트 없이 문서만 생성됨)를 완료로 세지 않도록
+// 리포트 발송 완료 판정 — 자동저장 draft(isDraft: true)는 코멘트가 채워져 있어도
+// 아직 선생님이 최종 저장하지 않은 상태이므로 완료로 세지 않음
 export function isReportSent(r) {
-  return !!(r?.teacherNote && r.teacherNote.trim());
+  return !!(r?.teacherNote && r.teacherNote.trim()) && !r?.isDraft;
 }
 
 // 과제/개념 평가 척도 변환 — 구 리포트(1~5)와 신규 리포트(0~100, 10단위)가 섞여 있음.
