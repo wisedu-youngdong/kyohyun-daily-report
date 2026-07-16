@@ -2189,7 +2189,7 @@ function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDele
   const [saved, setSaved] = React.useState(false);
   const colorInputRef = React.useRef(null);
   const [logoUploading, setLogoUploading] = React.useState(false);
-  const [confirmingLogoDelete, setConfirmingLogoDelete] = React.useState(false);
+  const [showLogoDeleteConfirm, setShowLogoDeleteConfirm] = React.useState(false);
   const logoInputRef = React.useRef(null);
 
   const handleLogoFile = async (file) => {
@@ -2275,18 +2275,36 @@ function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDele
             </button>
             {logoUrl && (
               <button
-                onClick={() => {
-                  if (confirmingLogoDelete) { onDeleteLogo(); setConfirmingLogoDelete(false); }
-                  else setConfirmingLogoDelete(true);
-                }}
-                onBlur={() => setConfirmingLogoDelete(false)}
-                style={{ padding: '9px 14px', fontSize: '12px', fontWeight: 700, borderRadius: '9px', border: 'none', background: confirmingLogoDelete ? '#DC2626' : '#FEF2F2', color: confirmingLogoDelete ? '#fff' : '#DC2626', cursor: 'pointer', fontFamily: 'inherit' }}>
-                {confirmingLogoDelete ? '확인 (재클릭)' : '삭제'}
+                onClick={() => setShowLogoDeleteConfirm(true)}
+                style={{ padding: '9px 14px', fontSize: '12px', fontWeight: 700, borderRadius: '9px', border: 'none', background: '#FEF2F2', color: '#DC2626', cursor: 'pointer', fontFamily: 'inherit' }}>
+                삭제
               </button>
             )}
           </div>
         </div>
       </div>
+
+      {/* 로고 삭제 확인 모달 — 헤더 전체에 반영되는 변화라 인라인 재클릭보다 명확하게 */}
+      {showLogoDeleteConfirm && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '20px', backdropFilter: 'blur(4px)' }}
+          onClick={() => setShowLogoDeleteConfirm(false)}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: '16px', padding: '28px 24px', width: '100%', maxWidth: '320px', textAlign: 'center', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
+            <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#FEF2F2', border: '2px solid #DC2626', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px', fontSize: '22px', color: '#DC2626', fontWeight: 700 }}>!</div>
+            <p style={{ fontSize: '15px', fontWeight: 700, color: '#1A1A1A', margin: '0 0 6px' }}>학원 로고를 삭제할까요?</p>
+            <p style={{ fontSize: '12px', color: '#6B7280', margin: '0 0 20px', lineHeight: 1.6 }}>삭제하면 앱 상단 헤더가 기본 아이콘으로 바뀝니다.</p>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={() => setShowLogoDeleteConfirm(false)}
+                style={{ flex: 1, padding: '11px', fontSize: '13px', fontWeight: 700, borderRadius: '10px', border: '1px solid #E5E7EB', background: '#fff', color: '#6B7280', cursor: 'pointer', fontFamily: 'inherit' }}>
+                취소
+              </button>
+              <button onClick={() => { onDeleteLogo(); setShowLogoDeleteConfirm(false); }}
+                style={{ flex: 1, padding: '11px', fontSize: '13px', fontWeight: 700, borderRadius: '10px', border: 'none', background: '#DC2626', color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
+                삭제
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 학원 기본 스킨 */}
       <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB', marginBottom: '14px' }}>
