@@ -16,7 +16,7 @@ import {
   FileText, Sparkles, Send, Plus, X, Check,
   UserPlus, GraduationCap, Info, Star, AlertTriangle, Palette
 } from 'lucide-react';
-import { C, RADIUS2 } from './tokens.jsx';
+import { C, RADIUS2, TYPE, SHADOW } from './tokens.jsx';
 import { calculateReportPoints, toPct, ratingLabel } from './growth.js';
 import { findUnitKey, getUnits, getCourses } from './curriculum.js';
 import { formatPhone, isValidPhone } from './phone.js';
@@ -182,7 +182,7 @@ function AlertModal({ message, onClose }) {
       <div style={{
         background: '#fff', borderRadius: '16px', padding: '32px 24px',
         width: '100%', maxWidth: '320px', textAlign: 'center',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+        boxShadow: SHADOW[3],
       }} onClick={e => e.stopPropagation()}>
         <div style={{
           width: '52px', height: '52px', borderRadius: '50%',
@@ -780,14 +780,11 @@ export default function DiagnosticReportInput({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
           {/* 헤더 + 강사 */}
-          <div style={{ background: TOKENS.bg, borderRadius: '16px', padding: '18px 20px', border: `1px solid ${TOKENS.border}` }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
-              <div style={{ width: '26px', height: '26px', background: TOKENS.brand, borderRadius: `${RADIUS2.iconBg}px`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ color: '#fff', fontSize: '12px', fontWeight: 700 }}>K</span>
-              </div>
-              <span style={{ fontSize: '13px', color: TOKENS.brand, fontWeight: 700 }}>교현학원</span>
-            </div>
-            <h1 style={{ fontSize: '20px', fontWeight: 700, margin: '0 0 4px', letterSpacing: '-0.025em' }}>오늘의 학습 리포트 작성</h1>
+          <div style={{ background: TOKENS.bg, borderRadius: '16px', padding: '18px 20px', border: `1px solid ${TOKENS.border}`, boxShadow: SHADOW[1] }}>
+            {/* 로그인 화면과 동일한 레터헤드 톤 — 색 배지 없이 텍스트만. 실제 로고 업로드 기능은
+                이 화면에 연동되어 있지 않으므로(하드코딩 "K"), 로고 확정 시 별도로 연동 필요 */}
+            <p style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', color: TOKENS.textMute, margin: '0 0 14px' }}>교현학원</p>
+            <h1 style={{ fontSize: `${TYPE.h2.fontSize}px`, fontWeight: TYPE.h2.fontWeight, lineHeight: TYPE.h2.lineHeight, margin: '0 0 4px', letterSpacing: '-0.025em' }}>오늘의 학습 리포트 작성</h1>
             <p style={{ fontSize: '12px', color: TOKENS.textSub, margin: '0 0 14px', fontWeight: 500 }}>한 단계씩 채우면 우측에 학부모 발송 화면이 실시간으로 만들어집니다</p>
 
             <div style={{ paddingTop: '12px', borderTop: `1px dashed ${TOKENS.border}`, display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -804,7 +801,7 @@ export default function DiagnosticReportInput({
                   {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                 </select>
               )}
-              <span style={{ marginLeft: 'auto', fontSize: '10px', color: TOKENS.textMute }}>
+              <span style={{ marginLeft: 'auto', fontSize: `${TYPE.small.fontSize}px`, fontWeight: TYPE.small.fontWeight, color: TOKENS.textSub }}>
                 강사 추가/수정은 관리 › 설정에서
               </span>
             </div>
@@ -1573,7 +1570,7 @@ export default function DiagnosticReportInput({
           <p style={{ fontSize: '11px', color: TOKENS.textMute, fontWeight: 700, marginBottom: '8px' }}>학부모 발송 미리보기</p>
 
           {/* 스킨 표시 — 학생 개별 스킨 or 선택 스킨 */}
-          <div style={{ background: '#fff', borderRadius: '14px', border: '1px solid #E5E7EB', padding: '10px 14px', marginBottom: '10px' }}>
+          <div style={{ background: '#fff', borderRadius: '14px', border: '1px solid #E5E7EB', padding: '10px 14px', marginBottom: '10px', boxShadow: SHADOW[1] }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
               <p style={{ fontSize: '10px', fontWeight: 700, color: '#6B7280', margin: 0, letterSpacing: '0.06em' }}><Palette size={10} style={{ verticalAlign: '-1px', marginRight: '3px' }} />리포트 스킨</p>
               {student?.skinColor && (
@@ -2038,7 +2035,7 @@ function FormSection({ number, title, badge, badgeTone = 'neutral', children }) 
     neutral: { background: TOKENS.borderLight, color: TOKENS.textSub },
   }[badgeTone];
   return (
-    <div style={{ background: '#fff', borderRadius: `${RADIUS2.card}px`, padding: '16px', border: `1px solid #E5E7EB` }}>
+    <div style={{ background: '#fff', borderRadius: `${RADIUS2.card}px`, padding: '16px', border: `1px solid #E5E7EB`, boxShadow: SHADOW[1] }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
         <span style={{ width: '4px', height: '15px', borderRadius: '2px', background: TOKENS.brand, flexShrink: 0 }} />
         <h2 style={{ fontSize: '14px', fontWeight: 700, margin: 0, letterSpacing: '-0.02em' }}>{title}</h2>
@@ -2139,7 +2136,7 @@ const overlayStyle = {
 };
 const modalStyle = {
   background: '#fff', borderRadius: `${RADIUS2.panel}px`, width: '100%', maxWidth: '500px',
-  maxHeight: '90vh', overflow: 'auto', boxShadow: '0 20px 50px rgba(0,0,0,0.2)',
+  maxHeight: '90vh', overflow: 'auto', boxShadow: SHADOW[3],
   fontFamily: "'Pretendard Variable', Pretendard, sans-serif",
 };
 const modalHeaderStyle = {

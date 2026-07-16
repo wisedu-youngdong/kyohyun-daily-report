@@ -48,6 +48,26 @@ export const RADIUS2 = {
 // spacing 스케일 (스펙 섹션 5, base-4)
 export const SPACING = [4, 6, 8, 10, 12, 14, 16, 20, 24, 32, 40, 48, 56, 64];
 
+// 타이포그래피 스케일 (스펙 섹션 6). Display/H2/H3는 학부모 리포트(PublicReport/
+// GrowthStory)처럼 "리포트 타이틀"급 헤딩이 실제로 있는 화면 기준 — 관리자
+// 화면(App.jsx/DiagnosticReportInput.jsx)의 조밀한 폼 라벨엔 강제 적용하지 않음.
+export const TYPE = {
+  display: { fontSize: 36, fontWeight: 700, lineHeight: 1.33 },
+  h2: { fontSize: 28, fontWeight: 700, lineHeight: 1.43 },
+  h3: { fontSize: 24, fontWeight: 700, lineHeight: 1.2 },
+  bodyLarge: { fontSize: 16, fontWeight: 500, lineHeight: 1.5 },
+  body: { fontSize: 14, fontWeight: 500, lineHeight: 1.5 },
+  small: { fontSize: 12, fontWeight: 600, lineHeight: 1.4 },
+};
+
+// Shadow/Elevation 4단계 (스펙 섹션 7)
+export const SHADOW = {
+  0: 'none',
+  1: '0 1px 3px rgba(0,0,0,0.08)',
+  2: '0 4px 12px rgba(0,0,0,0.14)',
+  3: '0 20px 50px rgba(0,0,0,0.2)',
+};
+
 export const FONT = {
   body: "'Pretendard Variable', Pretendard, sans-serif",
   serif: R.serif,
