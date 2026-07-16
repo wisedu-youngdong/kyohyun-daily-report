@@ -20,7 +20,7 @@ import { useMediaQuery } from './hooks.js';
 import { findUnitKey } from './curriculum.js';
 import { formatPhone, isValidPhone } from './phone.js';
 import ErrorBoundary from './ErrorBoundary.jsx';
-import { T, C, RADIUS2 } from './tokens.jsx';
+import { T, C, R, RADIUS2 } from './tokens.jsx';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LabelList
 } from 'recharts';
@@ -85,7 +85,11 @@ function deriveColors(mainHex) {
 // 기본 스킨 (네이비)
 const DEFAULT_SKIN_COLOR = '#1A2540';
 
-function LoginScreen({ logoUrl }) {
+// 로그인 화면 — "공식 문서·성적표 톤" 컨셉(레터헤드 + 네이비 상단 라인).
+// 학부모 리포트 화면(R 팔레트: 네이비/골드/세리프)과 같은 브랜드 언어를 써서
+// 로그인부터 리포트까지 하나의 톤으로 이어지게 함. logoUrl 실사진 배지는
+// 아직 학원 로고 이미지가 없어(정사각형 파비콘 대기 중) 이번엔 자리만 비워둠 — 로고 확정되면 재도입.
+function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -103,90 +107,83 @@ function LoginScreen({ logoUrl }) {
     setLoading(false);
   };
 
+  const inputStyle = {
+    width: '100%', padding: '12px 14px', fontSize: '16px', fontWeight: 500,
+    fontFamily: R.body, color: R.ink, background: '#fff',
+    border: `1px solid ${R.rule}`, borderRadius: '6px', outline: 'none',
+    boxSizing: 'border-box', transition: 'border-color .15s, box-shadow .15s',
+  };
+  const focusInput = (e) => { e.target.style.borderColor = R.navy; e.target.style.boxShadow = `0 0 0 3px ${R.navy}1A`; };
+  const blurInput = (e) => { e.target.style.borderColor = R.rule; e.target.style.boxShadow = 'none'; };
+
   return (
     <div style={{
-      minHeight: '100dvh',
-      background: `radial-gradient(circle at 15% 10%, ${T.brandLight} 0%, transparent 45%), radial-gradient(circle at 85% 90%, ${T.brandLight} 0%, transparent 45%), ${T.bgSoft}`,
+      minHeight: '100dvh', background: '#F5F5F0',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontFamily: "'Pretendard Variable', Pretendard, sans-serif",
-      padding: '20px', position: 'relative', overflow: 'hidden',
+      fontFamily: R.body, padding: '20px',
     }}>
-      {/* 은은한 배경 도형 — 로그인 화면 장식 */}
-      <div style={{ position: 'absolute', top: '-60px', right: '-60px', width: '220px', height: '220px', borderRadius: '50%', background: T.brandLight, opacity: 0.6, pointerEvents: 'none' }} />
-      <div style={{ position: 'absolute', bottom: '-80px', left: '-80px', width: '260px', height: '260px', borderRadius: '50%', border: `2px solid ${T.brandLight}`, opacity: 0.8, pointerEvents: 'none' }} />
-
       <div style={{
-        background: '#fff', borderRadius: '20px',
-        border: `1px solid ${T.border}`, padding: '40px 36px',
-        width: '100%', maxWidth: '380px',
-        boxShadow: '0 8px 32px rgba(24, 95, 165, 0.08)',
-        position: 'relative', zIndex: 1,
+        width: '100%', maxWidth: '400px', background: '#fff',
+        border: `1px solid ${R.rule}`, borderTop: `3px solid ${R.navy}`, borderRadius: '4px',
+        boxShadow: `0 2px 20px ${R.navy}12`, overflow: 'hidden',
       }}>
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <div style={{
-            width: '48px', height: '48px', background: logoUrl ? 'transparent' : T.brand,
-            borderRadius: '14px', display: 'flex',
-            alignItems: 'center', justifyContent: 'center',
-            margin: '0 auto 16px', overflow: 'hidden',
-          }}>
-            {logoUrl ? <img src={logoUrl} alt="로고" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ color: '#fff', fontSize: '20px', fontWeight: 700 }}>K</span>}
-          </div>
-          <h1 style={{ fontSize: '20px', fontWeight: 700, margin: '0 0 4px', letterSpacing: '-0.02em' }}>
+        {/* 레터헤드 — 제목 블록만 가운데 정렬, 아래 입력 폼은 왼쪽 정렬 유지(절충안) */}
+        <div style={{ padding: '26px 36px 22px', borderBottom: `1px solid ${R.rule}`, textAlign: 'center' }}>
+          <p style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', color: R.inkMute, margin: '0 0 18px' }}>
+            와이즈에듀 교현학원
+          </p>
+          <h1 style={{ fontFamily: R.serif, fontSize: '27px', fontWeight: 700, color: R.ink, letterSpacing: '-0.5px', margin: 0 }}>
             교현학원
           </h1>
-          <p style={{ fontSize: '13px', color: T.textSub, margin: 0, fontWeight: 500 }}>
+          <div style={{ width: '40px', height: '2px', background: R.gold, margin: '10px auto 8px' }} />
+          <p style={{ fontSize: '12px', fontWeight: 500, color: R.inkSub, margin: 0 }}>
             데일리 리포트 시스템
           </p>
         </div>
 
-        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div>
-            <label style={{ fontSize: '11px', color: T.textSub, fontWeight: 700, display: 'block', marginBottom: '6px' }}>이메일</label>
+        {/* 입력 폼 */}
+        <form onSubmit={handleLogin} style={{ padding: '26px 36px 30px' }}>
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: R.ink, marginBottom: '7px' }}>이메일</label>
             <input
               type="email" value={email}
               onChange={(e) => setEmail(e.target.value)}
+              onFocus={focusInput} onBlur={blurInput}
               placeholder="이메일 입력" required
-              style={{
-                width: '100%', padding: '11px 14px', fontSize: '16px',
-                border: `1px solid ${T.border}`, borderRadius: '10px',
-                background: T.bgSoft, outline: 'none',
-                fontFamily: 'inherit', letterSpacing: '-0.02em', boxSizing: 'border-box',
-              }}
+              style={inputStyle}
             />
           </div>
-          <div>
-            <label style={{ fontSize: '11px', color: T.textSub, fontWeight: 700, display: 'block', marginBottom: '6px' }}>비밀번호</label>
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: R.ink, marginBottom: '7px' }}>비밀번호</label>
             <input
               type="password" value={password}
               onChange={(e) => setPassword(e.target.value)}
+              onFocus={focusInput} onBlur={blurInput}
               placeholder="비밀번호 입력" required
-              style={{
-                width: '100%', padding: '11px 14px', fontSize: '16px',
-                border: `1px solid ${T.border}`, borderRadius: '10px',
-                background: T.bgSoft, outline: 'none',
-                fontFamily: 'inherit', letterSpacing: '-0.02em', boxSizing: 'border-box',
-              }}
+              style={inputStyle}
             />
           </div>
           {error && (
-            <p style={{ fontSize: '12px', color: '#DC2626', margin: 0, background: '#FEF2F2', padding: '8px 12px', borderRadius: '8px', fontWeight: 500 }}>
+            <p style={{ fontSize: '12px', fontWeight: 600, color: '#B92C2C', margin: '0 0 16px', background: '#FDEAEA', padding: '8px 12px', borderRadius: '6px' }}>
               {error}
             </p>
           )}
-          <button type="submit" disabled={loading} style={{
-            width: '100%', padding: '13px', fontSize: '14px', fontWeight: 700,
-            border: 'none', borderRadius: '12px',
-            background: loading ? T.border : T.brand,
-            color: '#fff', cursor: loading ? 'not-allowed' : 'pointer',
-            fontFamily: 'inherit', letterSpacing: '-0.02em', marginTop: '4px',
-            boxShadow: loading ? 'none' : '0 4px 16px rgba(24, 95, 165, 0.25)',
-          }}>
+          <button type="submit" disabled={loading}
+            onMouseEnter={(e) => { if (!loading) e.currentTarget.style.background = '#0A2456'; }}
+            onMouseLeave={(e) => { if (!loading) e.currentTarget.style.background = R.navy; }}
+            style={{
+              width: '100%', padding: '13px', fontSize: '14px', fontWeight: 700,
+              fontFamily: R.body, border: 'none', borderRadius: '6px',
+              background: loading ? R.inkMute : R.navy, color: '#fff',
+              cursor: loading ? 'not-allowed' : 'pointer', marginTop: '6px',
+              transition: 'background .15s',
+            }}>
             {loading ? '로그인 중...' : '로그인'}
           </button>
+          <p style={{ fontSize: '11px', fontWeight: 500, color: R.inkMute, textAlign: 'center', margin: '20px 0 0', paddingTop: '16px', borderTop: `1px dashed ${R.rule}`, letterSpacing: '0.02em' }}>
+            교현학원 관리자 전용 시스템입니다
+          </p>
         </form>
-        <p style={{ fontSize: '11px', color: T.textMute, textAlign: 'center', margin: '20px 0 0', fontWeight: 500 }}>
-          교현학원 관리자 전용 시스템입니다
-        </p>
       </div>
     </div>
   );
@@ -518,7 +515,7 @@ export default function App() {
     </div>
   );
 
-  if (!user) return <LoginScreen logoUrl={logoUrl} />;
+  if (!user) return <LoginScreen />;
 
   const isDirector = userRole === 'director';
 
