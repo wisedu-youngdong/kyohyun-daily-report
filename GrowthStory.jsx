@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { db } from './firebase';
-import { collection, getDoc, getDocs, query, where, doc, setDoc } from 'firebase/firestore';
+import { collection, getDoc, getDocs, query, where, doc, setDoc, limit } from 'firebase/firestore';
 import { ReportCard } from './tokens.jsx';
 import { toPct, isNewStudent as computeIsNewStudent } from './growth.js';
 import { findUnitKey } from './curriculum.js';
@@ -89,7 +89,7 @@ export default function GrowthStory() {
 
         const [stuSnap, rSnap] = await Promise.all([
           getDoc(doc(db, 'academies', foundAcademyId, 'students', studentId)),
-          getDocs(query(collection(db, 'academies', foundAcademyId, 'reports'), where('studentId', '==', studentId)))
+          getDocs(query(collection(db, 'academies', foundAcademyId, 'reports'), where('studentId', '==', studentId), limit(200)))
         ]);
 
         if (stuSnap.exists()) {

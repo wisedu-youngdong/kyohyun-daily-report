@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { db } from './firebase';
-import { collection, getDoc, getDocs, query, where, doc } from 'firebase/firestore';
+import { collection, getDoc, getDocs, query, where, doc, limit } from 'firebase/firestore';
 import { useMediaQuery } from './hooks.js';
 import { toPct } from './growth.js';
 import { R } from './tokens.jsx';
@@ -26,7 +26,7 @@ export default function GrowthAward() {
         const { academyId } = indexSnap.data();
         const stuSnap = await getDoc(doc(db, 'academies', academyId, 'students', studentId));
         if (stuSnap.exists()) setStudent({ id: stuSnap.id, ...stuSnap.data() });
-        const rSnap = await getDocs(query(collection(db, 'academies', academyId, 'reports'), where('studentId', '==', studentId)));
+        const rSnap = await getDocs(query(collection(db, 'academies', academyId, 'reports'), where('studentId', '==', studentId), limit(200)));
         const rList = rSnap.docs
           .map(d => ({ id: d.id, ...d.data() }))
           .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
