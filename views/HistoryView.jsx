@@ -1,17 +1,22 @@
 import React, { useState } from 'react';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2, AlertTriangle } from 'lucide-react';
 import { toPct } from '../growth.js';
 import { useMediaQuery } from '../hooks.js';
 import { C } from '../tokens.jsx';
 
-export default function HistoryView({ reports, students, reportViews = [], onDelete, onEdit }) {
+export default function HistoryView({ reports, students, reportViews = [], onDelete, onEdit, onBulkDelete }) {
   const [selectedId, setSelectedId] = useState(null);
   const [deleteConfirmReport, setDeleteConfirmReport] = useState(null);
   const [studentFilter, setStudentFilter] = useState('');
   const [searchText, setSearchText] = useState('');
   const [periodFilter, setPeriodFilter] = useState('all');
+  const [draftOnly, setDraftOnly] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
   const [copied, setCopied] = useState(false);
   const [trendTooltip, setTrendTooltip] = useState(null); // { x, y, text }
+
+  const draftCount = reports.filter(r => r.isDraft).length;
 
   // 삭제된 리포트가 selectedId면 자동 초기화
   React.useEffect(() => {
@@ -26,6 +31,7 @@ export default function HistoryView({ reports, students, reportViews = [], onDel
   const now = Date.now() / 1000;
   const filtered = reports
     .filter(r => {
+      if (draftOnly && !r.isDraft) return false;
       if (studentFilter && r.studentId !== studentFilter) return false;
       if (periodFilter !== 'all') {
         const ts = r.createdAt?.seconds || 0;
@@ -62,6 +68,65 @@ export default function HistoryView({ reports, students, reportViews = [], onDel
     });
   };
 
+  // 방치된 draft 일괄 삭제 — 현재 필터에 걸린(=화면에 보이는) draft만 지움
+  const draftIdsInView = filtered.filter(r => r.isDraft).map(r => r.id);
+  const handleBulkDeleteDrafts = async () => {
+    setBulkDeleting(true);
+    await onBulkDelete?.(draftIdsInView);
+    setBulkDeleting(false);
+    setBulkDeleteConfirm(false);
+    if (selectedId && draftIdsInView.includes(selectedId)) setSelectedId(null);
+  };
+
+  // 방치된 draft 정리 UI — 데스크톱/모바일 레이아웃 양쪽에서 재사용
+  const renderDraftCleanupBar = () => {
+    if (draftCount === 0) return null;
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
+        <button onClick={() => setDraftOnly(v => !v)}
+          style={{
+            padding: '6px 12px', fontSize: '11px', fontWeight: 700, borderRadius: '20px', cursor: 'pointer', fontFamily: 'inherit',
+            border: draftOnly ? `1.5px solid ${C.warning}` : '1px solid #E5E7EB',
+            background: draftOnly ? C.warningBg : '#fff',
+            color: draftOnly ? C.warningText : '#6B7280',
+          }}>
+          작성 중만 ({draftCount})
+        </button>
+        {draftOnly && draftIdsInView.length > 0 && (
+          <button onClick={() => setBulkDeleteConfirm(true)}
+            style={{ padding: '6px 12px', fontSize: '11px', fontWeight: 700, borderRadius: '20px', border: '1px solid #FECACA', background: '#FFF5F5', color: '#DC2626', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <Trash2 size={11} /> 방치된 초안 {draftIdsInView.length}건 삭제
+          </button>
+        )}
+      </div>
+    );
+  };
+
+  // 일괄 삭제 확인 모달 — 데스크톱/모바일 공용
+  const renderBulkDeleteConfirm = () => bulkDeleteConfirm && (
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 10002, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+      <div style={{ background: '#fff', borderRadius: '16px', padding: '28px 24px', width: '100%', maxWidth: '340px' }}>
+        <div style={{ width: '44px', height: '44px', background: C.warningBg, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+          <AlertTriangle size={20} color={C.warningText} />
+        </div>
+        <p style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', margin: '0 0 8px', textAlign: 'center' }}>
+          방치된 초안 {draftIdsInView.length}건을 삭제할까요?
+        </p>
+        <p style={{ fontSize: '12px', color: '#9CA3AF', textAlign: 'center', margin: '0 0 20px', lineHeight: 1.6 }}>
+          선생님이 쓰다가 저장하지 않고 나간 자동저장본이에요. 학부모에게 나간 적 없는 내용이라 삭제해도 안전합니다. 삭제 후 복구는 불가능합니다.
+        </p>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button onClick={() => setBulkDeleteConfirm(false)} disabled={bulkDeleting}
+            style={{ flex: 1, padding: '11px', fontSize: '13px', fontWeight: 600, border: '1px solid #E5E7EB', borderRadius: '8px', background: '#fff', cursor: 'pointer', fontFamily: 'inherit', color: '#374151' }}>취소</button>
+          <button onClick={handleBulkDeleteDrafts} disabled={bulkDeleting}
+            style={{ flex: 1, padding: '11px', fontSize: '13px', fontWeight: 700, border: 'none', borderRadius: '8px', background: bulkDeleting ? '#E5E7EB' : '#DC2626', color: bulkDeleting ? '#9CA3AF' : '#fff', cursor: bulkDeleting ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+            {bulkDeleting ? '삭제 중...' : '삭제'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   // PC: 스플릿 뷰 / 모바일: 카드 리스트
   const isMobile = !useMediaQuery('(min-width: 768px)');
 
@@ -78,6 +143,7 @@ export default function HistoryView({ reports, students, reportViews = [], onDel
             {(students||[]).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
         </div>
+        {renderDraftCleanupBar()}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {filtered.length === 0 && (
             <div style={{ padding: '40px 0', textAlign: 'center', color: '#9CA3AF', fontSize: '13px' }}>
@@ -193,6 +259,7 @@ export default function HistoryView({ reports, students, reportViews = [], onDel
             </div>
           </div>
         )}
+        {renderBulkDeleteConfirm()}
       </div>
     );
   }
@@ -225,6 +292,12 @@ export default function HistoryView({ reports, students, reportViews = [], onDel
           </div>
           <p style={{ fontSize: '11px', color: '#9CA3AF', margin: 0 }}>{filtered.length}건</p>
         </div>
+
+        {draftCount > 0 && (
+          <div style={{ padding: '10px 14px 0' }}>
+            {renderDraftCleanupBar()}
+          </div>
+        )}
 
         {/* 리스트 */}
         <div style={{ flex: 1, overflowY: 'auto' }}>
@@ -549,6 +622,7 @@ export default function HistoryView({ reports, students, reportViews = [], onDel
           whiteSpace: 'nowrap', boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
         }}>{trendTooltip.text}</div>
       )}
+      {renderBulkDeleteConfirm()}
     </>
   );
 }

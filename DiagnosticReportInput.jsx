@@ -22,6 +22,7 @@ import { findUnitKey, getUnits, getCourses } from './curriculum.js';
 import { formatPhone, isValidPhone } from './phone.js';
 import { storage } from './firebase.js';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { StudentModal } from './views/StudentModal.jsx';
 
 // 빠른 썸네일 생성 (canvas, 미리보기 전용 — imageCompression 생략으로 속도 2배)
 function makeThumbnail(file, maxPx = 300) {
@@ -1642,146 +1643,6 @@ export default function DiagnosticReportInput({
 }
 
 // ============================================================
-// 학생 등록 모달
-// ============================================================
-export function StudentModal({ onClose, onSubmit, teachers = [], isDirector = false }) {
-  const [name, setName] = useState('');
-  const [school, setSchool] = useState('');
-  const [parentPhone, setParentPhone] = useState('');
-  const [memo, setMemo] = useState('');
-  const [textbooks, setTextbooks] = useState([{ id: Date.now(), name: '' }]);
-  const [studentType, setStudentType] = useState('new'); // 'new' | 'returning'
-  const [assignedTeacherId, setAssignedTeacherId] = useState('');
-  const [saving, setSaving] = useState(false);
-
-  const phoneOk = isValidPhone(parentPhone);
-  const isValid = name.trim() && school.trim() && textbooks.some(t => t.name.trim()) && phoneOk;
-
-  const addTextbook = () => setTextbooks(prev => [...prev, { id: Date.now(), name: '' }]);
-  const updateTextbook = (id, value) => setTextbooks(prev => prev.map(t => t.id === id ? { ...t, name: value } : t));
-  const removeTextbook = (id) => { if (textbooks.length > 1) setTextbooks(prev => prev.filter(t => t.id !== id)); };
-
-  const handleSubmit = async () => {
-    if (!isValid) return;
-    setSaving(true);
-    await onSubmit({
-      name: name.trim(),
-      school: school.trim(),
-      parentPhone: parentPhone.trim(),
-      memo: memo.trim(),
-      textbooks: textbooks.filter(t => t.name.trim()),
-      studentType,
-      ...(assignedTeacherId ? { assignedTeacherId } : {}),
-    });
-    setSaving(false);
-  };
-
-  return (
-    <div style={overlayStyle} onClick={onClose}>
-      <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
-        <div style={modalHeaderStyle}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ background: TOKENS.brandLight, padding: '7px', borderRadius: `${RADIUS2.iconBg}px` }}>
-              <UserPlus size={16} style={{ color: TOKENS.brand }} />
-            </div>
-            <div>
-              <h2 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>새 학생 등록</h2>
-              <p style={{ fontSize: '11px', color: '#6B7280', margin: '2px 0 0', fontWeight: 500 }}>필수 정보만 채우면 바로 등록됩니다</p>
-            </div>
-          </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#6B7280', cursor: 'pointer', padding: '4px' }}><X size={18} /></button>
-        </div>
-
-        <div style={{ padding: '18px 22px' }}>
-
-          {/* 학생 유형 토글 */}
-          <div style={{ marginBottom: '14px' }}>
-            <FieldLabel>학생 구분</FieldLabel>
-            <div style={{ display: 'flex', gap: '0', borderRadius: '8px', overflow: 'hidden', border: '1px solid #E5E7EB' }}>
-              {[
-                { key: 'new', label: '신규생', desc: '처음 등록하는 학생' },
-                { key: 'returning', label: '재학생', desc: '기존에 다니던 학생' },
-              ].map(({ key, label, desc }) => (
-                <button key={key} onClick={() => setStudentType(key)}
-                  style={{
-                    flex: 1, padding: '10px 12px', border: 'none', cursor: 'pointer',
-                    background: studentType === key ? TOKENS.info : '#fff',
-                    color: studentType === key ? '#fff' : '#6B7280',
-                    fontFamily: 'inherit', transition: 'all 0.15s',
-                    borderRight: key === 'new' ? '1px solid #E5E7EB' : 'none',
-                  }}>
-                  <p style={{ fontSize: '12px', fontWeight: 700, margin: '0 0 2px' }}>{label}</p>
-                  <p style={{ fontSize: '10px', opacity: 0.7, margin: 0 }}>{desc}</p>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
-            <div>
-              <FieldLabel>이름 <span style={{ color: '#DC2626' }}>*</span></FieldLabel>
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 박지호" style={inputStyle} autoFocus />
-            </div>
-            <div>
-              <FieldLabel>학교 / 학년 <span style={{ color: '#DC2626' }}>*</span></FieldLabel>
-              <input value={school} onChange={(e) => setSchool(e.target.value)} placeholder="예: 교현초 5학년" style={inputStyle} />
-            </div>
-          </div>
-
-          {/* 담당 강사 — 원장만 선택 가능. 강사가 등록하면 본인에게 자동 배정됨 */}
-          {isDirector && teachers.length > 0 && (
-            <div style={{ marginBottom: '12px' }}>
-              <FieldLabel>담당 강사</FieldLabel>
-              <select value={assignedTeacherId} onChange={(e) => setAssignedTeacherId(e.target.value)} style={selectStyle}>
-                <option value="">미배정 (원장님 직접 관리)</option>
-                {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-              </select>
-            </div>
-          )}
-
-          <div style={{ marginBottom: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-              <FieldLabel>교재 <span style={{ color: '#DC2626' }}>*</span></FieldLabel>
-              <button onClick={addTextbook} style={miniAddButtonStyle}><Plus size={11} /> 교재 추가</button>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-              {textbooks.map((t, idx) => (
-                <div key={t.id} style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
-                  <div style={{ background: TOKENS.brandLight, color: TOKENS.brand, width: '22px', height: '22px', borderRadius: `${RADIUS2.iconBg}px`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>{idx + 1}</div>
-                  <input value={t.name} onChange={(e) => updateTextbook(t.id, e.target.value)} placeholder="예: 초등 수학 5-2" style={inputStyle} />
-                  {textbooks.length > 1 && (
-                    <button onClick={() => removeTextbook(t.id)} style={{ background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer', padding: '3px', flexShrink: 0 }}><X size={14} /></button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div style={{ marginBottom: '12px' }}>
-            <FieldLabel>학부모 연락처 (선택)</FieldLabel>
-            <input type="tel" value={parentPhone} onChange={(e) => setParentPhone(formatPhone(e.target.value))} placeholder="010-0000-0000"
-              style={{ ...inputStyle, borderColor: phoneOk ? '#E5E7EB' : TOKENS.dangerBorder }} />
-            {!phoneOk && <p style={{ fontSize: '11px', color: TOKENS.danger, margin: '4px 0 0' }}>휴대폰 번호 형식이 올바르지 않습니다 (예: 010-1234-5678)</p>}
-          </div>
-
-          <div>
-            <FieldLabel>관리 메모 (선택, 학원 내부용)</FieldLabel>
-            <textarea value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="예: 서술형 대비 필요, 어머님이 카톡 선호" rows={2} style={{ ...inputStyle, fontFamily: 'inherit', resize: 'vertical' }} />
-          </div>
-        </div>
-
-        <div style={{ padding: '12px 22px', borderTop: `1px solid #E5E7EB`, display: 'flex', gap: '8px', justifyContent: 'flex-end', background: '#F9FAFB', borderRadius: '0 0 18px 18px' }}>
-          <button onClick={onClose} style={{ padding: '9px 18px', fontSize: '13px', fontWeight: 600, borderRadius: '9px', border: `1px solid #E5E7EB`, background: '#fff', color: '#6B7280', cursor: 'pointer', fontFamily: 'inherit' }}>취소</button>
-          <button onClick={handleSubmit} disabled={!isValid || saving} style={{ padding: '9px 18px', fontSize: '13px', fontWeight: 700, borderRadius: '9px', border: 'none', background: isValid ? TOKENS.brand : '#E5E7EB', color: isValid ? '#fff' : '#9CA3AF', cursor: isValid ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: '5px', fontFamily: 'inherit' }}>
-            <Check size={14} /> {saving ? '등록 중...' : '등록 완료'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ============================================================
 // 학부모 카드 미리보기
 // ============================================================
 const AVATAR_BASE = "/avatars";
@@ -2140,24 +2001,5 @@ const addStudentButtonStyle = {
   borderRadius: `${RADIUS2.input}px`, border: `1px dashed ${TOKENS.brand}`, background: TOKENS.brandLight, color: TOKENS.brand,
   cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
   gap: '5px', fontFamily: 'inherit',
-};
-const overlayStyle = {
-  position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-  background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center',
-  justifyContent: 'center', zIndex: 1000, padding: '20px', backdropFilter: 'blur(4px)',
-};
-const modalStyle = {
-  background: '#fff', borderRadius: `${RADIUS2.panel}px`, width: '100%', maxWidth: '500px',
-  maxHeight: '90vh', overflow: 'auto', boxShadow: SHADOW[3],
-  fontFamily: "'Pretendard Variable', Pretendard, sans-serif",
-};
-const modalHeaderStyle = {
-  padding: '18px 22px', borderBottom: `1px solid #E5E7EB`,
-  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-};
-const miniAddButtonStyle = {
-  background: TOKENS.brandLight, color: TOKENS.brand, border: 'none', borderRadius: `${RADIUS2.chip}px`,
-  padding: '3px 9px', fontSize: '11px', fontWeight: 700, cursor: 'pointer',
-  fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '2px',
 };
 

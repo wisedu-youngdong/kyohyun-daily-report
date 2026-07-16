@@ -366,6 +366,11 @@ export default function App() {
       console.warn('복습 일정 삭제 중 오류 (무시 가능):', e);
     }
   };
+  const handleBulkDeleteReports = async (ids) => {
+    if (!ids || ids.length === 0) return;
+    await Promise.all(ids.map(id => handleDeleteReport(id)));
+    showAppToast(`방치된 초안 ${ids.length}건을 삭제했습니다.`);
+  };
 
   if (authLoading) return (
     <div style={{ height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Pretendard Variable', Pretendard, sans-serif", color: T.brand, fontSize: '14px', fontWeight: 600 }}>
@@ -548,7 +553,7 @@ export default function App() {
             ])}
             <div style={{ marginTop: '12px' }}>
               {activeSubTab.record === 'history' && (dataReady
-                ? <HistoryView reports={visibleReports} students={visibleStudents} reportViews={reportViews} onDelete={handleDeleteReport} onEdit={(report) => { setEditingReport(report); setActiveTab('write'); }} />
+                ? <HistoryView reports={visibleReports} students={visibleStudents} reportViews={reportViews} onDelete={handleDeleteReport} onBulkDelete={handleBulkDeleteReports} onEdit={(report) => { setEditingReport(report); setActiveTab('write'); }} />
                 : <SkeletonBlock rows={5} cardHeight={56} />
               )}
             </div>
