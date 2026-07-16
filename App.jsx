@@ -45,6 +45,7 @@ export default function App() {
   const [userRole, setUserRole] = useState(null);
   const [userTeacherId, setUserTeacherId] = useState(null);
   const [academyId, setAcademyId] = useState(null);
+  const [unauthorized, setUnauthorized] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [activeSubTab, setActiveSubTab] = useState({ record: 'history', insight: 'director', manage: 'students' });
   const setSubTab = (group, key) => setActiveSubTab(prev => ({ ...prev, [group]: key }));
@@ -109,30 +110,36 @@ export default function App() {
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u);
+      setUnauthorized(false);
       if (u) {
         // users/{uid} 고정 경로에서 role·academyId 조회
         // (예전엔 addDoc으로 자동 ID 문서를 만들고 uid 필드로 쿼리해서 찾았는데,
         // 이러면 "내 문서인지"를 보안 규칙에서 안전하게 확인할 방법이 list 권한을
         // 전체 열어주는 것뿐이라 — 다른 학원 직원 이메일/역할까지 다 보이게 됨.
         // uid를 문서 ID로 고정하면 get()으로 본인 문서만 안전하게 조회 가능)
+        //
+        // users 문서가 없거나 role이 없으면 접근을 막는다 — 예전엔 "문서 없으면 교현학원
+        // 원장으로 취급"하는 폴백이 있었는데, 학원이 여러 개가 되면 이 폴백이 다른 학원
+        // 계정을 실수로 교현학원 직원으로 만들어버리는 위험한 구멍이 된다.
         try {
           const userSnap = await getDoc(doc(db, 'users', u.uid));
-          if (userSnap.exists()) {
+          if (userSnap.exists() && userSnap.data().role) {
             const userData = userSnap.data();
-            setUserRole(userData.role || 'director');
+            setUserRole(userData.role);
             setUserTeacherId(userData.teacherId || null);
             // platform_admin은 특정 학원에 안 묶임 — academyId 없이도 정상
             setAcademyId(userData.academyId || null);
           } else {
-            // users 문서 없으면 director (기존 원장님 계정 — 마이그레이션 스크립트가
-            // 이 경우를 찾아서 채워주지만, 혹시 놓친 계정이 있어도 앱이 안 죽게 폴백 유지)
-            setUserRole('director');
+            setUserRole(null);
             setUserTeacherId(null);
-            setAcademyId('kyohyun');
+            setAcademyId(null);
+            setUnauthorized(true);
           }
         } catch (e) {
-          setUserRole('director');
-          setAcademyId('kyohyun');
+          setUserRole(null);
+          setUserTeacherId(null);
+          setAcademyId(null);
+          setUnauthorized(true);
         }
       } else {
         setUserRole(null);
@@ -405,11 +412,19 @@ export default function App() {
 
   if (authLoading) return (
     <div style={{ height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Pretendard Variable', Pretendard, sans-serif", color: T.brand, fontSize: '14px', fontWeight: 600 }}>
-      교현학원 연결 중...
+      연결 중...
     </div>
   );
 
   if (!user) return <LoginScreen />;
+
+  if (unauthorized) return (
+    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center', justifyContent: 'center', fontFamily: "'Pretendard Variable', Pretendard, sans-serif", padding: '24px', textAlign: 'center' }}>
+      <div style={{ color: T.text, fontSize: '15px', fontWeight: 700 }}>이 계정에 연결된 학원 정보가 없습니다.</div>
+      <div style={{ color: T.textMute, fontSize: '13px' }}>관리자에게 계정 설정을 문의해주세요.</div>
+      <button onClick={() => signOut(auth)} style={{ marginTop: '8px', padding: '10px 20px', background: T.brand, border: 'none', borderRadius: '8px', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>로그아웃</button>
+    </div>
+  );
 
   const isDirector = userRole === 'director';
 

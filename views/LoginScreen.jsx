@@ -7,6 +7,8 @@ import { R } from '../tokens.jsx';
 // 학부모 리포트 화면(R 팔레트: 네이비/골드/세리프)과 같은 브랜드 언어를 써서
 // 로그인부터 리포트까지 하나의 톤으로 이어지게 함. logoUrl 실사진 배지는
 // 아직 학원 로고 이미지가 없어(정사각형 파비콘 대기 중) 이번엔 자리만 비워둠 — 로고 확정되면 재도입.
+// 로그인 전에는 어느 학원 계정인지 알 방법이 없어(URL/서브도메인 구분 없음) 학원명을
+// 하드코딩하지 않고 중립 문구만 표시 — 실제 학원 브랜딩(로고/이름)은 로그인 후 대시보드에서 표시됨.
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -48,14 +50,14 @@ export default function LoginScreen() {
         {/* 레터헤드 — 제목 블록만 가운데 정렬, 아래 입력 폼은 왼쪽 정렬 유지(절충안) */}
         <div style={{ padding: '26px 36px 22px', borderBottom: `1px solid ${R.rule}`, textAlign: 'center' }}>
           <p style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', color: R.inkMute, margin: '0 0 18px' }}>
-            와이즈에듀 교현학원
+            DAILY REPORT SYSTEM
           </p>
           <h1 style={{ fontFamily: R.serif, fontSize: '27px', fontWeight: 700, color: R.ink, letterSpacing: '-0.5px', margin: 0 }}>
-            교현학원
+            데일리 리포트
           </h1>
           <div style={{ width: '40px', height: '2px', background: R.gold, margin: '10px auto 8px' }} />
           <p style={{ fontSize: '12px', fontWeight: 500, color: R.inkSub, margin: 0 }}>
-            데일리 리포트 시스템
+            학원 관리자 로그인
           </p>
         </div>
 
@@ -99,7 +101,7 @@ export default function LoginScreen() {
             {loading ? '로그인 중...' : '로그인'}
           </button>
           <p style={{ fontSize: '11px', fontWeight: 500, color: R.inkMute, textAlign: 'center', margin: '20px 0 0', paddingTop: '16px', borderTop: `1px dashed ${R.rule}`, letterSpacing: '0.02em' }}>
-            교현학원 관리자 전용 시스템입니다
+            학원 관리자 전용 시스템입니다
           </p>
         </form>
       </div>
