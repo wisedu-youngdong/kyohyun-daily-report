@@ -381,6 +381,14 @@ export default function App() {
       showAppToast('로고 저장에 실패했습니다.', 'error');
     }
   };
+  const handleDeleteLogo = async () => {
+    try {
+      await setDoc(doc(db, 'settings', 'branding'), { logoUrl: null }, { merge: true });
+    } catch (e) {
+      console.error('로고 삭제 실패:', e);
+      showAppToast('로고 삭제에 실패했습니다.', 'error');
+    }
+  };
   const handleSaveCommentTemplate = async (label, text) => {
     try {
       await addDoc(collection(db, 'commentTemplates'), { label, text, createdAt: serverTimestamp() });
@@ -726,7 +734,7 @@ export default function App() {
                 : <SkeletonBlock rows={5} cardHeight={56} />
               )}
               {activeSubTab.manage === 'settings' && (dataReady
-                ? <SettingsView students={students} onSaveStudent={handleSaveStudent} teachers={teachers} onSaveTeacher={handleSaveTeacher} onDeleteTeacher={handleDeleteTeacher} logoUrl={logoUrl} onSaveLogo={handleSaveLogo} />
+                ? <SettingsView students={students} onSaveStudent={handleSaveStudent} teachers={teachers} onSaveTeacher={handleSaveTeacher} onDeleteTeacher={handleDeleteTeacher} logoUrl={logoUrl} onSaveLogo={handleSaveLogo} onDeleteLogo={handleDeleteLogo} />
                 : <SkeletonBlock rows={4} cardHeight={70} />
               )}
             </div>
@@ -2173,7 +2181,7 @@ function ReportPreviewModal({ report: r, allReports, onClose, onDelete, onEdit }
 // ============================================================
 // 설정 뷰
 // ============================================================
-function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDeleteTeacher, logoUrl, onSaveLogo }) {
+function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDeleteTeacher, logoUrl, onSaveLogo, onDeleteLogo }) {
   const [globalColor, setGlobalColor] = React.useState(() => {
     return localStorage.getItem('globalSkinColor') || DEFAULT_SKIN_COLOR;
   });
@@ -2181,6 +2189,7 @@ function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDele
   const [saved, setSaved] = React.useState(false);
   const colorInputRef = React.useRef(null);
   const [logoUploading, setLogoUploading] = React.useState(false);
+  const [confirmingLogoDelete, setConfirmingLogoDelete] = React.useState(false);
   const logoInputRef = React.useRef(null);
 
   const handleLogoFile = async (file) => {
@@ -2247,9 +2256,9 @@ function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDele
 
       {/* 학원 로고 */}
       <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB', marginBottom: '14px' }}>
-        <p style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>🖼️ 학원 로고</p>
+        <p style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>학원 로고</p>
         <p style={{ fontSize: '11px', color: '#6B7280', margin: '0 0 14px', lineHeight: 1.6 }}>
-          로그인 화면과 앱 상단 헤더에 표시됩니다. 정사각형에 가까운 이미지가 가장 깔끔하게 나옵니다.
+          앱 상단 헤더에 표시됩니다. 텍스트 없이 아이콘/마크만 있는 정사각형 이미지가 가장 깔끔하게 나옵니다.
         </p>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           <div style={{ width: '56px', height: '56px', borderRadius: '14px', background: logoUrl ? 'transparent' : '#F9FAFB', border: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
@@ -2257,13 +2266,24 @@ function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDele
               ? <img src={logoUrl} alt="현재 로고" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               : <span style={{ fontSize: '10px', color: '#9CA3AF' }}>미설정</span>}
           </div>
-          <div style={{ flex: 1 }}>
+          <div style={{ flex: 1, display: 'flex', gap: '6px' }}>
             <input ref={logoInputRef} type="file" accept="image/*" style={{ display: 'none' }}
               onChange={(e) => { const f = e.target.files?.[0]; if (f) handleLogoFile(f); e.target.value = ''; }} />
             <button onClick={() => logoInputRef.current?.click()} disabled={logoUploading}
               style={{ padding: '9px 16px', fontSize: '12px', fontWeight: 700, borderRadius: '9px', border: '1px solid #185FA5', background: logoUploading ? '#F9FAFB' : '#E6F1FB', color: logoUploading ? '#9CA3AF' : '#185FA5', cursor: logoUploading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
               {logoUploading ? '업로드 중...' : logoUrl ? '로고 변경' : '로고 업로드'}
             </button>
+            {logoUrl && (
+              <button
+                onClick={() => {
+                  if (confirmingLogoDelete) { onDeleteLogo(); setConfirmingLogoDelete(false); }
+                  else setConfirmingLogoDelete(true);
+                }}
+                onBlur={() => setConfirmingLogoDelete(false)}
+                style={{ padding: '9px 14px', fontSize: '12px', fontWeight: 700, borderRadius: '9px', border: 'none', background: confirmingLogoDelete ? '#DC2626' : '#FEF2F2', color: confirmingLogoDelete ? '#fff' : '#DC2626', cursor: 'pointer', fontFamily: 'inherit' }}>
+                {confirmingLogoDelete ? '확인 (재클릭)' : '삭제'}
+              </button>
+            )}
           </div>
         </div>
       </div>
