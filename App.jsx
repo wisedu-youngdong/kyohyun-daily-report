@@ -13,7 +13,7 @@ import {
 } from 'firebase/auth';
 import DiagnosticReportInput, { StudentModal } from './DiagnosticReportInput';
 import {
-  LayoutDashboard, Users, FileText, History, BarChart2, LogOut
+  LayoutDashboard, Users, FileText, History, BarChart2, LogOut, Pencil, AlertTriangle
 } from 'lucide-react';
 import { calculateTotalPoints, getStageInfo, calculateReportPoints, STAGES, toPct, ratingLabel, isNewStudent, kstDay, isReportSent } from './growth.js';
 import { useMediaQuery } from './hooks.js';
@@ -975,13 +975,13 @@ function StudentsView({ students, reports, onSave, onDelete, onRestore, teachers
         <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
           {archivedCount > 0 && (
             <button onClick={() => { setShowArchived(v => !v); setSearch(''); }}
-              style={{ background: showArchived ? T.brandLight : '#fff', color: showArchived ? T.brand : T.textSub, border: `1px solid ${T.border}`, borderRadius: '9px', padding: '8px 12px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+              style={{ background: showArchived ? C.infoBg : '#fff', color: showArchived ? C.infoDark : T.textSub, border: `1px solid ${T.border}`, borderRadius: '9px', padding: '8px 12px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
               {showArchived ? '← 현재 학생' : `보관함 ${archivedCount}`}
             </button>
           )}
           {!showArchived && (
             <button onClick={() => setShowAddStudent(true)}
-              style={{ background: T.brand, color: '#fff', border: 'none', borderRadius: '9px', padding: '8px 14px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+              style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: '9px', padding: '8px 14px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
               + 학생 추가
             </button>
           )}
@@ -1019,9 +1019,9 @@ function StudentsView({ students, reports, onSave, onDelete, onRestore, teachers
             <button key={t.id} onClick={() => setTeacherFilter(t.id)}
               style={{
                 flexShrink: 0, padding: '6px 12px', fontSize: '12px', fontWeight: 700, borderRadius: '20px', cursor: 'pointer', fontFamily: 'inherit',
-                border: teacherFilter === t.id ? '1.5px solid #185FA5' : '1px solid #E5E7EB',
-                background: teacherFilter === t.id ? '#E6F1FB' : '#fff',
-                color: teacherFilter === t.id ? '#185FA5' : '#6B7280',
+                border: teacherFilter === t.id ? `1.5px solid ${C.info}` : '1px solid #E5E7EB',
+                background: teacherFilter === t.id ? C.infoBg : '#fff',
+                color: teacherFilter === t.id ? C.infoDark : '#6B7280',
               }}>{t.name}</button>
           ))}
         </div>
@@ -1042,7 +1042,7 @@ function StudentsView({ students, reports, onSave, onDelete, onRestore, teachers
             </p>
             {!showArchived && (
               <button onClick={() => setShowAddStudent(true)}
-                style={{ background: T.brandLight, color: T.brand, border: 'none', borderRadius: '9px', padding: '9px 18px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ background: C.primaryLight, color: C.primary, border: 'none', borderRadius: '9px', padding: '9px 18px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
                 + 첫 학생 등록하기
               </button>
             )}
@@ -1059,10 +1059,10 @@ function StudentsView({ students, reports, onSave, onDelete, onRestore, teachers
               <div key={s.id} style={{ background: s.archived ? T.bgSoft : '#fff', borderRadius: '16px', padding: '16px 18px', border: isStale ? '1px solid #EF9F27' : `1px solid ${T.border}`, cursor: 'pointer', opacity: s.archived ? 0.85 : 1 }}
                 onClick={() => setProfileStudent(s)}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: '#E6F1FB', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: C.primaryLight, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     {s.avatar
                       ? <img src={AVATARS.find(a => a.key === s.avatar)?.url} alt="avatar" style={{ width: '44px', height: '44px', objectFit: 'cover' }} />
-                      : <span style={{ fontSize: '18px', fontWeight: 700, color: '#185FA5' }}>{s.name?.[0]}</span>
+                      : <span style={{ fontSize: '18px', fontWeight: 700, color: C.primary }}>{s.name?.[0]}</span>
                     }
                   </div>
                   <div style={{ flex: 1 }}>
@@ -1081,14 +1081,14 @@ function StudentsView({ students, reports, onSave, onDelete, onRestore, teachers
                   {s.archived ? (
                     <button
                       onClick={(e) => { e.stopPropagation(); onRestore?.(s.id); }}
-                      style={{ background: T.brandLight, border: 'none', color: T.brand, fontSize: '12px', fontWeight: 700, padding: '10px 14px', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
+                      style={{ background: C.primaryLight, border: 'none', color: C.primary, fontSize: '12px', fontWeight: 700, padding: '10px 14px', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
                       ↩ 복원
                     </button>
                   ) : (<>
                   <button
                     onClick={(e) => { e.stopPropagation(); setEditingStudent(s); }}
-                    style={{ background: '#E6F1FB', border: 'none', color: '#185FA5', fontSize: '12px', fontWeight: 700, padding: '10px 12px', borderRadius: '8px', cursor: 'pointer', marginRight: '6px', fontFamily: 'inherit', flexShrink: 0 }}>
-                    ✏️ 수정
+                    style={{ background: C.primaryLight, border: 'none', color: C.primary, fontSize: '12px', fontWeight: 700, padding: '10px 12px', borderRadius: '8px', cursor: 'pointer', marginRight: '6px', fontFamily: 'inherit', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <Pencil size={11} /> 수정
                   </button>
                   {deleteConfirm === s.id ? (
                     <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
@@ -1111,14 +1111,14 @@ function StudentsView({ students, reports, onSave, onDelete, onRestore, teachers
                 {(isNew || isStale || s.textbooks?.length > 0) && (
                   <div style={{ marginTop: '10px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                     {isNew && !s.archived && (
-                      <span style={{ background: '#EAF0F9', color: '#0D2D6B', fontSize: '11px', fontWeight: 700, padding: '3px 8px', borderRadius: '6px' }}>🌱 신규생</span>
+                      <span style={{ background: C.primaryLight, color: C.primary, fontSize: '11px', fontWeight: 700, padding: '3px 8px', borderRadius: '6px' }}>신규생</span>
                     )}
                     {isStale && (
-                      <span style={{ background: '#FAEEDA', color: '#8A5A00', fontSize: '11px', fontWeight: 700, padding: '3px 8px', borderRadius: '6px' }}>
-                        ⚠ {daysSince >= 21 ? `${Math.floor(daysSince / 7)}주째` : '2주째'} 리포트 없음
+                      <span style={{ background: C.warningBg, color: C.warningText, fontSize: '11px', fontWeight: 700, padding: '3px 8px', borderRadius: '6px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                        <AlertTriangle size={10} /> {daysSince >= 21 ? `${Math.floor(daysSince / 7)}주째` : '2주째'} 리포트 없음
                       </span>
                     )}
-                    {s.textbooks?.map((t, i) => <span key={i} style={{ background: '#E6F1FB', color: '#185FA5', fontSize: '11px', fontWeight: 600, padding: '3px 8px', borderRadius: '6px' }}>{t.name}</span>)}
+                    {s.textbooks?.map((t, i) => <span key={i} style={{ background: C.primaryLight, color: C.primary, fontSize: '11px', fontWeight: 600, padding: '3px 8px', borderRadius: '6px' }}>{t.name}</span>)}
                   </div>
                 )}
               </div>
@@ -1210,13 +1210,13 @@ function StudentEditModal({ student, onClose, onSubmit, teachers = [] }) {
             <label style={labelStyle}>학생 구분</label>
             <div style={{ display: 'flex', borderRadius: '8px', overflow: 'hidden', border: '1px solid #E5E7EB' }}>
               {[
-                { key: 'new', label: '🌱 신규생' },
-                { key: 'returning', label: '📚 재학생' },
+                { key: 'new', label: '신규생' },
+                { key: 'returning', label: '재학생' },
               ].map(({ key, label }) => (
                 <button key={key} onClick={() => setStudentType(key)}
                   style={{
                     flex: 1, padding: '9px', border: 'none', cursor: 'pointer',
-                    background: studentType === key ? '#0D2D6B' : '#fff',
+                    background: studentType === key ? C.info : '#fff',
                     color: studentType === key ? '#fff' : '#6B7280',
                     fontSize: '12px', fontWeight: 700, fontFamily: 'inherit',
                     borderRight: key === 'new' ? '1px solid #E5E7EB' : 'none',
@@ -1242,12 +1242,12 @@ function StudentEditModal({ student, onClose, onSubmit, teachers = [] }) {
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
               <label style={labelStyle}>교재 *</label>
-              <button onClick={addTextbook} style={{ background: '#E6F1FB', color: '#185FA5', border: 'none', borderRadius: '5px', padding: '3px 9px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>+ 추가</button>
+              <button onClick={addTextbook} style={{ background: C.primaryLight, color: C.primary, border: 'none', borderRadius: '5px', padding: '3px 9px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>+ 추가</button>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
               {textbooks.map((t, idx) => (
                 <div key={t.id} style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
-                  <div style={{ background: '#E6F1FB', color: '#185FA5', width: '22px', height: '22px', borderRadius: '5px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>{idx + 1}</div>
+                  <div style={{ background: C.primaryLight, color: C.primary, width: '22px', height: '22px', borderRadius: '5px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>{idx + 1}</div>
                   <input value={t.name} onChange={(e) => updateTextbook(t.id, e.target.value)} style={inputStyle} />
                   {textbooks.length > 1 && (
                     <button onClick={() => removeTextbook(t.id)} style={{ background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer', fontSize: '16px', flexShrink: 0, width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>×</button>
@@ -1260,8 +1260,8 @@ function StudentEditModal({ student, onClose, onSubmit, teachers = [] }) {
           <div>
             <label style={labelStyle}>학부모 연락처</label>
             <input type="tel" value={parentPhone} onChange={(e) => setParentPhone(formatPhone(e.target.value))} placeholder="010-0000-0000"
-              style={{ ...inputStyle, borderColor: phoneOk ? '#E5E7EB' : '#A32D2D' }} />
-            {!phoneOk && <p style={{ fontSize: '11px', color: '#A32D2D', margin: '4px 0 0' }}>휴대폰 번호 형식이 올바르지 않습니다 (예: 010-1234-5678)</p>}
+              style={{ ...inputStyle, borderColor: phoneOk ? '#E5E7EB' : C.errorDark }} />
+            {!phoneOk && <p style={{ fontSize: '11px', color: C.errorDark, margin: '4px 0 0' }}>휴대폰 번호 형식이 올바르지 않습니다 (예: 010-1234-5678)</p>}
           </div>
 
           {teachers.length > 0 && (
@@ -1288,17 +1288,17 @@ function StudentEditModal({ student, onClose, onSubmit, teachers = [] }) {
                   key={av.key}
                   onClick={() => setAvatar(av.key)}
                   style={{
-                    border: avatar === av.key ? '2.5px solid #185FA5' : '2px solid #E5E7EB',
+                    border: avatar === av.key ? `2.5px solid ${C.info}` : '2px solid #E5E7EB',
                     borderRadius: '12px', padding: '8px 6px',
                     cursor: 'pointer', textAlign: 'center',
-                    background: avatar === av.key ? '#E6F1FB' : '#F9FAFB',
+                    background: avatar === av.key ? C.infoBg : '#F9FAFB',
                     transition: 'all 0.15s',
                   }}
                 >
                   <img src={av.url} alt={av.label} style={{ width: '48px', height: '48px', objectFit: 'contain', marginBottom: '4px' }} />
-                  <p style={{ fontSize: '10px', fontWeight: 600, color: avatar === av.key ? '#185FA5' : '#6B7280', margin: 0, lineHeight: 1.3 }}>{av.label}</p>
+                  <p style={{ fontSize: '10px', fontWeight: 600, color: avatar === av.key ? C.infoDark : '#6B7280', margin: 0, lineHeight: 1.3 }}>{av.label}</p>
                   {avatar === av.key && (
-                    <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: '#185FA5', margin: '4px auto 0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: C.info, margin: '4px auto 0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <span style={{ color: '#fff', fontSize: '10px', fontWeight: 900 }}>✓</span>
                     </div>
                   )}
@@ -1315,7 +1315,7 @@ function StudentEditModal({ student, onClose, onSubmit, teachers = [] }) {
                 <span style={{ fontSize: '11px', color: '#6B7280', fontWeight: 500 }}>개별 설정</span>
                 <div
                   onClick={() => setUseCustomSkin(!useCustomSkin)}
-                  style={{ width: '36px', height: '20px', borderRadius: '20px', background: useCustomSkin ? '#185FA5' : '#D1D5DB', cursor: 'pointer', position: 'relative', transition: 'background 0.2s' }}
+                  style={{ width: '36px', height: '20px', borderRadius: '20px', background: useCustomSkin ? C.info : '#D1D5DB', cursor: 'pointer', position: 'relative', transition: 'background 0.2s' }}
                 >
                   <div style={{ position: 'absolute', top: '2px', left: useCustomSkin ? '18px' : '2px', width: '16px', height: '16px', borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }}></div>
                 </div>
@@ -1334,23 +1334,23 @@ function StudentEditModal({ student, onClose, onSubmit, teachers = [] }) {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', marginBottom: '10px' }}>
                   {PRESET_SKINS.map(sk => (
                     <div key={sk.key} onClick={() => setSkinColor(sk.main)}
-                      style={{ borderRadius: '8px', overflow: 'hidden', cursor: 'pointer', border: skinColor === sk.main ? '2.5px solid #185FA5' : '2px solid #E5E7EB' }}>
+                      style={{ borderRadius: '8px', overflow: 'hidden', cursor: 'pointer', border: skinColor === sk.main ? `2.5px solid ${C.info}` : '2px solid #E5E7EB' }}>
                       <div style={{ height: '24px', background: sk.main }}></div>
                       <div style={{ padding: '3px', background: '#F9FAFB', textAlign: 'center' }}>
-                        <span style={{ fontSize: '10px', fontWeight: 700, color: skinColor === sk.main ? '#185FA5' : '#6B7280' }}>{sk.name}</span>
+                        <span style={{ fontSize: '10px', fontWeight: 700, color: skinColor === sk.main ? C.infoDark : '#6B7280' }}>{sk.name}</span>
                       </div>
                     </div>
                   ))}
                 </div>
                 {/* 커스텀 */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#F9FAFB', borderRadius: '10px', padding: '10px' }}>
-                  <div style={{ position: 'relative', width: '36px', height: '36px', borderRadius: '10px', background: skinColor || '#185FA5', border: '2px solid rgba(0,0,0,0.08)', overflow: 'hidden', flexShrink: 0 }}>
-                    <input type="color" value={skinColor || '#185FA5'} onChange={(e) => setSkinColor(e.target.value)}
+                  <div style={{ position: 'relative', width: '36px', height: '36px', borderRadius: '10px', background: skinColor || C.primary, border: '2px solid rgba(0,0,0,0.08)', overflow: 'hidden', flexShrink: 0 }}>
+                    <input type="color" value={skinColor || C.primary} onChange={(e) => setSkinColor(e.target.value)}
                       style={{ position: 'absolute', inset: '-4px', width: 'calc(100% + 8px)', height: 'calc(100% + 8px)', border: 'none', cursor: 'pointer', opacity: 0 }} />
                   </div>
                   <div>
                     <p style={{ fontSize: '11px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>직접 색상 선택</p>
-                    <p style={{ fontSize: '10px', color: '#9CA3AF', margin: '1px 0 0', fontFamily: 'monospace' }}>{skinColor || '#185FA5'}</p>
+                    <p style={{ fontSize: '10px', color: '#9CA3AF', margin: '1px 0 0', fontFamily: 'monospace' }}>{skinColor || C.primary}</p>
                   </div>
                 </div>
               </div>
@@ -1361,7 +1361,7 @@ function StudentEditModal({ student, onClose, onSubmit, teachers = [] }) {
         {/* 버튼 */}
         <div style={{ padding: '12px 22px', borderTop: '1px solid #E5E7EB', display: 'flex', gap: '8px', justifyContent: 'center', background: '#F9FAFB', borderRadius: '0 0 18px 18px' }}>
           <button onClick={onClose} style={{ padding: '9px 18px', fontSize: '13px', fontWeight: 600, borderRadius: '9px', border: '1px solid #E5E7EB', background: '#fff', color: '#6B7280', cursor: 'pointer' }}>취소</button>
-          <button onClick={handleSubmit} disabled={!isValid || saving} style={{ padding: '9px 18px', fontSize: '13px', fontWeight: 700, borderRadius: '9px', border: 'none', background: isValid ? '#185FA5' : '#E5E7EB', color: '#fff', cursor: isValid ? 'pointer' : 'not-allowed' }}>
+          <button onClick={handleSubmit} disabled={!isValid || saving} style={{ padding: '9px 18px', fontSize: '13px', fontWeight: 700, borderRadius: '9px', border: 'none', background: isValid ? C.primary : '#E5E7EB', color: '#fff', cursor: isValid ? 'pointer' : 'not-allowed' }}>
             {saving ? '저장 중...' : '✓ 저장'}
           </button>
         </div>
