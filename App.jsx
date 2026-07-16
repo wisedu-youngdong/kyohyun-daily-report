@@ -3185,7 +3185,7 @@ function StudentProfileModal({ student, reports, onClose, DIAG_MAP }) {
                       <div key={day} style={{
                         aspectRatio: '1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                         borderRadius: '8px', background: att ? `${ATTEND_COLORS[att] || '#8A5A00'}12` : 'transparent',
-                        border: isToday ? '1.5px solid #185FA5' : '1px solid transparent',
+                        border: isToday ? `1.5px solid ${C.info}` : '1px solid transparent',
                       }}>
                         <span style={{ fontSize: '11px', fontWeight: att ? 700 : 400, color: att ? (ATTEND_COLORS[att] || '#374151') : '#C0C0C0' }}>{day}</span>
                         {att && <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: ATTEND_COLORS[att] || '#8A5A00', marginTop: '2px' }} />}
@@ -3431,7 +3431,8 @@ function StudentProfileModal({ student, reports, onClose, DIAG_MAP }) {
                   {/* AI 서사 편집 모드 */}
                   <a href={`/story/${student.id}?edit=1`} target="_blank" rel="noopener noreferrer"
                     style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px', background: '#FFF9EC', border: '1px solid #C9A227', borderRadius: '8px', textDecoration: 'none', marginTop: '4px' }}>
-                    <span style={{ fontSize: '12px', color: '#8A6500', fontWeight: 700 }}>✏️ AI 서사 편집 모드로 열기</span>
+                    <Pencil size={12} style={{ color: '#8A6500' }} />
+                    <span style={{ fontSize: '12px', color: '#8A6500', fontWeight: 700 }}>AI 서사 편집 모드로 열기</span>
                   </a>
 
                   {/* 주간 요약 카드 */}
