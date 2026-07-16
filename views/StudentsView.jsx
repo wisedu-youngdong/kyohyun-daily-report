@@ -258,6 +258,7 @@ export default function StudentsView({ students, reports, onSave, onDelete, onRe
         <StudentModal
           student={editingStudent}
           teachers={teachers}
+          isDirector={isDirector}
           onClose={() => setEditingStudent(null)}
           onSubmit={async (updated) => {
             await onSave({ id: editingStudent.id, ...updated });

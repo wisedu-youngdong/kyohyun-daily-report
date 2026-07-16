@@ -92,9 +92,9 @@ export function StudentModal({ student, onClose, onSubmit, teachers = [], isDire
     setSaving(false);
   };
 
-  // 담당 강사 선택 노출 조건 — 등록 땐 원장만(강사가 등록하면 본인에게 자동 배정),
-  // 수정 땐 기존 동작 그대로 원장/강사 모두에게 노출 (건드리지 않고 유지)
-  const showTeacherPicker = teachers.length > 0 && (isEdit || isDirector);
+  // 담당 강사 재배정은 원장만 — 강사가 다른 강사에게 학생을 재배정할 수 있으면 안 돼서
+  // 등록/수정 모드 둘 다 isDirector로 통일 (예전엔 수정 모드만 원장/강사 구분 없이 노출되던 구멍이 있었음)
+  const showTeacherPicker = teachers.length > 0 && isDirector;
 
   return (
     <div style={overlayStyle} onClick={onClose}>
