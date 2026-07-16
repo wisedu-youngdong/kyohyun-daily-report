@@ -20,7 +20,7 @@ import { useMediaQuery } from './hooks.js';
 import { findUnitKey } from './curriculum.js';
 import { formatPhone, isValidPhone } from './phone.js';
 import ErrorBoundary from './ErrorBoundary.jsx';
-import { T } from './tokens.jsx';
+import { T, C, RADIUS2 } from './tokens.jsx';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LabelList
 } from 'recharts';
@@ -771,8 +771,8 @@ function DashboardView({ students, reports, onTabChange, onWriteFor, reviews = [
     <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto', boxSizing: 'border-box' }}>
       <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '16px', letterSpacing: '-0.02em' }}>오늘의 현황</h2>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
-        <StatCard label="오늘 미작성" value={Math.max(0, pendingCount)} unit="명" />
-        <StatCard label="오늘 발송" value={todayReports.length} unit="건" />
+        <StatCard label="오늘 미작성" value={Math.max(0, pendingCount)} unit="명" color={C.warning} />
+        <StatCard label="오늘 발송" value={todayReports.length} unit="건" color={C.midGray} />
       </div>
       {/* 복습 알림 — 약점 태그가 있던 리포트는 7/14/30일 후 복습 일정이 자동 생성됨 */}
       {(() => {
@@ -821,13 +821,13 @@ function DashboardView({ students, reports, onTabChange, onWriteFor, reviews = [
       <div style={{ background: T.bg, borderRadius: '16px', border: `1px solid ${T.border}`, overflow: 'hidden' }}>
         <div style={{ padding: '14px 18px', borderBottom: `1px solid #F3F4F6`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h3 style={{ fontSize: '13px', fontWeight: 700 }}>오늘 학생 현황</h3>
-          <button onClick={() => onTabChange('write')} style={{ background: T.brand, color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 14px', fontSize: '12px', fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}>리포트 작성</button>
+          <button onClick={() => onTabChange('write')} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: `${RADIUS2.input}px`, padding: '6px 14px', fontSize: '12px', fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}>리포트 작성</button>
         </div>
         {students.length === 0
           ? (
             <div style={{ padding: '40px 20px', textAlign: 'center' }}>
               <p style={{ color: T.textSub, fontSize: '13px', margin: '0 0 12px' }}>등록된 학생이 없습니다</p>
-              <button onClick={() => onTabChange('write')} style={{ background: T.brandLight, color: T.brand, border: 'none', borderRadius: '8px', padding: '8px 16px', fontSize: '12px', fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}>
+              <button onClick={() => onTabChange('write')} style={{ background: C.primaryLight, color: C.primary, border: 'none', borderRadius: `${RADIUS2.input}px`, padding: '8px 16px', fontSize: '12px', fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}>
                 + 첫 학생 등록하기
               </button>
             </div>
@@ -847,7 +847,7 @@ function DashboardView({ students, reports, onTabChange, onWriteFor, reviews = [
                 </div>
                 {/* 대기가 유일한 '할 일' 신호 — 완료보다 눈에 띄어야 함 */}
                 <span style={{
-                  fontSize: '11px', fontWeight: 700, padding: '4px 10px', borderRadius: '12px', flexShrink: 0,
+                  fontSize: '11px', fontWeight: 700, padding: '4px 10px', borderRadius: `${RADIUS2.pill}px`, flexShrink: 0,
                   color: done ? T.textMute : '#8A5A00', background: done ? 'transparent' : '#FFF8EC',
                 }}>{done ? '완료 ✓' : '대기'}</span>
               </div>
@@ -872,12 +872,12 @@ function SkeletonBlock({ rows = 4, cardHeight = 64 }) {
   );
 }
 
-function StatCard({ label, value, unit }) {
+function StatCard({ label, value, unit, color = C.midGray }) {
   return (
-    <div style={{ background: '#fff', borderRadius: '14px', padding: '16px', border: `1px solid #E5E7EB` }}>
+    <div style={{ background: '#fff', borderRadius: `${RADIUS2.card}px`, padding: '16px', border: `1px solid #E5E7EB` }}>
       <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 700, margin: '0 0 6px' }}>{label}</p>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-        <span style={{ fontSize: '28px', fontWeight: 700, color: '#185FA5', letterSpacing: '-0.02em' }}>{value}</span>
+        <span style={{ fontSize: '28px', fontWeight: 700, color, letterSpacing: '-0.02em' }}>{value}</span>
         <span style={{ fontSize: '12px', color: '#9CA3AF', fontWeight: 500 }}>{unit}</span>
       </div>
     </div>
