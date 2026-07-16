@@ -3475,9 +3475,13 @@ function DirectorView({ reports, students, reportViews = [] }) {
                     </div>
                   </div>
 
-                  {/* 열람 배지 */}
+                  {/* 열람 배지 — draft(자동저장만 되고 아직 최종 저장 안 됨)는 열람 여부와
+                      무관하게 "작성 중"으로 표시. 안 그러면 선생님이 쓰다 만 리포트가
+                      "미열람"으로 잡혀 실제로는 보낸 적도 없는데 발송된 것처럼 보임 */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                    {isViewed ? (
+                    {r.isDraft ? (
+                      <span style={{ fontSize: '10px', fontWeight: 700, color: C.warningText, background: C.warningBg, padding: '2px 8px', borderRadius: '10px' }}>작성 중</span>
+                    ) : isViewed ? (
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
                         <span style={{ fontSize: '10px', fontWeight: 700, color: C.successDark, background: C.successBg, padding: '2px 8px', borderRadius: '10px' }}>✓ 열람완료</span>
                         <span style={{ fontSize: '9px', color: '#98A1AC', marginTop: '2px' }}>{viewSrc} · {lastViewTime}</span>
@@ -3588,7 +3592,19 @@ function DirectorView({ reports, students, reportViews = [] }) {
                     </div>
                   </div>
 
-                  {/* 링크 복사 — 미리보기 카드 */}
+                  {/* 링크 복사 — 미리보기 카드. draft는 선생님이 아직 최종 저장을 안 한
+                      상태라 여기서 복사해 보내면 미완성 리포트가 학부모에게 나갈 수 있어
+                      미리보기/복사 버튼 자체를 막음 */}
+                  {r.isDraft ? (
+                    <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '0.5px solid #E8E6E0' }}>
+                      <div style={{ background: C.warningBg, borderRadius: '10px', padding: '10px 12px', display: 'flex', alignItems: 'center', gap: '7px' }}>
+                        <AlertTriangle size={13} style={{ color: C.warningText, flexShrink: 0 }} />
+                        <p style={{ fontSize: '11px', color: C.warningText, margin: 0, fontWeight: 600 }}>
+                          아직 작성 중인 리포트예요. 선생님이 최종 저장을 완료해야 학부모에게 보낼 수 있습니다.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
                   <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '0.5px solid #E8E6E0' }}>
                     <p style={{ fontSize: '10px', color: '#98A1AC', margin: '0 0 7px', letterSpacing: '0.08em' }}>학부모 전송 미리보기</p>
                     {/* 미리보기 카드 */}
@@ -3647,6 +3663,7 @@ function DirectorView({ reports, students, reportViews = [] }) {
                       <Copy size={13} /> 위 내용 카톡으로 복사하기
                     </button>
                   </div>
+                  )}
                 </div>
               )}
             </div>
