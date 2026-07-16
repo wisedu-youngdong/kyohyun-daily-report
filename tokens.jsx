@@ -1,5 +1,27 @@
 import React from 'react';
 
+// ============================================================
+// 디자인 토큰 v2 (2026-07, 원티드 벤치마킹 스펙 이식)
+// 확정 사항: 브랜드 네이비 = #0D2D6B (신규 토큰), 헤딩 폰트 = Noto Serif KR 유지
+//
+// 컬러 사용 규칙 (스펙 섹션 2):
+// - primary  : 헤더, 메인 액션 버튼(전송/저장)에만
+// - accent   : 강조 텍스트, active 언더라인 — 절제해서
+// - info     : 선택된 토글/탭처럼 "지금 활성화됨" 표시 전용 (primary와 분리)
+// - success/warning/error : 상태 표시 (출석·완료 / 미작성·주의 / 결석·오류)
+// - midGray  : 구분선, 보조 텍스트, 비활성 요소
+// *Dark 변형은 연한 배경(*Bg) 위 작은 텍스트용 — 명도 대비 확보
+// ============================================================
+export const C = {
+  primary: '#0D2D6B', primaryDark: '#081D47', primaryLight: '#E7EBF4',
+  accent: '#C9A227',
+  success: '#009652', successBg: '#E3F4EC', successDark: '#00714B',
+  warning: '#D97706', warningBg: '#FCF0E1', warningText: '#8A4B04',
+  error: '#E53E3E', errorBg: '#FDEAEA', errorDark: '#B92C2C',
+  info: '#0066FF', infoBg: '#E9F1FF', infoDark: '#0050C8',
+  midGray: '#707B7C',
+};
+
 // 관리자 화면(App.jsx) 팔레트
 export const T = {
   brand: '#185FA5', brandLight: '#E6F1FB', brandBg: '#F0F7FC',
