@@ -39,6 +39,15 @@ export const R = {
 
 export const RADIUS = { sm: 8, md: 12, lg: 16, pill: 20 };
 
+// 컴포넌트 역할별 radius 스케일 (스펙 섹션 4) — badge/chip/input처럼 역할이 명확한 곳에 적용
+export const RADIUS2 = {
+  badge: 4, chip: 6, input: 8, iconBg: 10, thumbnail: 12,
+  card: 14, panel: 16, pill: 20, avatar: '50%',
+};
+
+// spacing 스케일 (스펙 섹션 5, base-4)
+export const SPACING = [4, 6, 8, 10, 12, 14, 16, 20, 24, 32, 40, 48, 56, 64];
+
 export const FONT = {
   body: "'Pretendard Variable', Pretendard, sans-serif",
   serif: R.serif,

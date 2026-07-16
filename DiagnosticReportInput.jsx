@@ -16,7 +16,7 @@ import {
   FileText, Sparkles, Send, Plus, X, Check,
   UserPlus, GraduationCap, Info, Star, AlertTriangle, Palette
 } from 'lucide-react';
-import { C } from './tokens.jsx';
+import { C, RADIUS2 } from './tokens.jsx';
 import { calculateReportPoints, toPct, ratingLabel } from './growth.js';
 import { findUnitKey, getUnits, getCourses } from './curriculum.js';
 import { formatPhone, isValidPhone } from './phone.js';
@@ -194,7 +194,7 @@ function AlertModal({ message, onClose }) {
         <p style={{ fontSize: '14px', color: '#4B5563', margin: '0 0 24px', lineHeight: 1.6 }}>{message}</p>
         <button onClick={onClose} style={{
           width: '100%', padding: '12px', fontSize: '14px', fontWeight: 700,
-          border: 'none', borderRadius: '10px', background: C.primary,
+          border: 'none', borderRadius: `${RADIUS2.input}px`, background: C.primary,
           color: '#fff', cursor: 'pointer', fontFamily: 'inherit',
         }}>확인</button>
       </div>
@@ -776,13 +776,13 @@ export default function DiagnosticReportInput({
         gridTemplateColumns: isWide ? '1fr 360px' : '1fr',
         gap: '20px', alignItems: 'flex-start',
       }}>
-        {/* 좌측 입력 폼 */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        {/* 좌측 입력 폼 — 섹션 간 여백 20px(스펙 섹션 5 "섹션 상단 여백") */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
           {/* 헤더 + 강사 */}
           <div style={{ background: TOKENS.bg, borderRadius: '16px', padding: '18px 20px', border: `1px solid ${TOKENS.border}` }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
-              <div style={{ width: '26px', height: '26px', background: TOKENS.brand, borderRadius: '7px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: '26px', height: '26px', background: TOKENS.brand, borderRadius: `${RADIUS2.iconBg}px`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <span style={{ color: '#fff', fontSize: '12px', fontWeight: 700 }}>K</span>
               </div>
               <span style={{ fontSize: '13px', color: TOKENS.brand, fontWeight: 700 }}>교현학원</span>
@@ -932,7 +932,7 @@ export default function DiagnosticReportInput({
                       style={{
                         display: 'flex', alignItems: 'center', gap: 0,
                         padding: 0, border: `1px solid ${subject === label ? color : '#E5E7EB'}`,
-                        borderRadius: '8px', cursor: 'pointer', overflow: 'hidden',
+                        borderRadius: `${RADIUS2.chip}px`, cursor: 'pointer', overflow: 'hidden',
                         background: subject === label ? color : '#fff',
                         fontFamily: 'inherit', transition: 'all 0.15s'
                       }}>
@@ -969,7 +969,7 @@ export default function DiagnosticReportInput({
                       {recentUnits.map((item, i) => (
                         <button key={i} onClick={() => { setTextbook(item.textbook); setUnit(item.unit); }}
                           style={{
-                            padding: '4px 10px', borderRadius: '10px', border: '1px solid #E5E7EB',
+                            padding: '4px 10px', borderRadius: `${RADIUS2.chip}px`, border: '1px solid #E5E7EB',
                             background: (textbook === item.textbook && unit === item.unit) ? TOKENS.info : '#F9FAFB',
                             color: (textbook === item.textbook && unit === item.unit) ? '#fff' : '#374151',
                             fontSize: '11px', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
@@ -1030,7 +1030,7 @@ export default function DiagnosticReportInput({
                                 )}
                                 <button type="button" onClick={() => setCurriculumCourseOverride(prev => prev === c ? null : c)}
                                   style={{
-                                    padding: '3px 9px', borderRadius: '8px', border: `1px solid ${TOKENS.border}`,
+                                    padding: '3px 9px', borderRadius: `${RADIUS2.chip}px`, border: `1px solid ${TOKENS.border}`,
                                     background: activeCourse === c ? TOKENS.info : TOKENS.bg,
                                     color: activeCourse === c ? '#fff' : TOKENS.textSub,
                                     fontSize: '10px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
@@ -1042,7 +1042,7 @@ export default function DiagnosticReportInput({
                         {canNarrow && (
                           <button type="button" onClick={() => setShowAllCourses(v => !v)}
                             style={{
-                              padding: '3px 9px', borderRadius: '8px', border: '1px dashed #C9C9C9',
+                              padding: '3px 9px', borderRadius: `${RADIUS2.chip}px`, border: '1px dashed #C9C9C9',
                               background: '#fff', color: '#9CA3AF', fontSize: '10px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
                             }}>{showAllCourses ? '접기' : '전체 학년 보기'}</button>
                         )}
@@ -1055,7 +1055,7 @@ export default function DiagnosticReportInput({
                           {units.map(u => (
                             <button key={u} type="button" onClick={() => setUnit(u)}
                               style={{
-                                padding: '4px 10px', borderRadius: '10px', border: `1px solid ${unit === u ? TOKENS.info : TOKENS.border}`,
+                                padding: '4px 10px', borderRadius: `${RADIUS2.chip}px`, border: `1px solid ${unit === u ? TOKENS.info : TOKENS.border}`,
                                 background: unit === u ? TOKENS.info : TOKENS.bgSoft,
                                 color: unit === u ? '#fff' : TOKENS.textSub,
                                 fontSize: '11px', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
@@ -1093,14 +1093,14 @@ export default function DiagnosticReportInput({
                   <div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))', gap: '8px', marginBottom: '10px' }}>
                       {photos.map((p, i) => (
-                        <div key={i} style={{ position: 'relative', borderRadius: '10px', overflow: 'hidden', aspectRatio: '3/4', background: '#F3F4F6' }}>
+                        <div key={i} style={{ position: 'relative', borderRadius: `${RADIUS2.thumbnail}px`, overflow: 'hidden', aspectRatio: '3/4', background: '#F3F4F6' }}>
                           <img
                             src={p.preview}
                             alt={`사진 ${i + 1}`}
                             style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                           />
                           <div className="fallback-label" style={{ display: 'none' }} />
-                          <span style={{ position: 'absolute', bottom: '4px', left: '4px', background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: '6px' }}>{i + 1}</span>
+                          <span style={{ position: 'absolute', bottom: '4px', left: '4px', background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: `${RADIUS2.badge}px` }}>{i + 1}</span>
                           {!analyzingPhoto && (
                             <button onClick={() => removeOnePhoto(i)} style={{
                               position: 'absolute', top: '2px', right: '2px', background: 'rgba(0,0,0,0.55)',
@@ -1113,7 +1113,7 @@ export default function DiagnosticReportInput({
                       {photos.length < MAX_PHOTOS && !analyzingPhoto && (
                         <label style={{
                           display: 'flex', alignItems: 'center', justifyContent: 'center', aspectRatio: '3/4',
-                          border: `1.5px dashed ${TOKENS.border}`, borderRadius: '10px',
+                          border: `1.5px dashed ${TOKENS.border}`, borderRadius: `${RADIUS2.thumbnail}px`,
                           cursor: 'pointer', color: TOKENS.textMute, background: TOKENS.bgSoft
                         }}>
                           <Plus size={20} />
@@ -1281,7 +1281,7 @@ export default function DiagnosticReportInput({
                                 { key: 'unread', label: '문제 안 읽음', bg: '#FFF8EC', color: '#8A5A00', border: '#C9A22740' },
                               ];
                               return (
-                                <div key={item.number || idx} style={{ border: '1px solid #DC262630', borderRadius: '10px', padding: '10px', marginBottom: '8px', background: '#FFF5F5' }}>
+                                <div key={item.number || idx} style={{ border: '1px solid #DC262630', borderRadius: `${RADIUS2.thumbnail}px`, padding: '14px', marginBottom: '8px', background: '#FFF5F5' }}>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
                                     <span style={{ background: TOKENS.dangerBorder, color: '#fff', fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px' }}>
                                       {item.number}번 오답
@@ -1402,7 +1402,7 @@ export default function DiagnosticReportInput({
                     {selectedTags.map((tag, idx) => {
                       const tagDef = DIAGNOSIS_TAGS.find(t => t.key === tag.key);
                       return (
-                        <div key={idx} style={{ background: '#fff', borderRadius: '10px', padding: '10px' }}>
+                        <div key={idx} style={{ background: '#fff', borderRadius: `${RADIUS2.thumbnail}px`, padding: '14px' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                             <span style={tagStyle(tagDef.color, true)}>{tagDef.label}</span>
                             <button onClick={() => toggleTag(tag.key)} style={{ background: 'none', border: 'none', color: TOKENS.textMute, cursor: 'pointer', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}><X size={14} /></button>
@@ -1672,7 +1672,7 @@ export function StudentModal({ onClose, onSubmit, teachers = [], isDirector = fa
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
         <div style={modalHeaderStyle}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ background: TOKENS.brandLight, padding: '7px', borderRadius: '9px' }}>
+            <div style={{ background: TOKENS.brandLight, padding: '7px', borderRadius: `${RADIUS2.iconBg}px` }}>
               <UserPlus size={16} style={{ color: TOKENS.brand }} />
             </div>
             <div>
@@ -1738,7 +1738,7 @@ export function StudentModal({ onClose, onSubmit, teachers = [], isDirector = fa
             <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
               {textbooks.map((t, idx) => (
                 <div key={t.id} style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
-                  <div style={{ background: TOKENS.brandLight, color: TOKENS.brand, width: '22px', height: '22px', borderRadius: '5px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>{idx + 1}</div>
+                  <div style={{ background: TOKENS.brandLight, color: TOKENS.brand, width: '22px', height: '22px', borderRadius: `${RADIUS2.iconBg}px`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>{idx + 1}</div>
                   <input value={t.name} onChange={(e) => updateTextbook(t.id, e.target.value)} placeholder="예: 초등 수학 5-2" style={inputStyle} />
                   {textbooks.length > 1 && (
                     <button onClick={() => removeTextbook(t.id)} style={{ background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer', padding: '3px', flexShrink: 0 }}><X size={14} /></button>
@@ -2038,11 +2038,11 @@ function FormSection({ number, title, badge, badgeTone = 'neutral', children }) 
     neutral: { background: TOKENS.borderLight, color: TOKENS.textSub },
   }[badgeTone];
   return (
-    <div style={{ background: '#fff', borderRadius: '14px', padding: '16px 18px', border: `1px solid #E5E7EB` }}>
+    <div style={{ background: '#fff', borderRadius: `${RADIUS2.card}px`, padding: '16px', border: `1px solid #E5E7EB` }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
         <span style={{ width: '4px', height: '15px', borderRadius: '2px', background: TOKENS.brand, flexShrink: 0 }} />
         <h2 style={{ fontSize: '14px', fontWeight: 700, margin: 0, letterSpacing: '-0.02em' }}>{title}</h2>
-        {badge && <span style={{ marginLeft: 'auto', fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px', ...tone }}>{badge}</span>}
+        {badge && <span style={{ marginLeft: 'auto', fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: `${RADIUS2.badge}px`, ...tone }}>{badge}</span>}
       </div>
       {children}
     </div>
@@ -2081,7 +2081,7 @@ function RatingPicker({ label, value, onChange }) {
 
 const inputStyle = {
   width: '100%', padding: '9px 11px', fontSize: '16px',
-  border: `1px solid #E5E7EB`, borderRadius: '9px',
+  border: `1px solid #E5E7EB`, borderRadius: `${RADIUS2.input}px`,
   background: '#F9FAFB', outline: 'none',
   fontFamily: "'Pretendard Variable', Pretendard, sans-serif",
   fontWeight: 500, color: '#1A1A1A', letterSpacing: '-0.02em', boxSizing: 'border-box',
@@ -2097,38 +2097,38 @@ const selectStyle = {
 // 선택 토글(chip/toggle)의 활성 상태는 Info 계열 — Primary(전송/저장)와 시각적으로 분리
 const chipStyle = (active) => ({
   padding: '6px 12px', fontSize: '12px', fontWeight: active ? 700 : 500,
-  borderRadius: '9px', border: `1px solid ${active ? TOKENS.info : '#E5E7EB'}`,
+  borderRadius: `${RADIUS2.chip}px`, border: `1px solid ${active ? TOKENS.info : '#E5E7EB'}`,
   background: active ? TOKENS.infoBg : '#fff', color: active ? TOKENS.infoDark : '#6B7280',
   cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '-0.02em',
 });
 const tagStyle = (color, active) => {
   const c = { warn: { bg: TOKENS.warnBg, border: TOKENS.warnBorder, text: TOKENS.warnText }, danger: { bg: TOKENS.dangerBg, border: TOKENS.dangerBorder, text: TOKENS.danger }, success: { bg: TOKENS.successBg, border: TOKENS.success, text: TOKENS.successDark } }[color] || {};
-  return { padding: '4px 9px', fontSize: '12px', fontWeight: 600, borderRadius: '7px', border: `1px solid ${active ? c.border : '#E5E7EB'}`, background: active ? c.bg : '#fff', color: active ? c.text : '#6B7280', cursor: 'pointer', fontFamily: 'inherit' };
+  return { padding: '4px 9px', fontSize: '12px', fontWeight: 600, borderRadius: `${RADIUS2.chip}px`, border: `1px solid ${active ? c.border : '#E5E7EB'}`, background: active ? c.bg : '#fff', color: active ? c.text : '#6B7280', cursor: 'pointer', fontFamily: 'inherit' };
 };
 const toggleStyle = (active) => ({
   flex: 1, padding: '7px', fontSize: '12px', fontWeight: active ? 700 : 500,
-  border: 'none', borderRadius: '8px', background: active ? '#fff' : 'transparent',
+  border: 'none', borderRadius: `${RADIUS2.chip}px`, background: active ? '#fff' : 'transparent',
   color: active ? TOKENS.infoDark : '#6B7280', cursor: 'pointer', fontFamily: 'inherit',
   boxShadow: active ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
 });
-const suggestionStyle = { padding: '7px 12px', fontSize: '12px', fontWeight: 500, borderRadius: '7px', border: 'none', background: TOKENS.brandLight, color: TOKENS.brand, cursor: 'pointer', fontFamily: 'inherit', minHeight: '32px' };
+const suggestionStyle = { padding: '7px 12px', fontSize: '12px', fontWeight: 500, borderRadius: `${RADIUS2.chip}px`, border: 'none', background: TOKENS.brandLight, color: TOKENS.brand, cursor: 'pointer', fontFamily: 'inherit', minHeight: '32px' };
 const aiButtonStyle = (disabled) => ({
   marginTop: '8px', width: '100%', padding: '9px', fontSize: '12px', fontWeight: 700,
-  borderRadius: '9px', border: `1px solid ${disabled ? '#E5E7EB' : TOKENS.success}`,
+  borderRadius: `${RADIUS2.input}px`, border: `1px solid ${disabled ? '#E5E7EB' : TOKENS.success}`,
   background: disabled ? '#F9FAFB' : '#fff', color: disabled ? '#9CA3AF' : TOKENS.success,
   cursor: disabled ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center',
   justifyContent: 'center', gap: '5px', fontFamily: 'inherit',
 });
-// 메인 액션(저장/발송) — Primary Navy 전용
+// 메인 액션(저장/발송) — Primary Navy 전용. padding은 스펙 섹션 5 "Primary 버튼 padding: 16px(수직)/20px(수평)" 그대로
 const submitButtonStyle = (valid) => ({
-  padding: '14px', fontSize: '14px', fontWeight: 700, borderRadius: '12px', border: 'none',
+  padding: '16px 20px', fontSize: '14px', fontWeight: 700, borderRadius: `${RADIUS2.input}px`, border: 'none',
   background: valid ? TOKENS.brand : '#E5E7EB', color: valid ? '#fff' : '#9CA3AF', cursor: valid ? 'pointer' : 'not-allowed',
   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px',
   fontFamily: 'inherit', boxShadow: valid ? '0 4px 14px rgba(13,45,107,0.28)' : 'none',
 });
 const addStudentButtonStyle = {
   marginTop: '8px', width: '100%', padding: '10px', fontSize: '13px', fontWeight: 700,
-  borderRadius: '9px', border: `1px dashed ${TOKENS.brand}`, background: TOKENS.brandLight, color: TOKENS.brand,
+  borderRadius: `${RADIUS2.input}px`, border: `1px dashed ${TOKENS.brand}`, background: TOKENS.brandLight, color: TOKENS.brand,
   cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
   gap: '5px', fontFamily: 'inherit',
 };
@@ -2138,7 +2138,7 @@ const overlayStyle = {
   justifyContent: 'center', zIndex: 1000, padding: '20px', backdropFilter: 'blur(4px)',
 };
 const modalStyle = {
-  background: '#fff', borderRadius: '18px', width: '100%', maxWidth: '500px',
+  background: '#fff', borderRadius: `${RADIUS2.panel}px`, width: '100%', maxWidth: '500px',
   maxHeight: '90vh', overflow: 'auto', boxShadow: '0 20px 50px rgba(0,0,0,0.2)',
   fontFamily: "'Pretendard Variable', Pretendard, sans-serif",
 };
@@ -2147,7 +2147,7 @@ const modalHeaderStyle = {
   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
 };
 const miniAddButtonStyle = {
-  background: TOKENS.brandLight, color: TOKENS.brand, border: 'none', borderRadius: '5px',
+  background: TOKENS.brandLight, color: TOKENS.brand, border: 'none', borderRadius: `${RADIUS2.chip}px`,
   padding: '3px 9px', fontSize: '11px', fontWeight: 700, cursor: 'pointer',
   fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '2px',
 };
