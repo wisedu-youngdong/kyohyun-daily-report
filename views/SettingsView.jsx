@@ -107,14 +107,18 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
       const academies = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setAcademyList(academies);
       // 통계는 목록보다 느릴 수 있어 별도로 채워넣음 — 목록/토글은 통계 로딩과 무관하게 바로 동작
+      // isDraft:true(자동저장 초안)는 실제 발송된 리포트가 아니므로 건수에서 제외 —
+      // 안 그러면 회수제 청구 시 과다 청구될 수 있음. 리포트 문서는 항상 isDraft를 명시적으로
+      // true/false로 저장하므로(DiagnosticReportInput.jsx) 필드 누락 문서 걱정 없이 == false로 필터링 가능.
       const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
       const stats = await Promise.all(academies.map(async (a) => {
         try {
+          const reportsCol = collection(db, 'academies', a.id, 'reports');
           const [studentCount, teacherCount, reportCount, monthReportCount] = await Promise.all([
             getCountFromServer(collection(db, 'academies', a.id, 'students')),
             getCountFromServer(collection(db, 'academies', a.id, 'teachers')),
-            getCountFromServer(collection(db, 'academies', a.id, 'reports')),
-            getCountFromServer(query(collection(db, 'academies', a.id, 'reports'), where('createdAt', '>=', monthStart))),
+            getCountFromServer(query(reportsCol, where('isDraft', '==', false))),
+            getCountFromServer(query(reportsCol, where('isDraft', '==', false), where('createdAt', '>=', monthStart))),
           ]);
           return {
             id: a.id,
