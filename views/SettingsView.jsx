@@ -1,12 +1,20 @@
 import React from 'react';
-import { auth, db } from '../firebase';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { collection, addDoc, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { db, createUserWithoutSignIn } from '../firebase';
+import { collection, addDoc, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Pencil, AlertTriangle, Check } from 'lucide-react';
 import { T, C } from '../tokens.jsx';
 import { PRESET_SKINS } from './shared.jsx';
 
 const DEFAULT_SKIN_COLOR = '#1A2540';
+
+// ── 학원 ID 슬러그 제안/검증 — "새 학원 추가" 전용
+function slugifyAcademyId(name) {
+  const base = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  return base || `academy-${Date.now().toString(36)}`;
+}
+function isValidAcademyId(id) {
+  return /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(id) && !/^__.*__$/.test(id);
+}
 
 // ── 메인 컬러 → 파생 색상 자동 계산 — SettingsView 전용
 function deriveColors(mainHex) {
@@ -36,7 +44,7 @@ function deriveColors(mainHex) {
   };
 }
 
-export default function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDeleteTeacher, logoUrl, onSaveLogo, onDeleteLogo, academyId, academySkinColor }) {
+export default function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDeleteTeacher, logoUrl, onSaveLogo, onDeleteLogo, academyId, academySkinColor, isPlatformAdmin = false }) {
   // academies/{academyId} 문서에 저장된 값이 있으면 그걸 기준으로, 없으면(마이그레이션 직후 등)
   // 예전 localStorage 값을 폴백으로 사용 — 기기별로 갈리던 색상을 학원 단위로 통일하는 과도기 처리
   const [globalColor, setGlobalColor] = React.useState(() => {
@@ -72,6 +80,21 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
   const [accountResult, setAccountResult] = React.useState('');
   const [accountSuccess, setAccountSuccess] = React.useState(false);
 
+  // 새 학원 추가 (플랫폼 관리자 전용)
+  const [newAcademyName, setNewAcademyName] = React.useState('');
+  const [newAcademyId, setNewAcademyId] = React.useState('');
+  const [academyIdTouched, setAcademyIdTouched] = React.useState(false);
+  const [newDirectorName, setNewDirectorName] = React.useState('');
+  const [newDirectorEmail, setNewDirectorEmail] = React.useState('');
+  const [newDirectorPassword, setNewDirectorPassword] = React.useState('');
+  const [academyCreating, setAcademyCreating] = React.useState(false);
+  const [academyResult, setAcademyResult] = React.useState('');
+  const [academySuccess, setAcademySuccess] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!academyIdTouched) setNewAcademyId(slugifyAcademyId(newAcademyName));
+  }, [newAcademyName, academyIdTouched]);
+
   const handleTeacherNameSave = async (teacher) => {
     if (!editingTeacherName.trim()) return;
     await onSaveTeacher({ ...teacher, name: editingTeacherName.trim() });
@@ -88,14 +111,16 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
     setAccountCreating(true);
     setAccountResult('');
     try {
-      // 1. Firebase Auth 계정 생성
-      const cred = await createUserWithEmailAndPassword(auth, newTeacherEmail, newTeacherPassword);
+      // 1. Firebase Auth 계정 생성 — 관리자 본인 세션을 안 바꾸는 헬퍼 사용
+      //    (createUserWithEmailAndPassword(auth, ...)를 그냥 쓰면 새로 만든 계정으로
+      //    즉시 로그인 세션이 전환돼버리는 SDK 특성이 있어서, 별도 App 인스턴스로 우회)
+      const newUid = await createUserWithoutSignIn(newTeacherEmail, newTeacherPassword);
       // 2. 학원 소속 teachers 서브컬렉션에 강사 추가
       const teacherRef = await addDoc(collection(db, 'academies', academyId, 'teachers'), { name: newTeacherName, createdAt: serverTimestamp() });
       // 3. users/{uid} 고정 경로에 role·academyId 저장 (uid를 문서 ID로 써야
       //    보안 규칙에서 "내 문서인지"를 get()으로 안전하게 확인할 수 있음 — 자동 ID였으면
       //    list 권한을 열어줘야 해서 다른 학원 직원 이메일까지 노출됐을 것)
-      await setDoc(doc(db, 'users', cred.user.uid), { role: 'teacher', teacherId: teacherRef.id, academyId, email: newTeacherEmail, createdAt: serverTimestamp() });
+      await setDoc(doc(db, 'users', newUid), { role: 'teacher', teacherId: teacherRef.id, academyId, email: newTeacherEmail, createdAt: serverTimestamp() });
       setAccountResult(`${newTeacherName} 강사 계정 생성 완료!`);
       setAccountSuccess(true);
       setNewTeacherEmail(''); setNewTeacherPassword(''); setNewTeacherName('');
@@ -105,6 +130,54 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
       setAccountSuccess(false);
     }
     setAccountCreating(false);
+  };
+
+  const handleCreateAcademy = async () => {
+    const trimmedName = newAcademyName.trim();
+    const trimmedId = newAcademyId.trim();
+    if (!trimmedName || !trimmedId || !newDirectorName.trim() || !newDirectorEmail || !newDirectorPassword) {
+      setAcademyResult('모든 항목을 입력해주세요.');
+      setAcademySuccess(false);
+      return;
+    }
+    if (!isValidAcademyId(trimmedId)) {
+      setAcademyResult('학원 ID는 영문 소문자/숫자/하이픈만, 3~63자로 입력해주세요.');
+      setAcademySuccess(false);
+      return;
+    }
+    setAcademyCreating(true);
+    setAcademyResult('');
+    try {
+      // 1. ID 중복 체크 — 가장 흔한 실수를 계정 생성(되돌리기 번거로움) 이전에 걸러냄
+      const existing = await getDoc(doc(db, 'academies', trimmedId));
+      if (existing.exists()) throw new Error('이미 사용 중인 학원 ID입니다.');
+      // 2. 원장 Auth 계정 생성 — 실패 가능성이 가장 높은 단계를 Firestore 쓰기보다 먼저 수행해서,
+      //    여기서 실패하면 Firestore에 아무 흔적도 안 남고 재시도가 항상 깨끗하게 시작되게 함
+      const newUid = await createUserWithoutSignIn(newDirectorEmail, newDirectorPassword);
+      // 3. academies/{id} 브랜딩 문서
+      await setDoc(doc(db, 'academies', trimmedId), {
+        academyName: trimmedName, globalSkinColor: DEFAULT_SKIN_COLOR, createdAt: serverTimestamp(),
+      });
+      // 4. 원장 본인의 teachers 레코드 — 리포트 작성 시 담당 강사(teacherId) 선택이 필수라서,
+      //    직접 리포트를 쓰려면 원장도 강사 레코드가 있어야 함
+      const teacherRef = await addDoc(collection(db, 'academies', trimmedId, 'teachers'), {
+        name: newDirectorName.trim(), createdAt: serverTimestamp(),
+      });
+      // 5. users/{uid} — 이 문서가 있어야 로그인 시 unauthorized 화면을 벗어남
+      await setDoc(doc(db, 'users', newUid), {
+        role: 'director', teacherId: teacherRef.id, academyId: trimmedId, email: newDirectorEmail, createdAt: serverTimestamp(),
+      });
+      setAcademyResult(`${trimmedName} 학원 생성 완료! (ID: ${trimmedId})`);
+      setAcademySuccess(true);
+      setNewAcademyName(''); setNewAcademyId(''); setAcademyIdTouched(false);
+      setNewDirectorName(''); setNewDirectorEmail(''); setNewDirectorPassword('');
+    } catch (e) {
+      const msg = e.code === 'auth/email-already-in-use' ? '이미 사용 중인 이메일입니다.'
+        : e.code === 'auth/weak-password' ? '비밀번호는 6자 이상이어야 합니다.' : e.message;
+      setAcademyResult(`오류: ${msg}`);
+      setAcademySuccess(false);
+    }
+    setAcademyCreating(false);
   };
 
   const saveGlobalColor = async () => {
@@ -311,6 +384,30 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
           </div>
         </div>
       </div>
+
+      {/* 새 학원 추가 — 플랫폼 관리자 전용 */}
+      {isPlatformAdmin && (
+        <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB', marginBottom: '14px' }}>
+          <p style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>새 학원 추가</p>
+          <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 500, marginBottom: '14px' }}>분양할 학원의 데이터 공간과 첫 원장 계정을 만듭니다.</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <input value={newAcademyName} onChange={e => setNewAcademyName(e.target.value)} placeholder="학원 이름 (예: 데카르트학원)" style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
+            <input value={newAcademyId} onChange={e => { setNewAcademyId(e.target.value); setAcademyIdTouched(true); }} placeholder="학원 ID (영문 소문자/숫자/하이픈)" style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'monospace', outline: 'none' }} />
+            <div style={{ height: '1px', background: '#F3F4F6', margin: '4px 0' }} />
+            <input value={newDirectorName} onChange={e => setNewDirectorName(e.target.value)} placeholder="원장 이름" style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
+            <input value={newDirectorEmail} onChange={e => setNewDirectorEmail(e.target.value)} placeholder="원장 이메일" type="email" style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
+            <input value={newDirectorPassword} onChange={e => setNewDirectorPassword(e.target.value)} placeholder="비밀번호 (6자 이상)" type="password" style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
+            <button onClick={handleCreateAcademy} disabled={academyCreating} style={{ background: academyCreating ? '#E5E7EB' : C.primary, color: '#fff', border: 'none', borderRadius: '10px', padding: '11px', fontSize: '13px', fontWeight: 700, cursor: academyCreating ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+              {academyCreating ? '생성 중...' : '학원 생성'}
+            </button>
+            {academyResult && (
+              <p style={{ fontSize: '12px', margin: 0, padding: '8px 12px', borderRadius: '8px', background: academySuccess ? C.successBg : C.errorBg, color: academySuccess ? C.successDark : C.errorDark, fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                {academySuccess ? <Check size={12} /> : <AlertTriangle size={12} />} {academyResult}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 학생별 스킨 — 요약만. 전체 학생을 나열해봐야 여기선 아무것도 못 하고
           "학생 관리 탭에서 하세요"로 보내던 죽은 목록이라 요약 한 줄로 축약 */}

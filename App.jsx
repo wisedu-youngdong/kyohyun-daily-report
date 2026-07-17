@@ -45,6 +45,7 @@ export default function App() {
   const [userRole, setUserRole] = useState(null);
   const [userTeacherId, setUserTeacherId] = useState(null);
   const [academyId, setAcademyId] = useState(null);
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [unauthorized, setUnauthorized] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [activeSubTab, setActiveSubTab] = useState({ record: 'history', insight: 'director', manage: 'students' });
@@ -129,22 +130,27 @@ export default function App() {
             setUserTeacherId(userData.teacherId || null);
             // platform_admin은 특정 학원에 안 묶임 — academyId 없이도 정상
             setAcademyId(userData.academyId || null);
+            // role과 별개인 추가 권한 — director를 유지한 채로도 플랫폼 관리 기능을 켤 수 있음
+            setIsPlatformAdmin(userData.isPlatformAdmin === true);
           } else {
             setUserRole(null);
             setUserTeacherId(null);
             setAcademyId(null);
+            setIsPlatformAdmin(false);
             setUnauthorized(true);
           }
         } catch (e) {
           setUserRole(null);
           setUserTeacherId(null);
           setAcademyId(null);
+          setIsPlatformAdmin(false);
           setUnauthorized(true);
         }
       } else {
         setUserRole(null);
         setUserTeacherId(null);
         setAcademyId(null);
+        setIsPlatformAdmin(false);
       }
       setAuthLoading(false);
     });
@@ -635,7 +641,7 @@ export default function App() {
                 : <SkeletonBlock rows={5} cardHeight={56} />
               )}
               {activeSubTab.manage === 'settings' && (dataReady
-                ? <SettingsView students={students} onSaveStudent={handleSaveStudent} teachers={teachers} onSaveTeacher={handleSaveTeacher} onDeleteTeacher={handleDeleteTeacher} logoUrl={logoUrl} onSaveLogo={handleSaveLogo} onDeleteLogo={handleDeleteLogo} academyId={academyId} academySkinColor={academySkinColor} />
+                ? <SettingsView students={students} onSaveStudent={handleSaveStudent} teachers={teachers} onSaveTeacher={handleSaveTeacher} onDeleteTeacher={handleDeleteTeacher} logoUrl={logoUrl} onSaveLogo={handleSaveLogo} onDeleteLogo={handleDeleteLogo} academyId={academyId} academySkinColor={academySkinColor} isPlatformAdmin={isPlatformAdmin} />
                 : <SkeletonBlock rows={4} cardHeight={70} />
               )}
             </div>

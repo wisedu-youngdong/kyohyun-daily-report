@@ -8,7 +8,7 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
     function isPlatformAdmin() {
-      return isSignedIn() && myProfile().role == 'platform_admin';
+      return isSignedIn() && myProfile().isPlatformAdmin == true;
     }
     function isStaffOfAcademy(academyId) {
       return isSignedIn() && (isPlatformAdmin() || myProfile().academyId == academyId);
