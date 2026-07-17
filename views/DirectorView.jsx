@@ -151,7 +151,7 @@ export default function DirectorView({ reports, students, reportViews = [], onTo
         </div>
       </div>
 
-      <p style={{ fontSize: '13px', fontWeight: 600, color: '#5A6472', margin: '0 0 14px' }}>{fmtDate(selectedDate)}</p>
+      <p style={{ fontSize: '16px', fontWeight: 700, color: '#5A6472', margin: '0 0 14px' }}>{fmtDate(selectedDate)}</p>
 
       {/* 핵심 지표 — 0은 옅게, 미작성 건수만 경고색으로 눈에 띄게 */}
       <div style={{ display: 'flex', gap: '28px', flexWrap: 'wrap', background: '#FAFBFC', border: '1px solid #EEF0F3', borderRadius: '14px', padding: '16px 18px', marginBottom: '20px' }}>
