@@ -4,7 +4,7 @@
 - 학원 학부모 리포트 자동 생성 웹앱
 - 배포: https://kyohyun-daily-report.vercel.app
 - 스택: React + Vite + Firebase (Firestore/Storage) + Vercel Serverless Functions
-- AI: Gemini 2.5 Pro (사진 채점 분석), Anthropic API (코멘트 다듬기)
+- AI: Gemini 2.5 Pro (사진 채점 분석), Gemini 2.5 Flash (코멘트 다듬기) — 둘 다 GEMINI_API_KEY 하나로 동작, Anthropic API는 안 씀
 
 ## 파일 구조
 - `App.jsx` (~3800줄): 메인 앱, 학생/강사 관리, 대시보드, 라우팅
