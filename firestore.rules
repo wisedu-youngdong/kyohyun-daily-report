@@ -7,13 +7,16 @@ service cloud.firestore {
     function myProfile() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
+    // .get(key, default) 안전 접근 — 닷 표기(myProfile().isPlatformAdmin)는 그 필드가 아예
+    // 없는 문서(isPlatformAdmin 플래그를 부여받은 적 없는 일반 강사/원장 계정 전부)에서
+    // "Property is undefined" 평가 오류를 던져 로그인 자체가 막히는 실제 버그였음.
     function isPlatformAdmin() {
-      return isSignedIn() && myProfile().isPlatformAdmin == true;
+      return isSignedIn() && myProfile().get('isPlatformAdmin', false) == true;
     }
     // 이용 정지(status == 'suspended')된 학원의 직원은 학원 데이터 접근 불가.
     // 학부모용 공개 경로(reports/students의 get 등)는 이 함수를 안 타므로 정지와 무관하게 계속 열림.
     function academyNotSuspended(academyId) {
-      return get(/databases/$(database)/documents/academies/$(academyId)).data.status != 'suspended';
+      return get(/databases/$(database)/documents/academies/$(academyId)).data.get('status', 'active') != 'suspended';
     }
     function isStaffOfAcademy(academyId) {
       return isSignedIn() && (
