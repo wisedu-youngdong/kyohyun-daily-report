@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { auth } from '../firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { R } from '../tokens.jsx';
 
 // 로그인 화면 — "공식 문서·성적표 톤" 컨셉(레터헤드 + 네이비 상단 라인).
@@ -14,17 +14,37 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resetMessage, setResetMessage] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setResetMessage('');
     try {
       await signInWithEmailAndPassword(auth, email, password);
     } catch (err) {
       setError('이메일 또는 비밀번호가 올바르지 않습니다.');
     }
     setLoading(false);
+  };
+
+  const handleResetPassword = async () => {
+    if (!email) {
+      setError('비밀번호를 재설정하려면 이메일을 먼저 입력해주세요.');
+      return;
+    }
+    setResetLoading(true);
+    setError('');
+    setResetMessage('');
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setResetMessage('비밀번호 재설정 링크를 이메일로 보냈습니다. 메일함을 확인해주세요.');
+    } catch (err) {
+      setError('재설정 이메일 발송에 실패했습니다. 이메일 주소를 확인해주세요.');
+    }
+    setResetLoading(false);
   };
 
   const inputStyle = {
@@ -88,6 +108,11 @@ export default function LoginScreen() {
               {error}
             </p>
           )}
+          {resetMessage && (
+            <p style={{ fontSize: '12px', fontWeight: 600, color: '#0F6E56', margin: '0 0 16px', background: '#E1F5EE', padding: '8px 12px', borderRadius: '6px' }}>
+              {resetMessage}
+            </p>
+          )}
           <button type="submit" disabled={loading}
             onMouseEnter={(e) => { if (!loading) e.currentTarget.style.background = '#0A2456'; }}
             onMouseLeave={(e) => { if (!loading) e.currentTarget.style.background = R.navy; }}
@@ -100,7 +125,17 @@ export default function LoginScreen() {
             }}>
             {loading ? '로그인 중...' : '로그인'}
           </button>
-          <p style={{ fontSize: '11px', fontWeight: 500, color: R.inkMute, textAlign: 'center', margin: '20px 0 0', paddingTop: '16px', borderTop: `1px dashed ${R.rule}`, letterSpacing: '0.02em' }}>
+          <p style={{ textAlign: 'center', margin: '14px 0 0' }}>
+            <button type="button" onClick={handleResetPassword} disabled={resetLoading}
+              style={{
+                background: 'none', border: 'none', padding: 0, fontSize: '12px', fontWeight: 600,
+                color: R.inkMute, textDecoration: 'underline', cursor: resetLoading ? 'not-allowed' : 'pointer',
+                fontFamily: R.body,
+              }}>
+              {resetLoading ? '발송 중...' : '비밀번호를 잊으셨나요?'}
+            </button>
+          </p>
+          <p style={{ fontSize: '11px', fontWeight: 500, color: R.inkMute, textAlign: 'center', margin: '14px 0 0', paddingTop: '16px', borderTop: `1px dashed ${R.rule}`, letterSpacing: '0.02em' }}>
             학원 관리자 전용 시스템입니다
           </p>
         </form>
