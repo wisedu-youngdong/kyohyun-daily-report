@@ -50,7 +50,7 @@ export default async function handler(req, res) {
   const unitText = unit ? ` · ${unit}` : '';
 
   // OG 이미지 URL — api/og에 학생 이름 전달
-  const ogImg = `https://kyohyun-daily-report.vercel.app/api/og?title=${encodeURIComponent(studentName + ' 학생 리포트')}&sub=${encodeURIComponent(dateStr + unitText)}`;
+  const ogImg = `https://dailyreportsystem.co.kr/api/og?title=${encodeURIComponent(studentName + ' 학생 리포트')}&sub=${encodeURIComponent(dateStr + unitText)}`;
 
   const html = `<!DOCTYPE html>
 <html lang="ko">
@@ -66,7 +66,7 @@ export default async function handler(req, res) {
   <meta property="og:image" content="${ogImg}" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
-  <meta property="og:url" content="https://kyohyun-daily-report.vercel.app/report/${id}" />
+  <meta property="og:url" content="https://dailyreportsystem.co.kr/report/${id}" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="${title}" />
   <meta name="twitter:description" content="${desc}" />
