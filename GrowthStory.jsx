@@ -42,6 +42,7 @@ export default function GrowthStory() {
   const [narLoading, setNarLoading] = useState(false);
   const [editing, setEditing] = useState(null);
   const [showAllUnits, setShowAllUnits] = useState(false);
+  const [showAllSessions, setShowAllSessions] = useState(false);
   const [editText, setEditText] = useState('');
 
   // 기간 토글 — URL 파라미터 연동
@@ -325,6 +326,7 @@ export default function GrowthStory() {
           diagTags,
           notePreview,
           hwDelta,
+          photoUrl: r.photoUrls?.[0] || null,
         },
       });
     });
@@ -473,11 +475,17 @@ export default function GrowthStory() {
       {/* GROWTH MILESTONE */}
       <div style={S.section}>
         <p style={S.label}>GROWTH MILESTONE</p>
+        {milestones.length > 0 && sorted.length > milestones.length && (
+          <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '-10px 0 16px', lineHeight: 1.6 }}>
+            총 {sorted.length}회 수업 중 의미 있었던 {milestones.length}개의 순간을 모았어요
+          </p>
+        )}
         {milestones.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '24px 0', color: '#9CA3AF', fontSize: '13px' }}>
             리포트가 쌓이면 성장 마일스톤이 자동으로 생성됩니다
           </div>
         ) : (
+        <>
         <div style={{ position: 'relative', paddingLeft: '28px' }}>
           <div style={{ position: 'absolute', left: '7px', top: '8px', bottom: '8px', width: '2px', background: 'linear-gradient(to bottom, #0D2D6B, #C9A227)', borderRadius: '2px' }} />
           {milestones.map((m, i) => {
@@ -542,9 +550,16 @@ export default function GrowthStory() {
                   )}
                   {/* 코멘트 미리보기 */}
                   {m.realData.notePreview && (
-                    <p style={{ fontSize: '12px', color: '#6B7280', margin: '0', lineHeight: 1.6, fontStyle: 'italic' }}>
+                    <p style={{ fontSize: '12px', color: '#6B7280', margin: m.realData.photoUrl ? '0 0 6px' : '0', lineHeight: 1.6, fontStyle: 'italic' }}>
                       "{m.realData.notePreview}"
                     </p>
+                  )}
+                  {/* 그 순간의 사진 — 있으면 한 장만 대표로 보여줌 */}
+                  {m.realData.photoUrl && (
+                    <a href={m.realData.photoUrl} target="_blank" rel="noopener noreferrer">
+                      <img src={m.realData.photoUrl} alt="수업 사진"
+                        style={{ width: '64px', height: '64px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #E5E7EB', display: 'block' }} />
+                    </a>
                   )}
                 </div>
               )}
@@ -576,6 +591,39 @@ export default function GrowthStory() {
             );
           })}
         </div>
+
+        {/* 요약에 안 들어간 나머지 회차를 원하는 학부모를 위한 전체 목록 — 스토리는 깔끔하게 두고 여기서만 펼침 */}
+        {sorted.length > milestones.length && (
+          <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px dashed #E5E7EB' }}>
+            <button onClick={() => setShowAllSessions(v => !v)}
+              style={{ width: '100%', padding: '9px', fontSize: '11px', fontWeight: 700, color: '#0D2D6B', background: '#F0F7FC', border: '1px solid #E6F1FB', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit' }}>
+              {showAllSessions ? '접기' : `전체 ${sorted.length}회 리포트 보기`}
+            </button>
+            {showAllSessions && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '10px' }}>
+                {sorted.map((r, ri) => {
+                  const cleanNote = (r.teacherNote || '').replace(/\[([^\]]+)\]\s*/g, '').trim();
+                  return (
+                    <div key={r.id || ri} style={{ display: 'flex', gap: '8px', padding: '8px 10px', background: '#F9FAFB', borderRadius: '8px' }}>
+                      <span style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: 600, flexShrink: 0, width: '44px' }}>{fmtDate(r)}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: '11px', color: '#374151', fontWeight: 600, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {[r.textbook, r.unit].filter(Boolean).join(' · ') || '수업'}
+                        </p>
+                        {cleanNote && (
+                          <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {cleanNote}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+        </>
         )}
       </div>
 
