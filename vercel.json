@@ -12,6 +12,17 @@
       ]
     },
     {
+      "source": "/story/:id",
+      "destination": "/api/story-og?id=:id",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(facebookexternalhit|twitterbot|LinkedInBot|Slackbot|TelegramBot|WhatsApp|Naverbot|Yeti|DaumMoaBot|Googlebot|bingbot|[Kk]akaotalk-scrap|crawler|spider|bot).*"
+        }
+      ]
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
