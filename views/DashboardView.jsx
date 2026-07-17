@@ -3,14 +3,19 @@ import { kstDay, isReportSent } from '../growth.js';
 import { T, C, RADIUS2 } from '../tokens.jsx';
 import { AVATARS, StatCard } from './shared.jsx';
 
-export default function DashboardView({ students, reports, onTabChange, onWriteFor, reviews = [], onCompleteReview }) {
+export default function DashboardView({ students, reports, classes = [], onTabChange, onWriteFor, reviews = [], onCompleteReview }) {
   // 발송 완료 판정 + 날짜 비교 — 리포트 탭 상태바/원장 보고서와 동일한 공용 기준(growth.js) 사용
   const todayKst = kstDay(Date.now() / 1000);
   const todayReports = reports.filter(r => r.createdAt?.seconds && isReportSent(r) && kstDay(r.createdAt.seconds) === todayKst);
 
+  const [classFilter, setClassFilter] = React.useState('');
+  const filteredStudents = classFilter
+    ? students.filter(s => classFilter === '__unassigned__' ? !s.classId : s.classId === classFilter)
+    : students;
+
   const doneOf = (s) => todayReports.some(r => r.studentId === s.id);
-  // 대기 학생을 먼저 — 할 일이 완료된 학생들 사이에 묻히지 않도록
-  const orderedStudents = [...students].sort((a, b) =>
+  // 대기 학생을 먼저 — 할 일이 완료된 학생들 사이에 묻히지 않도록 (반 필터와 무관하게 항상 유지)
+  const orderedStudents = [...filteredStudents].sort((a, b) =>
     (doneOf(a) === doneOf(b) ? (a.name || '').localeCompare(b.name || '') : (doneOf(a) ? 1 : -1))
   );
   const pendingCount = students.length - todayReports.length;
@@ -67,17 +72,29 @@ export default function DashboardView({ students, reports, onTabChange, onWriteF
       })()}
 
       <div style={{ background: T.bg, borderRadius: '16px', border: `1px solid ${T.border}`, overflow: 'hidden' }}>
-        <div style={{ padding: '14px 18px', borderBottom: `1px solid #F3F4F6`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: '14px 18px', borderBottom: `1px solid #F3F4F6`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <h3 style={{ fontSize: '13px', fontWeight: 700 }}>오늘 학생 현황</h3>
-          <button onClick={() => onTabChange('write')} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: `${RADIUS2.input}px`, padding: '6px 14px', fontSize: '12px', fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}>리포트 작성</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {classes.length > 0 && (
+              <select value={classFilter} onChange={e => setClassFilter(e.target.value)}
+                style={{ padding: '6px 10px', fontSize: '12px', fontWeight: 600, borderRadius: `${RADIUS2.input}px`, border: `1px solid ${T.border}`, background: '#fff', color: T.text, fontFamily: 'inherit', cursor: 'pointer' }}>
+                <option value="">전체 반</option>
+                <option value="__unassigned__">미배정</option>
+                {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            )}
+            <button onClick={() => onTabChange('write')} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: `${RADIUS2.input}px`, padding: '6px 14px', fontSize: '12px', fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}>리포트 작성</button>
+          </div>
         </div>
-        {students.length === 0
+        {orderedStudents.length === 0
           ? (
             <div style={{ padding: '40px 20px', textAlign: 'center' }}>
-              <p style={{ color: T.textSub, fontSize: '13px', margin: '0 0 12px' }}>등록된 학생이 없습니다</p>
-              <button onClick={() => onTabChange('write')} style={{ background: C.primaryLight, color: C.primary, border: 'none', borderRadius: `${RADIUS2.input}px`, padding: '8px 16px', fontSize: '12px', fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}>
-                + 첫 학생 등록하기
-              </button>
+              <p style={{ color: T.textSub, fontSize: '13px', margin: '0 0 12px' }}>{students.length === 0 ? '등록된 학생이 없습니다' : '해당 반에 학생이 없습니다'}</p>
+              {students.length === 0 && (
+                <button onClick={() => onTabChange('write')} style={{ background: C.primaryLight, color: C.primary, border: 'none', borderRadius: `${RADIUS2.input}px`, padding: '8px 16px', fontSize: '12px', fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}>
+                  + 첫 학생 등록하기
+                </button>
+              )}
             </div>
           )
           : orderedStudents.map(s => {

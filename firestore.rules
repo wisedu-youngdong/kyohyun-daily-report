@@ -56,6 +56,9 @@ service cloud.firestore {
     match /academies/{academyId}/teachers/{docId} {
       allow read, write: if isStaffOfAcademy(academyId);
     }
+    match /academies/{academyId}/classes/{docId} {
+      allow read, write: if isStaffOfAcademy(academyId);
+    }
     match /academies/{academyId}/reviews/{docId} {
       allow read, write: if isStaffOfAcademy(academyId);
     }

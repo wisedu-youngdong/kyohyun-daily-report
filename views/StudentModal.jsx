@@ -45,7 +45,7 @@ const miniAddButtonStyle = {
 // 학생 등록/수정 모달 — student prop 유무로 모드 전환.
 // 등록은 빠른 입력을 위해 필수 정보만, 수정은 아바타/스킨 커스터마이징까지 노출.
 // (예전엔 StudentModal(등록)과 StudentEditModal(수정) 두 벌로 거의 같은 폼이 중복돼 있었음)
-export function StudentModal({ student, onClose, onSubmit, teachers = [], isDirector = false }) {
+export function StudentModal({ student, onClose, onSubmit, teachers = [], classes = [], isDirector = false }) {
   const isEdit = !!student;
   const [name, setName] = useState(student?.name || '');
   const [school, setSchool] = useState(student?.school || '');
@@ -58,6 +58,7 @@ export function StudentModal({ student, onClose, onSubmit, teachers = [], isDire
   // 다른 항목만 수정해도 재학생으로 확정돼, 리포트 수 기반 자동 판정 폴백이 영구히 꺼짐
   const [studentType, setStudentType] = useState(isEdit ? (student.studentType || '') : 'new');
   const [assignedTeacherId, setAssignedTeacherId] = useState(student?.assignedTeacherId || '');
+  const [classId, setClassId] = useState(student?.classId || '');
   // 아바타/스킨은 수정 모드 전용 — 등록은 필수 정보만 빠르게 채우고, 커스터마이징은 나중에 수정에서
   const [avatar, setAvatar] = useState(student?.avatar || '');
   const [skinColor, setSkinColor] = useState(student?.skinColor || '');
@@ -71,9 +72,14 @@ export function StudentModal({ student, onClose, onSubmit, teachers = [], isDire
   const updateTextbook = (id, value) => setTextbooks(prev => prev.map(t => t.id === id ? { ...t, name: value } : t));
   const removeTextbook = (id) => { if (textbooks.length > 1) setTextbooks(prev => prev.filter(t => t.id !== id)); };
 
+  // 반이 선택되면 그 반의 담당 강사를 그대로 씀 — "반이 강사를 결정한다"를 제출 시점에 확정
+  // (classId 바뀔 때마다 assignedTeacherId를 useEffect로 동기화하면 이전 상태가 잠깐
+  // 남아있는 타이밍에 저장될 수 있어서, 제출 시점에 한 번만 계산)
+  const selectedClass = classes.find(c => c.id === classId);
   const handleSubmit = async () => {
     if (!isValid) return;
     setSaving(true);
+    const effectiveTeacherId = classId ? (selectedClass?.teacherId || '') : assignedTeacherId;
     const payload = {
       name: name.trim(), school: school.trim(), parentPhone: parentPhone.trim(),
       memo: memo.trim(), textbooks: textbooks.filter(t => t.name.trim()),
@@ -81,12 +87,14 @@ export function StudentModal({ student, onClose, onSubmit, teachers = [], isDire
     if (isEdit) {
       payload.avatar = avatar;
       payload.skinColor = useCustomSkin ? skinColor : '';
-      payload.assignedTeacherId = assignedTeacherId || '';
+      payload.classId = classId || '';
+      payload.assignedTeacherId = effectiveTeacherId || '';
       // 미선택(레거시 학생)이면 필드를 아예 보내지 않아 자동 판정 폴백을 유지
       if (studentType) payload.studentType = studentType;
     } else {
       payload.studentType = studentType;
-      if (assignedTeacherId) payload.assignedTeacherId = assignedTeacherId;
+      if (classId) payload.classId = classId;
+      if (effectiveTeacherId) payload.assignedTeacherId = effectiveTeacherId;
     }
     await onSubmit(payload);
     setSaving(false);
@@ -94,7 +102,9 @@ export function StudentModal({ student, onClose, onSubmit, teachers = [], isDire
 
   // 담당 강사 재배정은 원장만 — 강사가 다른 강사에게 학생을 재배정할 수 있으면 안 돼서
   // 등록/수정 모드 둘 다 isDirector로 통일 (예전엔 수정 모드만 원장/강사 구분 없이 노출되던 구멍이 있었음)
-  const showTeacherPicker = teachers.length > 0 && isDirector;
+  const showClassPicker = classes.length > 0 && isDirector;
+  // 반이 있으면 담당 강사는 반이 자동으로 결정 — 직접 고르는 건 반 없는 학생만
+  const showTeacherPicker = teachers.length > 0 && isDirector && !classId;
 
   return (
     <div style={overlayStyle} onClick={onClose}>
@@ -152,8 +162,27 @@ export function StudentModal({ student, onClose, onSubmit, teachers = [], isDire
             </div>
           </div>
 
-          {/* 담당 강사 */}
-          {showTeacherPicker && (
+          {/* 반 */}
+          {showClassPicker && (
+            <div style={{ marginBottom: '12px' }}>
+              <FieldLabel>반</FieldLabel>
+              <select value={classId} onChange={(e) => setClassId(e.target.value)} style={selectStyle}>
+                <option value="">미배정 (담당 강사 직접 선택)</option>
+                {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* 담당 강사 — 반이 있으면 반 설정에 따라 자동 배정(읽기 전용), 반이 없을 때만 직접 선택 */}
+          {classId ? (
+            <div style={{ marginBottom: '12px' }}>
+              <FieldLabel>담당 강사</FieldLabel>
+              <div style={{ ...inputStyle, background: '#F3F4F6', color: '#6B7280', cursor: 'default' }}>
+                {teachers.find(t => t.id === selectedClass?.teacherId)?.name || '담당 강사 미지정'}
+                <span style={{ marginLeft: '6px', fontSize: '11px', color: '#9CA3AF' }}>(반 설정에 따라 자동 배정)</span>
+              </div>
+            </div>
+          ) : showTeacherPicker && (
             <div style={{ marginBottom: '12px' }}>
               <FieldLabel>담당 강사</FieldLabel>
               <select value={assignedTeacherId} onChange={(e) => setAssignedTeacherId(e.target.value)} style={selectStyle}>

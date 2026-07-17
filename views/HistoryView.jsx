@@ -4,10 +4,11 @@ import { toPct } from '../growth.js';
 import { useMediaQuery } from '../hooks.js';
 import { C } from '../tokens.jsx';
 
-export default function HistoryView({ reports, students, reportViews = [], onDelete, onEdit, onBulkDelete }) {
+export default function HistoryView({ reports, students, classes = [], reportViews = [], onDelete, onEdit, onBulkDelete }) {
   const [selectedId, setSelectedId] = useState(null);
   const [deleteConfirmReport, setDeleteConfirmReport] = useState(null);
   const [studentFilter, setStudentFilter] = useState('');
+  const [classFilter, setClassFilter] = useState(''); // '' | '__unassigned__' | classId
   const [searchText, setSearchText] = useState('');
   const [periodFilter, setPeriodFilter] = useState('all');
   const [draftOnly, setDraftOnly] = useState(false);
@@ -33,6 +34,11 @@ export default function HistoryView({ reports, students, reportViews = [], onDel
     .filter(r => {
       if (draftOnly && !r.isDraft) return false;
       if (studentFilter && r.studentId !== studentFilter) return false;
+      if (classFilter) {
+        const st = students.find(s => s.id === r.studentId);
+        if (classFilter === '__unassigned__') { if (st?.classId) return false; }
+        else if (st?.classId !== classFilter) return false;
+      }
       if (periodFilter !== 'all') {
         const ts = r.createdAt?.seconds || 0;
         const cutoff = periodFilter === 'week' ? 7 * 86400 : 30 * 86400;
@@ -143,6 +149,16 @@ export default function HistoryView({ reports, students, reportViews = [], onDel
             {(students||[]).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
         </div>
+        {classes.length > 0 && (
+          <div style={{ marginBottom: '12px' }}>
+            <select value={classFilter} onChange={e => setClassFilter(e.target.value)}
+              style={{ width: '100%', padding: '9px 10px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', background: '#fff' }}>
+              <option value="">전체 반</option>
+              <option value="__unassigned__">미배정</option>
+              {classes.map(cls => <option key={cls.id} value={cls.id}>{cls.name}</option>)}
+            </select>
+          </div>
+        )}
         {renderDraftCleanupBar()}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {filtered.length === 0 && (
@@ -290,6 +306,14 @@ export default function HistoryView({ reports, students, reportViews = [], onDel
               <option value="month">이번 달</option>
             </select>
           </div>
+          {classes.length > 0 && (
+            <select value={classFilter} onChange={e => setClassFilter(e.target.value)}
+              style={{ width: '100%', padding: '6px 8px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '7px', fontFamily: 'inherit', background: '#fff', color: '#374151', boxSizing: 'border-box' }}>
+              <option value="">전체 반</option>
+              <option value="__unassigned__">미배정</option>
+              {classes.map(cls => <option key={cls.id} value={cls.id}>{cls.name}</option>)}
+            </select>
+          )}
           <p style={{ fontSize: '11px', color: '#9CA3AF', margin: 0 }}>{filtered.length}건</p>
         </div>
 

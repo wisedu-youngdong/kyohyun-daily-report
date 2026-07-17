@@ -44,7 +44,7 @@ function deriveColors(mainHex) {
   };
 }
 
-export default function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDeleteTeacher, logoUrl, onSaveLogo, onDeleteLogo, academyId, academySkinColor, isPlatformAdmin = false }) {
+export default function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDeleteTeacher, classes = [], onSaveClass, onDeleteClass, logoUrl, onSaveLogo, onDeleteLogo, academyId, academySkinColor, isPlatformAdmin = false }) {
   // academies/{academyId} 문서에 저장된 값이 있으면 그걸 기준으로, 없으면(마이그레이션 직후 등)
   // 예전 localStorage 값을 폴백으로 사용 — 기기별로 갈리던 색상을 학원 단위로 통일하는 과도기 처리
   const [globalColor, setGlobalColor] = React.useState(() => {
@@ -79,6 +79,26 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
   const [accountCreating, setAccountCreating] = React.useState(false);
   const [accountResult, setAccountResult] = React.useState('');
   const [accountSuccess, setAccountSuccess] = React.useState(false);
+
+  // 반 이름 수정 + 생성
+  const [editingClassId, setEditingClassId] = React.useState(null);
+  const [editingClassName, setEditingClassName] = React.useState('');
+  const [confirmingClassDelete, setConfirmingClassDelete] = React.useState(null);
+  const [newClassName, setNewClassName] = React.useState('');
+  const [newClassTeacherId, setNewClassTeacherId] = React.useState('');
+
+  const handleClassNameSave = async (cls) => {
+    if (!editingClassName.trim()) return;
+    await onSaveClass({ ...cls, name: editingClassName.trim() });
+    setEditingClassId(null);
+    setEditingClassName('');
+  };
+  const handleCreateClass = async () => {
+    if (!newClassName.trim() || !newClassTeacherId) return;
+    await onSaveClass({ name: newClassName.trim(), teacherId: newClassTeacherId });
+    setNewClassName('');
+    setNewClassTeacherId('');
+  };
 
   // 새 학원 추가 (플랫폼 관리자 전용)
   const [newAcademyName, setNewAcademyName] = React.useState('');
@@ -449,6 +469,76 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                 {accountSuccess ? <Check size={12} /> : <AlertTriangle size={12} />} {accountResult}
               </p>
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* 반 관리 — 반을 만들고 담당 강사를 지정. 학생 등록/수정 시 이 반을 고르면 담당 강사가 자동으로 정해짐 */}
+      <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB', marginBottom: '14px' }}>
+        <p style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>반 관리</p>
+        <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 500, marginBottom: '14px' }}>학생을 반으로 묶으면 담당 강사가 자동으로 지정됩니다.</p>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
+          {classes.length === 0 && (
+            <p style={{ fontSize: '12px', color: '#9CA3AF', margin: 0 }}>등록된 반이 없습니다.</p>
+          )}
+          {classes.map(cls => {
+            const classTeacher = teachers.find(t => t.id === cls.teacherId);
+            return (
+              <div key={cls.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#F9FAFB', borderRadius: '10px', padding: '10px 12px' }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: C.primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: C.primary }}>{cls.name?.[0]}</span>
+                </div>
+                {editingClassId === cls.id ? (
+                  <>
+                    <input
+                      value={editingClassName}
+                      onChange={e => setEditingClassName(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleClassNameSave(cls)}
+                      style={{ flex: 1, padding: '6px 10px', fontSize: '16px', border: `1px solid ${C.primary}`, borderRadius: '8px', fontFamily: 'inherit', outline: 'none' }}
+                      autoFocus
+                    />
+                    <button onClick={() => handleClassNameSave(cls)} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 12px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>저장</button>
+                    <button onClick={() => setEditingClassId(null)} style={{ background: '#F3F4F6', color: '#6B7280', border: 'none', borderRadius: '8px', padding: '6px 10px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>취소</button>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: '13px', fontWeight: 600, color: '#1A1A1A', margin: 0 }}>{cls.name}</p>
+                      <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '2px 0 0' }}>{classTeacher ? `담당 ${classTeacher.name}` : '담당 강사 미지정(삭제된 강사)'}</p>
+                    </div>
+                    <button onClick={() => { setEditingClassId(cls.id); setEditingClassName(cls.name); }} style={{ background: C.primaryLight, color: C.primary, border: 'none', borderRadius: '8px', padding: '5px 10px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <Pencil size={11} /> 수정
+                    </button>
+                    <button onClick={() => {
+                      if (confirmingClassDelete === cls.id) {
+                        onDeleteClass(cls.id); setConfirmingClassDelete(null);
+                      } else {
+                        setConfirmingClassDelete(cls.id);
+                        setTimeout(() => setConfirmingClassDelete(prev => prev === cls.id ? null : prev), 3000);
+                      }
+                    }} style={{ background: confirmingClassDelete === cls.id ? '#DC2626' : '#FEF2F2', color: confirmingClassDelete === cls.id ? '#fff' : '#DC2626', border: 'none', borderRadius: '8px', padding: '5px 10px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                      {confirmingClassDelete === cls.id ? '확인 (재클릭)' : '삭제'}
+                    </button>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={{ borderTop: '1px dashed #E5E7EB', paddingTop: '14px' }}>
+          <p style={{ fontSize: '11px', fontWeight: 700, color: '#374151', marginBottom: '10px' }}>새 반 만들기</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <input value={newClassName} onChange={e => setNewClassName(e.target.value)} placeholder="반 이름 (예: 화목반)" style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
+            <select value={newClassTeacherId} onChange={e => setNewClassTeacherId(e.target.value)} style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', background: '#fff', color: '#374151' }}>
+              <option value="">담당 강사 선택</option>
+              {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+            <button onClick={handleCreateClass} disabled={!newClassName.trim() || !newClassTeacherId}
+              style={{ background: (!newClassName.trim() || !newClassTeacherId) ? '#E5E7EB' : '#0F6E56', color: '#fff', border: 'none', borderRadius: '10px', padding: '11px', fontSize: '13px', fontWeight: 700, cursor: (!newClassName.trim() || !newClassTeacherId) ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+              반 만들기
+            </button>
           </div>
         </div>
       </div>

@@ -5,8 +5,9 @@ import { FileText, AlertTriangle, Copy, Bell, CalendarDays } from 'lucide-react'
 import { kstDay, toPct, ratingLabel } from '../growth.js';
 import { C, R } from '../tokens.jsx';
 import { StudentProfileModal } from './StudentProfileModal.jsx';
+import { groupByClassId } from './shared.jsx';
 
-export default function DirectorView({ reports, students, reportViews = [], onToast, academyId }) {
+export default function DirectorView({ reports, students, classes = [], reportViews = [], onToast, academyId }) {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const dateInputRef = React.useRef(null);
   const [expandedId, setExpandedId] = useState(null);
@@ -172,7 +173,16 @@ export default function DirectorView({ reports, students, reportViews = [], onTo
         })}
       </div>
 
-      {/* 학생 카드 목록 — PC에선 2열 그리드, 펼친 카드는 전체 폭 사용 */}
+      {/* 학생 카드 목록 — PC에선 2열 그리드, 펼친 카드는 전체 폭 사용. 반이 있으면 반별 소제목으로 묶음 */}
+      {(() => {
+        const classGroups = classes.length > 0 ? groupByClassId(todayReports, r => r.studentId, students, classes) : null;
+        const cardItems = classGroups
+          ? classGroups.flatMap(g => [
+              { type: 'header', key: `h-${g.classId || 'unassigned'}`, label: g.className, count: g.items.length },
+              ...g.items.map(r => ({ type: 'card', key: r.id, report: r })),
+            ])
+          : todayReports.map(r => ({ type: 'card', key: r.id, report: r }));
+        return (
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: '8px', marginBottom: '14px', alignItems: 'start' }}>
         {todayReports.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '48px 20px', color: '#9CA3AF', background: '#fff', borderRadius: '10px', border: '0.5px solid #E8E6E0', gridColumn: '1 / -1' }}>
@@ -180,7 +190,15 @@ export default function DirectorView({ reports, students, reportViews = [], onTo
             <p style={{ fontSize: '14px', fontWeight: 600, margin: '0 0 4px' }}>이 날짜의 리포트가 없습니다</p>
             <p style={{ fontSize: '12px', margin: 0 }}>다른 날짜를 선택해보세요</p>
           </div>
-        ) : todayReports.map(r => {
+        ) : cardItems.map(item => {
+          if (item.type === 'header') {
+            return (
+              <p key={item.key} style={{ gridColumn: '1 / -1', fontSize: '13px', fontWeight: 700, color: '#5A6472', margin: '10px 0 2px', paddingTop: '4px', borderTop: '1px solid #EEF0F3' }}>
+                {item.label} <span style={{ color: '#9CA3AF', fontWeight: 500 }}>· {item.count}건</span>
+              </p>
+            );
+          }
+          const r = item.report;
           const isOpen = expandedId === r.id;
           const weakDiag = (r.diagnosis || []).filter(d => d.key !== 'perfect');
           const goodDiag = (r.diagnosis || []).filter(d => d.key === 'perfect');
@@ -407,6 +425,8 @@ export default function DirectorView({ reports, students, reportViews = [], onTo
           );
         })}
       </div>
+        );
+      })()}
 
       {/* 진단 집계 */}
       {diagEntries.length > 0 && (

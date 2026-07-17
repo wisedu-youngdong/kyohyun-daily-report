@@ -31,6 +31,24 @@ export const PRESET_SKINS = [
 ];
 
 // ── 통계 카드 — DashboardView/AnalysisView 공용
+// items 배열을 getStudentId로 학생을 찾고, 그 학생의 classId 기준으로 반 목록 순서대로 묶는다.
+// 반이 없거나(classId 없음/삭제된 반) 매칭 안 되는 항목은 마지막 "미배정" 그룹에 모인다.
+// DirectorView/DashboardView 공용 — 반이 하나도 없는 학원에서는 호출부 자체에서 안 쓰면 됨.
+export function groupByClassId(items, getStudentId, students, classes) {
+  const classIds = new Set(classes.map(c => c.id));
+  const buckets = new Map(classes.map(c => [c.id, { classId: c.id, className: c.name, items: [] }]));
+  const unassigned = { classId: null, className: '미배정', items: [] };
+  items.forEach(item => {
+    const st = students.find(s => s.id === getStudentId(item));
+    const cid = st?.classId;
+    if (cid && classIds.has(cid)) buckets.get(cid).items.push(item);
+    else unassigned.items.push(item);
+  });
+  const groups = [...buckets.values()].filter(g => g.items.length > 0);
+  if (unassigned.items.length > 0) groups.push(unassigned);
+  return groups;
+}
+
 export function StatCard({ label, value, unit, color = C.midGray }) {
   return (
     <div style={{ background: '#fff', borderRadius: `${RADIUS2.card}px`, padding: '16px', border: `1px solid #E5E7EB` }}>

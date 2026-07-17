@@ -6,7 +6,7 @@ import { StudentModal } from './StudentModal.jsx';
 import { AVATARS } from './shared.jsx';
 import { StudentProfileModal } from './StudentProfileModal.jsx';
 
-export default function StudentsView({ students, reports, onSave, onDelete, onRestore, teachers = [], currentTeacherId = null, isDirector = false, onToast }) {
+export default function StudentsView({ students, reports, onSave, onDelete, onRestore, teachers = [], classes = [], currentTeacherId = null, isDirector = false, onToast }) {
   const [showAddStudent, setShowAddStudent] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
@@ -84,6 +84,7 @@ export default function StudentsView({ students, reports, onSave, onDelete, onRe
       {showAddStudent && (
         <StudentModal
           teachers={teachers}
+          classes={classes}
           isDirector={isDirector}
           onClose={() => setShowAddStudent(false)}
           onSubmit={async (newStudent) => {
@@ -258,6 +259,7 @@ export default function StudentsView({ students, reports, onSave, onDelete, onRe
         <StudentModal
           student={editingStudent}
           teachers={teachers}
+          classes={classes}
           isDirector={isDirector}
           onClose={() => setEditingStudent(null)}
           onSubmit={async (updated) => {

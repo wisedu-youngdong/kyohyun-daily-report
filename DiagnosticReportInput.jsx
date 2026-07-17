@@ -225,6 +225,7 @@ function guessCourseKey(subject, school) {
 export default function DiagnosticReportInput({
   students = [],
   teachers = [],
+  classes = [],
   reports = [],
   onSaveStudent = async () => {},
   onSaveTeacher = async () => {},
@@ -858,7 +859,25 @@ export default function DiagnosticReportInput({
               }
             }} style={selectStyle}>
               <option value="">학생을 선택해주세요</option>
-              {students.map(s => <option key={s.id} value={s.id}>{s.name} · {s.school}</option>)}
+              {classes.map(cls => {
+                const inClass = students.filter(s => s.classId === cls.id);
+                if (inClass.length === 0) return null;
+                return (
+                  <optgroup key={cls.id} label={cls.name}>
+                    {inClass.map(s => <option key={s.id} value={s.id}>{s.name} · {s.school}</option>)}
+                  </optgroup>
+                );
+              })}
+              {(() => {
+                const classIds = new Set(classes.map(cls => cls.id));
+                const unassigned = students.filter(s => !s.classId || !classIds.has(s.classId));
+                if (unassigned.length === 0) return null;
+                return (
+                  <optgroup label="미배정">
+                    {unassigned.map(s => <option key={s.id} value={s.id}>{s.name} · {s.school}</option>)}
+                  </optgroup>
+                );
+              })()}
             </select>
             <button onClick={() => setShowStudentModal(true)} style={addStudentButtonStyle}>
               <UserPlus size={13} /> 새 학생 추가
@@ -1634,7 +1653,7 @@ export default function DiagnosticReportInput({
 
       {/* 학생 등록 모달 */}
       {showStudentModal && (
-        <StudentModal onClose={() => setShowStudentModal(false)} onSubmit={handleAddStudent} teachers={teachers} isDirector={isDirector} />
+        <StudentModal onClose={() => setShowStudentModal(false)} onSubmit={handleAddStudent} teachers={teachers} classes={classes} isDirector={isDirector} />
       )}
 
     </div>

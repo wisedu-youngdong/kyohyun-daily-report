@@ -54,6 +54,7 @@ export default function App() {
 
   const [students, setStudents] = useState([]);
   const [teachers, setTeachers] = useState([]);
+  const [classes, setClasses] = useState([]);
   const [reports, setReports] = useState([]);
   const [reportViews, setReportViews] = useState([]);
   const [commentTemplates, setCommentTemplates] = useState([]);
@@ -177,6 +178,10 @@ export default function App() {
         setTeachers(list);
       }
     }, (e) => { console.error('강사 목록 구독 실패:', e); showAppToast('강사 목록을 불러오지 못했습니다.', 'error'); });
+    // 반 — 강사와 달리 빈 목록일 때 자동 시드하지 않음(원장이 명시적으로 만드는 것)
+    const unsubClasses = onSnapshot(collection(db, 'academies', academyId, 'classes'), (snap) => {
+      setClasses(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (e) => { console.error('반 목록 구독 실패:', e); showAppToast('반 목록을 불러오지 못했습니다.', 'error'); });
     const unsubReports = onSnapshot(collection(db, 'academies', academyId, 'reports'), (snap) => {
       setReports(snap.docs.map(d => ({ id: d.id, ...d.data() }))
         .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
@@ -199,7 +204,7 @@ export default function App() {
       setReviews(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     }, (e) => { console.error('복습 일정 구독 실패:', e); });
 
-    return () => { unsubStudents(); unsubTeachers(); unsubReports(); unsubViews(); unsubTemplates(); unsubReviews(); };
+    return () => { unsubStudents(); unsubTeachers(); unsubClasses(); unsubReports(); unsubViews(); unsubTemplates(); unsubReviews(); };
   }, [user, academyId, academyStatus, isPlatformAdmin]);
 
   const handleCompleteReview = async (id) => {
@@ -302,6 +307,23 @@ export default function App() {
     } catch (e) {
       console.error('강사 삭제 실패:', e);
       showAppToast('강사 삭제에 실패했습니다.', 'error');
+    }
+  };
+  const handleSaveClass = async (d) => {
+    try {
+      if (d.id) { const { id, ...data } = d; await updateDoc(doc(db, 'academies', academyId, 'classes', id), data); }
+      else await addDoc(collection(db, 'academies', academyId, 'classes'), { ...d, createdAt: serverTimestamp() });
+    } catch (e) {
+      console.error('반 저장 실패:', e);
+      showAppToast('반 정보 저장에 실패했습니다.', 'error');
+    }
+  };
+  const handleDeleteClass = async (id) => {
+    try {
+      await deleteDoc(doc(db, 'academies', academyId, 'classes', id));
+    } catch (e) {
+      console.error('반 삭제 실패:', e);
+      showAppToast('반 삭제에 실패했습니다.', 'error');
     }
   };
 
@@ -536,7 +558,7 @@ export default function App() {
       <ErrorBoundary key={activeTab} minHeight="400px">
         {activeTab === 'dashboard' && (dataReady
           ? <DashboardView
-              students={visibleStudents} reports={visibleReports} onTabChange={setActiveTab}
+              students={visibleStudents} classes={classes} reports={visibleReports} onTabChange={setActiveTab}
               reviews={isDirector ? reviews : reviews.filter(rv => visibleStudents.some(s => s.id === rv.studentId))}
               onCompleteReview={handleCompleteReview}
               onWriteFor={(student, done) => {
@@ -596,7 +618,7 @@ export default function App() {
               );
             })()}
             <DiagnosticReportInput
-              students={visibleStudents} teachers={teachers}
+              students={visibleStudents} teachers={teachers} classes={classes}
               reports={visibleReports}
               onSaveStudent={handleSaveStudent}
               onSaveTeacher={handleSaveTeacher}
@@ -619,7 +641,7 @@ export default function App() {
             ])}
             <div style={{ marginTop: '12px' }}>
               {activeSubTab.record === 'history' && (dataReady
-                ? <HistoryView reports={visibleReports} students={visibleStudents} reportViews={reportViews} onDelete={handleDeleteReport} onBulkDelete={handleBulkDeleteReports} onEdit={(report) => { setEditingReport(report); setActiveTab('write'); }} />
+                ? <HistoryView reports={visibleReports} students={visibleStudents} classes={classes} reportViews={reportViews} onDelete={handleDeleteReport} onBulkDelete={handleBulkDeleteReports} onEdit={(report) => { setEditingReport(report); setActiveTab('write'); }} />
                 : <SkeletonBlock rows={5} cardHeight={56} />
               )}
             </div>
@@ -633,7 +655,7 @@ export default function App() {
             ], { director: 960, analysis: 600 })}
             <div style={{ marginTop: '12px' }}>
               {activeSubTab.insight === 'director' && (dataReady
-                ? <div><DirectorView reports={reports} students={students} reportViews={reportViews} onToast={showAppToast} academyId={academyId} /><GrowthDashboard reports={reports} students={students} onSwitchTab={setActiveTab} /></div>
+                ? <div><DirectorView reports={reports} students={students} classes={classes} reportViews={reportViews} onToast={showAppToast} academyId={academyId} /><GrowthDashboard reports={reports} students={students} onSwitchTab={setActiveTab} /></div>
                 : <SkeletonBlock rows={4} cardHeight={70} />
               )}
               {activeSubTab.insight === 'analysis' && (dataReady
@@ -651,11 +673,11 @@ export default function App() {
             ], 600)}
             <div style={{ marginTop: '12px' }}>
               {activeSubTab.manage === 'students' && (dataReady
-                ? <StudentsView students={students} reports={reports} onSave={handleSaveStudent} onDelete={handleDeleteStudent} onRestore={handleRestoreStudent} teachers={teachers} currentTeacherId={userTeacherId} isDirector={isDirector} onToast={showAppToast} />
+                ? <StudentsView students={students} reports={reports} onSave={handleSaveStudent} onDelete={handleDeleteStudent} onRestore={handleRestoreStudent} teachers={teachers} classes={classes} currentTeacherId={userTeacherId} isDirector={isDirector} onToast={showAppToast} />
                 : <SkeletonBlock rows={5} cardHeight={56} />
               )}
               {activeSubTab.manage === 'settings' && (dataReady
-                ? <SettingsView students={students} onSaveStudent={handleSaveStudent} teachers={teachers} onSaveTeacher={handleSaveTeacher} onDeleteTeacher={handleDeleteTeacher} logoUrl={logoUrl} onSaveLogo={handleSaveLogo} onDeleteLogo={handleDeleteLogo} academyId={academyId} academySkinColor={academySkinColor} isPlatformAdmin={isPlatformAdmin} />
+                ? <SettingsView students={students} onSaveStudent={handleSaveStudent} teachers={teachers} onSaveTeacher={handleSaveTeacher} onDeleteTeacher={handleDeleteTeacher} classes={classes} onSaveClass={handleSaveClass} onDeleteClass={handleDeleteClass} logoUrl={logoUrl} onSaveLogo={handleSaveLogo} onDeleteLogo={handleDeleteLogo} academyId={academyId} academySkinColor={academySkinColor} isPlatformAdmin={isPlatformAdmin} />
                 : <SkeletonBlock rows={4} cardHeight={70} />
               )}
             </div>
