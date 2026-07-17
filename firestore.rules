@@ -10,8 +10,16 @@ service cloud.firestore {
     function isPlatformAdmin() {
       return isSignedIn() && myProfile().isPlatformAdmin == true;
     }
+    // 이용 정지(status == 'suspended')된 학원의 직원은 학원 데이터 접근 불가.
+    // 학부모용 공개 경로(reports/students의 get 등)는 이 함수를 안 타므로 정지와 무관하게 계속 열림.
+    function academyNotSuspended(academyId) {
+      return get(/databases/$(database)/documents/academies/$(academyId)).data.status != 'suspended';
+    }
     function isStaffOfAcademy(academyId) {
-      return isSignedIn() && (isPlatformAdmin() || myProfile().academyId == academyId);
+      return isSignedIn() && (
+        isPlatformAdmin() ||
+        (myProfile().academyId == academyId && academyNotSuspended(academyId))
+      );
     }
     // GrowthStory.jsx의 비로그인 AI 서사 저장 — narrative 필드만 바뀌는 요청만 허용
     function narrativeOnlyUpdate() {
@@ -31,7 +39,14 @@ service cloud.firestore {
       // 이 문서엔 브랜딩 필드(logoUrl/academyName/globalSkinColor)만 두고,
       // 민감 정보(연락처, 결제 정보 등)는 나중에 academies/{id}/private/* 서브문서로 분리할 것.
       allow read: if true;
-      allow write: if isStaffOfAcademy(academyId);
+      // 생성/삭제는 플랫폼 관리자 전용(새 학원 추가 화면에서만 씀).
+      // 브랜딩 수정은 소속 직원 가능하되 status 필드는 못 건드림 —
+      // 정지된 학원 원장이 자기 학원의 status를 직접 고쳐 정지를 푸는 걸 막는 핵심 장치.
+      allow create, delete: if isPlatformAdmin();
+      allow update: if isPlatformAdmin() || (
+        isStaffOfAcademy(academyId) &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status'])
+      );
     }
 
     // ── 학원 소속 직원 전용 데이터 ──────────────────────

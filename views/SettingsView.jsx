@@ -1,6 +1,6 @@
 import React from 'react';
 import { db, createUserWithoutSignIn } from '../firebase';
-import { collection, addDoc, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, doc, getDoc, getDocs, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Pencil, AlertTriangle, Check } from 'lucide-react';
 import { T, C } from '../tokens.jsx';
 import { PRESET_SKINS } from './shared.jsx';
@@ -95,6 +95,43 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
     if (!academyIdTouched) setNewAcademyId(slugifyAcademyId(newAcademyName));
   }, [newAcademyName, academyIdTouched]);
 
+  // 분양 학원 목록 + 정지/해제 (플랫폼 관리자 전용)
+  const [academyList, setAcademyList] = React.useState([]);
+  const [confirmingSuspend, setConfirmingSuspend] = React.useState(null);
+  const [togglingAcademy, setTogglingAcademy] = React.useState(null);
+
+  const loadAcademies = React.useCallback(async () => {
+    try {
+      const snap = await getDocs(collection(db, 'academies'));
+      setAcademyList(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (e) {
+      console.error('학원 목록 조회 실패:', e);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (isPlatformAdmin) loadAcademies();
+  }, [isPlatformAdmin, loadAcademies]);
+
+  const handleToggleSuspend = async (academy) => {
+    const suspending = academy.status !== 'suspended';
+    // 정지는 파급이 크니 재클릭 확인, 해제는 바로 실행
+    if (suspending && confirmingSuspend !== academy.id) {
+      setConfirmingSuspend(academy.id);
+      setTimeout(() => setConfirmingSuspend(prev => prev === academy.id ? null : prev), 3000);
+      return;
+    }
+    setConfirmingSuspend(null);
+    setTogglingAcademy(academy.id);
+    try {
+      await setDoc(doc(db, 'academies', academy.id), { status: suspending ? 'suspended' : 'active' }, { merge: true });
+      await loadAcademies();
+    } catch (e) {
+      console.error('학원 상태 변경 실패:', e);
+    }
+    setTogglingAcademy(null);
+  };
+
   const handleTeacherNameSave = async (teacher) => {
     if (!editingTeacherName.trim()) return;
     await onSaveTeacher({ ...teacher, name: editingTeacherName.trim() });
@@ -171,6 +208,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
       setAcademySuccess(true);
       setNewAcademyName(''); setNewAcademyId(''); setAcademyIdTouched(false);
       setNewDirectorName(''); setNewDirectorEmail(''); setNewDirectorPassword('');
+      loadAcademies();
     } catch (e) {
       const msg = e.code === 'auth/email-already-in-use' ? '이미 사용 중인 이메일입니다.'
         : e.code === 'auth/weak-password' ? '비밀번호는 6자 이상이어야 합니다.' : e.message;
@@ -405,6 +443,47 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                 {academySuccess ? <Check size={12} /> : <AlertTriangle size={12} />} {academyResult}
               </p>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 분양 학원 관리 — 플랫폼 관리자 전용. 미납 등으로 이용을 정지/재개하는 스위치 */}
+      {isPlatformAdmin && academyList.length > 0 && (
+        <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB', marginBottom: '14px' }}>
+          <p style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>분양 학원 관리</p>
+          <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 500, marginBottom: '14px' }}>
+            정지된 학원은 직원 로그인이 차단됩니다. 학부모에게 이미 공유된 리포트 링크는 계속 열립니다.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {academyList.map(a => {
+              const isMine = a.id === academyId;
+              const suspended = a.status === 'suspended';
+              return (
+                <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#F9FAFB', borderRadius: '10px', padding: '10px 12px' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: '13px', fontWeight: 600, color: '#1A1A1A', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      {a.academyName || a.id}
+                      {isMine && <span style={{ fontSize: '9px', fontWeight: 700, color: '#6B7280', background: '#E5E7EB', padding: '2px 6px', borderRadius: '5px' }}>내 학원</span>}
+                      <span style={{ fontSize: '9px', fontWeight: 700, padding: '2px 6px', borderRadius: '5px', background: suspended ? '#FEF2F2' : '#E1F5EE', color: suspended ? '#DC2626' : '#0F6E56' }}>
+                        {suspended ? '정지됨' : '이용 중'}
+                      </span>
+                    </p>
+                    <p style={{ fontSize: '10px', color: '#9CA3AF', margin: '2px 0 0', fontFamily: 'monospace' }}>{a.id}</p>
+                  </div>
+                  {!isMine && (
+                    <button onClick={() => handleToggleSuspend(a)} disabled={togglingAcademy === a.id}
+                      style={{
+                        background: suspended ? '#E1F5EE' : (confirmingSuspend === a.id ? '#DC2626' : '#FEF2F2'),
+                        color: suspended ? '#0F6E56' : (confirmingSuspend === a.id ? '#fff' : '#DC2626'),
+                        border: 'none', borderRadius: '8px', padding: '6px 12px', fontSize: '11px', fontWeight: 700,
+                        cursor: togglingAcademy === a.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit', flexShrink: 0,
+                      }}>
+                      {togglingAcademy === a.id ? '처리 중...' : suspended ? '이용 재개' : (confirmingSuspend === a.id ? '정지 확인 (재클릭)' : '이용 정지')}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

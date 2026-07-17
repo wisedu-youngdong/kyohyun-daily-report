@@ -65,22 +65,24 @@ export default function App() {
   const appToastTimerRef = React.useRef(null);
   const [logoUrl, setLogoUrl] = useState(null);
   const [academySkinColor, setAcademySkinColor] = useState(null);
+  const [academyStatus, setAcademyStatus] = useState(null);
 
-  // 학원 브랜딩(로고+기본 스킨색) — 로그인 전(비인증) 화면에서도 로고가 보여야 해서 App 최상위에서 구독.
-  // 아직 학원을 URL/서브도메인으로 구분 안 해서(1단계 범위 밖) academyId를 모르는 로그인 전 상태에선
-  // 'kyohyun'으로 하드코딩 — 두 번째 학원이 생기면 그때 실제 테넌트 구분 라우팅을 설계해야 함.
+  // 학원 브랜딩(로고+기본 스킨색)+이용 상태 — 로그인 전(비인증) 화면에서도 로고가 보여야 해서 App 최상위에서 구독.
+  // 로그인 후에는 그 계정의 academyId 학원 문서를 구독(분양학원 원장에게 교현 로고가 보이던 문제 해결),
+  // 로그인 전에는 academyId를 알 수 없어 'kyohyun'으로 폴백 — URL/서브도메인 테넌트 구분은 추후 과제.
   // 권한 규칙상 읽기가 막혀 있어도(비로그인 상태) 조용히 실패하고 기본 "K" 배지로 대체
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, 'academies', 'kyohyun'),
+    const unsub = onSnapshot(doc(db, 'academies', academyId || 'kyohyun'),
       (snap) => {
         const data = snap.exists() ? snap.data() : {};
         setLogoUrl(data.logoUrl || null);
         setAcademySkinColor(data.globalSkinColor || null);
+        setAcademyStatus(data.status || 'active');
       },
-      () => { setLogoUrl(null); setAcademySkinColor(null); }
+      () => { setLogoUrl(null); setAcademySkinColor(null); setAcademyStatus(null); }
     );
     return () => unsub();
-  }, []);
+  }, [academyId]);
 
   const showAppToast = (msg, type = 'success') => {
     if (appToastTimerRef.current) clearTimeout(appToastTimerRef.current);
@@ -159,6 +161,8 @@ export default function App() {
 
   useEffect(() => {
     if (!user || !academyId) return;
+    // 정지된 학원은 데이터 구독을 아예 안 붙임 — 규칙에서도 막히지만, 불필요한 permission-denied 에러 방지
+    if (academyStatus === 'suspended' && !isPlatformAdmin) return;
     setStudentsReady(false);
     setReportsReady(false);
     const unsubStudents = onSnapshot(collection(db, 'academies', academyId, 'students'), (snap) => {
@@ -196,7 +200,7 @@ export default function App() {
     }, (e) => { console.error('복습 일정 구독 실패:', e); });
 
     return () => { unsubStudents(); unsubTeachers(); unsubReports(); unsubViews(); unsubTemplates(); unsubReviews(); };
-  }, [user, academyId]);
+  }, [user, academyId, academyStatus, isPlatformAdmin]);
 
   const handleCompleteReview = async (id) => {
     try {
@@ -428,6 +432,16 @@ export default function App() {
     <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center', justifyContent: 'center', fontFamily: "'Pretendard Variable', Pretendard, sans-serif", padding: '24px', textAlign: 'center' }}>
       <div style={{ color: T.text, fontSize: '15px', fontWeight: 700 }}>이 계정에 연결된 학원 정보가 없습니다.</div>
       <div style={{ color: T.textMute, fontSize: '13px' }}>관리자에게 계정 설정을 문의해주세요.</div>
+      <button onClick={() => signOut(auth)} style={{ marginTop: '8px', padding: '10px 20px', background: T.brand, border: 'none', borderRadius: '8px', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>로그아웃</button>
+    </div>
+  );
+
+  // 이용 정지된 학원 — 직원 화면만 차단. 학부모에게 이미 공유된 공개 리포트/성장스토리 링크는
+  // 공개 read 규칙을 그대로 타므로 정지와 무관하게 계속 열림 (학부모는 잘못이 없으므로).
+  if (academyStatus === 'suspended' && !isPlatformAdmin) return (
+    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center', justifyContent: 'center', fontFamily: "'Pretendard Variable', Pretendard, sans-serif", padding: '24px', textAlign: 'center' }}>
+      <div style={{ color: T.text, fontSize: '15px', fontWeight: 700 }}>서비스 이용이 정지되었습니다.</div>
+      <div style={{ color: T.textMute, fontSize: '13px', lineHeight: 1.7 }}>이용 재개가 필요하시면 서비스 관리자에게 문의해주세요.<br />이미 학부모님께 공유된 리포트 링크는 정상적으로 열립니다.</div>
       <button onClick={() => signOut(auth)} style={{ marginTop: '8px', padding: '10px 20px', background: T.brand, border: 'none', borderRadius: '8px', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>로그아웃</button>
     </div>
   );
