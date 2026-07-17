@@ -133,7 +133,9 @@ export default function DirectorView({ reports, students, reportViews = [], onTo
           <p style={{ fontFamily: R.serif, fontSize: '22px', fontWeight: 800, color: '#1A1A1A', letterSpacing: '-0.01em', margin: 0 }}>원장님 데일리 보고서</p>
         </div>
         <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 700, color: '#374151', borderBottom: '1.5px solid #1A1A1A', paddingBottom: '3px', cursor: 'pointer' }}>
-          <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
+          {/* 크롬 계열 네이티브 달력 아이콘만 1.5배 확대 — 인라인 style로는 의사요소를 못 건드려서 스코프드 style 태그로 처리 */}
+          <style>{`.dv-date-input::-webkit-calendar-picker-indicator { width: 21px; height: 21px; cursor: pointer; }`}</style>
+          <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="dv-date-input"
             style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: '16px', fontFamily: 'inherit', color: 'inherit', fontWeight: 700, cursor: 'pointer', width: '125px' }}
           />
         </label>
