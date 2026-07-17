@@ -90,9 +90,7 @@ export default function GrowthStory() {
 
         const [stuSnap, rSnap] = await Promise.all([
           getDoc(doc(db, 'academies', foundAcademyId, 'students', studentId)),
-          // isDraft==false — 자동저장된 초안(작성 중, 학부모에게 아직 안 나간 리포트)이
-          // 성장스토리 회차 수/마일스톤/전체 목록에 빈 항목으로 섞여 나오는 걸 방지
-          getDocs(query(collection(db, 'academies', foundAcademyId, 'reports'), where('studentId', '==', studentId), where('isDraft', '==', false), limit(200)))
+          getDocs(query(collection(db, 'academies', foundAcademyId, 'reports'), where('studentId', '==', studentId), limit(200)))
         ]);
 
         if (stuSnap.exists()) {
@@ -101,8 +99,12 @@ export default function GrowthStory() {
           if (studentData.narrative) setNarrative(studentData.narrative);
         }
 
+        // isDraft !== true — 자동저장 초안만 제외. Firestore where('isDraft','==',false)로 하면
+        // isDraft 필드 자체가 없는 예전 리포트(기능 추가 이전 작성분)까지 통째로 빠져버려서
+        // (Firestore는 필드 없는 문서를 등호 쿼리에서 항상 제외함) 클라이언트에서 직접 거름.
         const rList = rSnap.docs
           .map(d => ({ id: d.id, ...d.data() }))
+          .filter(r => r.isDraft !== true)
           .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
         setReports(rList);
       } catch (e) {

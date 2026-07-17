@@ -1,6 +1,6 @@
 import React from 'react';
 import { db, createUserWithoutSignIn } from '../firebase';
-import { collection, addDoc, doc, getDoc, getDocs, setDoc, serverTimestamp, query, where, getCountFromServer } from 'firebase/firestore';
+import { collection, addDoc, doc, getDoc, getDocs, setDoc, serverTimestamp, getCountFromServer } from 'firebase/firestore';
 import { Pencil, AlertTriangle, Check } from 'lucide-react';
 import { T, C } from '../tokens.jsx';
 import { PRESET_SKINS } from './shared.jsx';
@@ -107,25 +107,26 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
       const academies = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setAcademyList(academies);
       // 통계는 목록보다 느릴 수 있어 별도로 채워넣음 — 목록/토글은 통계 로딩과 무관하게 바로 동작
-      // isDraft:true(자동저장 초안)는 실제 발송된 리포트가 아니므로 건수에서 제외 —
-      // 안 그러면 회수제 청구 시 과다 청구될 수 있음. 리포트 문서는 항상 isDraft를 명시적으로
-      // true/false로 저장하므로(DiagnosticReportInput.jsx) 필드 누락 문서 걱정 없이 == false로 필터링 가능.
-      const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
+      // isDraft:true(자동저장 초안)는 실제 발송된 리포트가 아니므로 건수에서 제외 — 안 그러면
+      // 회수제 청구 시 과다 청구될 수 있음. Firestore where('isDraft','==',false) 쿼리는 isDraft
+      // 필드 자체가 없는 예전 리포트(기능 추가 이전 작성분)까지 통째로 빠뜨려서 오히려 과소 집계되므로,
+      // 서버 집계 쿼리 대신 리포트를 받아와 클라이언트에서 isDraft !== true로 거른다.
+      const monthStartSec = (() => { const d = new Date(); d.setDate(1); d.setHours(0, 0, 0, 0); return d.getTime() / 1000; })();
       const stats = await Promise.all(academies.map(async (a) => {
         try {
-          const reportsCol = collection(db, 'academies', a.id, 'reports');
-          const [studentCount, teacherCount, reportCount, monthReportCount] = await Promise.all([
+          const [studentCount, teacherCount, reportsSnap] = await Promise.all([
             getCountFromServer(collection(db, 'academies', a.id, 'students')),
             getCountFromServer(collection(db, 'academies', a.id, 'teachers')),
-            getCountFromServer(query(reportsCol, where('isDraft', '==', false))),
-            getCountFromServer(query(reportsCol, where('isDraft', '==', false), where('createdAt', '>=', monthStart))),
+            getDocs(collection(db, 'academies', a.id, 'reports')),
           ]);
+          const realReports = reportsSnap.docs.map(d => d.data()).filter(r => r.isDraft !== true);
+          const monthReports = realReports.filter(r => (r.createdAt?.seconds || 0) >= monthStartSec);
           return {
             id: a.id,
             students: studentCount.data().count,
             teachers: teacherCount.data().count,
-            reports: reportCount.data().count,
-            reportsThisMonth: monthReportCount.data().count,
+            reports: realReports.length,
+            reportsThisMonth: monthReports.length,
           };
         } catch (e) {
           console.error(`${a.id} 통계 조회 실패:`, e);

@@ -26,10 +26,12 @@ export default function GrowthAward() {
         const { academyId } = indexSnap.data();
         const stuSnap = await getDoc(doc(db, 'academies', academyId, 'students', studentId));
         if (stuSnap.exists()) setStudent({ id: stuSnap.id, ...stuSnap.data() });
-        // isDraft==false — 자동저장된 초안이 회차 수/지표에 섞여 나오는 것 방지
-        const rSnap = await getDocs(query(collection(db, 'academies', academyId, 'reports'), where('studentId', '==', studentId), where('isDraft', '==', false), limit(200)));
+        const rSnap = await getDocs(query(collection(db, 'academies', academyId, 'reports'), where('studentId', '==', studentId), limit(200)));
+        // isDraft !== true — 필드 자체가 없는 예전 리포트까지 제외되는 걸 막기 위해 클라이언트에서 거름
+        // (Firestore where('isDraft','==',false)는 필드 없는 문서를 통째로 제외해버림)
         const rList = rSnap.docs
           .map(d => ({ id: d.id, ...d.data() }))
+          .filter(r => r.isDraft !== true)
           .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
         setReports(rList);
       } catch (e) {
