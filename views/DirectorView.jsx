@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { db } from '../firebase';
 import { updateDoc, doc } from 'firebase/firestore';
-import { FileText, AlertTriangle, Copy } from 'lucide-react';
+import { FileText, AlertTriangle, Copy, Bell } from 'lucide-react';
 import { kstDay, toPct, ratingLabel } from '../growth.js';
-import { C } from '../tokens.jsx';
+import { C, R } from '../tokens.jsx';
 import { StudentProfileModal } from './StudentProfileModal.jsx';
 
 export default function DirectorView({ reports, students, reportViews = [], onToast, academyId }) {
@@ -86,79 +86,78 @@ export default function DirectorView({ reports, students, reportViews = [], onTo
         const noReportStudents = students.filter(s => !weekStudentIds.includes(s.id));
 
         return (
-          <div style={{ background: 'linear-gradient(135deg, #0D2D6B, #1A4A8A)', borderRadius: '12px', padding: '16px 20px', marginBottom: '14px', color: '#fff' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px' }}>
-              <div>
-                <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)', letterSpacing: '0.15em', margin: '0 0 2px' }}>이번 주 현황</p>
-                <p style={{ fontSize: '15px', fontWeight: 700, color: '#fff', margin: 0 }}>{weekLabel}</p>
-              </div>
-              <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', marginTop: '4px' }}>
+          <div style={{ background: '#F6F8FC', border: '1px solid #E6EBF4', borderLeft: '3px solid #0D2D6B', borderRadius: '14px', padding: '20px', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '16px' }}>
+              <p style={{ fontSize: '15px', fontWeight: 700, color: '#0D2D6B', margin: 0 }}>이번 주 현황 · {weekLabel}</p>
+              <span style={{ fontSize: '12px', color: '#9CA3AF' }}>
                 {weekStart.getMonth() + 1}/{weekStart.getDate()} 기준
               </span>
             </div>
 
-            {/* 수치 3개 */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: noReportStudents.length > 0 ? '12px' : 0 }}>
+            {/* 수치 3개 — 숫자가 주인공: 카드로 감싸지 않고 큰 숫자만 나란히 */}
+            <div style={{ display: 'flex', gap: '32px', flexWrap: 'wrap' }}>
               {[
-                { label: '리포트', value: `${weekReports.length}건` },
-                { label: '출석률', value: `${attendRate}%` },
-                { label: '미제출', value: `${noReportStudents.length}명`, warn: noReportStudents.length > 0 },
+                { label: '리포트', value: `${weekReports.length}`, unit: '건' },
+                { label: '출석률', value: `${attendRate}`, unit: '%', accent: true },
+                { label: '미제출', value: `${noReportStudents.length}`, unit: '명', warn: noReportStudents.length > 0 },
               ].map((s, i) => (
-                <div key={i} style={{ background: 'rgba(255,255,255,0.08)', borderRadius: '8px', padding: '10px 12px', textAlign: 'center' }}>
-                  <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)', margin: '0 0 4px' }}>{s.label}</p>
-                  <p style={{ fontSize: '20px', fontWeight: 700, color: s.warn ? '#F87171' : '#fff', margin: 0 }}>{s.value}</p>
+                <div key={i}>
+                  <p style={{ fontSize: '34px', fontWeight: 800, letterSpacing: '-0.03em', margin: 0, fontVariantNumeric: 'tabular-nums', color: s.warn ? '#B92C2C' : s.accent ? '#0D2D6B' : '#1A1A1A' }}>
+                    {s.value}<span style={{ fontSize: '16px', fontWeight: 700 }}>{s.unit}</span>
+                  </p>
+                  <p style={{ fontSize: '12px', color: '#9CA3AF', margin: '2px 0 0' }}>{s.label}</p>
                 </div>
               ))}
-            </div>
 
-            {/* 미제출 학생 알림 */}
-            {noReportStudents.length > 0 && (
-              <div style={{ background: 'rgba(248,113,113,0.15)', border: '1px solid rgba(248,113,113,0.3)', borderRadius: '8px', padding: '10px 14px' }}>
-                <p style={{ fontSize: '10px', color: '#F87171', fontWeight: 700, margin: '0 0 6px', letterSpacing: '0.08em' }}>⚠ 이번 주 리포트 미작성</p>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                  {noReportStudents.map(s => (
-                    <span key={s.id} style={{ fontSize: '11px', background: 'rgba(255,255,255,0.1)', padding: '3px 10px', borderRadius: '10px', color: '#fff' }}>
-                      {s.name}
+              {/* 미제출 학생 알림 — 우측 정렬 배지 */}
+              {noReportStudents.length > 0 && (
+                <div style={{ marginLeft: 'auto', alignSelf: 'center', display: 'flex', alignItems: 'center', gap: '9px', background: '#FEF6F5', border: '1px solid #F7DCD8', borderRadius: '14px', padding: '9px 14px' }}>
+                  <Bell size={16} style={{ color: '#B92C2C', flexShrink: 0 }} />
+                  <p style={{ fontSize: '12px', color: '#9CA3AF', margin: 0, lineHeight: 1.4 }}>
+                    리포트 미작성<br />
+                    <span style={{ color: '#1A1A1A', fontSize: '13px', fontWeight: 700 }}>
+                      {noReportStudents.map(s => s.name).join(', ')}
                     </span>
-                  ))}
+                  </p>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         );
       })()}
 
       {/* 헤더 */}
-      <div style={{ background: '#0D2D6B', borderRadius: '4px', padding: '16px 20px', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', marginBottom: '20px' }}>
         <div>
-          <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)', letterSpacing: '0.15em', margin: '0 0 3px' }}>와이즈에듀 교현학원</p>
-          <p style={{ fontSize: '17px', fontWeight: 700, color: '#fff', margin: 0 }}>원장님 데일리 보고서</p>
+          <p style={{ fontSize: '11px', color: '#B0B5BD', letterSpacing: '0.06em', textTransform: 'uppercase', margin: '0 0 4px' }}>학부모 공유</p>
+          <p style={{ fontFamily: R.serif, fontSize: '22px', fontWeight: 800, color: '#1A1A1A', letterSpacing: '-0.01em', margin: 0 }}>원장님 데일리 보고서</p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '8px 14px', background: '#fff', borderRadius: '8px', cursor: 'pointer', boxShadow: '0 1px 4px rgba(0,0,0,0.15)' }}>
-            <span style={{ fontSize: '12px', fontWeight: 700, color: '#0D2D6B' }}>날짜 선택</span>
-            <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
-              style={{ padding: 0, fontSize: '16px', border: 'none', background: 'transparent', color: '#0D2D6B', fontFamily: 'inherit', cursor: 'pointer', fontWeight: 600, width: '125px' }}
-            />
-          </label>
-        </div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 700, color: '#374151', borderBottom: '1.5px solid #1A1A1A', paddingBottom: '3px', cursor: 'pointer' }}>
+          <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
+            style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: '16px', fontFamily: 'inherit', color: 'inherit', fontWeight: 700, cursor: 'pointer', width: '125px' }}
+          />
+        </label>
       </div>
 
-      <p style={{ fontSize: '13px', fontWeight: 600, color: '#5A6472', margin: '0 0 12px' }}>{fmtDate(selectedDate)}</p>
+      <p style={{ fontSize: '13px', fontWeight: 600, color: '#5A6472', margin: '0 0 14px' }}>{fmtDate(selectedDate)}</p>
 
-      {/* 핵심 지표 */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '8px', marginBottom: '14px' }}>
+      {/* 핵심 지표 — 0은 옅게, 미작성 건수만 경고색으로 눈에 띄게 */}
+      <div style={{ display: 'flex', gap: '28px', flexWrap: 'wrap', background: '#FAFBFC', border: '1px solid #EEF0F3', borderRadius: '14px', padding: '16px 18px', marginBottom: '20px' }}>
         {[
-          { label: '총 수업', value: `${todayReports.length}회`, color: C.primary },
-          { label: '정시 출석', value: `${totalOnTime}명`, color: '#0F6E56' },
-          { label: '결석', value: `${totalAbsent}명`, color: totalAbsent > 0 ? C.error : '#98A1AC' },
-          { label: '리포트 미작성', value: `${Math.max(0, students.length - todayReports.length)}건`, color: students.length - todayReports.length > 0 ? C.warningText : '#98A1AC' },
-        ].map((item, i) => (
-          <div key={i} style={{ background: '#fff', border: '0.5px solid #E8E6E0', borderRadius: '10px', padding: '12px', textAlign: 'center' }}>
-            <p style={{ fontSize: '10px', color: '#98A1AC', margin: '0 0 3px', letterSpacing: '0.06em' }}>{item.label}</p>
-            <p style={{ fontSize: '22px', fontWeight: 800, color: item.color, margin: 0, fontVariantNumeric: 'tabular-nums' }}>{item.value}</p>
-          </div>
-        ))}
+          { label: '총 수업', num: todayReports.length, unit: '회' },
+          { label: '정시 출석', num: totalOnTime, unit: '명' },
+          { label: '결석', num: totalAbsent, unit: '명' },
+          { label: '리포트 미작성', num: Math.max(0, students.length - todayReports.length), unit: '건', warnIfNonZero: true },
+        ].map((item, i) => {
+          const isZero = item.num === 0;
+          const color = item.warnIfNonZero && !isZero ? C.warningText : isZero ? '#D4D7DD' : '#1A1A1A';
+          return (
+            <div key={i}>
+              <span style={{ fontSize: '22px', fontWeight: 800, color, fontVariantNumeric: 'tabular-nums' }}>{item.num}</span>
+              <span style={{ fontSize: '12px', color: '#9CA3AF', marginLeft: '5px' }}>{item.label}</span>
+            </div>
+          );
+        })}
       </div>
 
       {/* 학생 카드 목록 — PC에선 2열 그리드, 펼친 카드는 전체 폭 사용 */}
