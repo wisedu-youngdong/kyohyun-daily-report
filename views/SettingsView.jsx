@@ -1,6 +1,6 @@
 import React from 'react';
 import { db, createUserWithoutSignIn } from '../firebase';
-import { collection, addDoc, doc, getDoc, getDocs, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, doc, getDoc, getDocs, setDoc, serverTimestamp, query, where, getCountFromServer } from 'firebase/firestore';
 import { Pencil, AlertTriangle, Check } from 'lucide-react';
 import { T, C } from '../tokens.jsx';
 import { PRESET_SKINS } from './shared.jsx';
@@ -95,15 +95,40 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
     if (!academyIdTouched) setNewAcademyId(slugifyAcademyId(newAcademyName));
   }, [newAcademyName, academyIdTouched]);
 
-  // 분양 학원 목록 + 정지/해제 (플랫폼 관리자 전용)
+  // 분양 학원 목록 + 정지/해제 + 통계 (플랫폼 관리자 전용)
   const [academyList, setAcademyList] = React.useState([]);
+  const [academyStats, setAcademyStats] = React.useState({});
   const [confirmingSuspend, setConfirmingSuspend] = React.useState(null);
   const [togglingAcademy, setTogglingAcademy] = React.useState(null);
 
   const loadAcademies = React.useCallback(async () => {
     try {
       const snap = await getDocs(collection(db, 'academies'));
-      setAcademyList(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const academies = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setAcademyList(academies);
+      // 통계는 목록보다 느릴 수 있어 별도로 채워넣음 — 목록/토글은 통계 로딩과 무관하게 바로 동작
+      const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
+      const stats = await Promise.all(academies.map(async (a) => {
+        try {
+          const [studentCount, teacherCount, reportCount, monthReportCount] = await Promise.all([
+            getCountFromServer(collection(db, 'academies', a.id, 'students')),
+            getCountFromServer(collection(db, 'academies', a.id, 'teachers')),
+            getCountFromServer(collection(db, 'academies', a.id, 'reports')),
+            getCountFromServer(query(collection(db, 'academies', a.id, 'reports'), where('createdAt', '>=', monthStart))),
+          ]);
+          return {
+            id: a.id,
+            students: studentCount.data().count,
+            teachers: teacherCount.data().count,
+            reports: reportCount.data().count,
+            reportsThisMonth: monthReportCount.data().count,
+          };
+        } catch (e) {
+          console.error(`${a.id} 통계 조회 실패:`, e);
+          return { id: a.id, students: null, teachers: null, reports: null, reportsThisMonth: null };
+        }
+      }));
+      setAcademyStats(Object.fromEntries(stats.map(s => [s.id, s])));
     } catch (e) {
       console.error('학원 목록 조회 실패:', e);
     }
@@ -447,17 +472,18 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
         </div>
       )}
 
-      {/* 분양 학원 관리 — 플랫폼 관리자 전용. 미납 등으로 이용을 정지/재개하는 스위치 */}
+      {/* 분양 학원 관리 — 플랫폼 관리자 전용. 학원별 사용량 통계 + 미납 등으로 이용을 정지/재개하는 스위치 */}
       {isPlatformAdmin && academyList.length > 0 && (
         <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB', marginBottom: '14px' }}>
           <p style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>분양 학원 관리</p>
           <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 500, marginBottom: '14px' }}>
-            정지된 학원은 직원 로그인이 차단됩니다. 학부모에게 이미 공유된 리포트 링크는 계속 열립니다.
+            학원별 사용량입니다. 정지된 학원은 직원 로그인이 차단되며, 학부모에게 이미 공유된 리포트 링크는 계속 열립니다.
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {academyList.map(a => {
               const isMine = a.id === academyId;
               const suspended = a.status === 'suspended';
+              const stat = academyStats[a.id];
               return (
                 <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#F9FAFB', borderRadius: '10px', padding: '10px 12px' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -469,6 +495,13 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                       </span>
                     </p>
                     <p style={{ fontSize: '10px', color: '#9CA3AF', margin: '2px 0 0', fontFamily: 'monospace' }}>{a.id}</p>
+                    <p style={{ fontSize: '11px', color: '#6B7280', margin: '5px 0 0', fontWeight: 600 }}>
+                      {stat
+                        ? (stat.students === null
+                            ? '통계 조회 실패'
+                            : `학생 ${stat.students}명 · 강사 ${stat.teachers}명 · 이번 달 리포트 ${stat.reportsThisMonth}건 · 누적 ${stat.reports}건`)
+                        : '통계 불러오는 중...'}
+                    </p>
                   </div>
                   {!isMine && (
                     <button onClick={() => handleToggleSuspend(a)} disabled={togglingAcademy === a.id}
