@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { db } from '../firebase';
 import { updateDoc, doc } from 'firebase/firestore';
-import { FileText, AlertTriangle, Copy, Bell } from 'lucide-react';
+import { FileText, AlertTriangle, Copy, Bell, CalendarDays } from 'lucide-react';
 import { kstDay, toPct, ratingLabel } from '../growth.js';
 import { C, R } from '../tokens.jsx';
 import { StudentProfileModal } from './StudentProfileModal.jsx';
 
 export default function DirectorView({ reports, students, reportViews = [], onToast, academyId }) {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const dateInputRef = React.useRef(null);
   const [expandedId, setExpandedId] = useState(null);
   const [memos, setMemos] = useState({});
   const [savingMemo, setSavingMemo] = useState(null);
@@ -132,13 +133,22 @@ export default function DirectorView({ reports, students, reportViews = [], onTo
           <p style={{ fontSize: '11px', color: '#B0B5BD', letterSpacing: '0.06em', textTransform: 'uppercase', margin: '0 0 4px' }}>학부모 공유</p>
           <p style={{ fontFamily: R.serif, fontSize: '22px', fontWeight: 800, color: '#1A1A1A', letterSpacing: '-0.01em', margin: 0 }}>원장님 데일리 보고서</p>
         </div>
-        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 700, color: '#374151', borderBottom: '1.5px solid #1A1A1A', paddingBottom: '3px', cursor: 'pointer' }}>
-          {/* 크롬 계열 네이티브 달력 아이콘만 1.5배 확대 — 인라인 style로는 의사요소를 못 건드려서 스코프드 style 태그로 처리 */}
-          <style>{`.dv-date-input::-webkit-calendar-picker-indicator { width: 21px; height: 21px; cursor: pointer; }`}</style>
-          <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="dv-date-input"
-            style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: '16px', fontFamily: 'inherit', color: 'inherit', fontWeight: 700, cursor: 'pointer', width: '125px' }}
-          />
-        </label>
+        <div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 700, color: '#374151', borderBottom: '1.5px solid #1A1A1A', paddingBottom: '3px', cursor: 'pointer' }}>
+            {/* 네이티브 달력 아이콘은 확대해도 안에 그림이 안 커져서 휑해 보임 — 아예 숨기고
+                lucide 아이콘으로 대체. 아이콘 클릭 시 showPicker()로 같은 달력을 띄움. */}
+            <style>{`.dv-date-input::-webkit-calendar-picker-indicator { display: none; }`}</style>
+            <input ref={dateInputRef} type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="dv-date-input"
+              style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: '16px', fontFamily: 'inherit', color: 'inherit', fontWeight: 700, cursor: 'pointer', width: '105px' }}
+            />
+            <CalendarDays size={20} strokeWidth={2}
+              onClick={() => dateInputRef.current?.showPicker ? dateInputRef.current.showPicker() : dateInputRef.current?.focus()}
+              style={{ color: '#0D2D6B', cursor: 'pointer', flexShrink: 0 }} />
+          </label>
+          <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '6px 0 0', textAlign: 'right' }}>
+            날짜를 클릭하면 다른 날짜의 보고서를 볼 수 있어요
+          </p>
+        </div>
       </div>
 
       <p style={{ fontSize: '13px', fontWeight: 600, color: '#5A6472', margin: '0 0 14px' }}>{fmtDate(selectedDate)}</p>
@@ -225,29 +235,23 @@ export default function DirectorView({ reports, students, reportViews = [], onTo
                   </div>
                 </div>
 
-                {/* 하단: 교재+단원 / 점수 / 진단태그 / 버튼 */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', paddingLeft: '36px' }}>
-                  {/* 학습 단원 */}
-                  {r.textbook && (
-                    <p style={{ fontSize: '12px', fontWeight: 600, color: '#1A1A1A', margin: 0, wordBreak: 'keep-all', flex: '1 1 auto', minWidth: 0 }}>
-                      {r.textbook}{r.unit ? ` · ${r.unit}` : ''}{r.pages ? ` ${r.pages}` : ''}
-                    </p>
-                  )}
-
-                  {/* 점수 */}
-                  <p style={{ fontSize: '11px', color: '#5A6472', margin: 0, whiteSpace: 'nowrap', flexShrink: 0 }}>
-                    과제 {toPct(r.homeworkRating)}% · 개념 {toPct(r.conceptRating)}%
+                {/* 2행: 교재+단원 · 점수 — 항상 한 줄, 넘치면 말줄임(줄바꿈 안 함) */}
+                <p style={{ fontSize: '12px', color: '#1A1A1A', margin: '0 0 6px', paddingLeft: '36px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {r.textbook && <span style={{ fontWeight: 600 }}>{r.textbook}{r.unit ? ` · ${r.unit}` : ''}{r.pages ? ` ${r.pages}` : ''}</span>}
+                  <span style={{ color: '#5A6472' }}>
+                    {r.textbook ? ' · ' : ''}과제 {toPct(r.homeworkRating)}% · 개념 {toPct(r.conceptRating)}%
                     {r.hasTest && r.testScore ? ` · 시험 ${r.testScore}점` : ''}
-                  </p>
+                  </span>
+                </p>
 
-                  {/* 진단 태그 */}
-                  {mainDiag && DIAG_MAP[mainDiag.key] && (
-                    <span style={{ background: DIAG_MAP[mainDiag.key].bg, color: '#fff', fontSize: '11px', fontWeight: 700, padding: '3px 9px', borderRadius: '20px', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                {/* 3행: 진단태그(있으면) + 버튼 — 태그 유무와 무관하게 항상 이 줄 하나만 차지해서 카드 높이가 통일됨 */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', paddingLeft: '36px' }}>
+                  {mainDiag && DIAG_MAP[mainDiag.key] ? (
+                    <span style={{ background: DIAG_MAP[mainDiag.key].bg, color: '#fff', fontSize: '11px', fontWeight: 700, padding: '3px 9px', borderRadius: '20px', whiteSpace: 'nowrap' }}>
                       {DIAG_MAP[mainDiag.key].prefix} {DIAG_MAP[mainDiag.key].label}
                     </span>
-                  )}
+                  ) : <span />}
 
-                  {/* 종합 프로필 버튼 */}
                   <button
                     onClick={(e) => { e.stopPropagation(); setProfileStudent({ id: r.studentId, name: r.studentName }); }}
                     style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 700, background: '#EAF0F9', color: '#1A5CB8', border: '1px solid #1A5CB8', borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0 }}>
