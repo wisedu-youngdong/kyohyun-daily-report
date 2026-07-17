@@ -90,7 +90,9 @@ export default function GrowthStory() {
 
         const [stuSnap, rSnap] = await Promise.all([
           getDoc(doc(db, 'academies', foundAcademyId, 'students', studentId)),
-          getDocs(query(collection(db, 'academies', foundAcademyId, 'reports'), where('studentId', '==', studentId), limit(200)))
+          // isDraft==false — 자동저장된 초안(작성 중, 학부모에게 아직 안 나간 리포트)이
+          // 성장스토리 회차 수/마일스톤/전체 목록에 빈 항목으로 섞여 나오는 걸 방지
+          getDocs(query(collection(db, 'academies', foundAcademyId, 'reports'), where('studentId', '==', studentId), where('isDraft', '==', false), limit(200)))
         ]);
 
         if (stuSnap.exists()) {

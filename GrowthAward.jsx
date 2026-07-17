@@ -26,7 +26,8 @@ export default function GrowthAward() {
         const { academyId } = indexSnap.data();
         const stuSnap = await getDoc(doc(db, 'academies', academyId, 'students', studentId));
         if (stuSnap.exists()) setStudent({ id: stuSnap.id, ...stuSnap.data() });
-        const rSnap = await getDocs(query(collection(db, 'academies', academyId, 'reports'), where('studentId', '==', studentId), limit(200)));
+        // isDraft==false — 자동저장된 초안이 회차 수/지표에 섞여 나오는 것 방지
+        const rSnap = await getDocs(query(collection(db, 'academies', academyId, 'reports'), where('studentId', '==', studentId), where('isDraft', '==', false), limit(200)));
         const rList = rSnap.docs
           .map(d => ({ id: d.id, ...d.data() }))
           .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
