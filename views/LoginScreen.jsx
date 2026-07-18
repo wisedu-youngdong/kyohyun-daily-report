@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { auth } from '../firebase';
-import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { R } from '../tokens.jsx';
 
 // 로그인 화면 — "공식 문서·성적표 톤" 컨셉(레터헤드 + 네이비 상단 라인).
@@ -39,7 +39,12 @@ export default function LoginScreen() {
     setError('');
     setResetMessage('');
     try {
-      await sendPasswordResetEmail(auth, email);
+      const res = await fetch('/api/send-reset-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      if (!res.ok) throw new Error(`서버 오류 (${res.status})`);
       setResetMessage('비밀번호 재설정 링크를 이메일로 보냈습니다. 메일함을 확인해주세요.');
     } catch (err) {
       setError('재설정 이메일 발송에 실패했습니다. 이메일 주소를 확인해주세요.');
