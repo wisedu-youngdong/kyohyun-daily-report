@@ -16,6 +16,24 @@ function isValidAcademyId(id) {
   return /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(id) && !/^__.*__$/.test(id);
 }
 
+// "교현초 5학년" 형태의 school 문자열에서 학년 숫자만 찾아 +1 — DiagnosticReportInput.jsx의
+// guessCourseKey와 동일한 급(초/중/고) 판별 규칙을 재사용해 일관성 유지.
+// 초6/중3/고3(급 전환 대상 — 학교명 자체가 바뀌어야 함)은 건드리지 않고 null 반환.
+function bumpGrade(school) {
+  const m = school.match(/(\d)\s*학년/);
+  if (!m) return null;
+  const grade = parseInt(m[1], 10);
+  const namePart = school.split(/\d/)[0];
+  const lastCho = namePart.lastIndexOf('초');
+  const lastJung = namePart.lastIndexOf('중');
+  const lastGo = namePart.lastIndexOf('고');
+  const maxIdx = Math.max(lastCho, lastJung, lastGo);
+  const level = maxIdx < 0 ? null : maxIdx === lastGo ? '고' : maxIdx === lastJung ? '중' : '초';
+  const maxGrade = level === '초' ? 6 : 3;
+  if (!level || grade >= maxGrade) return null;
+  return school.replace(/\d\s*학년/, `${grade + 1}학년`);
+}
+
 // ── 메인 컬러 → 파생 색상 자동 계산 — SettingsView 전용
 function deriveColors(mainHex) {
   const r = parseInt(mainHex.slice(1,3),16);
@@ -100,6 +118,34 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
     await onSaveClass({ name: newClassName.trim(), teacherId: newClassTeacherId });
     setNewClassName('');
     setNewClassTeacherId('');
+  };
+
+  // 새 학년도 — 학년 일괄 올리기
+  const [gradeBumpPreview, setGradeBumpPreview] = React.useState(null); // null 또는 { changes, skipped }
+  const [gradeBumping, setGradeBumping] = React.useState(false);
+  const [gradeBumpResult, setGradeBumpResult] = React.useState('');
+
+  const handlePreviewGradeBump = () => {
+    setGradeBumpResult('');
+    const activeStudents = students.filter(s => !s.archived);
+    const changes = [];
+    const skipped = [];
+    activeStudents.forEach(s => {
+      const to = bumpGrade(s.school || '');
+      if (to) changes.push({ id: s.id, name: s.name, from: s.school, to });
+      else skipped.push(s);
+    });
+    setGradeBumpPreview({ changes, skipped });
+  };
+
+  const handleApplyGradeBump = async () => {
+    if (!gradeBumpPreview || gradeBumpPreview.changes.length === 0) return;
+    setGradeBumping(true);
+    await Promise.all(gradeBumpPreview.changes.map(c => onSaveStudent({ id: c.id, school: c.to })));
+    setGradeBumping(false);
+    setGradeBumpResult(`${gradeBumpPreview.changes.length}명의 학년을 올렸습니다.`);
+    setGradeBumpPreview(null);
+    setTimeout(() => setGradeBumpResult(''), 3000);
   };
 
   // 새 학원 추가 (플랫폼 관리자 전용)
@@ -573,6 +619,68 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
           </div>
         </div>
       </div>
+
+      {/* 새 학년도 — 학년 일괄 올리기 */}
+      <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB', marginBottom: '14px' }}>
+        <p style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>새 학년도 — 학년 일괄 올리기</p>
+        <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 500, marginBottom: '14px', lineHeight: 1.6 }}>
+          "학교" 항목에서 학년 숫자만 찾아 1씩 올려요. 초6·중3·고3처럼 학교를 옮겨야 하는 학생은 건드리지 않으니, 학교명은 직접 수정해주세요.
+        </p>
+        <button onClick={handlePreviewGradeBump}
+          style={{ width: '100%', background: C.primaryLight, color: C.primary, border: `1px solid ${C.primary}`, borderRadius: '10px', padding: '11px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+          학년 올리기 미리보기
+        </button>
+        {gradeBumpResult && (
+          <p style={{ fontSize: '12px', margin: '10px 0 0', padding: '8px 12px', borderRadius: '8px', background: C.successBg, color: C.successDark, fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <Check size={12} /> {gradeBumpResult}
+          </p>
+        )}
+      </div>
+
+      {/* 학년 올리기 미리보기 모달 */}
+      {gradeBumpPreview && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '20px', backdropFilter: 'blur(4px)' }}
+          onClick={() => !gradeBumping && setGradeBumpPreview(null)}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '420px', maxHeight: '80vh', overflow: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
+            <p style={{ fontSize: '15px', fontWeight: 700, margin: '0 0 4px' }}>학년을 올릴까요?</p>
+            <p style={{ fontSize: '12px', color: '#6B7280', margin: '0 0 14px', lineHeight: 1.6 }}>
+              {gradeBumpPreview.changes.length}명의 학년이 아래처럼 바뀝니다.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: gradeBumpPreview.skipped.length > 0 ? '14px' : '18px' }}>
+              {gradeBumpPreview.changes.length === 0 && (
+                <p style={{ fontSize: '12px', color: '#9CA3AF', margin: 0 }}>학년을 올릴 학생이 없어요.</p>
+              )}
+              {gradeBumpPreview.changes.map(c => (
+                <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F9FAFB', borderRadius: '8px', padding: '8px 10px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#1A1A1A' }}>{c.name}</span>
+                  <span style={{ fontSize: '11px', color: '#6B7280' }}>{c.from} → <b style={{ color: '#1A1A1A' }}>{c.to}</b></span>
+                </div>
+              ))}
+            </div>
+            {gradeBumpPreview.skipped.length > 0 && (
+              <div style={{ background: '#FFF8E7', border: '1px solid #F0D584', borderRadius: '10px', padding: '10px 12px', marginBottom: '18px' }}>
+                <p style={{ fontSize: '11px', fontWeight: 700, color: '#8A5A00', margin: '0 0 4px' }}>건너뜀(최고학년이거나 학년 정보 없음) · {gradeBumpPreview.skipped.length}명</p>
+                <p style={{ fontSize: '11px', color: '#8A5A00', margin: 0, lineHeight: 1.6 }}>{gradeBumpPreview.skipped.map(s => s.name).join(', ')} — 학교명을 직접 확인해주세요.</p>
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={() => setGradeBumpPreview(null)} disabled={gradeBumping}
+                style={{ flex: 1, padding: '11px', fontSize: '13px', fontWeight: 700, borderRadius: '10px', border: '1px solid #E5E7EB', background: '#fff', color: '#6B7280', cursor: gradeBumping ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                취소
+              </button>
+              <button onClick={handleApplyGradeBump} disabled={gradeBumping || gradeBumpPreview.changes.length === 0}
+                style={{
+                  flex: 1, padding: '11px', fontSize: '13px', fontWeight: 700, borderRadius: '10px', border: 'none',
+                  background: (gradeBumping || gradeBumpPreview.changes.length === 0) ? '#E5E7EB' : C.primary,
+                  color: (gradeBumping || gradeBumpPreview.changes.length === 0) ? '#9CA3AF' : '#fff',
+                  cursor: (gradeBumping || gradeBumpPreview.changes.length === 0) ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+                }}>
+                {gradeBumping ? '적용 중...' : `${gradeBumpPreview.changes.length}명 학년 올리기`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 새 학원 추가 — 플랫폼 관리자 전용 */}
       {isPlatformAdmin && (
