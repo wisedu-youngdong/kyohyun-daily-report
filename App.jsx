@@ -23,7 +23,8 @@ import HistoryView from './views/HistoryView.jsx';
 import SettingsView from './views/SettingsView.jsx';
 import GrowthDashboard from './views/GrowthDashboard.jsx';
 import DirectorView from './views/DirectorView.jsx';
-import AnalysisView from './views/AnalysisView.jsx';
+// recharts(vendor-charts, 375KB)를 쓰는 화면 — 종합 분석 탭을 열 때만 다운로드되도록 lazy 분리
+const AnalysisView = React.lazy(() => import('./views/AnalysisView.jsx'));
 
 function SkeletonBlock({ rows = 4, cardHeight = 64 }) {
   return (
@@ -659,7 +660,9 @@ export default function App() {
                 : <SkeletonBlock rows={4} cardHeight={70} />
               )}
               {activeSubTab.insight === 'analysis' && (dataReady
-                ? <AnalysisView students={students} reports={reports} />
+                ? <React.Suspense fallback={<SkeletonBlock rows={4} cardHeight={70} />}>
+                    <AnalysisView students={students} reports={reports} />
+                  </React.Suspense>
                 : <SkeletonBlock rows={4} cardHeight={70} />
               )}
             </div>
