@@ -1639,7 +1639,7 @@ export default function DiagnosticReportInput({
 
         {/* 우측 미리보기 */}
         <div style={isWide
-          ? { position: 'sticky', top: '20px', maxHeight: 'calc(100vh - 40px)', overflowY: 'auto' }
+          ? { position: 'sticky', top: '20px' }
           : { position: 'static' }
         }>
           <p style={{ fontSize: '11px', color: TOKENS.textMute, fontWeight: 700, marginBottom: '8px' }}>학부모 발송 미리보기</p>
