@@ -127,8 +127,7 @@ JSON만 출력하라. 마크다운 코드펜스 없이 JSON 객체 하나만.
     { "sectionType": "calculation", "label": "단원명", "summary": { "total": 0, "correct": 0, "wrong": 0 } },
     { "sectionType": "concept", "problemTypes": [{ "number": "", "type": "", "mark": "", "result": "잘함"|"약점", "note": "", "confidence": "high"|"low" }] },
     { "sectionType": "mock_exam", "groupSummary": [{ "type": "", "total": 0, "correct": 0, "wrong": 0 }], "weakDetail": [{ "number": "", "type": "", "mark": "", "note": "", "confidence": "high"|"low" }] }
-  ],
-  "draftComment": "2~3문장. 금지 단어: '실수', '아쉽게도', '조금만 더'. 오답 번호+유형 명시. 다음 수업 계획 포함. 담담하고 사실적으로."
+  ]
 }`;
 }
 
