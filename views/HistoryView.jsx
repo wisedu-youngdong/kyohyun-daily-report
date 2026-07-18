@@ -139,12 +139,13 @@ export default function HistoryView({ reports, students, classes = [], reportVie
   if (isMobile) {
     return (
       <div style={{ padding: '16px' }}>
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', width: '100%', boxSizing: 'border-box', border: '1px solid #E5E7EB', borderRadius: '10px', background: '#fff', marginBottom: '12px' }}>
           <input value={searchText} onChange={e => setSearchText(e.target.value)}
             placeholder="학생명·교재·코멘트 검색"
-            style={{ flex: 1, padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', outline: 'none', fontFamily: 'inherit' }} />
+            style={{ flex: 1, minWidth: 0, padding: '9px 12px', fontSize: '16px', border: 'none', outline: 'none', fontFamily: 'inherit', background: 'transparent' }} />
+          <div style={{ width: '1px', height: '20px', background: '#E5E7EB', flexShrink: 0 }} />
           <select value={studentFilter} onChange={e => setStudentFilter(e.target.value)}
-            style={{ padding: '9px 10px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', background: '#fff' }}>
+            style={{ flexShrink: 0, maxWidth: '84px', padding: '9px 8px', fontSize: '14px', border: 'none', outline: 'none', fontFamily: 'inherit', background: 'transparent', color: '#374151' }}>
             <option value="">전체</option>
             {(students||[]).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
