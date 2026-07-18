@@ -1199,11 +1199,22 @@ export default function DiagnosticReportInput({
                         <button onClick={() => handleAnalyzePhoto('auto')} style={{ flexShrink: 0, padding: '5px 12px', fontSize: '11px', fontWeight: 700, border: 'none', borderRadius: '6px', background: TOKENS.danger, color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>재시도</button>
                       </div>
                     )}
-                    {photoAnalysis && (
+                    {photoAnalysis && (() => {
+                      // 확신도 낮은 문항 개수 — concept/mock_exam 양쪽 다 집계 (섹션별 렌더링 코드와 별개로
+                      // 상단 요약 배지에만 쓰는 가벼운 카운트)
+                      const lowConfidenceCount = (photoAnalysis.sections || []).reduce((n, s) =>
+                        n + (s.problemTypes || []).filter(p => p.confidence === 'low').length
+                          + (s.weakDetail || []).filter(p => p.confidence === 'low').length, 0);
+                      return (
                       <div style={{ background: TOKENS.successBg, borderRadius: '12px', padding: '12px', marginTop: '4px' }}>
                         {(photoAnalysis.bookOrTest || photoAnalysis.unit || photoAnalysis.pageRange) && (
-                          <p style={{ fontSize: '11px', color: TOKENS.success, fontWeight: 700, margin: '0 0 8px' }}>
+                          <p style={{ fontSize: '11px', color: TOKENS.success, fontWeight: 700, margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                             {[photoAnalysis.bookOrTest, photoAnalysis.unit, photoAnalysis.pageRange].filter(Boolean).join(' · ')}
+                            {lowConfidenceCount > 0 && (
+                              <span style={{ background: TOKENS.warnBg, color: TOKENS.warn, border: `1px solid ${TOKENS.warnBorder}`, borderRadius: '20px', padding: '1px 8px', fontSize: '10px', fontWeight: 700 }}>
+                                확인 필요 {lowConfidenceCount}건
+                              </span>
+                            )}
                           </p>
                         )}
 
@@ -1268,7 +1279,10 @@ export default function DiagnosticReportInput({
                               .slice()
                               .sort((a, b) => parseInt(a.number) - parseInt(b.number))
                               .map((p, i) => (
-                              <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', marginBottom: '6px', fontSize: '12px' }}>
+                              <div key={i} style={{
+                                display: 'flex', gap: '8px', alignItems: 'flex-start', marginBottom: '6px', fontSize: '12px',
+                                ...(p.confidence === 'low' ? { background: TOKENS.warnBg, border: `1px solid ${TOKENS.warnBorder}`, borderRadius: '10px', padding: '8px' } : {}),
+                              }}>
                                 <button type="button"
                                   onClick={() => {
                                     let becameWrong = false;
@@ -1309,6 +1323,11 @@ export default function DiagnosticReportInput({
                                     {p.number ? `${p.number}. ` : ''}{p.type}
                                   </p>
                                   <p style={{ margin: '2px 0 0', color: TOKENS.textSub }}>{p.note}</p>
+                                  {p.confidence === 'low' && (
+                                    <p style={{ margin: '4px 0 0', fontSize: '11px', color: TOKENS.warn, fontWeight: 600, lineHeight: 1.4 }}>
+                                      <AlertTriangle size={10} style={{ verticalAlign: '-1px' }} /> AI가 표시를 확신하지 못했어요 — 실제 채점과 맞는지 확인해주세요
+                                    </p>
+                                  )}
                                 </div>
                               </div>
                             ))}
@@ -1324,9 +1343,10 @@ export default function DiagnosticReportInput({
                                   <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: `1px solid ${TOKENS.border}` }}>
                                     <p style={{ fontSize: '11px', fontWeight: 700, color: TOKENS.textSub, margin: '0 0 6px' }}>보완 필요 문항</p>
                                     {sec.weakDetail.map((p, i) => (
-                                      <p key={i} style={{ fontSize: '12px', margin: '0 0 4px' }}>
+                                      <p key={i} style={{ fontSize: '12px', margin: '0 0 4px', ...(p.confidence === 'low' ? { background: TOKENS.warnBg, borderRadius: '6px', padding: '4px 6px' } : {}) }}>
                                         {p.number ? `${p.number}. ` : ''}{p.type}
                                         {p.mark && <span style={{ marginLeft: '6px', fontSize: '10px', color: TOKENS.textMute }}>[{p.mark}]</span>}
+                                        {p.confidence === 'low' && <span style={{ marginLeft: '6px', fontSize: '10px', fontWeight: 700, color: TOKENS.warn }}>확인 필요</span>}
                                         {p.note && <span style={{ display: 'block', color: TOKENS.textSub }}>{p.note}</span>}
                                       </p>
                                     ))}
@@ -1447,7 +1467,8 @@ export default function DiagnosticReportInput({
                           </div>
                         )}
                       </div>
-                    )}
+                      );
+                    })()}
                   </div>
                 )}
               </FormSection>
