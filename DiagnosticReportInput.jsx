@@ -469,6 +469,11 @@ export default function DiagnosticReportInput({
 
   const handleAIPolish = async () => {
     if (!teacherNote.trim() || polishing) return;
+    // 입력한 단원과 사진에서 읽은 단원이 어긋난 채로 코멘트를 생성하면, AI가 두 단원을
+    // 억지로 이어붙인 어색한 문장을 만들어냄. API 호출(비용) 전에 미리 막아 헛돈 쓰는 것도 방지.
+    if (photoAnalysis?.unit && unit.trim() && !unit.includes(photoAnalysis.unit) && !photoAnalysis.unit.includes(unit)) {
+      if (!window.confirm(`사진에서 읽은 단원("${photoAnalysis.unit}")이 입력한 단원("${unit}")과 달라요.\n그래도 이대로 코멘트를 생성할까요?`)) return;
+    }
     setPolishing(true);
     try {
       const diagLabels = { calc: '계산 실수', concept: '개념 누락', apply: '응용 부족', time: '시간 부족', perfect: '개념 완벽' };
@@ -1208,10 +1213,18 @@ export default function DiagnosticReportInput({
                           </div>
                         )}
 
-                        {/* 재분석 버튼 — 결과가 틀렸을 때 사진 재업로드 없이 다시 시도 */}
+                        {/* 재분석 버튼 — 결과가 틀렸을 때 사진 재업로드 없이 다시 시도.
+                            AI가 이미 다듬어둔 코멘트(aiPolishedNote)는 재분석 전 기준으로 만들어진
+                            거라 그대로 두면 새 분석 결과와 안 맞는 문장이 남게 됨 — 같이 비워서
+                            "다시 시작" 느낌을 주고, 다듬기 버튼을 다시 눌러야 새 결과가 반영되게 함 */}
                         <button type="button" onClick={() => {
                           const hasManualInput = wrongItems.some(w => w.tags.length > 0 || w.memo?.trim());
-                          if (hasManualInput && !window.confirm('오답 카드에 입력한 태그/메모가 초기화됩니다. 다시 분석할까요?')) return;
+                          const willClearComment = !!aiPolishedNote;
+                          const confirmMsg = hasManualInput
+                            ? `오답 카드에 입력한 태그/메모${willClearComment ? ', AI 다듬기 결과' : ''}가 초기화됩니다. 다시 분석할까요?`
+                            : willClearComment ? 'AI 다듬기 결과가 초기화됩니다. 다시 분석할까요?' : null;
+                          if (confirmMsg && !window.confirm(confirmMsg)) return;
+                          setAiPolishedNote('');
                           handleAnalyzePhoto('auto');
                         }} disabled={analyzingPhoto}
                           style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '10px', padding: '5px 10px', fontSize: '11px', fontWeight: 700, border: `1px solid ${TOKENS.success}`, borderRadius: '20px', background: '#fff', color: TOKENS.success, cursor: analyzingPhoto ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: analyzingPhoto ? 0.6 : 1 }}>
