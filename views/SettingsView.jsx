@@ -1,7 +1,7 @@
 import React from 'react';
 import { db, createUserWithoutSignIn } from '../firebase';
 import { collection, addDoc, doc, getDoc, getDocs, setDoc, serverTimestamp, getCountFromServer } from 'firebase/firestore';
-import { Pencil, AlertTriangle, Check } from 'lucide-react';
+import { Pencil, AlertTriangle, Check, HelpCircle, X } from 'lucide-react';
 import { T, C } from '../tokens.jsx';
 import { PRESET_SKINS } from './shared.jsx';
 
@@ -86,6 +86,8 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
   const [confirmingClassDelete, setConfirmingClassDelete] = React.useState(null);
   const [newClassName, setNewClassName] = React.useState('');
   const [newClassTeacherId, setNewClassTeacherId] = React.useState('');
+  // 반이 처음 보는 학원(분양학원)엔 낯선 기능이라, 기본은 접어두고 필요할 때만 펼쳐보는 도움말
+  const [showClassGuide, setShowClassGuide] = React.useState(false);
 
   const handleClassNameSave = async (cls) => {
     if (!editingClassName.trim()) return;
@@ -475,8 +477,34 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
 
       {/* 반 관리 — 반을 만들고 담당 강사를 지정. 학생 등록/수정 시 이 반을 고르면 담당 강사가 자동으로 정해짐 */}
       <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB', marginBottom: '14px' }}>
-        <p style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>반 관리</p>
-        <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 500, marginBottom: '14px' }}>학생을 반으로 묶으면 담당 강사가 자동으로 지정됩니다.</p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+          <p style={{ fontSize: '13px', fontWeight: 700, margin: 0 }}>반 관리</p>
+          <button type="button" onClick={() => setShowClassGuide(v => !v)}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'none', border: 'none', color: showClassGuide ? C.primary : '#9CA3AF', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', padding: '2px 4px' }}>
+            <HelpCircle size={13} /> 사용법
+          </button>
+        </div>
+        <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 500, marginBottom: showClassGuide ? '10px' : '14px' }}>학생을 반으로 묶으면 담당 강사가 자동으로 지정됩니다.</p>
+
+        {showClassGuide && (
+          <div style={{ background: C.primaryLight, borderRadius: '12px', padding: '14px', marginBottom: '14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <p style={{ fontSize: '12px', fontWeight: 700, color: C.primary, margin: 0 }}>반 사용법</p>
+              <button type="button" onClick={() => setShowClassGuide(false)} style={{ background: 'none', border: 'none', color: C.primary, cursor: 'pointer', padding: '2px', display: 'flex' }}>
+                <X size={14} />
+              </button>
+            </div>
+            <ol style={{ margin: 0, padding: '0 0 0 18px', fontSize: '12px', color: '#1A1A1A', lineHeight: 1.9 }}>
+              <li>아래 "새 반 만들기"에서 반 이름과 담당 강사를 정해서 반을 만드세요.</li>
+              <li>학생 관리에서 학생을 등록/수정할 때 그 반을 선택하세요.</li>
+              <li>그 학생의 담당 강사는 반의 담당 강사로 자동 지정돼요 — 따로 고를 필요 없어요.</li>
+              <li>리포트 작성 화면의 학생 목록, 학습기록, 원장분석이 전부 반 단위로 묶여서 보여요.</li>
+            </ol>
+            <p style={{ fontSize: '11px', color: '#6B7280', margin: '10px 0 0', lineHeight: 1.6 }}>
+              반은 선택 사항이에요 — 하나도 안 만들어도 지금처럼 학생마다 담당 강사를 직접 골라 쓸 수 있어요.
+            </p>
+          </div>
+        )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
           {classes.length === 0 && (
