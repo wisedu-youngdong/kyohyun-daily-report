@@ -1,5 +1,5 @@
 import React from 'react';
-import { kstDay, isReportSent } from '../growth.js';
+import { kstDay, kstWeekday, isReportSent } from '../growth.js';
 import { T, C, RADIUS2 } from '../tokens.jsx';
 import { AVATARS, StatCard } from './shared.jsx';
 
@@ -7,18 +7,22 @@ export default function DashboardView({ students, reports, classes = [], onTabCh
   // 발송 완료 판정 + 날짜 비교 — 리포트 탭 상태바/원장 보고서와 동일한 공용 기준(growth.js) 사용
   const todayKst = kstDay(Date.now() / 1000);
   const todayReports = reports.filter(r => r.createdAt?.seconds && isReportSent(r) && kstDay(r.createdAt.seconds) === todayKst);
+  const doneOf = (s) => todayReports.some(r => r.studentId === s.id);
 
   const [classFilter, setClassFilter] = React.useState('');
   // 삭제된 반을 가리키는 고아 classId는 미배정으로 취급 — HistoryView/groupByClassId와 동일 기준
   const classIds = new Set(classes.map(c => c.id));
-  const filteredStudents = classFilter
+  // scheduleDays 미설정(레거시 학생 포함)이면 매일 대상 — 오늘 스케줄이 아니어도 이미 리포트가
+  // 있으면(보강 등) 목록에서 사라지지 않고 "완료 ✓"로 그대로 보이게 doneOf도 함께 확인
+  const todayDow = kstWeekday(Date.now() / 1000);
+  const isScheduledToday = (s) => !s.scheduleDays || s.scheduleDays.length === 0 || s.scheduleDays.includes(todayDow);
+  const filteredStudents = (classFilter
     ? students.filter(s => {
         const cid = s.classId && classIds.has(s.classId) ? s.classId : null;
         return classFilter === '__unassigned__' ? !cid : cid === classFilter;
       })
-    : students;
-
-  const doneOf = (s) => todayReports.some(r => r.studentId === s.id);
+    : students
+  ).filter(s => isScheduledToday(s) || doneOf(s));
   // 대기 학생을 먼저 — 할 일이 완료된 학생들 사이에 묻히지 않도록 (반 필터와 무관하게 항상 유지)
   const orderedStudents = [...filteredStudents].sort((a, b) =>
     (doneOf(a) === doneOf(b) ? (a.name || '').localeCompare(b.name || '') : (doneOf(a) ? 1 : -1))

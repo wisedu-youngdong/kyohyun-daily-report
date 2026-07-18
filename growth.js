@@ -9,6 +9,12 @@ export function kstDay(seconds) {
   return new Date(seconds * 1000 + 9 * 3600 * 1000).toISOString().split('T')[0];
 }
 
+// KST 기준 요일(0=일...6=토) — new Date().getDay()는 로컬 타임존에 의존해 서버/클라이언트 간
+// 어긋날 수 있어서, kstDay와 같은 shift-then-extract 방식으로 KST를 고정
+export function kstWeekday(seconds) {
+  return new Date(seconds * 1000 + 9 * 3600 * 1000).getUTCDay();
+}
+
 // 리포트 발송 완료 판정 — 자동저장 draft(isDraft: true)는 코멘트가 채워져 있어도
 // 아직 선생님이 최종 저장하지 않은 상태이므로 완료로 세지 않음
 export function isReportSent(r) {

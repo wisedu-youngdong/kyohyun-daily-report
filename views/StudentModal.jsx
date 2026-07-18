@@ -64,6 +64,9 @@ export function StudentModal({ student, onClose, onSubmit, teachers = [], classe
   const [classId, setClassId] = useState(
     student?.classId && classes.some(c => c.id === student.classId) ? student.classId : ''
   );
+  // 요일 인덱스 배열(0=일...6=토). 비어있으면 "매일 대상"으로 취급(대시보드 판정 기준) — 이 배열 자체엔 기본값 없음
+  const [scheduleDays, setScheduleDays] = useState(student?.scheduleDays || []);
+  const toggleScheduleDay = (d) => setScheduleDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d].sort());
   // 아바타/스킨은 수정 모드 전용 — 등록은 필수 정보만 빠르게 채우고, 커스터마이징은 나중에 수정에서
   const [avatar, setAvatar] = useState(student?.avatar || '');
   const [skinColor, setSkinColor] = useState(student?.skinColor || '');
@@ -96,10 +99,12 @@ export function StudentModal({ student, onClose, onSubmit, teachers = [], classe
       payload.assignedTeacherId = effectiveTeacherId || '';
       // 미선택(레거시 학생)이면 필드를 아예 보내지 않아 자동 판정 폴백을 유지
       if (studentType) payload.studentType = studentType;
+      payload.scheduleDays = scheduleDays;
     } else {
       payload.studentType = studentType;
       if (classId) payload.classId = classId;
       if (effectiveTeacherId) payload.assignedTeacherId = effectiveTeacherId;
+      if (scheduleDays.length) payload.scheduleDays = scheduleDays;
     }
     await onSubmit(payload);
     setSaving(false);
@@ -196,6 +201,32 @@ export function StudentModal({ student, onClose, onSubmit, teachers = [], classe
               </select>
             </div>
           )}
+
+          {/* 수업 요일 — 대시보드 "오늘 미작성" 판정이 이 값을 기준으로 오늘 수업 없는 학생을 걸러냄 */}
+          <div style={{ marginBottom: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <FieldLabel>수업 요일 (선택)</FieldLabel>
+              <div style={{ display: 'flex', gap: '5px' }}>
+                <button onClick={() => setScheduleDays([1, 3, 5])} style={miniAddButtonStyle}>월수금</button>
+                <button onClick={() => setScheduleDays([2, 4, 6])} style={miniAddButtonStyle}>화목토</button>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '4px' }}>
+              {['일', '월', '화', '수', '목', '금', '토'].map((label, d) => (
+                <button key={d} onClick={() => toggleScheduleDay(d)}
+                  style={{
+                    flex: 1, padding: '8px 0', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit',
+                    border: scheduleDays.includes(d) ? 'none' : '1px solid #E5E7EB',
+                    background: scheduleDays.includes(d) ? C.info : '#fff',
+                    color: scheduleDays.includes(d) ? '#fff' : '#6B7280',
+                    fontSize: '12px', fontWeight: 700, transition: 'all 0.15s',
+                  }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '5px 0 0' }}>설정 안 하면 매일 대상에 포함돼요</p>
+          </div>
 
           <div style={{ marginBottom: '12px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
