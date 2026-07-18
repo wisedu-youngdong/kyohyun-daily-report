@@ -1194,6 +1194,20 @@ export default function DiagnosticReportInput({
                           </p>
                         )}
 
+                        {/* 위 교재/단원 입력칸과 사진에서 읽은 단원이 다르면 경고 — 표준 단원표 추천(학년+시기 기준)을
+                            그대로 쓴 채 실제로는 다른 단원 사진을 올렸을 때, AI 코멘트에 엉뚱한 단원명이 들어가는 걸 방지 */}
+                        {photoAnalysis.unit && unit.trim() && !unit.includes(photoAnalysis.unit) && !photoAnalysis.unit.includes(unit) && (
+                          <div style={{ background: '#fff', border: `1px solid ${TOKENS.warnBorder}`, borderRadius: '8px', padding: '8px 10px', marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+                            <p style={{ fontSize: '11px', color: TOKENS.warn, margin: 0, lineHeight: 1.5 }}>
+                              <AlertTriangle size={11} style={{ verticalAlign: '-1px' }} /> 사진에서 읽은 단원("{photoAnalysis.unit}")이 위에 입력한 단원("{unit}")과 달라요 — 다른 교재 사진 아닌지 확인해주세요.
+                            </p>
+                            <button type="button" onClick={() => { setUnit(photoAnalysis.unit); if (photoAnalysis.bookOrTest) setTextbook(photoAnalysis.bookOrTest); }}
+                              style={{ flexShrink: 0, padding: '5px 10px', fontSize: '11px', fontWeight: 700, border: 'none', borderRadius: '6px', background: TOKENS.warn, color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
+                              사진 기준으로 채우기
+                            </button>
+                          </div>
+                        )}
+
                         {/* 재분석 버튼 — 결과가 틀렸을 때 사진 재업로드 없이 다시 시도 */}
                         <button type="button" onClick={() => {
                           const hasManualInput = wrongItems.some(w => w.tags.length > 0 || w.memo?.trim());
