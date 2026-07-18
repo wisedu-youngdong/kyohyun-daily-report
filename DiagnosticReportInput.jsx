@@ -1199,6 +1199,17 @@ export default function DiagnosticReportInput({
                           </p>
                         )}
 
+                        {/* 사진이 잘려서 일부 문항 번호가 안 보일 때 — AI가 안 보이는 번호를 앞뒤 문맥으로
+                            추측해서 채워 넣는 걸 프롬프트에서 막아뒀지만, 애초에 사진을 다시 찍는 게 제일
+                            확실하므로 여기서 바로 알려줌 */}
+                        {photoAnalysis.pageCutoff && (
+                          <div style={{ background: '#fff', border: `1px solid ${TOKENS.warnBorder}`, borderRadius: '8px', padding: '8px 10px', marginBottom: '10px' }}>
+                            <p style={{ fontSize: '11px', color: TOKENS.warn, margin: 0, lineHeight: 1.5 }}>
+                              <AlertTriangle size={11} style={{ verticalAlign: '-1px' }} /> 사진이 잘려서 일부 문항이 안 보여요{photoAnalysis.pageCutoffNote ? ` (${photoAnalysis.pageCutoffNote})` : ''}. 잘린 문항은 결과에서 빠졌을 수 있으니, 가능하면 페이지 전체가 나오게 다시 찍어주세요.
+                            </p>
+                          </div>
+                        )}
+
                         {/* 위 교재/단원 입력칸과 사진에서 읽은 단원이 다르면 경고 — 표준 단원표 추천(학년+시기 기준)을
                             그대로 쓴 채 실제로는 다른 단원 사진을 올렸을 때, AI 코멘트에 엉뚱한 단원명이 들어가는 걸 방지 */}
                         {photoAnalysis.unit && unit.trim() && !unit.includes(photoAnalysis.unit) && !photoAnalysis.unit.includes(unit) && (
