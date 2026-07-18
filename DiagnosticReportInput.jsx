@@ -1520,7 +1520,20 @@ export default function DiagnosticReportInput({
                   );
                 })()}
 
-                <FieldLabel>강사 메모 (평소 카톡 톤으로 자유롭게)</FieldLabel>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <FieldLabel>강사 메모 (평소 카톡 톤으로 자유롭게)</FieldLabel>
+                  {/* 새로고침 후 이어쓰기(자동저장 draft 복원)나 오답 분석 코멘트 생성으로 메모에
+                      AI 문장이 이미 섞여 들어간 상태에서, 처음부터 다시 쓰고 싶을 때 한 번에 비우는 버튼.
+                      자동저장 draft 자체는 건드리지 않음 — 다음 자동저장 때 빈 값으로 덮어써짐 */}
+                  {(teacherNote || aiPolishedNote) && (
+                    <button type="button" onClick={() => {
+                      if (!window.confirm('강사 메모와 AI 다듬기 결과를 모두 지우고 새로 시작할까요?')) return;
+                      setTeacherNote(''); setAiPolishedNote('');
+                    }} style={{ background: 'none', border: 'none', color: '#9CA3AF', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', padding: '2px 4px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      <X size={11} /> 새로 시작
+                    </button>
+                  )}
+                </div>
 
                 {/* 코멘트 즐겨찾기 — 학원 공용, 탭하면 메모에 이어붙임 */}
                 {commentTemplates.length > 0 && (
