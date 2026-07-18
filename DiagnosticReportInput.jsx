@@ -479,17 +479,25 @@ export default function DiagnosticReportInput({
       const diagLabels = { calc: '계산 실수', concept: '개념 누락', apply: '응용 부족', time: '시간 부족', perfect: '개념 완벽' };
       const tagNames = selectedTags.map(t => diagLabels[t.key] || t.key).join(', ');
 
-      // 사진 분석 결과 추출
+      // 사진 분석 결과 추출 — rawObservations는 사람이 읽는 설명 문자열이라 .mark/.num이 없어
+      // 항상 undefined로 걸러지던 버그가 있었음(오답 필터가 사실상 전부 통과, wrongNums는
+      // "undefined번"으로 깨짐). 그 결과 실제로는 안 걸러지는 draftComment(자유 서술, 정확도
+      // 보장 안 됨)에 코멘트가 의존하게 돼서, 정답인 문항을 오답처럼 언급하는 사고로 이어졌음.
+      // 대신 구조화돼 있고 신뢰할 수 있는 wrongItems(및 concept/모의고사 섹션의 약점 목록)를 사용.
       let photoContext = '';
       if (photoAnalysis) {
-        const wrongs = (photoAnalysis.rawObservations || []).filter(o => o.mark !== 'O');
-        const rights = (photoAnalysis.rawObservations || []).filter(o => o.mark === 'O');
-        const wrongNums = wrongs.map(o => `${o.num}번`).join(', ');
+        const fromSections = (photoAnalysis.sections || []).flatMap(s =>
+          (s.problemTypes || []).filter(p => p.result === '약점').concat(s.weakDetail || [])
+        );
+        const seen = new Set();
+        const allWrong = [...(photoAnalysis.wrongItems || []), ...fromSections].filter(w => {
+          if (!w.number || seen.has(w.number)) return false;
+          seen.add(w.number);
+          return true;
+        });
         photoContext = [
           photoAnalysis.unit && `분석 단원: ${photoAnalysis.unit}`,
-          rights.length > 0 && `정답 문제: ${rights.length}개`,
-          wrongs.length > 0 && `오답 문제: ${wrongNums}`,
-          photoAnalysis.draftComment && `AI 분석 요약: ${photoAnalysis.draftComment}`,
+          allWrong.length > 0 && `오답 문제: ${allWrong.map(w => `${w.number}번(${w.type || ''})`).join(', ')}`,
         ].filter(Boolean).join('\n');
       }
 
