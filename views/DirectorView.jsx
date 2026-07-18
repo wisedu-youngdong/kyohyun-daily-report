@@ -84,8 +84,16 @@ export default function DirectorView({ reports, students, classes = [], reportVi
           ? Math.round(weekReports.filter(r => r.attendance === '정시').length / weekReports.length * 100)
           : 0;
 
-        // 미제출 — 이번 주 리포트 없는 학생
-        const noReportStudents = students.filter(s => !weekStudentIds.includes(s.id));
+        // 미제출 — 이번 주 리포트가 없는 학생 중, 스케줄 요일이 이번 주에 이미 한 번이라도
+        // 지났는데도(오늘 포함) 리포트가 없는 경우만. 스케줄 미설정(레거시 포함)은 기존처럼 매일 대상 유지.
+        // 화목토 학생이 월요일 아침이라 아직 이번 주 수업이 시작도 안 됐는데 미제출로 뜨는 걸 방지.
+        const todayDow = now.getDay(); // 0=일...6=토, 위 weekStart 계산과 동일 기준
+        const dowRank = (d) => (d + 6) % 7; // 월요일=0 기준으로 재정렬해 "이미 지난 요일인지" 비교
+        const noReportStudents = students.filter(s => {
+          if (weekStudentIds.includes(s.id)) return false;
+          if (!s.scheduleDays || s.scheduleDays.length === 0) return true;
+          return s.scheduleDays.some(d => dowRank(d) <= dowRank(todayDow));
+        });
 
         return (
           <div style={{ background: '#F6F8FC', border: '1px solid #E6EBF4', borderLeft: '3px solid #0D2D6B', borderRadius: '14px', padding: '20px', marginBottom: '20px' }}>
