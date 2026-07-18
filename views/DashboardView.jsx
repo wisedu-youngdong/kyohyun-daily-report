@@ -9,8 +9,13 @@ export default function DashboardView({ students, reports, classes = [], onTabCh
   const todayReports = reports.filter(r => r.createdAt?.seconds && isReportSent(r) && kstDay(r.createdAt.seconds) === todayKst);
 
   const [classFilter, setClassFilter] = React.useState('');
+  // 삭제된 반을 가리키는 고아 classId는 미배정으로 취급 — HistoryView/groupByClassId와 동일 기준
+  const classIds = new Set(classes.map(c => c.id));
   const filteredStudents = classFilter
-    ? students.filter(s => classFilter === '__unassigned__' ? !s.classId : s.classId === classFilter)
+    ? students.filter(s => {
+        const cid = s.classId && classIds.has(s.classId) ? s.classId : null;
+        return classFilter === '__unassigned__' ? !cid : cid === classFilter;
+      })
     : students;
 
   const doneOf = (s) => todayReports.some(r => r.studentId === s.id);
@@ -18,14 +23,16 @@ export default function DashboardView({ students, reports, classes = [], onTabCh
   const orderedStudents = [...filteredStudents].sort((a, b) =>
     (doneOf(a) === doneOf(b) ? (a.name || '').localeCompare(b.name || '') : (doneOf(a) ? 1 : -1))
   );
-  const pendingCount = students.length - todayReports.length;
+  // 상단 통계도 반 필터를 따라가야 함 — 목록은 필터링되는데 숫자만 학원 전체 기준이면 헷갈림
+  const filteredTodayReports = classFilter ? todayReports.filter(r => filteredStudents.some(s => s.id === r.studentId)) : todayReports;
+  const pendingCount = filteredStudents.length - filteredTodayReports.length;
 
   return (
     <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto', boxSizing: 'border-box' }}>
       <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '16px', letterSpacing: '-0.02em' }}>오늘의 현황</h2>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
         <StatCard label="오늘 미작성" value={Math.max(0, pendingCount)} unit="명" color={C.warning} />
-        <StatCard label="오늘 발송" value={todayReports.length} unit="건" color={C.midGray} />
+        <StatCard label="오늘 발송" value={filteredTodayReports.length} unit="건" color={C.midGray} />
       </div>
       {/* 복습 알림 — 약점 태그가 있던 리포트는 7/14/30일 후 복습 일정이 자동 생성됨 */}
       {(() => {

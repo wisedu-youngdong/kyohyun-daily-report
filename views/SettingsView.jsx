@@ -484,6 +484,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
           )}
           {classes.map(cls => {
             const classTeacher = teachers.find(t => t.id === cls.teacherId);
+            const classStudentCount = students.filter(s => s.classId === cls.id).length;
             return (
               <div key={cls.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#F9FAFB', borderRadius: '10px', padding: '10px 12px' }}>
                 <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: C.primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -505,7 +506,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                   <>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ fontSize: '13px', fontWeight: 600, color: '#1A1A1A', margin: 0 }}>{cls.name}</p>
-                      <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '2px 0 0' }}>{classTeacher ? `담당 ${classTeacher.name}` : '담당 강사 미지정(삭제된 강사)'}</p>
+                      <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '2px 0 0' }}>{classTeacher ? `담당 ${classTeacher.name}` : '담당 강사 미지정(삭제된 강사)'} · 학생 {classStudentCount}명</p>
                     </div>
                     <button onClick={() => { setEditingClassId(cls.id); setEditingClassName(cls.name); }} style={{ background: C.primaryLight, color: C.primary, border: 'none', borderRadius: '8px', padding: '5px 10px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                       <Pencil size={11} /> 수정
@@ -518,7 +519,9 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                         setTimeout(() => setConfirmingClassDelete(prev => prev === cls.id ? null : prev), 3000);
                       }
                     }} style={{ background: confirmingClassDelete === cls.id ? '#DC2626' : '#FEF2F2', color: confirmingClassDelete === cls.id ? '#fff' : '#DC2626', border: 'none', borderRadius: '8px', padding: '5px 10px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-                      {confirmingClassDelete === cls.id ? '확인 (재클릭)' : '삭제'}
+                      {confirmingClassDelete === cls.id
+                        ? '확인 (재클릭)'
+                        : (classStudentCount > 0 ? `삭제 (학생 ${classStudentCount}명 미배정 전환)` : '삭제')}
                     </button>
                   </>
                 )}

@@ -30,14 +30,17 @@ export default function HistoryView({ reports, students, classes = [], reportVie
   const DIAG_COLORS = { calc: { bg: '#FFF8EC', color: '#8A5A00', border: '#C9A22740' }, concept: { bg: '#EAF1FB', color: '#0D2D6B', border: '#0D2D6B40' }, apply: { bg: '#FDF0F0', color: '#8A2020', border: '#8A202040' }, time: { bg: '#F3F0FA', color: '#4A3080', border: '#4A308040' }, perfect: { bg: '#F0FAF5', color: '#0F6E56', border: '#0F6E5640' } };
 
   const now = Date.now() / 1000;
+  // 삭제된 반을 가리키는 고아 classId는 미배정으로 취급 — groupByClassId/리포트 작성 화면과 동일 기준
+  const classIds = new Set(classes.map(c => c.id));
   const filtered = reports
     .filter(r => {
       if (draftOnly && !r.isDraft) return false;
       if (studentFilter && r.studentId !== studentFilter) return false;
       if (classFilter) {
         const st = students.find(s => s.id === r.studentId);
-        if (classFilter === '__unassigned__') { if (st?.classId) return false; }
-        else if (st?.classId !== classFilter) return false;
+        const stClassId = st?.classId && classIds.has(st.classId) ? st.classId : null;
+        if (classFilter === '__unassigned__') { if (stClassId) return false; }
+        else if (stClassId !== classFilter) return false;
       }
       if (periodFilter !== 'all') {
         const ts = r.createdAt?.seconds || 0;

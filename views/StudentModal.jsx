@@ -58,7 +58,12 @@ export function StudentModal({ student, onClose, onSubmit, teachers = [], classe
   // 다른 항목만 수정해도 재학생으로 확정돼, 리포트 수 기반 자동 판정 폴백이 영구히 꺼짐
   const [studentType, setStudentType] = useState(isEdit ? (student.studentType || '') : 'new');
   const [assignedTeacherId, setAssignedTeacherId] = useState(student?.assignedTeacherId || '');
-  const [classId, setClassId] = useState(student?.classId || '');
+  // 반이 삭제된 뒤 남은 고아 classId는 처음부터 "미배정"으로 취급 — 그대로 두면 select엔
+  // 미배정으로 보이는데 state는 여전히 죽은 id를 들고 있어, 다른 항목만 고쳐 저장해도
+  // effectiveTeacherId가 빈 값으로 계산돼 담당 강사가 조용히 사라지는 버그가 있었음
+  const [classId, setClassId] = useState(
+    student?.classId && classes.some(c => c.id === student.classId) ? student.classId : ''
+  );
   // 아바타/스킨은 수정 모드 전용 — 등록은 필수 정보만 빠르게 채우고, 커스터마이징은 나중에 수정에서
   const [avatar, setAvatar] = useState(student?.avatar || '');
   const [skinColor, setSkinColor] = useState(student?.skinColor || '');
