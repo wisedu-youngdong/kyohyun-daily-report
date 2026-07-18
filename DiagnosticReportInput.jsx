@@ -1546,6 +1546,9 @@ export default function DiagnosticReportInput({
                     <p style={{ fontSize: '11px', color: TOKENS.success, fontWeight: 700, margin: '0 0 6px' }}>학부모 발송 버전 (수정 가능)</p>
                     <textarea value={aiPolishedNote} onChange={(e) => setAiPolishedNote(e.target.value)}
                       rows={3} style={{ ...inputStyle, background: '#fff', fontFamily: 'inherit', resize: 'vertical' }} />
+                    <p style={{ fontSize: '10px', color: TOKENS.textMute, margin: '6px 0 0', lineHeight: 1.4 }}>
+                      <Info size={11} style={{ verticalAlign: '-2px' }} /> 여기서 수정하면 아래 학부모 발송 미리보기에도 그대로 반영돼요
+                    </p>
                   </div>
                 )}
               </FormSection>
