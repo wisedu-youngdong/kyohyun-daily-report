@@ -19,9 +19,14 @@ export default function DirectorView({ reports, students, classes = [], reportVi
 
   const handleAnswerSave = async (questionId, answerText) => {
     setSavingAnswer(questionId);
-    await updateDoc(doc(db, 'academies', academyId, 'reportQuestions', questionId), {
-      answerText, answeredAt: serverTimestamp(),
-    });
+    try {
+      await updateDoc(doc(db, 'academies', academyId, 'reportQuestions', questionId), {
+        answerText, answeredAt: serverTimestamp(),
+      });
+    } catch (e) {
+      console.error('답변 저장 실패:', e);
+      onToast?.('답변 저장에 실패했습니다. 잠시 후 다시 시도해주세요.', 'error');
+    }
     setSavingAnswer(null);
   };
 

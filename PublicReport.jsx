@@ -47,6 +47,7 @@ export default function PublicReport() {
   const [questionText, setQuestionText] = useState('');
   const [questionSubmitting, setQuestionSubmitting] = useState(false);
   const [questionSubmitted, setQuestionSubmitted] = useState(false);
+  const [questionError, setQuestionError] = useState('');
   const viewLoggedRef = React.useRef(false); // StrictMode 개발 모드 이펙트 2회 실행 시 열람 기록 중복 방지
 
   useEffect(() => {
@@ -101,6 +102,7 @@ export default function PublicReport() {
     const text = questionText.trim();
     if (!text || !academyId || !report) return;
     setQuestionSubmitting(true);
+    setQuestionError('');
     try {
       await addDoc(collection(db, 'academies', academyId, 'reportQuestions'), {
         reportId, studentId: report.studentId, studentName: report.studentName,
@@ -110,6 +112,7 @@ export default function PublicReport() {
       setQuestionSubmitted(true);
     } catch (e) {
       console.error('질문 등록 실패:', e);
+      setQuestionError('질문 전송에 실패했어요. 잠시 후 다시 시도해주세요.');
     }
     setQuestionSubmitting(false);
   };
@@ -317,17 +320,22 @@ export default function PublicReport() {
               {questionSubmitted ? (
                 <p style={{ fontSize: '12px', color: positive, margin: 0 }}>질문이 전달됐어요. 선생님이 확인 후 답변드릴게요.</p>
               ) : (
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <textarea
-                    value={questionText} onChange={e => setQuestionText(e.target.value)}
-                    placeholder="선생님께 궁금한 점을 남겨주세요" rows={2}
-                    style={{ flex: 1, padding: '8px 10px', fontSize: '16px', border: `1px solid ${rule}`, borderRadius: '8px', fontFamily: 'inherit', resize: 'vertical', lineHeight: 1.6, boxSizing: 'border-box' }}
-                  />
-                  <button onClick={handleAskQuestion} disabled={questionSubmitting || !questionText.trim()}
-                    style={{ padding: '8px 14px', fontSize: '12px', fontWeight: 700, background: questionSubmitting || !questionText.trim() ? '#D1D5DB' : navy, color: '#fff', border: 'none', borderRadius: '8px', cursor: questionSubmitting || !questionText.trim() ? 'not-allowed' : 'pointer', fontFamily: 'inherit', alignSelf: 'flex-start', whiteSpace: 'nowrap' }}>
-                    {questionSubmitting ? '전송 중...' : '질문하기'}
-                  </button>
-                </div>
+                <>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <textarea
+                      value={questionText} onChange={e => setQuestionText(e.target.value)}
+                      placeholder="선생님께 궁금한 점을 남겨주세요" rows={2}
+                      style={{ flex: 1, padding: '8px 10px', fontSize: '16px', border: `1px solid ${rule}`, borderRadius: '8px', fontFamily: 'inherit', resize: 'vertical', lineHeight: 1.6, boxSizing: 'border-box' }}
+                    />
+                    <button onClick={handleAskQuestion} disabled={questionSubmitting || !questionText.trim()}
+                      style={{ padding: '8px 14px', fontSize: '12px', fontWeight: 700, background: questionSubmitting || !questionText.trim() ? '#D1D5DB' : navy, color: '#fff', border: 'none', borderRadius: '8px', cursor: questionSubmitting || !questionText.trim() ? 'not-allowed' : 'pointer', fontFamily: 'inherit', alignSelf: 'flex-start', whiteSpace: 'nowrap' }}>
+                      {questionSubmitting ? '전송 중...' : '질문하기'}
+                    </button>
+                  </div>
+                  {questionError && (
+                    <p style={{ fontSize: '11px', color: '#B92C2C', margin: '6px 0 0' }}>{questionError}</p>
+                  )}
+                </>
               )}
             </div>
           </div>
