@@ -1,6 +1,6 @@
 import React from 'react';
 import { db, createUserWithoutSignIn } from '../firebase';
-import { collection, addDoc, doc, getDoc, getDocs, setDoc, serverTimestamp, getCountFromServer } from 'firebase/firestore';
+import { collection, addDoc, doc, getDoc, getDocs, setDoc, serverTimestamp, getCountFromServer, increment } from 'firebase/firestore';
 import { Pencil, AlertTriangle, Check, HelpCircle, X } from 'lucide-react';
 import { T, C } from '../tokens.jsx';
 import { PRESET_SKINS } from './shared.jsx';
@@ -181,6 +181,59 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
   const [academyStats, setAcademyStats] = React.useState({});
   const [confirmingSuspend, setConfirmingSuspend] = React.useState(null);
   const [togglingAcademy, setTogglingAcademy] = React.useState(null);
+
+  // 학원 크레딧 수동 지급 — 실제 PG 연동 전 임시 장부. 은행 입금 확인 후 관리자가 직접 반영.
+  const PACKAGE_PRICES = { '20': 5000, '50': 10000, '200': 30000, '500': 50000 };
+  const [academyBilling, setAcademyBilling] = React.useState({}); // { [academyId]: { balance, history } }
+  const [billingLoading, setBillingLoading] = React.useState(null);
+  const [creditFormOpen, setCreditFormOpen] = React.useState(null);
+  const [creditPackage, setCreditPackage] = React.useState('20');
+  const [creditAmount, setCreditAmount] = React.useState(String(PACKAGE_PRICES['20']));
+  const [creditMemo, setCreditMemo] = React.useState('');
+  const [creditGranting, setCreditGranting] = React.useState(false);
+
+  const loadBilling = async (targetAcademyId) => {
+    setBillingLoading(targetAcademyId);
+    try {
+      const [billingSnap, historySnap] = await Promise.all([
+        getDoc(doc(db, 'academies', targetAcademyId, 'private', 'billing')),
+        getDocs(collection(db, 'academies', targetAcademyId, 'paymentHistory')),
+      ]);
+      const history = historySnap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (b.grantedAt?.seconds || 0) - (a.grantedAt?.seconds || 0));
+      setAcademyBilling(prev => ({ ...prev, [targetAcademyId]: { balance: billingSnap.exists() ? (billingSnap.data().creditBalance || 0) : 0, history } }));
+    } catch (e) {
+      console.error('크레딧 정보 조회 실패:', e);
+    }
+    setBillingLoading(null);
+  };
+
+  const toggleCreditForm = (targetAcademyId) => {
+    if (creditFormOpen === targetAcademyId) { setCreditFormOpen(null); return; }
+    setCreditFormOpen(targetAcademyId);
+    setCreditPackage('20'); setCreditAmount(String(PACKAGE_PRICES['20'])); setCreditMemo('');
+    if (!academyBilling[targetAcademyId]) loadBilling(targetAcademyId);
+  };
+
+  const handleGrantCredit = async (targetAcademyId) => {
+    const pkg = parseInt(creditPackage, 10);
+    const amount = parseInt(creditAmount, 10);
+    if (!pkg || !amount) return;
+    setCreditGranting(true);
+    try {
+      await setDoc(doc(db, 'academies', targetAcademyId, 'private', 'billing'), {
+        creditBalance: increment(pkg), creditPackage: pkg, updatedAt: serverTimestamp(),
+      }, { merge: true });
+      await addDoc(collection(db, 'academies', targetAcademyId, 'paymentHistory'), {
+        packageSize: pkg, amount, method: 'bank_transfer', memo: creditMemo.trim(), grantedAt: serverTimestamp(),
+      });
+      await loadBilling(targetAcademyId);
+      setCreditFormOpen(null);
+    } catch (e) {
+      console.error('크레딧 지급 실패:', e);
+    }
+    setCreditGranting(false);
+  };
 
   const loadAcademies = React.useCallback(async () => {
     try {
@@ -747,8 +800,11 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
               const isMine = a.id === academyId;
               const suspended = a.status === 'suspended';
               const stat = academyStats[a.id];
+              const billing = academyBilling[a.id];
+              const formOpen = creditFormOpen === a.id;
               return (
-                <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#F9FAFB', borderRadius: '10px', padding: '10px 12px' }}>
+                <div key={a.id} style={{ background: '#F9FAFB', borderRadius: '10px', padding: '10px 12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ fontSize: '13px', fontWeight: 600, color: '#1A1A1A', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
                       {a.academyName || a.id}
@@ -766,6 +822,10 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                         : '통계 불러오는 중...'}
                     </p>
                   </div>
+                  <button onClick={() => toggleCreditForm(a.id)}
+                    style={{ background: formOpen ? C.primary : '#fff', color: formOpen ? '#fff' : C.primary, border: `1px solid ${C.primary}`, borderRadius: '8px', padding: '6px 12px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
+                    {billing ? `크레딧 ${billing.balance}건` : '크레딧 지급'}
+                  </button>
                   {!isMine && (
                     <button onClick={() => handleToggleSuspend(a)} disabled={togglingAcademy === a.id}
                       style={{
@@ -777,6 +837,42 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                       {togglingAcademy === a.id ? '처리 중...' : suspended ? '이용 재개' : (confirmingSuspend === a.id ? '정지 확인 (재클릭)' : '이용 정지')}
                     </button>
                   )}
+                </div>
+
+                {/* 크레딧 지급 폼 + 이력 — 은행 입금 확인 후 관리자가 직접 반영하는 임시 장부(실제 PG 연동 전) */}
+                {formOpen && (
+                  <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #E5E7EB' }}>
+                    {billingLoading === a.id ? (
+                      <p style={{ fontSize: '11px', color: '#9CA3AF', margin: 0 }}>불러오는 중...</p>
+                    ) : (
+                      <>
+                        <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
+                          <select value={creditPackage} onChange={e => { setCreditPackage(e.target.value); setCreditAmount(String(PACKAGE_PRICES[e.target.value])); }}
+                            style={{ padding: '7px 8px', fontSize: '12px', border: '1px solid #E5E7EB', borderRadius: '8px', background: '#fff', fontFamily: 'inherit' }}>
+                            {Object.keys(PACKAGE_PRICES).map(p => <option key={p} value={p}>{p}건</option>)}
+                          </select>
+                          <input type="number" value={creditAmount} onChange={e => setCreditAmount(e.target.value)} placeholder="입금액(원)"
+                            style={{ width: '90px', padding: '7px 8px', fontSize: '12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontFamily: 'inherit' }} />
+                          <input value={creditMemo} onChange={e => setCreditMemo(e.target.value)} placeholder="메모(입금자명 등)"
+                            style={{ flex: 1, padding: '7px 8px', fontSize: '12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontFamily: 'inherit' }} />
+                          <button onClick={() => handleGrantCredit(a.id)} disabled={creditGranting}
+                            style={{ padding: '7px 12px', fontSize: '11px', fontWeight: 700, borderRadius: '8px', border: 'none', background: creditGranting ? '#E5E7EB' : '#0F6E56', color: '#fff', cursor: creditGranting ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                            {creditGranting ? '지급 중...' : '지급'}
+                          </button>
+                        </div>
+                        {billing?.history.length > 0 && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            {billing.history.map(h => (
+                              <p key={h.id} style={{ fontSize: '10px', color: '#9CA3AF', margin: 0 }}>
+                                {h.grantedAt?.seconds ? new Date(h.grantedAt.seconds * 1000).toLocaleDateString('ko-KR') : ''} · {h.packageSize}건 · {h.amount?.toLocaleString()}원{h.memo ? ` · ${h.memo}` : ''}
+                              </p>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
                 </div>
               );
             })}
