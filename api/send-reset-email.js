@@ -38,8 +38,8 @@ function buildResetEmailHtml({ resetLink }) {
             <td style="padding:36px 36px 32px;font-family:${fontStack};">
               <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:30px;">
                 <tr>
-                  <td style="width:26px;height:26px;background:${navy};border-radius:6px;text-align:center;vertical-align:middle;">
-                    <span style="color:#fff;font-size:13px;font-weight:800;font-family:${fontStack};">K</span>
+                  <td style="width:26px;height:26px;border-radius:6px;overflow:hidden;">
+                    <img src="https://dailyreportsystem.co.kr/kyohyun-logo.png" width="26" height="26" alt="" style="display:block;width:26px;height:26px;border-radius:6px;" />
                   </td>
                   <td style="padding-left:9px;font-size:13px;font-weight:800;color:${ink};font-family:${fontStack};">데일리 리포트 시스템</td>
                 </tr>
