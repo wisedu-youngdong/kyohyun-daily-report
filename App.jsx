@@ -66,22 +66,24 @@ export default function App() {
   const [appToast, setAppToast] = useState(null);
   const appToastTimerRef = React.useRef(null);
   const [logoUrl, setLogoUrl] = useState(null);
+  const [academyName, setAcademyName] = useState(null);
   const [academySkinColor, setAcademySkinColor] = useState(null);
   const [academyStatus, setAcademyStatus] = useState(null);
 
   // 학원 브랜딩(로고+기본 스킨색)+이용 상태 — 로그인 전(비인증) 화면에서도 로고가 보여야 해서 App 최상위에서 구독.
   // 로그인 후에는 그 계정의 academyId 학원 문서를 구독(분양학원 원장에게 교현 로고가 보이던 문제 해결),
   // 로그인 전에는 academyId를 알 수 없어 'kyohyun'으로 폴백 — URL/서브도메인 테넌트 구분은 추후 과제.
-  // 권한 규칙상 읽기가 막혀 있어도(비로그인 상태) 조용히 실패하고 기본 "K" 배지로 대체
+  // 권한 규칙상 읽기가 막혀 있어도(비로그인 상태) 조용히 실패하고 중립 기본값으로 대체
   useEffect(() => {
     const unsub = onSnapshot(doc(db, 'academies', academyId || 'kyohyun'),
       (snap) => {
         const data = snap.exists() ? snap.data() : {};
         setLogoUrl(data.logoUrl || null);
+        setAcademyName(data.academyName || null);
         setAcademySkinColor(data.globalSkinColor || null);
         setAcademyStatus(data.status || 'active');
       },
-      () => { setLogoUrl(null); setAcademySkinColor(null); setAcademyStatus(null); }
+      () => { setLogoUrl(null); setAcademyName(null); setAcademySkinColor(null); setAcademyStatus(null); }
     );
     return () => unsub();
   }, [academyId]);
@@ -525,10 +527,10 @@ export default function App() {
   return (
     <div style={{ minHeight: '100dvh', background: T.bgSoft, paddingBottom: 'calc(80px + env(safe-area-inset-bottom))' }}>
       <header style={{ background: T.bg, borderBottom: `1px solid ${T.border}`, padding: '14px 20px', display: 'flex', alignItems: 'center', gap: '10px', position: 'sticky', top: 0, zIndex: 100 }}>
-        <div style={{ width: '28px', height: '28px', background: logoUrl ? 'transparent' : T.brand, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
-          {logoUrl ? <img src={logoUrl} alt="로고" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ color: '#fff', fontSize: '13px', fontWeight: 700 }}>K</span>}
+        <div style={{ width: '28px', height: '28px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
+          <img src={logoUrl || '/kyohyun-logo.png'} alt="로고" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         </div>
-        <h1 style={{ fontSize: '16px', fontWeight: 700, color: T.text, letterSpacing: '-0.02em', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>교현학원 데일리 리포트</h1>
+        <h1 style={{ fontSize: '16px', fontWeight: 700, color: T.text, letterSpacing: '-0.02em', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{academyName || '데일리 리포트 시스템'}</h1>
         <span style={{ marginLeft: 'auto', fontSize: '10px', color: T.textMute, fontWeight: 500, background: T.bgSoft, padding: '3px 8px', borderRadius: '6px', border: `1px solid ${T.border}`, flexShrink: 0 }}>
           {new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
         </span>
