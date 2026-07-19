@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { db } from './firebase';
-import { doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, getDocs, collection, addDoc, query, where, serverTimestamp } from 'firebase/firestore';
 import { R, ReportCard } from './tokens.jsx';
 import { toPct, ratingLabel, fetchAcademyBranding } from './growth.js';
 
@@ -42,6 +42,11 @@ export default function PublicReport() {
   const [lightboxUrl, setLightboxUrl] = useState(null);
   const [brokenPhotos, setBrokenPhotos] = useState({});
   const [academyName, setAcademyName] = useState(null);
+  const [academyId, setAcademyId] = useState(null);
+  const [questions, setQuestions] = useState([]);
+  const [questionText, setQuestionText] = useState('');
+  const [questionSubmitting, setQuestionSubmitting] = useState(false);
+  const [questionSubmitted, setQuestionSubmitted] = useState(false);
   const viewLoggedRef = React.useRef(false); // StrictMode 개발 모드 이펙트 2회 실행 시 열람 기록 중복 방지
 
   useEffect(() => {
@@ -59,7 +64,14 @@ export default function PublicReport() {
         const r = { id: rSnap.id, ...rSnap.data() };
         setReport(r);
         setLoading(false);
+        setAcademyId(academyId);
         fetchAcademyBranding(academyId).then(b => setAcademyName(b.academyName || null));
+
+        // 이 리포트에 남긴 질문/답변 — 공개 읽기라 나중에 다시 들어와도 답변 확인 가능
+        getDocs(query(collection(db, 'academies', academyId, 'reportQuestions'), where('reportId', '==', reportId)))
+          .then(qSnap => setQuestions(qSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+            .sort((a, b) => (a.askedAt?.seconds || 0) - (b.askedAt?.seconds || 0))))
+          .catch(() => {});
 
         // 열람 기록 저장 (화면 표시를 막지 않도록 fire-and-forget)
         if (!viewLoggedRef.current) {
@@ -84,6 +96,23 @@ export default function PublicReport() {
       } catch (e) { console.error('리포트 로드 실패:', e); setErrorType('network'); setLoading(false); }
     })();
   }, [reportId, retryKey]);
+
+  const handleAskQuestion = async () => {
+    const text = questionText.trim();
+    if (!text || !academyId || !report) return;
+    setQuestionSubmitting(true);
+    try {
+      await addDoc(collection(db, 'academies', academyId, 'reportQuestions'), {
+        reportId, studentId: report.studentId, studentName: report.studentName,
+        questionText: text, askedAt: serverTimestamp(),
+      });
+      setQuestionText('');
+      setQuestionSubmitted(true);
+    } catch (e) {
+      console.error('질문 등록 실패:', e);
+    }
+    setQuestionSubmitting(false);
+  };
 
   if (loading) return <SkeletonReport />;
   if (errorType) return (
@@ -268,6 +297,39 @@ export default function PublicReport() {
                 <div style={{ width: '28px', height: '28px', background: '#EAF0F9', borderRadius: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1A5CB8', fontSize: '14px', flexShrink: 0 }}>→</div>
               </div>
             )}
+
+            {/* 학부모 질문하기 */}
+            <div style={{ height: '1px', background: rule, margin: '18px 0' }} />
+            <div>
+              <p style={{ fontSize: '10px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 10px' }}>궁금한 점이 있으신가요?</p>
+              {questions.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '12px' }}>
+                  {questions.map(q => (
+                    <div key={q.id}>
+                      <p style={{ fontSize: '12px', color: ink, margin: '0 0 4px', fontWeight: 600 }}>Q. {q.questionText}</p>
+                      {q.answerText
+                        ? <p style={{ fontSize: '12px', color: inkSub, margin: 0, lineHeight: 1.7 }}>A. {q.answerText}</p>
+                        : <p style={{ fontSize: '11px', color: inkMute, margin: 0, fontStyle: 'italic' }}>답변 대기 중이에요</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {questionSubmitted ? (
+                <p style={{ fontSize: '12px', color: positive, margin: 0 }}>질문이 전달됐어요. 선생님이 확인 후 답변드릴게요.</p>
+              ) : (
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <textarea
+                    value={questionText} onChange={e => setQuestionText(e.target.value)}
+                    placeholder="선생님께 궁금한 점을 남겨주세요" rows={2}
+                    style={{ flex: 1, padding: '8px 10px', fontSize: '16px', border: `1px solid ${rule}`, borderRadius: '8px', fontFamily: 'inherit', resize: 'vertical', lineHeight: 1.6, boxSizing: 'border-box' }}
+                  />
+                  <button onClick={handleAskQuestion} disabled={questionSubmitting || !questionText.trim()}
+                    style={{ padding: '8px 14px', fontSize: '12px', fontWeight: 700, background: questionSubmitting || !questionText.trim() ? '#D1D5DB' : navy, color: '#fff', border: 'none', borderRadius: '8px', cursor: questionSubmitting || !questionText.trim() ? 'not-allowed' : 'pointer', fontFamily: 'inherit', alignSelf: 'flex-start', whiteSpace: 'nowrap' }}>
+                    {questionSubmitting ? '전송 중...' : '질문하기'}
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
     </ReportCard>

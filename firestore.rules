@@ -66,6 +66,17 @@ service cloud.firestore {
       allow read, write: if isStaffOfAcademy(academyId);
     }
 
+    // ── private/billing: 크레딧 잔액. academies/{id} 본문서는 공개 읽기라 여기 따로 둠.
+    // 학원 직원은 자기 잔액을 볼 순 있지만(투명성), 쓰기는 플랫폼 관리자만(수동 지급 전용, 자가 충전 방지) ──
+    match /academies/{academyId}/private/billing {
+      allow read: if isStaffOfAcademy(academyId);
+      allow write: if isPlatformAdmin();
+    }
+    match /academies/{academyId}/paymentHistory/{entryId} {
+      allow read: if isStaffOfAcademy(academyId);
+      allow write: if isPlatformAdmin();
+    }
+
     // ── students: 직원 전체 접근 + 공개 단건 조회/narrative만 비로그인 수정 ──
     match /academies/{academyId}/students/{studentId} {
       allow get:    if true;                          // 성장스토리 공개 페이지 — 무작위 ID를 알아야 접근 가능
@@ -88,6 +99,17 @@ service cloud.firestore {
       allow create: if request.resource.data.keys().hasOnly(['reportId','studentId','studentName','src','viewedAt','ua'])
                     && request.resource.data.reportId is string;
       allow read, update, delete: if isStaffOfAcademy(academyId);
+    }
+
+    // ── reportQuestions: 학부모 질문. 읽기는 공개(자기 리포트 페이지에서 답변 재확인),
+    // 생성도 비로그인 허용(정해진 필드만) — 답변 작성/수정은 직원만 ──
+    match /academies/{academyId}/reportQuestions/{questionId} {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasOnly(['reportId','studentId','studentName','questionText','askedAt'])
+                    && request.resource.data.questionText is string
+                    && request.resource.data.questionText.size() > 0
+                    && request.resource.data.questionText.size() <= 500;
+      allow update, delete: if isStaffOfAcademy(academyId);
     }
 
     // ── ID→academy 조회용 인덱스: get만 허용, list는 절대 금지(전체 학원 열거 방지) ──

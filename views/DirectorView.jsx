@@ -1,19 +1,29 @@
 import React, { useState } from 'react';
 import { db } from '../firebase';
-import { updateDoc, doc } from 'firebase/firestore';
-import { FileText, AlertTriangle, Copy, Bell, CalendarDays } from 'lucide-react';
+import { updateDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { FileText, AlertTriangle, Copy, Bell, CalendarDays, MessageCircle } from 'lucide-react';
 import { kstDay, toPct, ratingLabel } from '../growth.js';
 import { C, R } from '../tokens.jsx';
 import { StudentProfileModal } from './StudentProfileModal.jsx';
 import { groupByClassId } from './shared.jsx';
 
-export default function DirectorView({ reports, students, classes = [], reportViews = [], onToast, academyId, academyName }) {
+export default function DirectorView({ reports, students, classes = [], reportViews = [], reportQuestions = [], onToast, academyId, academyName }) {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const dateInputRef = React.useRef(null);
   const [expandedId, setExpandedId] = useState(null);
   const [memos, setMemos] = useState({});
   const [savingMemo, setSavingMemo] = useState(null);
   const [profileStudent, setProfileStudent] = useState(null);
+  const [answerDrafts, setAnswerDrafts] = useState({});
+  const [savingAnswer, setSavingAnswer] = useState(null);
+
+  const handleAnswerSave = async (questionId, answerText) => {
+    setSavingAnswer(questionId);
+    await updateDoc(doc(db, 'academies', academyId, 'reportQuestions', questionId), {
+      answerText, answeredAt: serverTimestamp(),
+    });
+    setSavingAnswer(null);
+  };
 
   const DIAG_MAP = {
     calc:    { label: '계산 실수', bg: '#A32D2D', prefix: '⚠' },
@@ -226,6 +236,10 @@ export default function DirectorView({ reports, students, classes = [], reportVi
             : '';
           const viewSrc = lastView?.src === 'kakao' ? '카카오' : lastView?.src === 'copy' ? '링크복사' : '직접';
 
+          // 학부모 질문 — reportViews와 동일하게 이미 메모리에 있는 목록을 reportId로 필터링(추가 조회 없음)
+          const questions = reportQuestions.filter(q => q.reportId === r.id);
+          const unansweredCount = questions.filter(q => !q.answerText).length;
+
           return (
             <div key={r.id} style={{ background: '#fff', border: `0.5px solid ${borderColor}`, borderRadius: '10px', overflow: 'hidden', gridColumn: isOpen ? '1 / -1' : 'auto' }}>
 
@@ -249,6 +263,11 @@ export default function DirectorView({ reports, students, classes = [], reportVi
                       무관하게 "작성 중"으로 표시. 안 그러면 선생님이 쓰다 만 리포트가
                       "미열람"으로 잡혀 실제로는 보낸 적도 없는데 발송된 것처럼 보임 */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                    {unansweredCount > 0 && (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '10px', fontWeight: 700, color: '#1A5CB8', background: '#EAF0F9', padding: '2px 8px', borderRadius: '10px' }}>
+                        <MessageCircle size={10} /> 질문 {unansweredCount}건
+                      </span>
+                    )}
                     {r.isDraft ? (
                       <span style={{ fontSize: '10px', fontWeight: 700, color: C.warningText, background: C.warningBg, padding: '2px 8px', borderRadius: '10px' }}>작성 중</span>
                     ) : isViewed ? (
@@ -355,6 +374,41 @@ export default function DirectorView({ reports, students, classes = [], reportVi
                       </button>
                     </div>
                   </div>
+
+                  {/* 학부모 질문 */}
+                  {questions.length > 0 && (
+                    <div style={{ marginTop: '12px' }}>
+                      <p style={{ fontSize: '10px', color: '#98A1AC', margin: '0 0 5px', letterSpacing: '0.08em' }}>학부모 질문 · {questions.length}건</p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {questions.map(q => (
+                          <div key={q.id} style={{ background: '#FAFAFA', border: '0.5px solid #E8E6E0', borderRadius: '8px', padding: '10px 12px' }}>
+                            <p style={{ fontSize: '12px', color: '#1A1A1A', margin: '0 0 8px', lineHeight: 1.6 }}>{q.questionText}</p>
+                            {q.answerText ? (
+                              <div style={{ borderLeft: '2px solid #0F6E56', paddingLeft: '10px' }}>
+                                <p style={{ fontSize: '12px', color: '#5A6472', margin: 0, lineHeight: 1.6 }}>{q.answerText}</p>
+                              </div>
+                            ) : (
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <textarea
+                                  value={answerDrafts[q.id] ?? ''}
+                                  onChange={e => setAnswerDrafts(prev => ({ ...prev, [q.id]: e.target.value }))}
+                                  placeholder="답변을 입력해주세요"
+                                  rows={2}
+                                  style={{ flex: 1, padding: '8px 10px', fontSize: '16px', border: '0.5px solid #E8E6E0', borderRadius: '8px', fontFamily: 'inherit', resize: 'vertical', lineHeight: 1.6 }}
+                                />
+                                <button
+                                  onClick={() => handleAnswerSave(q.id, answerDrafts[q.id] || '')}
+                                  disabled={savingAnswer === q.id || !(answerDrafts[q.id] || '').trim()}
+                                  style={{ padding: '8px 14px', fontSize: '12px', fontWeight: 700, background: savingAnswer === q.id ? '#E5E7EB' : '#0D2D6B', color: savingAnswer === q.id ? '#9CA3AF' : '#fff', border: 'none', borderRadius: '8px', cursor: savingAnswer === q.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit', alignSelf: 'flex-start' }}>
+                                  {savingAnswer === q.id ? '저장 중' : '답변 저장'}
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* 링크 복사 — 미리보기 카드. draft는 선생님이 아직 최종 저장을 안 한
                       상태라 여기서 복사해 보내면 미완성 리포트가 학부모에게 나갈 수 있어

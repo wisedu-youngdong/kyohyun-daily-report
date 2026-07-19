@@ -58,6 +58,7 @@ export default function App() {
   const [classes, setClasses] = useState([]);
   const [reports, setReports] = useState([]);
   const [reportViews, setReportViews] = useState([]);
+  const [reportQuestions, setReportQuestions] = useState([]);
   const [commentTemplates, setCommentTemplates] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [studentsReady, setStudentsReady] = useState(false);
@@ -198,6 +199,11 @@ export default function App() {
       setReportViews(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     }, (e) => { console.error('열람 기록 구독 실패:', e); });
 
+    // 학부모 질문 실시간 구독 — reportViews와 동일 패턴(플랫 컬렉션 + reportId로 클라이언트 필터링)
+    const unsubQuestions = onSnapshot(collection(db, 'academies', academyId, 'reportQuestions'), (snap) => {
+      setReportQuestions(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (e) => { console.error('학부모 질문 구독 실패:', e); });
+
     // 코멘트 즐겨찾기 — 학원 공용(모든 강사가 함께 씀)
     const unsubTemplates = onSnapshot(collection(db, 'academies', academyId, 'commentTemplates'), (snap) => {
       setCommentTemplates(snap.docs.map(d => ({ id: d.id, ...d.data() }))
@@ -209,7 +215,7 @@ export default function App() {
       setReviews(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     }, (e) => { console.error('복습 일정 구독 실패:', e); });
 
-    return () => { unsubStudents(); unsubTeachers(); unsubClasses(); unsubReports(); unsubViews(); unsubTemplates(); unsubReviews(); };
+    return () => { unsubStudents(); unsubTeachers(); unsubClasses(); unsubReports(); unsubViews(); unsubQuestions(); unsubTemplates(); unsubReviews(); };
   }, [user, academyId, academyStatus, isPlatformAdmin]);
 
   const handleCompleteReview = async (id) => {
@@ -662,7 +668,7 @@ export default function App() {
             ], { director: 960, analysis: 600 })}
             <div style={{ marginTop: '12px' }}>
               {activeSubTab.insight === 'director' && (dataReady
-                ? <div><DirectorView reports={reports} students={students} classes={classes} reportViews={reportViews} onToast={showAppToast} academyId={academyId} academyName={academyName} /><GrowthDashboard reports={reports} students={students} onSwitchTab={setActiveTab} /></div>
+                ? <div><DirectorView reports={reports} students={students} classes={classes} reportViews={reportViews} reportQuestions={reportQuestions} onToast={showAppToast} academyId={academyId} academyName={academyName} /><GrowthDashboard reports={reports} students={students} onSwitchTab={setActiveTab} /></div>
                 : <SkeletonBlock rows={4} cardHeight={70} />
               )}
               {activeSubTab.insight === 'analysis' && (dataReady
