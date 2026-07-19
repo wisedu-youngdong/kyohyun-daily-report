@@ -97,8 +97,8 @@ export default async function handler(req, res) {
 
     const auth = getAdminAuth();
     const actionCodeSettings = {
-      // 재설정 완료 후 돌아올 주소 — 로그인 화면
-      url: 'https://dailyreportsystem.co.kr/',
+      // 새 비밀번호 입력을 처리하는 자체 브랜딩 페이지 — main.jsx의 /auth/action 라우트
+      url: 'https://dailyreportsystem.co.kr/auth/action',
     };
 
     let resetLink;
