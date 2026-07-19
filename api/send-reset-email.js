@@ -115,7 +115,15 @@ export default async function handler(req, res) {
       throw e;
     }
 
-    const html = buildResetEmailHtml({ resetLink });
+    // generatePasswordResetLink가 돌려주는 링크는 Firebase 자체 호스팅 페이지
+    // (*.firebaseapp.com/__/auth/action)로 연결되고, actionCodeSettings.url은 그 페이지의
+    // continueUrl로만 쓰인다 — 우리 도메인으로 바로 연결하려면 콘솔의 "커스텀 작업 URL"
+    // 설정이 필요한데, 이 설정 없이도 되도록 진짜 인증 토큰(oobCode)만 뽑아서
+    // 우리 도메인 링크를 직접 구성한다(ResetPasswordScreen.jsx는 mode/oobCode만 있으면 됨).
+    const oobCode = new URL(resetLink).searchParams.get('oobCode');
+    const finalLink = `https://dailyreportsystem.co.kr/auth/action?mode=resetPassword&oobCode=${oobCode}`;
+
+    const html = buildResetEmailHtml({ resetLink: finalLink });
 
     const resendRes = await fetch('https://api.resend.com/emails', {
       method: 'POST',
