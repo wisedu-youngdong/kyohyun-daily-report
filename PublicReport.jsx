@@ -108,6 +108,12 @@ export default function PublicReport() {
         reportId, studentId: report.studentId, studentName: report.studentName,
         questionText: text, askedAt: serverTimestamp(),
       });
+      // 원장님께 이메일 알림 — 실패해도 질문 등록 자체는 이미 끝났으니 UX를 막지 않음
+      fetch('/api/notify-question', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ academyId, studentName: report.studentName, questionText: text }),
+      }).catch(() => {});
       setQuestionText('');
       setQuestionSubmitted(true);
     } catch (e) {
