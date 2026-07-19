@@ -703,6 +703,47 @@ export default function GrowthStory() {
         );
       })()}
 
+      {/* 자주 나온 약점 유형 — 이미 로드된 sorted(이 학생 전체 리포트)로 집계, 새 조회 없음.
+          recharts는 여기선 안 씀 — 공개 페이지 번들에 375KB 차트 라이브러리가 딸려오는 걸 피하려고
+          단원별 평가 추이와 같은 hand-rolled div 막대 방식 유지 */}
+      {(() => {
+        const DIAG_COLORS = {
+          calc:    { label: '계산 실수', color: '#7A4F00' },
+          concept: { label: '개념 누락', color: '#0D2D6B' },
+          apply:   { label: '응용 부족', color: '#8A2020' },
+          time:    { label: '시간 부족', color: '#4A3080' },
+        };
+        const diagCount = {};
+        sorted.forEach(r => (r.diagnosis || []).forEach(d => {
+          if (d.key === 'perfect') return; // 잘한 건 말고 약점만 집계
+          diagCount[d.key] = (diagCount[d.key] || 0) + 1;
+        }));
+        const diagList = Object.entries(diagCount).sort((a, b) => b[1] - a[1]);
+        if (diagList.length === 0) return null;
+        const maxCount = diagList[0][1];
+        return (
+          <div style={S.section}>
+            <p style={S.label}>자주 나온 약점 유형</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {diagList.map(([key, count]) => {
+                const info = DIAG_COLORS[key] || { label: key, color: '#8A8A8A' };
+                return (
+                  <div key={key}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                      <span style={{ fontSize: '12px', color: '#2C2C2C', fontWeight: 600 }}>{info.label}</span>
+                      <span style={{ fontSize: '11px', color: '#8A8A8A' }}>{count}회</span>
+                    </div>
+                    <div style={{ height: '6px', background: '#F3F4F6', borderRadius: '6px', overflow: 'hidden' }}>
+                      <div style={{ width: `${Math.round(count / maxCount * 100)}%`, height: '100%', background: info.color, borderRadius: '6px' }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* 핵심 지표 */}
       <div style={S.section}>
         <p style={S.label}>KEY METRICS</p>
