@@ -239,6 +239,7 @@ export default function DiagnosticReportInput({
   currentTeacherId = null,
   isDirector = false,
   academyName = null,
+  academyPhone = null,
 }) {
   const isWide = useMediaQuery('(min-width: 901px)');
   const [showStudentModal, setShowStudentModal] = useState(false);
@@ -1991,7 +1992,9 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
         {/* 푸터 */}
         <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '10px', borderTop: `1px solid rgba(0,0,0,0.06)` }}>
           <span style={{ fontSize: '9px', fontWeight: 700, color: s.footerText, fontFamily: "'Pretendard Variable', Pretendard, sans-serif", letterSpacing: '0.12em' }}>{academyName || '데일리 리포트'}</span>
-          <span style={{ fontSize: '9px', fontWeight: 500, color: s.footerText, fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>031-707-0591</span>
+          {academyPhone && (
+            <span style={{ fontSize: '9px', fontWeight: 500, color: s.footerText, fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>{academyPhone}</span>
+          )}
         </div>
       </div>
     </div>

@@ -67,6 +67,7 @@ export default function App() {
   const appToastTimerRef = React.useRef(null);
   const [logoUrl, setLogoUrl] = useState(null);
   const [academyName, setAcademyName] = useState(null);
+  const [academyPhone, setAcademyPhone] = useState(null);
   const [academySkinColor, setAcademySkinColor] = useState(null);
   const [academyStatus, setAcademyStatus] = useState(null);
 
@@ -80,10 +81,11 @@ export default function App() {
         const data = snap.exists() ? snap.data() : {};
         setLogoUrl(data.logoUrl || null);
         setAcademyName(data.academyName || null);
+        setAcademyPhone(data.academyPhone || null);
         setAcademySkinColor(data.globalSkinColor || null);
         setAcademyStatus(data.status || 'active');
       },
-      () => { setLogoUrl(null); setAcademyName(null); setAcademySkinColor(null); setAcademyStatus(null); }
+      () => { setLogoUrl(null); setAcademyName(null); setAcademyPhone(null); setAcademySkinColor(null); setAcademyStatus(null); }
     );
     return () => unsub();
   }, [academyId]);
@@ -635,6 +637,7 @@ export default function App() {
               currentTeacherId={userTeacherId}
               isDirector={isDirector}
               academyName={academyName}
+              academyPhone={academyPhone}
             />
           </>
         )}
@@ -683,7 +686,7 @@ export default function App() {
                 : <SkeletonBlock rows={5} cardHeight={56} />
               )}
               {activeSubTab.manage === 'settings' && (dataReady
-                ? <SettingsView students={students} onSaveStudent={handleSaveStudent} teachers={teachers} onSaveTeacher={handleSaveTeacher} onDeleteTeacher={handleDeleteTeacher} classes={classes} onSaveClass={handleSaveClass} onDeleteClass={handleDeleteClass} logoUrl={logoUrl} onSaveLogo={handleSaveLogo} onDeleteLogo={handleDeleteLogo} academyId={academyId} academySkinColor={academySkinColor} isPlatformAdmin={isPlatformAdmin} />
+                ? <SettingsView students={students} onSaveStudent={handleSaveStudent} teachers={teachers} onSaveTeacher={handleSaveTeacher} onDeleteTeacher={handleDeleteTeacher} classes={classes} onSaveClass={handleSaveClass} onDeleteClass={handleDeleteClass} logoUrl={logoUrl} onSaveLogo={handleSaveLogo} onDeleteLogo={handleDeleteLogo} academyId={academyId} academyPhone={academyPhone} academySkinColor={academySkinColor} isPlatformAdmin={isPlatformAdmin} />
                 : <SkeletonBlock rows={4} cardHeight={70} />
               )}
             </div>

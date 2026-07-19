@@ -62,7 +62,7 @@ function deriveColors(mainHex) {
   };
 }
 
-export default function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDeleteTeacher, classes = [], onSaveClass, onDeleteClass, logoUrl, onSaveLogo, onDeleteLogo, academyId, academySkinColor, isPlatformAdmin = false }) {
+export default function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDeleteTeacher, classes = [], onSaveClass, onDeleteClass, logoUrl, onSaveLogo, onDeleteLogo, academyId, academyPhone, academySkinColor, isPlatformAdmin = false }) {
   // academies/{academyId} 문서에 저장된 값이 있으면 그걸 기준으로, 없으면(마이그레이션 직후 등)
   // 예전 localStorage 값을 폴백으로 사용 — 기기별로 갈리던 색상을 학원 단위로 통일하는 과도기 처리
   const [globalColor, setGlobalColor] = React.useState(() => {
@@ -77,6 +77,19 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
   const [logoUploading, setLogoUploading] = React.useState(false);
   const [showLogoDeleteConfirm, setShowLogoDeleteConfirm] = React.useState(false);
   const logoInputRef = React.useRef(null);
+
+  // 학원 연락처 — 리포트 작성 화면 미리보기 푸터에 표시(설정 안 하면 표시 안 함)
+  const [phone, setPhone] = React.useState(academyPhone || '');
+  const [phoneSaving, setPhoneSaving] = React.useState(false);
+  const [phoneSaved, setPhoneSaved] = React.useState(false);
+  React.useEffect(() => { setPhone(academyPhone || ''); }, [academyPhone]);
+  const savePhone = async () => {
+    setPhoneSaving(true);
+    await setDoc(doc(db, 'academies', academyId), { academyPhone: phone.trim() }, { merge: true });
+    setPhoneSaving(false);
+    setPhoneSaved(true);
+    setTimeout(() => setPhoneSaved(false), 2000);
+  };
 
   const handleLogoFile = async (file) => {
     if (!file) return;
@@ -357,6 +370,22 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
               </button>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* 학원 연락처 — 리포트 작성 화면 미리보기 푸터에 표시. 미설정 시 그냥 표시 안 함 */}
+      <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB', marginBottom: '14px' }}>
+        <p style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>학원 연락처</p>
+        <p style={{ fontSize: '11px', color: '#6B7280', margin: '0 0 14px', lineHeight: 1.6 }}>
+          리포트 작성 화면의 미리보기 카드 하단에 표시됩니다. 비워두면 표시되지 않습니다.
+        </p>
+        <div style={{ display: 'flex', gap: '6px' }}>
+          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="예: 031-000-0000"
+            style={{ flex: 1, padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
+          <button onClick={savePhone} disabled={phoneSaving}
+            style={{ padding: '9px 16px', fontSize: '12px', fontWeight: 700, borderRadius: '9px', border: 'none', background: phoneSaving ? '#E5E7EB' : (phoneSaved ? C.success : C.primary), color: phoneSaving ? '#9CA3AF' : '#fff', cursor: phoneSaving ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+            {phoneSaving ? '저장 중...' : phoneSaved ? '✓ 저장됨' : '저장'}
+          </button>
         </div>
       </div>
 
