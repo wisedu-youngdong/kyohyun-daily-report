@@ -7,7 +7,7 @@ import { C, R } from '../tokens.jsx';
 import { StudentProfileModal } from './StudentProfileModal.jsx';
 import { groupByClassId } from './shared.jsx';
 
-export default function DirectorView({ reports, students, classes = [], reportViews = [], onToast, academyId }) {
+export default function DirectorView({ reports, students, classes = [], reportViews = [], onToast, academyId, academyName }) {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const dateInputRef = React.useRef(null);
   const [expandedId, setExpandedId] = useState(null);
@@ -62,6 +62,7 @@ export default function DirectorView({ reports, students, classes = [], reportVi
           onClose={() => setProfileStudent(null)}
           DIAG_MAP={DIAG_MAP}
           onToast={onToast}
+          academyName={academyName}
         />
       )}
 
@@ -372,7 +373,7 @@ export default function DirectorView({ reports, students, classes = [], reportVi
                     <p style={{ fontSize: '10px', color: '#98A1AC', margin: '0 0 7px', letterSpacing: '0.08em' }}>학부모 전송 미리보기</p>
                     {/* 미리보기 카드 */}
                     <div style={{ background: '#F5F8FF', border: '1px solid #C5D5F0', borderRadius: '10px', padding: '12px 14px', marginBottom: '8px' }}>
-                      <p style={{ fontSize: '11px', color: '#1A5CB8', fontWeight: 700, margin: '0 0 6px' }}>📋 교현학원 수업 리포트</p>
+                      <p style={{ fontSize: '11px', color: '#1A5CB8', fontWeight: 700, margin: '0 0 6px' }}>📋 {academyName || '데일리 리포트'} 수업 리포트</p>
                       <p style={{ fontSize: '13px', fontWeight: 800, color: '#0D2D6B', margin: '0 0 4px' }}>{r.studentName} 학생 · {dateStr}</p>
                       <div style={{ display: 'flex', gap: '10px', margin: '0 0 6px', flexWrap: 'wrap' }}>
                         <span style={{ fontSize: '11px', color: '#5A6472' }}>과제 {toPct(r.homeworkRating)}%</span>
@@ -400,7 +401,7 @@ export default function DirectorView({ reports, students, classes = [], reportVi
                         const url = `${window.location.origin}/report/${r.id}`;
                         const diagText = (r.diagnosis || []).map(d => DIAG_MAP[d.key] ? `${DIAG_MAP[d.key].prefix} ${DIAG_MAP[d.key].label}${d.detail ? ` (${d.detail})` : ''}` : '').filter(Boolean).join(', ');
                         const copyText = [
-                          `📋 교현학원 수업 리포트`,
+                          `📋 ${academyName || '데일리 리포트'} 수업 리포트`,
                           ``,
                           `안녕하세요, ${r.studentName} 학생 ${dateStr} 수업 리포트입니다.`,
                           ``,

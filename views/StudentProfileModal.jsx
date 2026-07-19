@@ -7,7 +7,7 @@ import { C } from '../tokens.jsx';
 // ============================================================
 // 학생 종합 프로필 모달 — 상담용
 // ============================================================
-export function StudentProfileModal({ student, reports, onClose, DIAG_MAP, onToast }) {
+export function StudentProfileModal({ student, reports, onClose, DIAG_MAP, onToast, academyName }) {
   const [showWeekly, setShowWeekly] = useState(false);
   const [calMonth, setCalMonth] = useState(() => {
     const last = [...reports].sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))[0];
@@ -66,7 +66,7 @@ export function StudentProfileModal({ student, reports, onClose, DIAG_MAP, onToa
         <div style={{ background: '#0D2D6B', padding: '18px 22px', position: 'relative' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
             <div style={{ width: '4px', height: '18px', background: '#C9A227', borderRadius: '0', flexShrink: 0 }} />
-            <span style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.6)', letterSpacing: '0.15em' }}>와이즈에듀 교현학원 · 학생 종합 프로필</span>
+            <span style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.6)', letterSpacing: '0.15em' }}>{academyName || '데일리 리포트 시스템'} · 학생 종합 프로필</span>
           </div>
           <p style={{ fontSize: '22px', fontWeight: 700, color: '#fff', margin: '0 0 4px' }}>{student.name}</p>
           <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.55)', margin: 0 }}>총 {sorted.length}회 수업 누적</p>
@@ -395,7 +395,7 @@ export function StudentProfileModal({ student, reports, onClose, DIAG_MAP, onToa
                     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: '20px' }}
                       onClick={() => setShowWeekly(false)}>
                       <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: '420px', maxHeight: '90vh', overflowY: 'auto', borderRadius: '16px' }}>
-                        <WeeklySummaryCard student={student} reports={reports} />
+                        <WeeklySummaryCard student={student} reports={reports} academyName={academyName} />
                         <button onClick={() => setShowWeekly(false)}
                           style={{ width: '100%', marginTop: '8px', padding: '12px', background: 'rgba(255,255,255,0.9)', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', color: '#374151' }}>
                           닫기
@@ -419,7 +419,7 @@ export function StudentProfileModal({ student, reports, onClose, DIAG_MAP, onToa
 }
 
 // ── 주간 요약 카드 — StudentProfileModal 안에서만 씀
-function WeeklySummaryCard({ student, reports, teachers }) {
+function WeeklySummaryCard({ student, reports, teachers, academyName }) {
   const [copied, setCopied] = useState(false);
 
   const now = new Date();
@@ -496,7 +496,7 @@ function WeeklySummaryCard({ student, reports, teachers }) {
           {weekLabel} · {fmt(weekStart)} ~ {fmt(weekEnd)}
         </p>
         <p style={{ fontSize: '18px', fontWeight: 700, color: '#fff', margin: 0 }}>{student.name} 학생 주간 리포트</p>
-        <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)', margin: '4px 0 0' }}>와이즈에듀 교현학원</p>
+        <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)', margin: '4px 0 0' }}>{academyName || '데일리 리포트 시스템'}</p>
       </div>
 
       {weekReports.length === 0 ? (

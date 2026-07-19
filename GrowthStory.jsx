@@ -3,7 +3,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { db } from './firebase';
 import { collection, getDoc, getDocs, query, where, doc, setDoc, limit } from 'firebase/firestore';
 import { ReportCard } from './tokens.jsx';
-import { toPct, isNewStudent as computeIsNewStudent } from './growth.js';
+import { toPct, isNewStudent as computeIsNewStudent, fetchAcademyBranding } from './growth.js';
 import { findUnitKey } from './curriculum.js';
 
 // 학부모에게 저장 즉시 노출되는 서사 문구 — 강사가 너무 길게/짧게 써서 카드 UI가
@@ -35,6 +35,7 @@ export default function GrowthStory() {
   // 학생 문서가 academies/{academyId}/students 밑으로 옮겨가면서, studentIndex에서
   // 먼저 academyId를 찾아야 실제 문서와 리포트를 조회할 수 있음 — 서사 저장 시에도 재사용
   const [academyId, setAcademyId] = useState(null);
+  const [academyName, setAcademyName] = useState(null);
   const [narrative, setNarrative] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null); // 'network' | null
@@ -87,6 +88,7 @@ export default function GrowthStory() {
         if (!indexSnap.exists()) { setLoading(false); return; } // student 상태가 null로 남아 "찾을 수 없음" 처리됨
         const foundAcademyId = indexSnap.data().academyId;
         setAcademyId(foundAcademyId);
+        fetchAcademyBranding(foundAcademyId).then(b => setAcademyName(b.academyName || null));
 
         const [stuSnap, rSnap] = await Promise.all([
           getDoc(doc(db, 'academies', foundAcademyId, 'students', studentId)),
@@ -427,7 +429,7 @@ export default function GrowthStory() {
       <div style={S.header}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
           <div style={{ width: '3px', height: '16px', background: '#C9A227', borderRadius: '1px' }} />
-          <span style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.16em' }}>와이즈에듀 교현학원</span>
+          <span style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.16em' }}>{academyName || '데일리 리포트 시스템'}</span>
         </div>
         <div style={{ height: '1px', background: 'rgba(201,162,39,0.2)', marginBottom: '20px' }} />
         <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.18em', fontWeight: 600, marginBottom: '6px' }}>GROWTH STORY</p>
@@ -801,7 +803,7 @@ export default function GrowthStory() {
 
       {/* 푸터 */}
       <div style={{ padding: '16px 22px', background: '#F7F5F1', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: '10px', color: '#8A8A8A', fontWeight: 600, letterSpacing: '0.08em' }}>교현학원</span>
+        <span style={{ fontSize: '10px', color: '#8A8A8A', fontWeight: 600, letterSpacing: '0.08em' }}>{academyName || '데일리 리포트 시스템'}</span>
         <span style={{ fontSize: '10px', color: '#8A8A8A' }}>{new Date().getFullYear()}년 {new Date().getMonth() + 1}월</span>
       </div>
 

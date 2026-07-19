@@ -1,6 +1,8 @@
 // Vercel Serverless — /api/report-og?id=reportId
 // Firebase Admin 없이 Firestore REST API 사용
 
+import { fetchAcademyName } from './_lib/academyName.js';
+
 export default async function handler(req, res) {
   const { id } = req.query;
 
@@ -8,6 +10,7 @@ export default async function handler(req, res) {
   let dateStr     = '';
   let teacherNote = '';
   let unit        = '';
+  let academyName = null;
 
   if (id) {
     try {
@@ -21,6 +24,7 @@ export default async function handler(req, res) {
         const indexData = await indexRes.json();
         const academyId = indexData.fields?.academyId?.stringValue;
         if (academyId) {
+          academyName = await fetchAcademyName(academyId);
           const url = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents/academies/${academyId}/reports/${id}`;
           const r = await fetch(url);
           if (r.ok) {
@@ -43,6 +47,7 @@ export default async function handler(req, res) {
     }
   }
 
+  const siteName = academyName ? `${academyName} 데일리 리포트` : '데일리 리포트 시스템';
   const title = `${studentName} 학생의 수업 리포트${dateStr ? ` · ${dateStr}` : ''}`;
   const desc  = teacherNote
     ? `"${teacherNote.slice(0, 60)}${teacherNote.length > 60 ? '...' : ''}"`
@@ -50,7 +55,7 @@ export default async function handler(req, res) {
   const unitText = unit ? ` · ${unit}` : '';
 
   // OG 이미지 URL — api/og에 학생 이름 전달
-  const ogImg = `https://dailyreportsystem.co.kr/api/og?title=${encodeURIComponent(studentName + ' 학생 리포트')}&sub=${encodeURIComponent(dateStr + unitText)}`;
+  const ogImg = `https://dailyreportsystem.co.kr/api/og?title=${encodeURIComponent(studentName + ' 학생 리포트')}&sub=${encodeURIComponent(dateStr + unitText)}&academyName=${encodeURIComponent(academyName || '데일리 리포트 시스템')}`;
 
   const html = `<!DOCTYPE html>
 <html lang="ko">
@@ -60,7 +65,7 @@ export default async function handler(req, res) {
   <title>${title}</title>
   <meta name="description" content="${desc}" />
   <meta property="og:type" content="website" />
-  <meta property="og:site_name" content="교현학원 데일리 리포트" />
+  <meta property="og:site_name" content="${siteName}" />
   <meta property="og:title" content="${title}" />
   <meta property="og:description" content="${desc}" />
   <meta property="og:image" content="${ogImg}" />

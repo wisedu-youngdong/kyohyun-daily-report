@@ -3,7 +3,7 @@ import { useParams, useLocation } from 'react-router-dom';
 import { db } from './firebase';
 import { doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { R, ReportCard } from './tokens.jsx';
-import { toPct, ratingLabel } from './growth.js';
+import { toPct, ratingLabel, fetchAcademyBranding } from './growth.js';
 
 const DIAG_BADGES = {
   calc:    { label: '⚠ 계산 실수', bg: '#A32D2D' },
@@ -41,6 +41,7 @@ export default function PublicReport() {
   const [retryKey, setRetryKey] = useState(0);
   const [lightboxUrl, setLightboxUrl] = useState(null);
   const [brokenPhotos, setBrokenPhotos] = useState({});
+  const [academyName, setAcademyName] = useState(null);
   const viewLoggedRef = React.useRef(false); // StrictMode 개발 모드 이펙트 2회 실행 시 열람 기록 중복 방지
 
   useEffect(() => {
@@ -58,6 +59,7 @@ export default function PublicReport() {
         const r = { id: rSnap.id, ...rSnap.data() };
         setReport(r);
         setLoading(false);
+        fetchAcademyBranding(academyId).then(b => setAcademyName(b.academyName || null));
 
         // 열람 기록 저장 (화면 표시를 막지 않도록 fire-and-forget)
         if (!viewLoggedRef.current) {
@@ -86,7 +88,7 @@ export default function PublicReport() {
   if (loading) return <SkeletonReport />;
   if (errorType) return (
     <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#F5F5F0', padding: '24px', gap: '8px', textAlign: 'center' }}>
-      <p style={{ fontSize: '13px', fontWeight: 700, color: '#0D2D6B', letterSpacing: '0.08em' }}>와이즈에듀 교현학원</p>
+      <p style={{ fontSize: '13px', fontWeight: 700, color: '#0D2D6B', letterSpacing: '0.08em' }}>{academyName || '데일리 리포트 시스템'}</p>
       <p style={{ color: '#4B5563', fontSize: '15px', margin: '4px 0 0' }}>
         {errorType === 'notfound' ? '리포트를 찾을 수 없습니다.' : '리포트를 불러오지 못했습니다.'}
       </p>
@@ -122,7 +124,7 @@ export default function PublicReport() {
             {/* 브랜드 */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
               <div style={{ width: '4px', height: '20px', background: gold, borderRadius: '1px', flexShrink: 0 }} />
-              <span style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.15em' }}>와이즈에듀 교현학원</span>
+              <span style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.15em' }}>{academyName || '데일리 리포트 시스템'}</span>
             </div>
             <div style={{ height: '1px', background: `rgba(201,162,39,0.3)`, marginBottom: '14px' }} />
             {/* 학생 정보 */}

@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { db } from './firebase';
 import { collection, getDoc, getDocs, query, where, doc, limit } from 'firebase/firestore';
 import { useMediaQuery } from './hooks.js';
-import { toPct } from './growth.js';
+import { toPct, fetchAcademyBranding } from './growth.js';
 import { R } from './tokens.jsx';
 
 export default function GrowthAward() {
@@ -11,6 +11,7 @@ export default function GrowthAward() {
   const isNarrow = !useMediaQuery('(min-width: 600px)');
   const [student, setStudent] = useState(null);
   const [reports, setReports] = useState([]);
+  const [academyName, setAcademyName] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null); // 'network' | null
   const [retryKey, setRetryKey] = useState(0);
@@ -24,6 +25,7 @@ export default function GrowthAward() {
         const indexSnap = await getDoc(doc(db, 'studentIndex', studentId));
         if (!indexSnap.exists()) { setLoading(false); return; }
         const { academyId } = indexSnap.data();
+        fetchAcademyBranding(academyId).then(b => setAcademyName(b.academyName || null));
         const stuSnap = await getDoc(doc(db, 'academies', academyId, 'students', studentId));
         if (stuSnap.exists()) setStudent({ id: stuSnap.id, ...stuSnap.data() });
         const rSnap = await getDocs(query(collection(db, 'academies', academyId, 'reports'), where('studentId', '==', studentId), limit(200)));
@@ -196,7 +198,7 @@ export default function GrowthAward() {
 
         {/* 푸터 */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '24px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-          <span style={{ fontSize: 'clamp(12px, 1.6vw, 16px)', color: 'rgba(255,255,255,0.5)', fontWeight: 600, letterSpacing: '0.1em' }}>와이즈에듀 교현학원</span>
+          <span style={{ fontSize: 'clamp(12px, 1.6vw, 16px)', color: 'rgba(255,255,255,0.5)', fontWeight: 600, letterSpacing: '0.1em' }}>{academyName || '데일리 리포트 시스템'}</span>
           <div style={{ width: '40px', height: '2px', background: R.gold }} />
           <span style={{ fontSize: 'clamp(11px, 1.4vw, 14px)', color: 'rgba(255,255,255,0.4)' }}>{new Date().getFullYear()}년 {new Date().getMonth() + 1}월</span>
         </div>

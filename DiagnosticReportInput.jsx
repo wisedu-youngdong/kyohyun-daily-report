@@ -238,6 +238,7 @@ export default function DiagnosticReportInput({
   onDeleteCommentTemplate = async () => {},
   currentTeacherId = null,
   isDirector = false,
+  academyName = null,
 }) {
   const isWide = useMediaQuery('(min-width: 901px)');
   const [showStudentModal, setShowStudentModal] = useState(false);
@@ -808,7 +809,7 @@ export default function DiagnosticReportInput({
           <div style={{ background: TOKENS.bg, borderRadius: '16px', padding: '18px 20px', border: `1px solid ${TOKENS.border}`, boxShadow: SHADOW[1] }}>
             {/* 로그인 화면과 동일한 레터헤드 톤 — 색 배지 없이 텍스트만. 실제 로고 업로드 기능은
                 이 화면에 연동되어 있지 않으므로(하드코딩 "K"), 로고 확정 시 별도로 연동 필요 */}
-            <p style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', color: TOKENS.textMute, margin: '0 0 14px' }}>교현학원</p>
+            <p style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', color: TOKENS.textMute, margin: '0 0 14px' }}>{academyName || '데일리 리포트'}</p>
             <h1 style={{ fontSize: `${TYPE.h2.fontSize}px`, fontWeight: TYPE.h2.fontWeight, lineHeight: TYPE.h2.lineHeight, margin: '0 0 4px', letterSpacing: '-0.025em' }}>오늘의 학습 리포트 작성</h1>
             <p style={{ fontSize: '12px', color: TOKENS.textSub, margin: '0 0 14px', fontWeight: 500 }}>한 단계씩 채우면 우측에 학부모 발송 화면이 실시간으로 만들어집니다</p>
 
@@ -1814,7 +1815,7 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
         <div style={{ position: 'absolute', top: '-30px', right: '-30px', width: '110px', height: '110px', borderRadius: '50%', background: 'rgba(255,255,255,0.07)' }} />
         <div style={{ position: 'absolute', top: '20px', right: '10px', width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', position: 'relative', zIndex: 1 }}>
-          <span style={{ fontFamily: "'Pretendard Variable', Pretendard, sans-serif", fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.18em' }}>교현학원</span>
+          <span style={{ fontFamily: "'Pretendard Variable', Pretendard, sans-serif", fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.18em' }}>{academyName || '데일리 리포트'}</span>
           <span style={{ fontSize: '10px', fontWeight: 600, color: 'rgba(255,255,255,0.85)', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', padding: '3px 10px', borderRadius: '20px' }}>{dateStr}</span>
         </div>
         <div style={{ position: 'relative', zIndex: 1 }}>
@@ -1989,7 +1990,7 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
 
         {/* 푸터 */}
         <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '10px', borderTop: `1px solid rgba(0,0,0,0.06)` }}>
-          <span style={{ fontSize: '9px', fontWeight: 700, color: s.footerText, fontFamily: "'Pretendard Variable', Pretendard, sans-serif", letterSpacing: '0.12em' }}>교현학원</span>
+          <span style={{ fontSize: '9px', fontWeight: 700, color: s.footerText, fontFamily: "'Pretendard Variable', Pretendard, sans-serif", letterSpacing: '0.12em' }}>{academyName || '데일리 리포트'}</span>
           <span style={{ fontSize: '9px', fontWeight: 500, color: s.footerText, fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>031-707-0591</span>
         </div>
       </div>

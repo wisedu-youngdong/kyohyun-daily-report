@@ -98,7 +98,7 @@ export default function App() {
   useEffect(() => {
     const handleBeforeUnload = (e) => {
       e.preventDefault();
-      e.returnValue = '교현학원 리포트 앱을 나가시겠습니까?';
+      e.returnValue = `${academyName || '데일리 리포트'} 앱을 나가시겠습니까?`;
     };
     // 모바일 뒤로가기로 앱 밖 이탈 방지
     const handlePopState = () => {
@@ -112,7 +112,7 @@ export default function App() {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('popstate', handlePopState);
     };
-  }, []);
+  }, [academyName]);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
@@ -634,6 +634,7 @@ export default function App() {
               onDeleteCommentTemplate={handleDeleteCommentTemplate}
               currentTeacherId={userTeacherId}
               isDirector={isDirector}
+              academyName={academyName}
             />
           </>
         )}
@@ -658,7 +659,7 @@ export default function App() {
             ], { director: 960, analysis: 600 })}
             <div style={{ marginTop: '12px' }}>
               {activeSubTab.insight === 'director' && (dataReady
-                ? <div><DirectorView reports={reports} students={students} classes={classes} reportViews={reportViews} onToast={showAppToast} academyId={academyId} /><GrowthDashboard reports={reports} students={students} onSwitchTab={setActiveTab} /></div>
+                ? <div><DirectorView reports={reports} students={students} classes={classes} reportViews={reportViews} onToast={showAppToast} academyId={academyId} academyName={academyName} /><GrowthDashboard reports={reports} students={students} onSwitchTab={setActiveTab} /></div>
                 : <SkeletonBlock rows={4} cardHeight={70} />
               )}
               {activeSubTab.insight === 'analysis' && (dataReady

@@ -4,6 +4,22 @@
 // 사진분석(photoAnalysis)은 서술형 코멘트 초안 용도이며 점수에 절대 반영하지 않음.
 // ─────────────────────────────────────────────
 
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from './firebase.js';
+
+// 학원 브랜딩 문서 조회 — 공개 리포트/성장스토리/시상장 등 여러 화면이 academyId 확정 후
+// 공통으로 academyName(및 향후 로고 등)을 읽어야 해서 중복 방지용으로 공용화.
+// 문서가 없거나 읽기 실패해도 호출부가 안전하게 기본값으로 대체할 수 있도록 빈 객체 반환.
+export async function fetchAcademyBranding(academyId) {
+  if (!academyId) return {};
+  try {
+    const snap = await getDoc(doc(db, 'academies', academyId));
+    return snap.exists() ? snap.data() : {};
+  } catch {
+    return {};
+  }
+}
+
 // KST(UTC+9) 기준 날짜 문자열(YYYY-MM-DD) — Firestore createdAt.seconds 기준으로 "오늘" 판정에 사용
 export function kstDay(seconds) {
   return new Date(seconds * 1000 + 9 * 3600 * 1000).toISOString().split('T')[0];
