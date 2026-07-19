@@ -16,6 +16,7 @@ export default function DirectorView({ reports, students, classes = [], reportVi
   const [profileStudent, setProfileStudent] = useState(null);
   const [answerDrafts, setAnswerDrafts] = useState({});
   const [savingAnswer, setSavingAnswer] = useState(null);
+  const [showAnswered, setShowAnswered] = useState(false);
 
   const handleAnswerSave = async (questionId, answerText) => {
     setSavingAnswer(questionId);
@@ -167,11 +168,28 @@ export default function DirectorView({ reports, students, classes = [], reportVi
               <p style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>답변 대기 중인 질문 · {pending.length}건</p>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {pending.map(q => (
+              {pending.map(q => {
+                // 질문은 "질문한 날짜"가 아니라 "어느 리포트에 대한 질문인지"가 중요 —
+                // 질문한 날짜와 리포트 날짜가 다른 경우가 많아서(리포트 받고 며칠 뒤에 질문하는 경우 등)
+                // 원본 리포트를 찾아 그 날짜/내용을 같이 보여주고, 클릭하면 그 날짜로 바로 이동
+                const sourceReport = reports.find(r => r.id === q.reportId);
+                const reportDateStr = sourceReport?.createdAt?.seconds ? kstDay(sourceReport.createdAt.seconds) : null;
+                const reportLabel = sourceReport
+                  ? `${new Date(reportDateStr).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} 리포트${sourceReport.unit ? ` · ${sourceReport.unit}` : (sourceReport.textbook ? ` · ${sourceReport.textbook}` : '')}`
+                  : '원본 리포트를 찾을 수 없음';
+                return (
                 <div key={q.id} style={{ background: '#fff', borderRadius: '8px', padding: '10px 12px' }}>
-                  <p style={{ fontSize: '11px', color: '#98A1AC', margin: '0 0 4px' }}>
-                    {q.studentName} · {q.askedAt?.seconds ? new Date(q.askedAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' }) : ''}
-                  </p>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '4px' }}>
+                    <p style={{ fontSize: '11px', color: '#98A1AC', margin: 0 }}>
+                      {q.studentName} · {reportLabel}
+                    </p>
+                    {reportDateStr && (
+                      <button onClick={() => setSelectedDate(reportDateStr)}
+                        style={{ background: 'none', border: 'none', color: '#1A5CB8', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0, textDecoration: 'underline' }}>
+                        그 날짜로 이동
+                      </button>
+                    )}
+                  </div>
                   <p style={{ fontSize: '12px', color: '#1A1A1A', margin: '0 0 8px', lineHeight: 1.6 }}>{q.questionText}</p>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <textarea
@@ -188,8 +206,46 @@ export default function DirectorView({ reports, students, classes = [], reportVi
                     </button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
+          </div>
+        );
+      })()}
+
+      {/* 답변 완료 — 기본은 접어둠(계속 쌓이는 목록이라 화면 차지 안 하게), 눌러야 펼쳐짐 */}
+      {(() => {
+        const answered = reportQuestions
+          .filter(q => q.answerText)
+          .sort((a, b) => (b.answeredAt?.seconds || 0) - (a.answeredAt?.seconds || 0));
+        if (answered.length === 0) return null;
+        return (
+          <div style={{ border: '1px solid #E8E6E0', borderRadius: '14px', marginBottom: '20px', overflow: 'hidden' }}>
+            <button onClick={() => setShowAnswered(v => !v)}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px', padding: '14px 18px', background: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
+              <MessageCircle size={15} style={{ color: '#0F6E56', flexShrink: 0 }} />
+              <span style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A' }}>답변 완료 · {answered.length}건</span>
+              <span style={{ marginLeft: 'auto', fontSize: '11px', color: '#9CA3AF' }}>{showAnswered ? '접기' : '펼치기'}</span>
+            </button>
+            {showAnswered && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '0 18px 16px' }}>
+                {answered.map(q => {
+                  const sourceReport = reports.find(r => r.id === q.reportId);
+                  const reportLabel = sourceReport?.createdAt?.seconds
+                    ? `${new Date(kstDay(sourceReport.createdAt.seconds)).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} 리포트`
+                    : '원본 리포트를 찾을 수 없음';
+                  return (
+                    <div key={q.id} style={{ background: '#FAFAFA', border: '0.5px solid #E8E6E0', borderRadius: '8px', padding: '10px 12px' }}>
+                      <p style={{ fontSize: '11px', color: '#98A1AC', margin: '0 0 4px' }}>{q.studentName} · {reportLabel}</p>
+                      <p style={{ fontSize: '12px', color: '#1A1A1A', margin: '0 0 6px', fontWeight: 600, lineHeight: 1.6 }}>Q. {q.questionText}</p>
+                      <div style={{ borderLeft: '2px solid #0F6E56', paddingLeft: '10px' }}>
+                        <p style={{ fontSize: '12px', color: '#5A6472', margin: 0, lineHeight: 1.6 }}>A. {q.answerText}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         );
       })()}
