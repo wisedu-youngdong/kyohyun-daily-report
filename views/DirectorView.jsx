@@ -152,6 +152,48 @@ export default function DirectorView({ reports, students, classes = [], reportVi
         );
       })()}
 
+      {/* 답변 대기 중인 질문 — 날짜 선택과 무관하게 전체 학원의 미답변 질문을 한 번에 모아봄.
+          아래 날짜별 카드는 선택한 날짜 리포트에만 질문이 보이는데, 질문은 어떤 날짜의
+          리포트에도 달릴 수 있어서 날짜를 안 옮겨도 놓치지 않게 여기 따로 둠 */}
+      {(() => {
+        const pending = reportQuestions
+          .filter(q => !q.answerText)
+          .sort((a, b) => (b.askedAt?.seconds || 0) - (a.askedAt?.seconds || 0));
+        if (pending.length === 0) return null;
+        return (
+          <div style={{ background: '#F5F8FF', border: '1px solid #C5D5F0', borderRadius: '14px', padding: '16px 18px', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+              <MessageCircle size={16} style={{ color: '#1A5CB8' }} />
+              <p style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>답변 대기 중인 질문 · {pending.length}건</p>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {pending.map(q => (
+                <div key={q.id} style={{ background: '#fff', borderRadius: '8px', padding: '10px 12px' }}>
+                  <p style={{ fontSize: '11px', color: '#98A1AC', margin: '0 0 4px' }}>
+                    {q.studentName} · {q.askedAt?.seconds ? new Date(q.askedAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' }) : ''}
+                  </p>
+                  <p style={{ fontSize: '12px', color: '#1A1A1A', margin: '0 0 8px', lineHeight: 1.6 }}>{q.questionText}</p>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <textarea
+                      value={answerDrafts[q.id] ?? ''}
+                      onChange={e => setAnswerDrafts(prev => ({ ...prev, [q.id]: e.target.value }))}
+                      placeholder="답변을 입력해주세요" rows={2}
+                      style={{ flex: 1, padding: '8px 10px', fontSize: '16px', border: '0.5px solid #E8E6E0', borderRadius: '8px', fontFamily: 'inherit', resize: 'vertical', lineHeight: 1.6 }}
+                    />
+                    <button
+                      onClick={() => handleAnswerSave(q.id, answerDrafts[q.id] || '')}
+                      disabled={savingAnswer === q.id || !(answerDrafts[q.id] || '').trim()}
+                      style={{ padding: '8px 14px', fontSize: '12px', fontWeight: 700, background: savingAnswer === q.id ? '#E5E7EB' : '#0D2D6B', color: savingAnswer === q.id ? '#9CA3AF' : '#fff', border: 'none', borderRadius: '8px', cursor: savingAnswer === q.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit', alignSelf: 'flex-start' }}>
+                      {savingAnswer === q.id ? '저장 중' : '답변 저장'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* 헤더 */}
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', marginBottom: '20px' }}>
         <div>
@@ -267,11 +309,9 @@ export default function DirectorView({ reports, students, classes = [], reportVi
                   {/* 열람 배지 — draft(자동저장만 되고 아직 최종 저장 안 됨)는 열람 여부와
                       무관하게 "작성 중"으로 표시. 안 그러면 선생님이 쓰다 만 리포트가
                       "미열람"으로 잡혀 실제로는 보낸 적도 없는데 발송된 것처럼 보임 */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', flexShrink: 0 }}>
                     {unansweredCount > 0 && (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '10px', fontWeight: 700, color: '#1A5CB8', background: '#EAF0F9', padding: '2px 8px', borderRadius: '10px' }}>
-                        <MessageCircle size={10} /> 질문 {unansweredCount}건
-                      </span>
+                      <span style={{ fontSize: '10px', fontWeight: 700, color: '#1A5CB8', background: '#EAF0F9', padding: '2px 8px', borderRadius: '10px' }}>질문 {unansweredCount}건</span>
                     )}
                     {r.isDraft ? (
                       <span style={{ fontSize: '10px', fontWeight: 700, color: C.warningText, background: C.warningBg, padding: '2px 8px', borderRadius: '10px' }}>작성 중</span>
