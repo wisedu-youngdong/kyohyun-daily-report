@@ -3,6 +3,7 @@ import { db } from '../firebase';
 import { updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { FileText, AlertTriangle, Copy, Bell, CalendarDays, MessageCircle } from 'lucide-react';
 import { kstDay, toPct, ratingLabel } from '../growth.js';
+import { DIAG_BADGE as DIAG_MAP } from '../diagnosis.js';
 import { C, R } from '../tokens.jsx';
 import { StudentProfileModal } from './StudentProfileModal.jsx';
 import { groupByClassId } from './shared.jsx';
@@ -51,14 +52,6 @@ export default function DirectorView({ reports, students, classes = [], reportVi
     setDeletingQuestionId(null);
   };
 
-  const DIAG_MAP = {
-    calc:    { label: '계산 실수', bg: '#A32D2D', prefix: '⚠' },
-    concept: { label: '개념 누락', bg: '#A32D2D', prefix: '⚠' },
-    apply:   { label: '응용 부족', bg: '#A32D2D', prefix: '⚠' },
-    time:    { label: '시간 부족', bg: '#8A5A00', prefix: '△' },
-    perfect: { label: '개념 완벽', bg: '#0F6E56', prefix: '✓' },
-  };
-
   // 선택 날짜 리포트 필터 (KST 기준) — 원장 보고서는 발송 여부와 무관하게 해당 날짜의 모든 작성 활동을 보여줌
   const todayReports = reports.filter(r => r.createdAt?.seconds && kstDay(r.createdAt.seconds) === selectedDate);
 
@@ -97,7 +90,6 @@ export default function DirectorView({ reports, students, classes = [], reportVi
           reports={reports.filter(r => r.studentId === profileStudent.id)}
           reviews={reviews.filter(rv => rv.studentId === profileStudent.id)}
           onClose={() => setProfileStudent(null)}
-          DIAG_MAP={DIAG_MAP}
           onToast={onToast}
           academyName={academyName}
         />

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Pencil, Trash2, AlertTriangle, Link as LinkIcon } from 'lucide-react';
 import { toPct } from '../growth.js';
+import { DIAG_LABELS, DIAG_SOFT as DIAG_COLORS } from '../diagnosis.js';
 import { useMediaQuery } from '../hooks.js';
 import { C } from '../tokens.jsx';
 
@@ -25,9 +26,6 @@ export default function HistoryView({ reports, students, classes = [], reportVie
       setSelectedId(null);
     }
   }, [reports, selectedId]);
-
-  const DIAG_LABELS = { calc: '계산 실수', concept: '개념 누락', apply: '응용 부족', time: '시간 부족', perfect: '개념 완벽' };
-  const DIAG_COLORS = { calc: { bg: '#FFF8EC', color: '#8A5A00', border: '#C9A22740' }, concept: { bg: '#EAF1FB', color: '#0D2D6B', border: '#0D2D6B40' }, apply: { bg: '#FDF0F0', color: '#8A2020', border: '#8A202040' }, time: { bg: '#F3F0FA', color: '#4A3080', border: '#4A308040' }, perfect: { bg: '#F0FAF5', color: '#0F6E56', border: '#0F6E5640' } };
 
   const now = Date.now() / 1000;
   // 삭제된 반을 가리키는 고아 classId는 미배정으로 취급 — groupByClassId/리포트 작성 화면과 동일 기준
@@ -220,10 +218,9 @@ export default function HistoryView({ reports, students, classes = [], reportVie
 
               {selected.diagnosis?.length > 0 && (
                 <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginBottom: '10px' }}>
-                  {selected.diagnosis.map((d, i) => {
-                    const DIAG = { calc: '계산 실수', concept: '개념 누락', apply: '응용 부족', time: '시간 부족', perfect: '개념 완벽' };
-                    return <span key={i} style={{ fontSize: '11px', background: d.key === 'perfect' ? '#F0FAF5' : '#FDF0F0', color: d.key === 'perfect' ? '#0F6E56' : '#8A2020', padding: '3px 9px', borderRadius: '8px', fontWeight: 600 }}>{DIAG[d.key] || d.key}</span>;
-                  })}
+                  {selected.diagnosis.map((d, i) => (
+                    <span key={i} style={{ fontSize: '11px', background: d.key === 'perfect' ? '#F0FAF5' : '#FDF0F0', color: d.key === 'perfect' ? '#0F6E56' : '#8A2020', padding: '3px 9px', borderRadius: '8px', fontWeight: 600 }}>{DIAG_LABELS[d.key] || d.key}</span>
+                  ))}
                 </div>
               )}
 

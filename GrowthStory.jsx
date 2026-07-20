@@ -5,6 +5,7 @@ import { collection, getDoc, getDocs, query, where, doc, setDoc, limit } from 'f
 import { ReportCard } from './tokens.jsx';
 import { toPct, isNewStudent as computeIsNewStudent, fetchAcademyBranding } from './growth.js';
 import { findUnitKey } from './curriculum.js';
+import { DIAG_LABELS as diagLabels, DIAG_SOFT as DIAG_COLORS } from './diagnosis.js';
 
 // 학부모에게 저장 즉시 노출되는 서사 문구 — 강사가 너무 길게/짧게 써서 카드 UI가
 // 무너지지 않도록 최대 글자 수를 두고, 입력창에 남은 글자 수를 보여준다.
@@ -297,10 +298,6 @@ export default function GrowthStory() {
     idx.forEach((i, pi) => {
       const r = sorted[i];
       // 해당 리포트 실데이터 추출
-      const diagLabels = {
-        calc: '계산 실수', concept: '개념 누락', apply: '응용 부족',
-        time: '시간 부족', perfect: '개념 완벽'
-      };
       const diagTags = (r.diagnosis||[])
         .filter(d => d.key !== 'perfect')
         .map(d => diagLabels[d.key] || d.key);
@@ -707,12 +704,6 @@ export default function GrowthStory() {
           recharts는 여기선 안 씀 — 공개 페이지 번들에 375KB 차트 라이브러리가 딸려오는 걸 피하려고
           단원별 평가 추이와 같은 hand-rolled div 막대 방식 유지 */}
       {(() => {
-        const DIAG_COLORS = {
-          calc:    { label: '계산 실수', color: '#7A4F00' },
-          concept: { label: '개념 누락', color: '#0D2D6B' },
-          apply:   { label: '응용 부족', color: '#8A2020' },
-          time:    { label: '시간 부족', color: '#4A3080' },
-        };
         const diagCount = {};
         sorted.forEach(r => (r.diagnosis || []).forEach(d => {
           if (d.key === 'perfect') return; // 잘한 건 말고 약점만 집계

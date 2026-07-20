@@ -4,6 +4,7 @@ import {
 } from 'recharts';
 import { toPct } from '../growth.js';
 import { findUnitKey } from '../curriculum.js';
+import { DIAG_LABELS as TAG_LABELS, DIAG_SOFT as DIAG_SOFT_COLORS } from '../diagnosis.js';
 import { C } from '../tokens.jsx';
 import { StatCard } from './shared.jsx';
 
@@ -51,7 +52,6 @@ function HomeworkTestChart({ reports }) {
 }
 
 // ── 데이터 기반 인사이트 문장 생성 (AI 호출 없이 계산만으로, 즉시·무료) — AnalysisView 전용
-const TAG_LABELS = { calc: '계산 실수', concept: '개념 누락', apply: '응용 부족', time: '시간 부족', perfect: '개념 완벽' };
 
 function buildInsights(reports) {
   if (!reports || reports.length === 0) return null;
@@ -296,12 +296,7 @@ export default function AnalysisView({ students, reports }) {
 
             {/* 오답 유형 */}
             {(() => {
-              const DIAG_COLORS = {
-                calc:    { label: '계산 실수', color: '#7A4F00' },
-                concept: { label: '개념 누락', color: '#0D2D6B' },
-                apply:   { label: '응용 부족', color: '#8A2020' },
-                time:    { label: '시간 부족', color: '#4A3080' },
-              };
+              const DIAG_COLORS = DIAG_SOFT_COLORS;
 
               // 오답 유형별 집계 + 단원 매핑 — unitKey 기준으로 그룹핑, 표시는 라벨 텍스트 사용
               const diagMap = {};

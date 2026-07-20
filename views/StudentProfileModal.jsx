@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Pencil } from 'lucide-react';
 import { toPct } from '../growth.js';
 import { findUnitKey } from '../curriculum.js';
+import { DIAG_LABELS as diagLabels, DIAG_BADGE as DIAG_MAP, DIAG_SOFT } from '../diagnosis.js';
 import { C } from '../tokens.jsx';
 
 // ============================================================
 // 학생 종합 프로필 모달 — 상담용
 // ============================================================
-export function StudentProfileModal({ student, reports, reviews = [], onClose, DIAG_MAP, onToast, academyName }) {
+export function StudentProfileModal({ student, reports, reviews = [], onClose, onToast, academyName }) {
   const [showWeekly, setShowWeekly] = useState(false);
   // 캘린더가 기본으로 펼쳐져 있으면 그 아래 내용(수업 기록/약점 패턴 등) 보려고 매번 스크롤을 많이 해야 해서, 기본은 요약만 접어서 보여줌
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -203,14 +204,7 @@ export function StudentProfileModal({ student, reports, reviews = [], onClose, D
             <div style={{ width: '32px', height: '2px', background: '#C9A227', marginBottom: '12px' }} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
               {[...sorted].reverse().slice(0, 5).map((r, i) => {
-                const diagLabels = { calc: '계산 실수', concept: '개념 누락', apply: '응용 부족', time: '시간 부족', perfect: '개념 완벽' };
-                const diagColors = {
-                  calc: { bg: '#FFF8EC', color: '#8A5A00' },
-                  concept: { bg: '#FDF0F0', color: '#8A2020' },
-                  apply: { bg: '#FDF0F0', color: '#8A2020' },
-                  time: { bg: '#F3F0FA', color: '#4A3080' },
-                  perfect: { bg: '#F0FAF5', color: '#0F6E56' },
-                };
+                const diagColors = DIAG_SOFT;
                 const tags = (r.diagnosis || []).filter(d => d.key !== 'perfect');
                 const hasPerfect = (r.diagnosis || []).some(d => d.key === 'perfect');
                 const isWarning = r.conceptRating != null && r.conceptRating <= 40;
@@ -548,7 +542,7 @@ function WeeklySummaryCard({ student, reports, teachers, academyName }) {
     if (!diagMap[d.key]) diagMap[d.key] = { key: d.key, count: 0 };
     diagMap[d.key].count++;
   }));
-  const DIAG = { calc: { label: '계산 실수', color: '#7A4F00', bg: '#FFF8EC' }, concept: { label: '개념 누락', color: '#0D2D6B', bg: '#EAF1FB' }, apply: { label: '응용 부족', color: '#8A2020', bg: '#FDF0F0' }, time: { label: '시간 부족', color: '#4A3080', bg: '#F3F0FA' } };
+  const DIAG = DIAG_SOFT;
   const diagList = Object.values(diagMap).sort((a,b) => b.count - a.count).slice(0, 3);
 
   // 선생님 코멘트 — 가장 최근

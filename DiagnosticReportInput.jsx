@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { C, RADIUS2, TYPE, SHADOW } from './tokens.jsx';
 import { calculateReportPoints, toPct, ratingLabel } from './growth.js';
+import { DIAG_LABELS as diagLabels, DIAG_SOFT, DIAG_BADGE } from './diagnosis.js';
 import { findUnitKey, getUnits, getCourses } from './curriculum.js';
 import { formatPhone, isValidPhone } from './phone.js';
 import { storage } from './firebase.js';
@@ -121,12 +122,30 @@ function sortByItemNumber(a, b) {
 }
 
 const DIAGNOSIS_TAGS = [
-  { key: 'calc',    label: '계산 실수',  color: 'warn'    },
-  { key: 'concept', label: '개념 누락',  color: 'warn'    },
-  { key: 'apply',   label: '응용 부족',  color: 'danger'  },
-  { key: 'time',    label: '시간 부족',  color: 'danger'  },
-  { key: 'perfect', label: '개념 완벽',  color: 'success' },
+  { key: 'calc',    label: diagLabels.calc,    color: 'warn'    },
+  { key: 'concept', label: diagLabels.concept, color: 'warn'    },
+  { key: 'apply',   label: diagLabels.apply,   color: 'danger'  },
+  { key: 'time',    label: diagLabels.time,    color: 'danger'  },
+  { key: 'perfect', label: diagLabels.perfect, color: 'success' },
 ];
+
+// 오답 문항 원인 태그 — 진단 태그(DIAG_SOFT)와 계산실수/개념누락/응용부족/시간부족은 같은 색을
+// 공유하고, '문제 안 읽음'만 이 화면 고유(보고서 전체 진단에는 없는 원인이라 perfect 대신 추가됨).
+// 예전엔 이 배열이 두 군데(오답 카드 인라인/leftover 카드)에 복붙돼 있었고, 그 사본에서
+// concept과 apply가 같은 색으로 잘못 겹쳐 있던 버그가 있었음 — 단일화하며 함께 고침.
+const WRONG_TAGS = [
+  { key: 'calc',    ...DIAG_SOFT.calc },
+  { key: 'concept', ...DIAG_SOFT.concept },
+  { key: 'apply',   ...DIAG_SOFT.apply },
+  { key: 'time',    ...DIAG_SOFT.time },
+  { key: 'unread',  label: '문제 안 읽음', bg: '#FFF8EC', color: '#8A5A00', border: '#C9A22740' },
+];
+const WRONG_TAG_LABELS = Object.fromEntries(WRONG_TAGS.map(t => [t.key, t.label]));
+
+// 학부모 발송 미리보기용 진단 배지(prefix+라벨을 한 문자열로) — PublicReport.jsx의 파생 방식과 동일
+const DIAG_PREVIEW_BADGE = Object.fromEntries(
+  Object.entries(DIAG_BADGE).map(([key, v]) => [key, { label: `${v.prefix} ${v.label}`, bg: v.bg }])
+);
 
 const ATTENDANCE = ['정시', '지각', '결석', '조퇴', '보강', '자율학습'];
 
@@ -499,7 +518,6 @@ export default function DiagnosticReportInput({
     }
     setPolishing(true);
     try {
-      const diagLabels = { calc: '계산 실수', concept: '개념 누락', apply: '응용 부족', time: '시간 부족', perfect: '개념 완벽' };
       const tagNames = selectedTags.map(t => diagLabels[t.key] || t.key).join(', ');
 
       // 사진 분석 결과 추출 — rawObservations는 사람이 읽는 설명 문자열이라 .mark/.num이 없어
@@ -1327,13 +1345,6 @@ export default function DiagnosticReportInput({
                             )}
 
                             {sec.sectionType === 'concept' && (() => {
-                              const WRONG_TAGS = [
-                                { key: 'calc', label: '계산 실수', bg: '#FFF8EC', color: '#8A5A00', border: '#C9A22740' },
-                                { key: 'concept', label: '개념 누락', bg: '#FDF0F0', color: '#8A2020', border: '#8A202040' },
-                                { key: 'apply', label: '응용 부족', bg: '#FDF0F0', color: '#8A2020', border: '#8A202040' },
-                                { key: 'time', label: '시간 부족', bg: '#F3F0FA', color: '#4A3080', border: '#4A308040' },
-                                { key: 'unread', label: '문제 안 읽음', bg: '#FFF8EC', color: '#8A5A00', border: '#C9A22740' },
-                              ];
                               return (sec.problemTypes || [])
                               .slice()
                               .sort(sortByItemNumber)
@@ -1469,13 +1480,6 @@ export default function DiagnosticReportInput({
                             {[...leftoverWrongItems]
                               .sort(sortByItemNumber)
                               .map((item, idx) => {
-                              const WRONG_TAGS = [
-                                { key: 'calc', label: '계산 실수', bg: '#FFF8EC', color: '#8A5A00', border: '#C9A22740' },
-                                { key: 'concept', label: '개념 누락', bg: '#FDF0F0', color: '#8A2020', border: '#8A202040' },
-                                { key: 'apply', label: '응용 부족', bg: '#FDF0F0', color: '#8A2020', border: '#8A202040' },
-                                { key: 'time', label: '시간 부족', bg: '#F3F0FA', color: '#4A3080', border: '#4A308040' },
-                                { key: 'unread', label: '문제 안 읽음', bg: '#FFF8EC', color: '#8A5A00', border: '#C9A22740' },
-                              ];
                               return (
                                 <div key={item.number || idx} style={{ border: '1px solid #DC262630', borderRadius: `${RADIUS2.thumbnail}px`, padding: '14px', background: '#FFF5F5' }}>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
@@ -1531,9 +1535,8 @@ export default function DiagnosticReportInput({
                               if (generatingComment) return;
                               setGeneratingComment(true);
                               const studentName = students.find(s => s.id === studentId)?.name || '학생';
-                              const tagLabels = { calc: '계산 실수', concept: '개념 누락', apply: '응용 부족', time: '시간 부족', unread: '문제 안 읽음' };
                               const wrongSummary = wrongItems.map(w => {
-                                const tags = w.tags.map(t => tagLabels[t]).filter(Boolean).join(', ');
+                                const tags = w.tags.map(t => WRONG_TAG_LABELS[t]).filter(Boolean).join(', ');
                                 const memo = w.memo?.trim();
                                 return `${w.number}번(${w.type}${w.correctRate ? ` 정답률${w.correctRate}` : ''})${tags ? ` — ${tags}` : ''}${memo ? ` / ${memo}` : ''}`;
                               }).join('; ');
@@ -1548,7 +1551,7 @@ export default function DiagnosticReportInput({
                                     studentName,
                                     textbook: textbook || '',
                                     unit: unit || '',
-                                    diagTags: wrongItems.flatMap(w => w.tags.map(t => tagLabels[t])).join(', '),
+                                    diagTags: wrongItems.flatMap(w => w.tags.map(t => WRONG_TAG_LABELS[t])).join(', '),
                                     photoContext: `오답: ${wrongSummary}`,
                                     contentType: photoContentType || '',
                                   }),
@@ -2044,14 +2047,7 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
             <p style={{ fontSize: '12px', fontWeight: 700, color: s.cardText, margin: '0 0 8px' }}>진단</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
               {diagnosis.map((d, idx) => {
-                const DIAG_COLOR = {
-                  calc:    { label: '⚠ 계산 실수', bg: '#A32D2D' },
-                  concept: { label: '⚠ 개념 누락', bg: '#A32D2D' },
-                  apply:   { label: '⚠ 응용 부족', bg: '#A32D2D' },
-                  time:    { label: '△ 시간 부족', bg: '#8A5A00' },
-                  perfect: { label: '✓ 개념 완벽', bg: '#0F6E56' },
-                };
-                const tagDef = DIAG_COLOR[d.key] || { label: d.key, bg: '#8A5A00' };
+                const tagDef = DIAG_PREVIEW_BADGE[d.key] || { label: d.key, bg: '#8A5A00' };
                 return (
                   <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', background: tagDef.bg, color: '#fff', fontSize: '13px', fontWeight: 700, padding: '5px 13px', borderRadius: '20px' }}>

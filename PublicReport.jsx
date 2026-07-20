@@ -4,14 +4,11 @@ import { db } from './firebase';
 import { doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { R, ReportCard } from './tokens.jsx';
 import { toPct, ratingLabel, fetchAcademyBranding } from './growth.js';
+import { DIAG_BADGE } from './diagnosis.js';
 
-const DIAG_BADGES = {
-  calc:    { label: '⚠ 계산 실수', bg: '#A32D2D' },
-  concept: { label: '⚠ 개념 누락', bg: '#A32D2D' },
-  apply:   { label: '⚠ 응용 부족', bg: '#A32D2D' },
-  time:    { label: '△ 시간 부족', bg: '#8A5A00' },
-  perfect: { label: '✓ 개념 완벽', bg: '#0F6E56' },
-};
+const DIAG_BADGES = Object.fromEntries(
+  Object.entries(DIAG_BADGE).map(([key, v]) => [key, { label: `${v.prefix} ${v.label}`, bg: v.bg }])
+);
 
 const SkeletonReport = () => (
   <div style={{ background: '#F5F5F0', minHeight: '100dvh', padding: '24px 16px', display: 'flex', justifyContent: 'center', fontFamily: 'Pretendard, sans-serif' }}>

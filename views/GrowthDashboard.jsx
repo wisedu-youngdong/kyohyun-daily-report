@@ -1,5 +1,6 @@
 import React from 'react';
 import { toPct } from '../growth.js';
+import { DIAG_BADGE as DIAG_MAP, DIAG_LABELS as diagLabels } from '../diagnosis.js';
 import { useMediaQuery } from '../hooks.js';
 
 export default function GrowthDashboard({ reports, students, onSwitchTab }) {
@@ -11,14 +12,6 @@ export default function GrowthDashboard({ reports, students, onSwitchTab }) {
   const [tooltip, setTooltip] = React.useState(null);
   const [storyPeriod, setStoryPeriod] = React.useState('all'); // 성장 스토리 열기 전 선택하는 기간
   const svgRef = React.useRef(null);
-
-  const DIAG_MAP = {
-    calc:    { label: '계산 실수', bg: '#A32D2D', prefix: '⚠' },
-    concept: { label: '개념 누락', bg: '#A32D2D', prefix: '⚠' },
-    apply:   { label: '응용 부족', bg: '#A32D2D', prefix: '⚠' },
-    time:    { label: '시간 부족', bg: '#8A5A00', prefix: '△' },
-    perfect: { label: '개념 완벽', bg: '#0F6E56', prefix: '✓' },
-  };
 
   const PERIODS = { week: 7, '2week': 14, month: 30, '3month': 90 };
 
@@ -391,7 +384,6 @@ export default function GrowthDashboard({ reports, students, onSwitchTab }) {
             <div style={{ marginBottom: '14px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {rs.slice().reverse().slice(0, 4).map((r, i) => {
-                  const diagLabels = { calc: '계산 실수', concept: '개념 누락', apply: '응용 부족', time: '시간 부족', perfect: '개념 완벽' };
                   const tags = (r.diagnosis || []).filter(d => d.key !== 'perfect');
                   const hasPerfect = (r.diagnosis || []).some(d => d.key === 'perfect');
                   const isWarning = r.conceptRating != null && r.conceptRating <= 40;

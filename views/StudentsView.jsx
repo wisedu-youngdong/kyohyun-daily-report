@@ -23,14 +23,6 @@ export default function StudentsView({ students, reports, reviews = [], onSave, 
     deleteTimerRef.current = setTimeout(() => setDeleteConfirm(null), 3000);
   };
 
-  const DIAG_MAP = {
-    calc:    { label: '계산 실수', bg: '#A32D2D', prefix: '⚠' },
-    concept: { label: '개념 누락', bg: '#A32D2D', prefix: '⚠' },
-    apply:   { label: '응용 부족', bg: '#A32D2D', prefix: '⚠' },
-    time:    { label: '시간 부족', bg: '#8A5A00', prefix: '△' },
-    perfect: { label: '개념 완벽', bg: '#0F6E56', prefix: '✓' },
-  };
-
   const archivedCount = students.filter(s => s.archived).length;
 
   // 마지막 리포트 기준 경과일 — "2주째 리포트 없음" 신호에 사용
@@ -76,7 +68,6 @@ export default function StudentsView({ students, reports, reviews = [], onSave, 
           reports={reports.filter(r => r.studentId === profileStudent.id)}
           reviews={reviews.filter(rv => rv.studentId === profileStudent.id)}
           onClose={() => setProfileStudent(null)}
-          DIAG_MAP={DIAG_MAP}
           onToast={onToast}
         />
       )}

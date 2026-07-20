@@ -14,6 +14,7 @@ import {
   LayoutDashboard, Users, FileText, History, BarChart2, LogOut
 } from 'lucide-react';
 import { kstDay } from './growth.js';
+import { DIAG_LABELS } from './diagnosis.js';
 import ErrorBoundary from './ErrorBoundary.jsx';
 import { T } from './tokens.jsx';
 import LoginScreen from './views/LoginScreen.jsx';
@@ -436,7 +437,7 @@ export default function App() {
           unit: d.unit || '',
           weakTypes: weakTags.map(t => ({
             key: t.key,
-            label: { calc:'계산 실수', concept:'개념 누락', apply:'응용 부족', time:'시간 부족' }[t.key],
+            label: DIAG_LABELS[t.key],
             detail: t.detail || '',
             unit: t.unit || '',
           })),
