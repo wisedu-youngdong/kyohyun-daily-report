@@ -294,8 +294,14 @@ export default function DiagnosticReportInput({
     return () => clearTimeout(autoSaveTimer.current);
   }, [studentId, teacherNote, homeworkRating, conceptRating, selectedTags, textbook, unit, pages, subject, attendance, arrivalTime, hasTest, testName, testScore, testRound, nextPlan, nextPlanDetail]);
 
+  // 학생만 선택하고 아무것도 입력하지 않아도 30초 뒤 자동저장이 돌아 빈 초안이 생기던 문제 —
+  // 실제로 뭔가 입력된 게 있을 때만 자동저장하도록 최소 하나의 필드 확인
+  const hasAutoSaveContent = () =>
+    teacherNote.trim() || homeworkRating != null || conceptRating != null || selectedTags.length > 0
+    || hasTest || textbook.trim() || unit.trim() || nextPlan.trim() || nextPlanDetail.trim() || !!photoAnalysis;
+
   const handleAutoSave = async () => {
-    if (!studentId || saving) return;
+    if (!studentId || saving || !hasAutoSaveContent()) return;
     try {
       const existingId = editingReport?.id || draftIdRef.current;
       const reportPayload = {
