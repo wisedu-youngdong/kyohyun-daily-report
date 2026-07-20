@@ -5,6 +5,7 @@ import { AVATARS, StatCard } from './shared.jsx';
 
 export default function DashboardView({ students, reports, classes = [], onTabChange, onWriteFor, reviews = [], onCompleteReview, onQuickAbsence }) {
   const [markingAbsent, setMarkingAbsent] = React.useState(null); // studentId 처리 중
+  const [confirmAbsenceStudent, setConfirmAbsenceStudent] = React.useState(null); // 결석 처리 확인 모달 대상
   // 복습 "완료" — 그냥 done 플래그만 남기면 나중에 "뭘 했었는지" 알 길이 없어서, 완료 처리 전에
   // 조치 메모(+선택적 재시험 점수)를 받는 인라인 폼으로 펼침. 학생 프로필의 "복습 이력"에서 다시 확인 가능.
   const [expandedReviewId, setExpandedReviewId] = React.useState(null);
@@ -35,10 +36,16 @@ export default function DashboardView({ students, reports, classes = [], onTabCh
   const todayReports = reports.filter(r => r.createdAt?.seconds && isHandledToday(r) && kstDay(r.createdAt.seconds) === todayKst);
   const doneOf = (s) => todayReports.some(r => r.studentId === s.id);
 
-  const handleQuickAbsence = async (e, student) => {
+  // 버튼 클릭 → 확인 모달만 띄움(오탭 방지). 실제 처리는 handleConfirmAbsence에서.
+  const handleQuickAbsence = (e, student) => {
     e.stopPropagation(); // 행 클릭(리포트 작성 이동)으로 안 번지게
-    if (markingAbsent) return;
+    setConfirmAbsenceStudent(student);
+  };
+  const handleConfirmAbsence = async () => {
+    const student = confirmAbsenceStudent;
+    if (!student || markingAbsent) return;
     setMarkingAbsent(student.id);
+    setConfirmAbsenceStudent(null);
     try {
       await onQuickAbsence?.(student);
     } finally {
@@ -70,6 +77,28 @@ export default function DashboardView({ students, reports, classes = [], onTabCh
 
   return (
     <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto', boxSizing: 'border-box' }}>
+      {/* 결석 처리 확인 모달 — 오탭 한 번으로 리포트 데이터가 생기는 걸 방지 */}
+      {confirmAbsenceStudent && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '20px', backdropFilter: 'blur(4px)' }}
+          onClick={() => setConfirmAbsenceStudent(null)}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: '16px', padding: '28px 24px', width: '100%', maxWidth: '320px', textAlign: 'center', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
+            <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#FFF8EC', border: '2px solid #D97706', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px', fontSize: '22px', color: '#D97706', fontWeight: 700 }}>!</div>
+            <p style={{ fontSize: '15px', fontWeight: 700, color: '#1A1A1A', margin: '0 0 6px' }}>{confirmAbsenceStudent.name} 학생을 오늘 결석 처리할까요?</p>
+            <p style={{ fontSize: '12px', color: '#6B7280', margin: '0 0 20px', lineHeight: 1.6 }}>출결만 기록되고, 나중에 기록 보관소에서 수정할 수 있어요.</p>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={() => setConfirmAbsenceStudent(null)}
+                style={{ flex: 1, padding: '11px', fontSize: '13px', fontWeight: 700, borderRadius: '10px', border: '1px solid #E5E7EB', background: '#fff', color: '#6B7280', cursor: 'pointer', fontFamily: 'inherit' }}>
+                취소
+              </button>
+              <button onClick={handleConfirmAbsence}
+                style={{ flex: 1, padding: '11px', fontSize: '13px', fontWeight: 700, borderRadius: '10px', border: 'none', background: '#D97706', color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
+                결석 처리
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '16px', letterSpacing: '-0.02em' }}>오늘의 현황</h2>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
         <StatCard label="오늘 미작성" value={Math.max(0, pendingCount)} unit="명" color={C.warning} />
