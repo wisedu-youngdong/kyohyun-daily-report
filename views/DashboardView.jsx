@@ -84,7 +84,7 @@ export default function DashboardView({ students, reports, classes = [], onTabCh
           <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: '16px', padding: '28px 24px', width: '100%', maxWidth: '320px', textAlign: 'center', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
             <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#FFF8EC', border: '2px solid #D97706', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px', fontSize: '22px', color: '#D97706', fontWeight: 700 }}>!</div>
             <p style={{ fontSize: '15px', fontWeight: 700, color: '#1A1A1A', margin: '0 0 6px' }}>{confirmAbsenceStudent.name} 학생을 오늘 결석 처리할까요?</p>
-            <p style={{ fontSize: '12px', color: '#6B7280', margin: '0 0 20px', lineHeight: 1.6 }}>출결만 기록되고, 나중에 기록 보관소에서 수정할 수 있어요.</p>
+            <p style={{ fontSize: '12px', color: '#6B7280', margin: '0 0 20px', lineHeight: 1.6 }}>기록 보관소에서 나중에 수정할 수 있어요.</p>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button onClick={() => setConfirmAbsenceStudent(null)}
                 style={{ flex: 1, padding: '11px', fontSize: '13px', fontWeight: 700, borderRadius: '10px', border: '1px solid #E5E7EB', background: '#fff', color: '#6B7280', cursor: 'pointer', fontFamily: 'inherit' }}>
