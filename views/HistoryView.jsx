@@ -63,6 +63,8 @@ export default function HistoryView({ reports, students, classes = [], reportVie
     : '날짜 없음';
 
   const statusBadge = (r) => {
+    // 결석 처리된 날은 리포트 내용이 없는 게 정상 — 작성/열람 배지보다 우선 표시
+    if (r.attendance === '결석') return { label: '결석', bg: C.errorBg, color: C.errorDark };
     // 자동저장 draft — 선생님이 아직 최종 저장을 안 눌러 학부모에게 안 나간 상태
     if (r.isDraft) return { label: '작성 중', bg: C.warningBg, color: C.warningText };
     const isViewed = reportViews.some(v => v.reportId === r.id);
@@ -394,7 +396,19 @@ export default function HistoryView({ reports, students, classes = [], reportVie
             </div>
           </div>
 
+          {/* 결석 처리된 날 — 평가/코멘트가 원래 비어있는 게 정상이라, 빈 칸 대신 안내 카드로 표시 */}
+          {selected.attendance === '결석' && (
+            <div style={{ marginBottom: '20px', background: C.errorBg, border: `1px solid ${C.error}40`, borderRadius: '10px', padding: '16px 18px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '20px', lineHeight: 1 }}>🚫</span>
+              <div>
+                <p style={{ fontSize: '14px', fontWeight: 700, color: C.errorDark, margin: 0 }}>결석 처리된 날이에요</p>
+                <p style={{ fontSize: '12px', color: C.errorDark, opacity: 0.75, margin: '2px 0 0' }}>수업이 없어 평가·코멘트가 기록되지 않았어요</p>
+              </div>
+            </div>
+          )}
+
           {/* 평가 지표 */}
+          {selected.attendance !== '결석' && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '20px' }}>
             {[
               { label: '과제 평가', value: selected.homeworkRating != null ? `${toPct(selected.homeworkRating)}%` : '—', color: C.primary },
@@ -407,6 +421,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
               </div>
             ))}
           </div>
+          )}
 
           {/* 진단 태그 */}
           {selected.diagnosis?.length > 0 && (
@@ -422,7 +437,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
           )}
 
           {/* 선생님 코멘트 — 퀵 태그 파싱 */}
-          {(() => {
+          {selected.attendance !== '결석' && (() => {
             const raw = selected.teacherNote || '';
             // [태그] 패턴 추출
             const tagPattern = /\[([^\]]+)\]/g;
