@@ -136,7 +136,7 @@ export default function DashboardView({ students, reports, classes = [], onTabCh
                     </div>
                     <button onClick={() => toggleReviewExpand(rv)}
                       style={{ flexShrink: 0, padding: '6px 12px', fontSize: '11px', fontWeight: 700, borderRadius: '8px', border: '1px solid #C9A227', background: expanded ? '#C9A227' : '#fff', color: expanded ? '#fff' : '#7A5200', cursor: 'pointer', fontFamily: 'inherit' }}>
-                      완료
+                      {expanded ? '닫기' : '확인하기'}
                     </button>
                   </div>
 
