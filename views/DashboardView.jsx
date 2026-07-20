@@ -5,6 +5,27 @@ import { AVATARS, StatCard } from './shared.jsx';
 
 export default function DashboardView({ students, reports, classes = [], onTabChange, onWriteFor, reviews = [], onCompleteReview, onQuickAbsence }) {
   const [markingAbsent, setMarkingAbsent] = React.useState(null); // studentId 처리 중
+  // 복습 "완료" — 그냥 done 플래그만 남기면 나중에 "뭘 했었는지" 알 길이 없어서, 완료 처리 전에
+  // 조치 메모(+선택적 재시험 점수)를 받는 인라인 폼으로 펼침. 학생 프로필의 "복습 이력"에서 다시 확인 가능.
+  const [expandedReviewId, setExpandedReviewId] = React.useState(null);
+  const [reviewNote, setReviewNote] = React.useState('');
+  const [reviewScore, setReviewScore] = React.useState('');
+  const [completingReview, setCompletingReview] = React.useState(null);
+
+  const toggleReviewExpand = (rv) => {
+    if (expandedReviewId === rv.id) { setExpandedReviewId(null); return; }
+    setExpandedReviewId(rv.id);
+    setReviewNote(''); setReviewScore('');
+  };
+  const handleSubmitReview = async (rv) => {
+    setCompletingReview(rv.id);
+    try {
+      await onCompleteReview?.(rv.id, { note: reviewNote, testScore: reviewScore.trim() === '' ? null : Number(reviewScore) });
+      setExpandedReviewId(null);
+    } finally {
+      setCompletingReview(null);
+    }
+  };
 
   // 발송 완료 판정 + 날짜 비교 — 리포트 탭 상태바/원장 보고서와 동일한 공용 기준(growth.js) 사용.
   // 결석 처리는 teacherNote 없이 출결만 채운 리포트라 isReportSent 기준으론 안 걸러지므로,
@@ -70,22 +91,41 @@ export default function DashboardView({ students, reports, classes = [], onTabCh
             </div>
             {dueReviews.slice(0, 5).map(rv => {
               const overdueDays = Math.floor((new Date(todayKst) - new Date(rv.dueDate)) / 86400000);
+              const expanded = expandedReviewId === rv.id;
               return (
-                <div key={rv.id} style={{ padding: '10px 18px', display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid #F5D76E30' }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>
-                      {rv.studentName} <span style={{ fontSize: '10px', fontWeight: 600, color: '#9A6800' }}>{rv.round}차 복습</span>
-                      {overdueDays > 0 && <span style={{ fontSize: '10px', fontWeight: 700, color: '#A32D2D', marginLeft: '5px' }}>{overdueDays}일 지남</span>}
-                    </p>
-                    <p style={{ fontSize: '11px', color: '#6B7280', margin: '1px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {[rv.textbook, rv.unit].filter(Boolean).join(' · ')}
-                      {rv.weakTypes?.length > 0 && ` — ${rv.weakTypes.map(w => w.label).join(', ')}`}
-                    </p>
+                <div key={rv.id} style={{ padding: '10px 18px', borderBottom: '1px solid #F5D76E30' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>
+                        {rv.studentName} <span style={{ fontSize: '10px', fontWeight: 600, color: '#9A6800' }}>{rv.round}차 복습</span>
+                        {overdueDays > 0 && <span style={{ fontSize: '10px', fontWeight: 700, color: '#A32D2D', marginLeft: '5px' }}>{overdueDays}일 지남</span>}
+                      </p>
+                      <p style={{ fontSize: '11px', color: '#6B7280', margin: '1px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {[rv.textbook, rv.unit].filter(Boolean).join(' · ')}
+                        {rv.weakTypes?.length > 0 && ` — ${rv.weakTypes.map(w => w.label).join(', ')}`}
+                      </p>
+                    </div>
+                    <button onClick={() => toggleReviewExpand(rv)}
+                      style={{ flexShrink: 0, padding: '6px 12px', fontSize: '11px', fontWeight: 700, borderRadius: '8px', border: '1px solid #C9A227', background: expanded ? '#C9A227' : '#fff', color: expanded ? '#fff' : '#7A5200', cursor: 'pointer', fontFamily: 'inherit' }}>
+                      완료
+                    </button>
                   </div>
-                  <button onClick={() => onCompleteReview?.(rv.id)}
-                    style={{ flexShrink: 0, padding: '6px 12px', fontSize: '11px', fontWeight: 700, borderRadius: '8px', border: '1px solid #C9A227', background: '#fff', color: '#7A5200', cursor: 'pointer', fontFamily: 'inherit' }}>
-                    완료
-                  </button>
+
+                  {expanded && (
+                    <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed #F0D584', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <textarea value={reviewNote} onChange={e => setReviewNote(e.target.value)}
+                        placeholder="어떤 조치를 하셨나요? (예: 오답노트 다시 풀림, 재시험 통과)" rows={2}
+                        style={{ width: '100%', padding: '7px 9px', fontSize: '12px', border: '1px solid #F0D584', borderRadius: '8px', fontFamily: 'inherit', outline: 'none', resize: 'vertical', boxSizing: 'border-box', background: '#fff' }} />
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <input type="number" value={reviewScore} onChange={e => setReviewScore(e.target.value)} placeholder="재시험 점수 (선택)"
+                          style={{ width: '140px', padding: '7px 9px', fontSize: '12px', border: '1px solid #F0D584', borderRadius: '8px', fontFamily: 'inherit', outline: 'none', background: '#fff' }} />
+                        <button onClick={() => handleSubmitReview(rv)} disabled={completingReview === rv.id}
+                          style={{ flex: 1, padding: '7px', fontSize: '12px', fontWeight: 700, borderRadius: '8px', border: 'none', background: completingReview === rv.id ? '#E5E7EB' : '#C9A227', color: '#fff', cursor: completingReview === rv.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                          {completingReview === rv.id ? '처리 중...' : '완료 처리'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}

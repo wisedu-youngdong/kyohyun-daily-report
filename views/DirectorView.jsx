@@ -7,7 +7,7 @@ import { C, R } from '../tokens.jsx';
 import { StudentProfileModal } from './StudentProfileModal.jsx';
 import { groupByClassId } from './shared.jsx';
 
-export default function DirectorView({ reports, students, classes = [], reportViews = [], reportQuestions = [], onToast, academyId, academyName }) {
+export default function DirectorView({ reports, students, classes = [], reportViews = [], reportQuestions = [], reviews = [], onToast, academyId, academyName }) {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const dateInputRef = React.useRef(null);
   const [expandedId, setExpandedId] = useState(null);
@@ -75,6 +75,7 @@ export default function DirectorView({ reports, students, classes = [], reportVi
         <StudentProfileModal
           student={profileStudent}
           reports={reports.filter(r => r.studentId === profileStudent.id)}
+          reviews={reviews.filter(rv => rv.studentId === profileStudent.id)}
           onClose={() => setProfileStudent(null)}
           DIAG_MAP={DIAG_MAP}
           onToast={onToast}

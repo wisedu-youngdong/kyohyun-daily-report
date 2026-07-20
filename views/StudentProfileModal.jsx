@@ -7,7 +7,7 @@ import { C } from '../tokens.jsx';
 // ============================================================
 // 학생 종합 프로필 모달 — 상담용
 // ============================================================
-export function StudentProfileModal({ student, reports, onClose, DIAG_MAP, onToast, academyName }) {
+export function StudentProfileModal({ student, reports, reviews = [], onClose, DIAG_MAP, onToast, academyName }) {
   const [showWeekly, setShowWeekly] = useState(false);
   const [calMonth, setCalMonth] = useState(() => {
     const last = [...reports].sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))[0];
@@ -51,6 +51,11 @@ export function StudentProfileModal({ student, reports, onClose, DIAG_MAP, onToa
 
   // 최근 학습 단원 목록
   const unitHistory = [...new Set(sorted.map(r => [r.textbook, r.unit].filter(Boolean).join(' · ')).filter(Boolean))].slice(-5).reverse();
+
+  // 완료된 복습 이력 — 최신순. "완료" 자체보다 그때 실제로 뭘 했는지(note/testScore)를 보여주는 게 목적
+  const completedReviews = [...reviews]
+    .filter(rv => rv.status === 'done')
+    .sort((a, b) => (b.completedAt?.seconds || 0) - (a.completedAt?.seconds || 0));
 
   const fmtDate = (r) => r.createdAt?.seconds
     ? new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })
@@ -265,6 +270,44 @@ export function StudentProfileModal({ student, reports, onClose, DIAG_MAP, onToa
                   );
                 })}
               </div>
+            </div>
+          )}
+
+          {/* 복습 이력 — 대시보드에서 "복습 완료" 처리할 때 남긴 조치 메모/재시험 점수.
+              대시보드엔 처리 즉시 목록에서 사라지므로, "그때 뭘 했는지" 다시 확인할 수 있는 유일한 곳 */}
+          {completedReviews.length > 0 && (
+            <div style={{ marginBottom: '20px' }}>
+              <p style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 6px', color: '#1A1A1A' }}>복습 이력</p>
+              <div style={{ width: '32px', height: '2px', background: '#C9A227', marginBottom: '12px' }} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
+                {completedReviews.slice(0, 5).map((rv) => (
+                  <div key={rv.id} style={{ background: '#FAFAF8', border: '0.5px solid #E5E7EB', borderRadius: '8px', padding: '9px 10px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#1A1A1A' }}>
+                        {rv.round}차 복습
+                        {rv.weakTypes?.length > 0 && <span style={{ fontWeight: 500, color: '#6B7280' }}> · {rv.weakTypes.map(w => w.label).join(', ')}</span>}
+                      </span>
+                      <span style={{ fontSize: '10px', color: '#9CA3AF' }}>
+                        {rv.completedAt?.seconds ? new Date(rv.completedAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' }) : ''}
+                      </span>
+                    </div>
+                    {(rv.textbook || rv.unit) && (
+                      <p style={{ fontSize: '10px', color: '#9CA3AF', margin: '0 0 4px' }}>{[rv.textbook, rv.unit].filter(Boolean).join(' · ')}</p>
+                    )}
+                    {rv.testScore != null && rv.testScore !== '' && (
+                      <p style={{ fontSize: '10px', color: '#C9A227', fontWeight: 700, margin: '0 0 4px' }}>재시험 {rv.testScore}점</p>
+                    )}
+                    {rv.note && (
+                      <p style={{ fontSize: '11px', color: '#5A6472', margin: 0, lineHeight: 1.6 }}>{rv.note}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {completedReviews.length > 5 && (
+                <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '8px 0 0', textAlign: 'center' }}>
+                  최근 5건 표시 · 전체 {completedReviews.length}건
+                </p>
+              )}
             </div>
           )}
 

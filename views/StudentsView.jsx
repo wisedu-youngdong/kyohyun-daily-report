@@ -6,7 +6,7 @@ import { StudentModal } from './StudentModal.jsx';
 import { AVATARS } from './shared.jsx';
 import { StudentProfileModal } from './StudentProfileModal.jsx';
 
-export default function StudentsView({ students, reports, onSave, onDelete, onRestore, teachers = [], classes = [], currentTeacherId = null, isDirector = false, onToast }) {
+export default function StudentsView({ students, reports, reviews = [], onSave, onDelete, onRestore, teachers = [], classes = [], currentTeacherId = null, isDirector = false, onToast }) {
   const [showAddStudent, setShowAddStudent] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
@@ -74,6 +74,7 @@ export default function StudentsView({ students, reports, onSave, onDelete, onRe
         <StudentProfileModal
           student={profileStudent}
           reports={reports.filter(r => r.studentId === profileStudent.id)}
+          reviews={reviews.filter(rv => rv.studentId === profileStudent.id)}
           onClose={() => setProfileStudent(null)}
           DIAG_MAP={DIAG_MAP}
           onToast={onToast}

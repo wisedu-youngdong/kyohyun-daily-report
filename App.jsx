@@ -227,9 +227,13 @@ export default function App() {
     return () => { unsubStudents(); unsubTeachers(); unsubClasses(); unsubReports(); unsubViews(); unsubQuestions(); unsubTemplates(); unsubReviews(); };
   }, [user, academyId, academyStatus, isPlatformAdmin]);
 
-  const handleCompleteReview = async (id) => {
+  // note/testScore는 review 생성 시(handleSaveReport의 약점 태그 감지)부터 필드는 있었지만
+  // 완료 처리 UI가 여태 안 채우고 있었음 — "완료했다"만 남고 "뭘 어떻게 했는지"가 사라지던 문제
+  const handleCompleteReview = async (id, { note = '', testScore = null } = {}) => {
     try {
-      await updateDoc(doc(db, 'academies', academyId, 'reviews', id), { status: 'done', completedAt: serverTimestamp() });
+      await updateDoc(doc(db, 'academies', academyId, 'reviews', id), {
+        status: 'done', completedAt: serverTimestamp(), note: note.trim(), testScore,
+      });
     } catch (e) {
       console.error('복습 완료 처리 실패:', e);
       showAppToast('복습 완료 처리에 실패했습니다.', 'error');
@@ -701,7 +705,7 @@ export default function App() {
             ], { director: 960, analysis: 600 })}
             <div style={{ marginTop: '12px' }}>
               {activeSubTab.insight === 'director' && (dataReady
-                ? <div><DirectorView reports={reports} students={students} classes={classes} reportViews={reportViews} reportQuestions={reportQuestions} onToast={showAppToast} academyId={academyId} academyName={academyName} /><GrowthDashboard reports={reports} students={students} onSwitchTab={setActiveTab} /></div>
+                ? <div><DirectorView reports={reports} students={students} classes={classes} reportViews={reportViews} reportQuestions={reportQuestions} reviews={reviews} onToast={showAppToast} academyId={academyId} academyName={academyName} /><GrowthDashboard reports={reports} students={students} onSwitchTab={setActiveTab} /></div>
                 : <SkeletonBlock rows={4} cardHeight={70} />
               )}
               {activeSubTab.insight === 'analysis' && (dataReady
@@ -721,7 +725,7 @@ export default function App() {
             ], 600)}
             <div style={{ marginTop: '12px' }}>
               {activeSubTab.manage === 'students' && (dataReady
-                ? <StudentsView students={students} reports={reports} onSave={handleSaveStudent} onDelete={handleDeleteStudent} onRestore={handleRestoreStudent} teachers={teachers} classes={classes} currentTeacherId={userTeacherId} isDirector={isDirector} onToast={showAppToast} />
+                ? <StudentsView students={students} reports={reports} reviews={reviews} onSave={handleSaveStudent} onDelete={handleDeleteStudent} onRestore={handleRestoreStudent} teachers={teachers} classes={classes} currentTeacherId={userTeacherId} isDirector={isDirector} onToast={showAppToast} />
                 : <SkeletonBlock rows={5} cardHeight={56} />
               )}
               {activeSubTab.manage === 'settings' && (dataReady
