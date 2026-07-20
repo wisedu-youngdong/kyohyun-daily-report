@@ -4,13 +4,14 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
   try {
-    const { note, studentName, textbook, unit, diagTags, photoContext } = req.body;
+    const { note, studentName, textbook, unit, diagTags, photoContext, contentType } = req.body;
 
     const context = [
       studentName && `학생: ${studentName}`,
       textbook && `교재: ${textbook}`,
       unit && `단원: ${unit}`,
       diagTags && `진단: ${diagTags}`,
+      contentType && `사진 종류: ${contentType}`,
     ].filter(Boolean).join(' / ');
 
     const prompt = `당신은 이 학생을 오랫동안 꼼꼼히 관찰해온 학원 선생님입니다. 아래 [선생님 메모]를 학부모님께 보낼 리포트 문장으로 다듬어주세요.
@@ -31,7 +32,7 @@ ${context ? `[수업 정보]\n${context}\n\n` : ''}${photoContext ? `[사진 분
 - 첫 문장은 반드시 "${studentName || '학생'} 학생은" 으로 시작하되 (OOO, 이름, 아이 같은 대체어 절대 금지), 그 뒤 문장 구조·어미·연결어는 매번 다르게 구성해 기계적으로 복사한 듯한 느낌이 없도록 하세요.
 - 학생 이름은 이 첫 문장에서 딱 한 번만 쓰세요. 이후 문장에서는 이름을 절대 반복하지 말고, 한국어 특성상 자연스러운 주어 생략을 쓰거나 "이 부분은", "다음 시간에는" 처럼 자연스럽게 이어가세요.
 
-[오답 피드백 구체성]
+${contentType ? `[사진 종류 반영]\n- 이 사진은 "${contentType}"입니다. 자연스러운 도입부에 이 종류를 녹이세요 — 예를 들어 "숙제"면 "숙제를 보니", "숙제에서" 처럼, "테스트"면 "오늘 테스트에서", "이번 테스트를 보니" 처럼 시작하되, 매번 똑같은 문구를 기계적으로 반복하지 말고 자연스럽게 변형하세요. "기타"면 종류를 억지로 문장에 넣지 말고 내용 자체로 자연스럽게 시작하세요.\n\n` : ''}[오답 피드백 구체성]
 ${photoContext ? '- "O번, O번을 틀렸습니다"처럼 문항 번호만 나열하지 말고, 사진 분석 결과에 담긴 개념 이름(예: 전개도, 겉넓이 계산, 인수분해 등)을 문장에 자연스럽게 녹여 어떤 과정에서 실수했는지 구체적으로 설명하세요.\n' : ''}- 교재(${textbook || ''})와 단원(${unit || ''})을 자연스럽게 언급하세요.
 - 진단(${diagTags || ''})은 완곡하게 표현하되 흐릿하게 뭉개지 말고 명확히 전달하세요.
 

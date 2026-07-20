@@ -362,6 +362,7 @@ export default function DiagnosticReportInput({
   const [photos, setPhotos] = useState([]); // [{ preview, blob }]
   const [analyzingPhoto, setAnalyzingPhoto] = useState(false);
   const [photoAnalysis, setPhotoAnalysis] = useState(null);
+  const [photoContentType, setPhotoContentType] = useState(''); // '숙제' | '테스트' | '기타' — AI 코멘트 문장 시작을 이 사진이 뭔지에 맞춰 자연스럽게 만들기 위함
   const [wrongItems, setWrongItems] = useState([]);
   const [alertMessage, setAlertMessage] = useState('');
   const [photoError, setPhotoError] = useState('');
@@ -532,6 +533,7 @@ export default function DiagnosticReportInput({
           unit: unit || '',
           diagTags: tagNames || '',
           photoContext: photoContext || '',
+          contentType: photoContentType || '',
         }),
         signal: AbortSignal.timeout(60000),
       });
@@ -1136,9 +1138,29 @@ export default function DiagnosticReportInput({
 
               {/* 5-1. 교재/시험지 사진 분석 (선택) */}
               <FormSection number="5+" title="교재·시험지 사진 분석 (선택)" badge={photoAnalysis ? '분석완료' : (photos.length > 0 ? `${photos.length}장 선택됨` : undefined)} badgeTone={photoAnalysis ? 'success' : 'info'}>
-                <p style={{ fontSize: '11px', color: TOKENS.textMute, margin: '0 0 10px' }}>
+                <p style={{ fontSize: '11px', color: TOKENS.textMute, margin: '0 0 6px' }}>
                   채점(O/△/빗금) 완료된 페이지를 촬영하면, AI가 표시만 그대로 읽어 유형별 코멘트 초안을 만들어줍니다. 여러 장(최대 {MAX_PHOTOS}장) 한 번에 올려서 페이지별 결과를 통합 분석할 수 있습니다. 점수는 반영되지 않습니다.
                 </p>
+                <p style={{ fontSize: '11px', color: TOKENS.warn, margin: '0 0 10px' }}>
+                  <AlertTriangle size={11} style={{ verticalAlign: '-1px' }} /> AI 분석 결과가 실제 채점과 다를 수 있어요 — 아래 정답/오답 표시를 눌러 직접 수정할 수 있습니다.
+                </p>
+
+                {/* 이 사진이 뭔지 태그 — AI 코멘트 문장이 "숙제를 보니", "오늘 테스트에서"처럼
+                    자연스럽게 시작하도록 반영됨 (선택 안 해도 분석/코멘트 생성엔 지장 없음) */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '11px', color: TOKENS.textMute, fontWeight: 600 }}>이 사진은?</span>
+                  {['숙제', '테스트', '기타'].map(t => (
+                    <button key={t} type="button" onClick={() => setPhotoContentType(prev => prev === t ? '' : t)}
+                      style={{
+                        fontSize: '11px', fontWeight: 700, padding: '4px 11px', borderRadius: '20px',
+                        border: `1px solid ${photoContentType === t ? TOKENS.info : TOKENS.border}`,
+                        background: photoContentType === t ? TOKENS.info : '#fff',
+                        color: photoContentType === t ? '#fff' : TOKENS.textSub,
+                        cursor: 'pointer', fontFamily: 'inherit',
+                      }}>{t}</button>
+                  ))}
+                </div>
+
                 {photos.length === 0 && (
                   <label style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
@@ -1466,6 +1488,7 @@ export default function DiagnosticReportInput({
                                     unit: unit || '',
                                     diagTags: wrongItems.flatMap(w => w.tags.map(t => tagLabels[t])).join(', '),
                                     photoContext: `오답: ${wrongSummary}`,
+                                    contentType: photoContentType || '',
                                   }),
                                   signal: AbortSignal.timeout(60000),
                                 });
