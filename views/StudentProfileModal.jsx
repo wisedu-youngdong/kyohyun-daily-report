@@ -9,6 +9,8 @@ import { C } from '../tokens.jsx';
 // ============================================================
 export function StudentProfileModal({ student, reports, reviews = [], onClose, DIAG_MAP, onToast, academyName }) {
   const [showWeekly, setShowWeekly] = useState(false);
+  // 캘린더가 기본으로 펼쳐져 있으면 그 아래 내용(수업 기록/약점 패턴 등) 보려고 매번 스크롤을 많이 해야 해서, 기본은 요약만 접어서 보여줌
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [calMonth, setCalMonth] = useState(() => {
     const last = [...reports].sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))[0];
     const d = last?.createdAt?.seconds ? new Date(last.createdAt.seconds * 1000) : new Date();
@@ -109,51 +111,88 @@ export function StudentProfileModal({ student, reports, reviews = [], onClose, D
             const daysInMonth = new Date(calYear, calMonthIdx + 1, 0).getDate();
             const today = new Date();
             const todayKey = `${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`;
+
+            // 접혀있을 때 한 줄로 보여줄 이번 달 출결 요약
+            const monthCounts = {};
+            Object.entries(attendanceByDate).forEach(([key, att]) => {
+              const [y, m] = key.split('-').map(Number);
+              if (y === calYear && m === calMonthIdx) monthCounts[att] = (monthCounts[att] || 0) + 1;
+            });
+
             return (
               <div style={{ marginBottom: '20px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
                   <p style={{ fontSize: '14px', fontWeight: 700, margin: 0, color: '#1A1A1A' }}>출결 캘린더</p>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <button onClick={() => setCalMonth(new Date(calYear, calMonthIdx - 1, 1))}
-                      style={{ background: 'none', border: 'none', color: '#6B7280', cursor: 'pointer', fontSize: '14px', padding: '4px', width: '28px', height: '28px' }}>‹</button>
-                    <span style={{ fontSize: '12px', fontWeight: 700, color: '#374151' }}>{calYear}년 {calMonthIdx + 1}월</span>
-                    <button onClick={() => setCalMonth(new Date(calYear, calMonthIdx + 1, 1))}
-                      style={{ background: 'none', border: 'none', color: '#6B7280', cursor: 'pointer', fontSize: '14px', padding: '4px', width: '28px', height: '28px' }}>›</button>
-                  </div>
+                  {calendarOpen ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <button onClick={() => setCalMonth(new Date(calYear, calMonthIdx - 1, 1))}
+                        style={{ background: 'none', border: 'none', color: '#6B7280', cursor: 'pointer', fontSize: '14px', padding: '4px', width: '28px', height: '28px' }}>‹</button>
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#374151' }}>{calYear}년 {calMonthIdx + 1}월</span>
+                      <button onClick={() => setCalMonth(new Date(calYear, calMonthIdx + 1, 1))}
+                        style={{ background: 'none', border: 'none', color: '#6B7280', cursor: 'pointer', fontSize: '14px', padding: '4px', width: '28px', height: '28px' }}>›</button>
+                      <button onClick={() => setCalendarOpen(false)}
+                        style={{ fontSize: '11px', fontWeight: 700, color: '#6B7280', background: '#F3F4F6', border: 'none', borderRadius: '8px', padding: '5px 10px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                        접기
+                      </button>
+                    </div>
+                  ) : (
+                    <button onClick={() => setCalendarOpen(true)}
+                      style={{ fontSize: '11px', fontWeight: 700, color: '#0D2D6B', background: '#EAF1FB', border: 'none', borderRadius: '8px', padding: '5px 10px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                      펼쳐보기
+                    </button>
+                  )}
                 </div>
                 <div style={{ width: '32px', height: '2px', background: '#C9A227', marginBottom: '12px' }} />
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', marginBottom: '4px' }}>
-                  {['일', '월', '화', '수', '목', '금', '토'].map(d => (
-                    <p key={d} style={{ textAlign: 'center', fontSize: '10px', color: '#9CA3AF', margin: 0, fontWeight: 600 }}>{d}</p>
-                  ))}
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
-                  {Array.from({ length: firstDayOfWeek }).map((_, i) => <div key={`e${i}`} />)}
-                  {Array.from({ length: daysInMonth }).map((_, i) => {
-                    const day = i + 1;
-                    const key = `${calYear}-${calMonthIdx}-${day}`;
-                    const att = attendanceByDate[key];
-                    const isToday = key === todayKey;
-                    return (
-                      <div key={day} style={{
-                        aspectRatio: '1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                        borderRadius: '8px', background: att ? `${ATTEND_COLORS[att] || '#8A5A00'}12` : 'transparent',
-                        border: isToday ? `1.5px solid ${C.info}` : '1px solid transparent',
-                      }}>
-                        <span style={{ fontSize: '11px', fontWeight: att ? 700 : 400, color: att ? (ATTEND_COLORS[att] || '#374151') : '#C0C0C0' }}>{day}</span>
-                        {att && <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: ATTEND_COLORS[att] || '#8A5A00', marginTop: '2px' }} />}
-                      </div>
-                    );
-                  })}
-                </div>
-                <div style={{ display: 'flex', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>
-                  {Object.entries(ATTEND_COLORS).map(([label, color]) => (
-                    <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: color, display: 'inline-block' }} />
-                      <span style={{ fontSize: '10px', color: '#6B7280' }}>{label}</span>
+
+                {!calendarOpen ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', padding: '11px 13px', background: '#FAFAF8', border: '0.5px solid #E5E7EB', borderRadius: '10px' }}>
+                    <span style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: 700 }}>{calYear}년 {calMonthIdx + 1}월</span>
+                    {Object.entries(ATTEND_COLORS).map(([label, color]) => (
+                      monthCounts[label] ? (
+                        <span key={label} style={{ fontSize: '11px', color: '#374151', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: color, display: 'inline-block' }} />
+                          {label} {monthCounts[label]}일
+                        </span>
+                      ) : null
+                    ))}
+                    {Object.keys(monthCounts).length === 0 && <span style={{ fontSize: '11px', color: '#B0B0B0' }}>이번 달 출결 기록이 없어요</span>}
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', marginBottom: '4px' }}>
+                      {['일', '월', '화', '수', '목', '금', '토'].map(d => (
+                        <p key={d} style={{ textAlign: 'center', fontSize: '10px', color: '#9CA3AF', margin: 0, fontWeight: 600 }}>{d}</p>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
+                      {Array.from({ length: firstDayOfWeek }).map((_, i) => <div key={`e${i}`} />)}
+                      {Array.from({ length: daysInMonth }).map((_, i) => {
+                        const day = i + 1;
+                        const key = `${calYear}-${calMonthIdx}-${day}`;
+                        const att = attendanceByDate[key];
+                        const isToday = key === todayKey;
+                        return (
+                          <div key={day} style={{
+                            aspectRatio: '1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                            borderRadius: '8px', background: att ? `${ATTEND_COLORS[att] || '#8A5A00'}12` : 'transparent',
+                            border: isToday ? `1.5px solid ${C.info}` : '1px solid transparent',
+                          }}>
+                            <span style={{ fontSize: '11px', fontWeight: att ? 700 : 400, color: att ? (ATTEND_COLORS[att] || '#374151') : '#C0C0C0' }}>{day}</span>
+                            {att && <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: ATTEND_COLORS[att] || '#8A5A00', marginTop: '2px' }} />}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>
+                      {Object.entries(ATTEND_COLORS).map(([label, color]) => (
+                        <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: color, display: 'inline-block' }} />
+                          <span style={{ fontSize: '10px', color: '#6B7280' }}>{label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
             );
           })()}
