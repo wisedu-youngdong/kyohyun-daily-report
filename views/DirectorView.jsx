@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { db } from '../firebase';
-import { updateDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { FileText, AlertTriangle, Copy, Bell, CalendarDays, MessageCircle } from 'lucide-react';
 import { kstDay, toPct, ratingLabel } from '../growth.js';
 import { C, R } from '../tokens.jsx';
@@ -17,6 +17,9 @@ export default function DirectorView({ reports, students, classes = [], reportVi
   const [answerDrafts, setAnswerDrafts] = useState({});
   const [savingAnswer, setSavingAnswer] = useState(null);
   const [showAnswered, setShowAnswered] = useState(false);
+  // 질문 삭제 — 계속 쌓이는 목록이라 정리 용도. 2번 눌러야 지워짐(오터치 방지), 3초 지나면 확인 상태 풀림
+  const [confirmDeleteQuestionId, setConfirmDeleteQuestionId] = useState(null);
+  const [deletingQuestionId, setDeletingQuestionId] = useState(null);
 
   const handleAnswerSave = async (questionId, answerText) => {
     setSavingAnswer(questionId);
@@ -29,6 +32,23 @@ export default function DirectorView({ reports, students, classes = [], reportVi
       onToast?.('답변 저장에 실패했습니다. 잠시 후 다시 시도해주세요.', 'error');
     }
     setSavingAnswer(null);
+  };
+
+  const handleDeleteQuestion = async (questionId) => {
+    if (confirmDeleteQuestionId !== questionId) {
+      setConfirmDeleteQuestionId(questionId);
+      setTimeout(() => setConfirmDeleteQuestionId(prev => prev === questionId ? null : prev), 3000);
+      return;
+    }
+    setDeletingQuestionId(questionId);
+    try {
+      await deleteDoc(doc(db, 'academies', academyId, 'reportQuestions', questionId));
+    } catch (e) {
+      console.error('질문 삭제 실패:', e);
+      onToast?.('질문 삭제에 실패했습니다. 잠시 후 다시 시도해주세요.', 'error');
+    }
+    setConfirmDeleteQuestionId(null);
+    setDeletingQuestionId(null);
   };
 
   const DIAG_MAP = {
@@ -184,12 +204,23 @@ export default function DirectorView({ reports, students, classes = [], reportVi
                     <p style={{ fontSize: '11px', color: '#98A1AC', margin: 0 }}>
                       {q.studentName} · {reportLabel}
                     </p>
-                    {reportDateStr && (
-                      <button onClick={() => setSelectedDate(reportDateStr)}
-                        style={{ background: 'none', border: 'none', color: '#1A5CB8', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0, textDecoration: 'underline' }}>
-                        그 날짜로 이동
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+                      {reportDateStr && (
+                        <button onClick={() => setSelectedDate(reportDateStr)}
+                          style={{ background: 'none', border: 'none', color: '#1A5CB8', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>
+                          그 날짜로 이동
+                        </button>
+                      )}
+                      <button onClick={() => handleDeleteQuestion(q.id)} disabled={deletingQuestionId === q.id}
+                        style={{
+                          background: confirmDeleteQuestionId === q.id ? '#DC2626' : 'none', border: 'none', borderRadius: '6px',
+                          padding: confirmDeleteQuestionId === q.id ? '2px 8px' : 0,
+                          color: confirmDeleteQuestionId === q.id ? '#fff' : '#B0B5BD', fontSize: '11px', fontWeight: 700,
+                          cursor: deletingQuestionId === q.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+                        }}>
+                        {deletingQuestionId === q.id ? '삭제 중' : confirmDeleteQuestionId === q.id ? '확인' : '삭제'}
                       </button>
-                    )}
+                    </div>
                   </div>
                   <p style={{ fontSize: '12px', color: '#1A1A1A', margin: '0 0 8px', lineHeight: 1.6 }}>{q.questionText}</p>
                   <div style={{ display: 'flex', gap: '8px' }}>
@@ -237,7 +268,18 @@ export default function DirectorView({ reports, students, classes = [], reportVi
                     : '원본 리포트를 찾을 수 없음';
                   return (
                     <div key={q.id} style={{ background: '#FAFAFA', border: '0.5px solid #E8E6E0', borderRadius: '8px', padding: '10px 12px' }}>
-                      <p style={{ fontSize: '11px', color: '#98A1AC', margin: '0 0 4px' }}>{q.studentName} · {reportLabel}</p>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '4px' }}>
+                        <p style={{ fontSize: '11px', color: '#98A1AC', margin: 0 }}>{q.studentName} · {reportLabel}</p>
+                        <button onClick={() => handleDeleteQuestion(q.id)} disabled={deletingQuestionId === q.id}
+                          style={{
+                            background: confirmDeleteQuestionId === q.id ? '#DC2626' : 'none', border: 'none', borderRadius: '6px',
+                            padding: confirmDeleteQuestionId === q.id ? '2px 8px' : 0, flexShrink: 0,
+                            color: confirmDeleteQuestionId === q.id ? '#fff' : '#B0B5BD', fontSize: '11px', fontWeight: 700,
+                            cursor: deletingQuestionId === q.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+                          }}>
+                          {deletingQuestionId === q.id ? '삭제 중' : confirmDeleteQuestionId === q.id ? '확인' : '삭제'}
+                        </button>
+                      </div>
                       <p style={{ fontSize: '12px', color: '#1A1A1A', margin: '0 0 6px', fontWeight: 600, lineHeight: 1.6 }}>Q. {q.questionText}</p>
                       <div style={{ borderLeft: '2px solid #0F6E56', paddingLeft: '10px' }}>
                         <p style={{ fontSize: '12px', color: '#5A6472', margin: 0, lineHeight: 1.6 }}>A. {q.answerText}</p>
