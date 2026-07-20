@@ -55,6 +55,7 @@ export default function App() {
   const [editingReport, setEditingReport] = useState(null);
 
   const [students, setStudents] = useState([]);
+  const [studentContacts, setStudentContacts] = useState({});
   const [teachers, setTeachers] = useState([]);
   const [classes, setClasses] = useState([]);
   const [reports, setReports] = useState([]);
@@ -185,6 +186,12 @@ export default function App() {
       setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       setStudentsReady(true);
     }, (e) => { console.error('학생 목록 구독 실패:', e); showAppToast('학생 목록을 불러오지 못했습니다. 새로고침해주세요.', 'error'); });
+    // 학부모 연락처 — 학생 문서(공개 성장스토리 페이지에서 get 가능)와 분리 보관, 직원만 읽기/쓰기
+    const unsubStudentContacts = onSnapshot(collection(db, 'academies', academyId, 'studentContacts'), (snap) => {
+      const map = {};
+      snap.docs.forEach(d => { map[d.id] = d.data(); });
+      setStudentContacts(map);
+    }, (e) => { console.error('학부모 연락처 구독 실패:', e); });
     const unsubTeachers = onSnapshot(collection(db, 'academies', academyId, 'teachers'), (snap) => {
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       if (list.length === 0) {
@@ -224,7 +231,7 @@ export default function App() {
       setReviews(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     }, (e) => { console.error('복습 일정 구독 실패:', e); });
 
-    return () => { unsubStudents(); unsubTeachers(); unsubClasses(); unsubReports(); unsubViews(); unsubQuestions(); unsubTemplates(); unsubReviews(); };
+    return () => { unsubStudents(); unsubStudentContacts(); unsubTeachers(); unsubClasses(); unsubReports(); unsubViews(); unsubQuestions(); unsubTemplates(); unsubReviews(); };
   }, [user, academyId, academyStatus, isPlatformAdmin]);
 
   // note/testScore는 review 생성 시(handleSaveReport의 약점 태그 감지)부터 필드는 있었지만
@@ -242,16 +249,21 @@ export default function App() {
 
   const handleSaveStudent = async (d) => {
   try {
+    // 학부모 연락처는 학생 문서(공개 성장스토리 페이지에서 누구나 get 가능)와 분리 보관 —
+    // studentContacts는 직원만 읽기/쓰기 가능한 별도 컬렉션(firestore.rules)
+    const { parentPhone, ...rest } = d;
     if (d.id) {
-      const { id, ...data } = d;
+      const { id, ...data } = rest;
       await updateDoc(doc(db, 'academies', academyId, 'students', id), data);
+      await setDoc(doc(db, 'academies', academyId, 'studentContacts', id), { parentPhone: parentPhone || '' }, { merge: true });
     } else {
       // 공개 성장스토리 페이지(studentIndex 조회)가 새 학생도 바로 찾을 수 있도록
       // 학생 문서 생성과 인덱스 문서 생성을 하나의 배치로 원자적 처리
       const studentRef = doc(collection(db, 'academies', academyId, 'students'));
       const batch = writeBatch(db);
-      batch.set(studentRef, { ...d, createdAt: serverTimestamp() });
+      batch.set(studentRef, { ...rest, createdAt: serverTimestamp() });
       batch.set(doc(db, 'studentIndex', studentRef.id), { academyId });
+      batch.set(doc(db, 'academies', academyId, 'studentContacts', studentRef.id), { parentPhone: parentPhone || '' });
       await batch.commit();
     }
   } catch (e) {
@@ -517,8 +529,12 @@ export default function App() {
 
   const isDirector = userRole === 'director';
 
+  // 학부모 연락처는 학생 문서(공개 get 허용)와 분리 저장되므로 여기서 합쳐서 내려줌 —
+  // 이 시점부터는 화면들이 예전처럼 student.parentPhone으로 그대로 읽으면 됨
+  const studentsWithContact = students.map(s => ({ ...s, parentPhone: studentContacts[s.id]?.parentPhone || '' }));
+
   // 보관 처리(소프트 삭제)된 학생은 일반 화면에서 제외 — 학생관리에서만 별도로 조회 가능
-  const activeStudents = students.filter(s => !s.archived);
+  const activeStudents = studentsWithContact.filter(s => !s.archived);
 
   // 강사는 담당 학생만, 원장은 전체
   const visibleStudents = isDirector
@@ -631,7 +647,9 @@ export default function App() {
               const todayReports = visibleReports.filter(r => r.createdAt?.seconds && kstDay(r.createdAt.seconds) === todayKstNow);
               if (todayReports.length === 0) return null;
 
-              const allLinks = todayReports
+              // 작성 중인 초안은 아직 학부모에게 보여줄 내용이 아니므로 링크 복사 대상에서 제외
+              const sentReports = todayReports.filter(r => !r.isDraft);
+              const allLinks = sentReports
                 .map(r => `${r.studentName} 학생 리포트\n${window.location.origin}/report/${r.id}`)
                 .join('\n\n');
 
@@ -657,11 +675,13 @@ export default function App() {
                       );
                     })
                   }
-                  <button
-                    onClick={() => navigator.clipboard.writeText(allLinks).then(() => showAppToast(`오늘 리포트 ${todayReports.length}건 링크 복사됐어요!`))}
-                    style={{ marginLeft: 'auto', padding: '4px 10px', borderRadius: '12px', border: '1px solid #0D2D6B', background: '#fff', color: '#0D2D6B', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
-                    전체 링크 복사 ({todayReports.length}건)
-                  </button>
+                  {sentReports.length > 0 && (
+                    <button
+                      onClick={() => navigator.clipboard.writeText(allLinks).then(() => showAppToast(`발송 완료 리포트 ${sentReports.length}건 링크 복사됐어요!`))}
+                      style={{ marginLeft: 'auto', padding: '4px 10px', borderRadius: '12px', border: '1px solid #0D2D6B', background: '#fff', color: '#0D2D6B', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
+                      전체 링크 복사 ({sentReports.length}건)
+                    </button>
+                  )}
                 </div>
               );
             })()}
@@ -705,12 +725,12 @@ export default function App() {
             ], { director: 960, analysis: 600 })}
             <div style={{ marginTop: '12px' }}>
               {activeSubTab.insight === 'director' && (dataReady
-                ? <div><DirectorView reports={reports} students={students} classes={classes} reportViews={reportViews} reportQuestions={reportQuestions} reviews={reviews} onToast={showAppToast} academyId={academyId} academyName={academyName} /><GrowthDashboard reports={reports} students={students} onSwitchTab={setActiveTab} /></div>
+                ? <div><DirectorView reports={visibleReports} students={visibleStudents} classes={classes} reportViews={reportViews} reportQuestions={reportQuestions} reviews={reviews} onToast={showAppToast} academyId={academyId} academyName={academyName} /><GrowthDashboard reports={visibleReports} students={visibleStudents} onSwitchTab={setActiveTab} /></div>
                 : <SkeletonBlock rows={4} cardHeight={70} />
               )}
               {activeSubTab.insight === 'analysis' && (dataReady
                 ? <React.Suspense fallback={<SkeletonBlock rows={4} cardHeight={70} />}>
-                    <AnalysisView students={students} reports={reports} />
+                    <AnalysisView students={visibleStudents} reports={visibleReports} />
                   </React.Suspense>
                 : <SkeletonBlock rows={4} cardHeight={70} />
               )}
@@ -725,7 +745,7 @@ export default function App() {
             ], 600)}
             <div style={{ marginTop: '12px' }}>
               {activeSubTab.manage === 'students' && (dataReady
-                ? <StudentsView students={students} reports={reports} reviews={reviews} onSave={handleSaveStudent} onDelete={handleDeleteStudent} onRestore={handleRestoreStudent} teachers={teachers} classes={classes} currentTeacherId={userTeacherId} isDirector={isDirector} onToast={showAppToast} />
+                ? <StudentsView students={studentsWithContact} reports={reports} reviews={reviews} onSave={handleSaveStudent} onDelete={handleDeleteStudent} onRestore={handleRestoreStudent} teachers={teachers} classes={classes} currentTeacherId={userTeacherId} isDirector={isDirector} onToast={showAppToast} />
                 : <SkeletonBlock rows={5} cardHeight={56} />
               )}
               {activeSubTab.manage === 'settings' && (dataReady

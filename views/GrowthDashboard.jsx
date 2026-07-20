@@ -168,8 +168,8 @@ export default function GrowthDashboard({ reports, students, onSwitchTab }) {
         </div>
         <div style={{ position: 'relative' }}>
           <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ overflow: 'visible' }}>
-            {[1,2,3,4,5].map(v => {
-              const y = PT + cH - ((v-1)/4) * cH;
+            {[0,25,50,75,100].map(v => {
+              const y = PT + cH - (v/100) * cH;
               return (
                 <g key={v}>
                   <line x1={PL} y1={y} x2={W-PR} y2={y} stroke="#E8E6E0" strokeWidth="0.5" strokeDasharray="3,4" />

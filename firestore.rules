@@ -93,6 +93,11 @@ service cloud.firestore {
       allow update: if isStaffOfAcademy(academyId) || narrativeOnlyUpdate();
       allow create, delete: if isStaffOfAcademy(academyId);
     }
+    // 학부모 연락처 — students 문서는 공개 get이 허용돼 있어 여기 같이 두면 누구나 조회 가능해짐.
+    // 직원만 읽기/쓰기 가능한 별도 컬렉션으로 분리(문서 ID = studentId).
+    match /academies/{academyId}/studentContacts/{studentId} {
+      allow read, write: if isStaffOfAcademy(academyId);
+    }
 
     // ── reports: 직원 전체 접근 + 공개 단건 조회 ──────
     match /academies/{academyId}/reports/{reportId} {
@@ -110,10 +115,13 @@ service cloud.firestore {
       allow read, update, delete: if isStaffOfAcademy(academyId);
     }
 
-    // ── reportQuestions: 학부모 질문. 읽기는 공개(자기 리포트 페이지에서 답변 재확인),
-    // 생성도 비로그인 허용(정해진 필드만) — 답변 작성/수정은 직원만 ──
+    // ── reportQuestions: 학부모 질문. get은 공개(문서 ID를 아는 경우), list는 직원 전용
+    // — list까지 공개하면 academyId만 알아도 그 학원의 모든 학부모 질문을 통째로 조회할 수 있어서
+    // 막아둠. 공개 리포트 페이지에서 특정 reportId의 질문/답변을 다시 보는 건 api/report-questions.js
+    // (Admin SDK)를 거친다. 생성도 비로그인 허용(정해진 필드만) — 답변 작성/수정은 직원만 ──
     match /academies/{academyId}/reportQuestions/{questionId} {
-      allow read: if true;
+      allow get: if true;
+      allow list: if isStaffOfAcademy(academyId);
       allow create: if request.resource.data.keys().hasOnly(['reportId','studentId','studentName','questionText','askedAt'])
                     && request.resource.data.questionText is string
                     && request.resource.data.questionText.size() > 0

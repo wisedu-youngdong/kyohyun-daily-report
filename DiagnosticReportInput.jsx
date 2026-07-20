@@ -403,6 +403,7 @@ export default function DiagnosticReportInput({
     setNextPlan(editingReport.nextPlan || '');
     setNextPlanDetail(editingReport.nextPlanDetail || '');
     setPhotoAnalysis(editingReport.photoAnalysis || null);
+    setWrongItems(editingReport.wrongItems || []);
 
     // 기존 사진 유지 — photoUrls → photos 변환
     // photosRef도 함께 동기화해야 함 — MAX_PHOTOS 체크가 ref 기준이라, 안 하면

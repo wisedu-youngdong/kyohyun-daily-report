@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { db } from './firebase';
-import { doc, getDoc, getDocs, collection, addDoc, query, where, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { R, ReportCard } from './tokens.jsx';
 import { toPct, ratingLabel, fetchAcademyBranding } from './growth.js';
 
@@ -68,10 +68,11 @@ export default function PublicReport() {
         setAcademyId(academyId);
         fetchAcademyBranding(academyId).then(b => setAcademyName(b.academyName || null));
 
-        // 이 리포트에 남긴 질문/답변 — 공개 읽기라 나중에 다시 들어와도 답변 확인 가능
-        getDocs(query(collection(db, 'academies', academyId, 'reportQuestions'), where('reportId', '==', reportId)))
-          .then(qSnap => setQuestions(qSnap.docs.map(d => ({ id: d.id, ...d.data() }))
-            .sort((a, b) => (a.askedAt?.seconds || 0) - (b.askedAt?.seconds || 0))))
+        // 이 리포트에 남긴 질문/답변 — Firestore 직접 list는 전체 학원 질문 열람으로 이어질 수 있어
+        // 막혀 있고(firestore.rules), reportId로 스코프된 결과만 서버(Admin SDK)를 통해 받아온다.
+        fetch(`/api/report-questions?academyId=${encodeURIComponent(academyId)}&reportId=${encodeURIComponent(reportId)}`)
+          .then(r => r.ok ? r.json() : { questions: [] })
+          .then(({ questions }) => setQuestions(questions || []))
           .catch(() => {});
 
         // 열람 기록 저장 (화면 표시를 막지 않도록 fire-and-forget)
