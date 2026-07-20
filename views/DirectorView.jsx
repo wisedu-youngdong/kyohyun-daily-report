@@ -9,7 +9,7 @@ import { StudentProfileModal } from './StudentProfileModal.jsx';
 import { groupByClassId } from './shared.jsx';
 
 export default function DirectorView({ reports, students, classes = [], reportViews = [], reportQuestions = [], reviews = [], onToast, academyId, academyName }) {
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(kstDay(Date.now() / 1000));
   const dateInputRef = React.useRef(null);
   const [expandedId, setExpandedId] = useState(null);
   const [memos, setMemos] = useState({});
@@ -98,10 +98,13 @@ export default function DirectorView({ reports, students, classes = [], reportVi
       {/* 이번 주 현황 위젯 */}
       {(() => {
         const now = new Date();
+        // 일요일엔 getDay()===0이라 "-getDay()+1"이 +1(내일)이 돼서 weekStart가 미래로 감 —
+        // 일요일만 예외로 -6(지난 월요일)을 쓰도록 보정
+        const mondayOffset = now.getDay() === 0 ? -6 : 1 - now.getDay();
         const weekStart = new Date(now);
-        weekStart.setDate(now.getDate() - now.getDay() + 1); // 월요일
+        weekStart.setDate(now.getDate() + mondayOffset); // 월요일
         weekStart.setHours(0, 0, 0, 0);
-        const weekNum = Math.ceil((now.getDate() - now.getDay() + 1) / 7);
+        const weekNum = Math.ceil((now.getDate() + mondayOffset) / 7);
         const weekLabel = `${now.getMonth() + 1}월 ${weekNum}주차`;
 
         const weekReports = reports.filter(r => {

@@ -55,6 +55,10 @@ export default function HistoryView({ reports, students, classes = [], reportVie
     .sort((a, b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0));
 
   const selected = filtered.find(r => r.id === selectedId) || filtered[0];
+  // 삭제 확인 모달 전용 — selected는 selectedId가 없을 때 filtered[0]로 폴백하는데, 모달이 열려
+  // 있는 사이 새 리포트가 실시간 구독으로 도착해 filtered[0]이 바뀌면 확인 대상이 조용히
+  // 바뀌어버림. 모달을 연 시점의 id로 고정해서 조회.
+  const deleteTarget = reports.find(r => r.id === deleteConfirmReport);
 
   const fmtDate = (r) => r.createdAt?.seconds
     ? new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })
@@ -264,7 +268,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
         )}
 
         {/* 삭제 확인 모달 */}
-        {deleteConfirmReport && selected && (
+        {deleteConfirmReport && deleteTarget && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
             <div style={{ background: '#fff', borderRadius: '16px', padding: '28px 24px', width: '100%', maxWidth: '320px' }}>
               <div style={{ width: '44px', height: '44px', background: '#FEE2E2', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
@@ -272,14 +276,14 @@ export default function HistoryView({ reports, students, classes = [], reportVie
               </div>
               <p style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', margin: '0 0 8px', textAlign: 'center' }}>리포트를 삭제할까요?</p>
               <div style={{ background: '#FFF5F5', border: '1px solid #FECACA', borderRadius: '8px', padding: '12px', margin: '0 0 16px' }}>
-                <p style={{ fontSize: '13px', color: '#374151', margin: '0 0 4px', textAlign: 'center' }}><strong>{fmtDate(selected)}</strong></p>
-                <p style={{ fontSize: '14px', fontWeight: 700, color: '#DC2626', margin: 0, textAlign: 'center' }}>{selected.studentName} 학생 리포트</p>
+                <p style={{ fontSize: '13px', color: '#374151', margin: '0 0 4px', textAlign: 'center' }}><strong>{fmtDate(deleteTarget)}</strong></p>
+                <p style={{ fontSize: '14px', fontWeight: 700, color: '#DC2626', margin: 0, textAlign: 'center' }}>{deleteTarget.studentName} 학생 리포트</p>
               </div>
               <p style={{ fontSize: '12px', color: '#9CA3AF', textAlign: 'center', margin: '0 0 20px' }}>삭제 후 복구가 불가능합니다.</p>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button onClick={() => setDeleteConfirmReport(null)}
                   style={{ flex: 1, padding: '11px', fontSize: '13px', fontWeight: 600, border: '1px solid #E5E7EB', borderRadius: '8px', background: '#fff', cursor: 'pointer', fontFamily: 'inherit', color: '#374151' }}>취소</button>
-                <button onClick={() => { setDeleteConfirmReport(null); setSelectedId(null); onDelete(selected.id); }}
+                <button onClick={() => { setDeleteConfirmReport(null); setSelectedId(null); onDelete(deleteConfirmReport); }}
                   style={{ flex: 1, padding: '11px', fontSize: '13px', fontWeight: 700, border: 'none', borderRadius: '8px', background: '#DC2626', color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>삭제</button>
               </div>
             </div>
@@ -639,7 +643,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
     </div>
 
       {/* PC 삭제 확인 모달 */}
-      {deleteConfirmReport && selected && (
+      {deleteConfirmReport && deleteTarget && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
           <div style={{ background: '#fff', borderRadius: '16px', padding: '28px 24px', width: '100%', maxWidth: '320px', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
             <div style={{ width: '44px', height: '44px', background: '#FEE2E2', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
@@ -647,14 +651,14 @@ export default function HistoryView({ reports, students, classes = [], reportVie
             </div>
             <p style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', margin: '0 0 8px', textAlign: 'center' }}>리포트를 삭제할까요?</p>
             <div style={{ background: '#FFF5F5', border: '1px solid #FECACA', borderRadius: '8px', padding: '12px', margin: '0 0 16px' }}>
-              <p style={{ fontSize: '13px', color: '#374151', margin: '0 0 4px', textAlign: 'center' }}><strong>{fmtDate(selected)}</strong></p>
-              <p style={{ fontSize: '14px', fontWeight: 700, color: '#DC2626', margin: 0, textAlign: 'center' }}>{selected.studentName} 학생 리포트</p>
+              <p style={{ fontSize: '13px', color: '#374151', margin: '0 0 4px', textAlign: 'center' }}><strong>{fmtDate(deleteTarget)}</strong></p>
+              <p style={{ fontSize: '14px', fontWeight: 700, color: '#DC2626', margin: 0, textAlign: 'center' }}>{deleteTarget.studentName} 학생 리포트</p>
             </div>
             <p style={{ fontSize: '12px', color: '#9CA3AF', textAlign: 'center', margin: '0 0 20px' }}>삭제 후 복구가 불가능합니다.</p>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button onClick={() => setDeleteConfirmReport(null)}
                 style={{ flex: 1, padding: '11px', fontSize: '13px', fontWeight: 600, border: '1px solid #E5E7EB', borderRadius: '8px', background: '#fff', cursor: 'pointer', fontFamily: 'inherit', color: '#374151' }}>취소</button>
-              <button onClick={() => { setDeleteConfirmReport(null); setSelectedId(null); onDelete(selected.id); }}
+              <button onClick={() => { setDeleteConfirmReport(null); setSelectedId(null); onDelete(deleteConfirmReport); }}
                 style={{ flex: 1, padding: '11px', fontSize: '13px', fontWeight: 700, border: 'none', borderRadius: '8px', background: '#DC2626', color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>삭제</button>
             </div>
           </div>

@@ -665,7 +665,14 @@ export default function DiagnosticReportInput({
       } else {
         setPhotoAnalysis(data);
         if (data.wrongItems?.length > 0) {
-          setWrongItems(data.wrongItems.map(item => ({ ...item, tags: [], memo: '' })));
+          // data.wrongItems는 섹션 구분 없는 전체 요약이라, 어느 concept 섹션의 항목인지
+          // 찾아서 sectionIdx를 붙여둬야 이후 섹션별 토글/태그 UI가 올바른 섹션과 매칭됨
+          setWrongItems(data.wrongItems.map(item => {
+            const sectionIdx = (data.sections || []).findIndex(s =>
+              s.sectionType === 'concept' && (s.problemTypes || []).some(pt => pt.number === item.number && pt.result === '약점')
+            );
+            return { ...item, sectionIdx: sectionIdx >= 0 ? sectionIdx : undefined, tags: [], memo: '' };
+          }));
         } else {
           setWrongItems([]);
         }
@@ -1349,7 +1356,10 @@ export default function DiagnosticReportInput({
                               .slice()
                               .sort(sortByItemNumber)
                               .map((p, i) => {
-                              const wrongItem = p.result === '약점' ? wrongItems.find(w => w.number === p.number) : null;
+                              // number만으로 매칭하면 서로 다른 concept 섹션(예: 교재 2장을 함께 분석)에
+                              // 같은 번호(예: 3번)가 둘 다 있을 때 한쪽 토글이 다른 섹션까지 같이 뒤집히던
+                              // 버그가 있었음 — sectionIdx(si)까지 같이 매칭해서 섹션별로 독립되게 함
+                              const wrongItem = p.result === '약점' ? wrongItems.find(w => w.number === p.number && w.sectionIdx === si) : null;
                               return (
                               <div key={i} style={{
                                 padding: '6px 0', borderBottom: i < (sec.problemTypes || []).length - 1 ? `1px solid ${TOKENS.border}` : 'none',
@@ -1362,8 +1372,10 @@ export default function DiagnosticReportInput({
                                     let becameWrong = false;
                                     setPhotoAnalysis(prev => ({
                                       ...prev,
-                                      sections: prev.sections.map(s =>
-                                        s.sectionType === 'concept'
+                                      // sectionType만으로 골라내면 다른 concept 섹션의 같은 번호까지 같이
+                                      // 바뀌던 버그가 있었음 — sIdx===si로 지금 보고 있는 섹션만 수정
+                                      sections: prev.sections.map((s, sIdx) =>
+                                        sIdx === si
                                           ? { ...s, problemTypes: s.problemTypes.map((pt) => {
                                               if (pt.number !== p.number) return pt;
                                               const newResult = pt.result === '잘함' ? '약점' : '잘함';
@@ -1373,14 +1385,15 @@ export default function DiagnosticReportInput({
                                           : s
                                       )
                                     }));
-                                    // wrongItems도 동기화 — prev 기준으로 존재 여부를 확인해 중복 추가/유실 방지
+                                    // wrongItems도 동기화 — prev 기준으로 존재 여부를 확인해 중복 추가/유실 방지.
+                                    // sectionIdx까지 매칭해야 다른 섹션의 같은 번호 항목과 안 섞임
                                     setWrongItems(prev => {
-                                      const exists = prev.some(w => w.number === p.number);
+                                      const exists = prev.some(w => w.number === p.number && w.sectionIdx === si);
                                       if (becameWrong && !exists) {
-                                        return [...prev, { number: p.number, type: p.type, correctRate: '', mark: '수동오답', tags: [], memo: '' }];
+                                        return [...prev, { number: p.number, sectionIdx: si, type: p.type, correctRate: '', mark: '수동오답', tags: [], memo: '' }];
                                       }
                                       if (!becameWrong && exists) {
-                                        return prev.filter(w => w.number !== p.number);
+                                        return prev.filter(w => !(w.number === p.number && w.sectionIdx === si));
                                       }
                                       return prev;
                                     });
@@ -1414,7 +1427,7 @@ export default function DiagnosticReportInput({
                                         const active = wrongItem.tags.includes(tag.key);
                                         return (
                                           <button type="button" key={tag.key}
-                                            onClick={() => setWrongItems(prev => prev.map((w) => w.number === p.number ? {
+                                            onClick={() => setWrongItems(prev => prev.map((w) => w.number === p.number && w.sectionIdx === si ? {
                                               ...w,
                                               tags: active ? w.tags.filter(t => t !== tag.key) : [...w.tags, tag.key]
                                             } : w))}
@@ -1434,7 +1447,7 @@ export default function DiagnosticReportInput({
                                     </div>
                                     <input
                                       value={wrongItem.memo}
-                                      onChange={e => setWrongItems(prev => prev.map((w) => w.number === p.number ? { ...w, memo: e.target.value } : w))}
+                                      onChange={e => setWrongItems(prev => prev.map((w) => w.number === p.number && w.sectionIdx === si ? { ...w, memo: e.target.value } : w))}
                                       placeholder="직접 입력 (선택) — 답 잘못 씀, 문제 안 읽음 등"
                                       style={{ width: '100%', padding: '6px 10px', fontSize: '16px', border: `1px solid ${TOKENS.border}`, borderRadius: '8px', fontFamily: 'inherit', outline: 'none', background: '#fff', boxSizing: 'border-box', color: TOKENS.text }}
                                     />

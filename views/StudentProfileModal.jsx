@@ -499,14 +499,17 @@ function WeeklySummaryCard({ student, reports, teachers, academyName }) {
   const [copied, setCopied] = useState(false);
 
   const now = new Date();
+  // 일요일엔 getDay()===0이라 "-getDay()+1"이 +1(내일)이 돼서 weekStart가 미래로 감 —
+  // 일요일만 예외로 -6(지난 월요일)을 쓰도록 보정 (DirectorView.jsx와 동일 패턴)
+  const mondayOffset = now.getDay() === 0 ? -6 : 1 - now.getDay();
   const weekStart = new Date(now);
-  weekStart.setDate(now.getDate() - now.getDay() + 1);
+  weekStart.setDate(now.getDate() + mondayOffset);
   weekStart.setHours(0, 0, 0, 0);
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekStart.getDate() + 6);
 
   const fmt = (d) => `${d.getMonth()+1}/${d.getDate()}`;
-  const weekNum = Math.ceil((now.getDate() - now.getDay() + 1) / 7);
+  const weekNum = Math.ceil((now.getDate() + mondayOffset) / 7);
   const weekLabel = `${now.getMonth()+1}월 ${weekNum}주차`;
 
   const weekReports = reports

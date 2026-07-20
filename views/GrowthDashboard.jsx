@@ -22,7 +22,9 @@ export default function GrowthDashboard({ reports, students, onSwitchTab }) {
     return reports
       .filter(r => r.studentId === studentId && r.createdAt?.seconds * 1000 >= cutoff && r.conceptRating != null)
       .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0))
-      .map(r => ({ ...r, conceptRating: toPct(r.conceptRating), homeworkRating: toPct(r.homeworkRating) }));
+      // homeworkRating은 null(미입력)일 수 있는데 toPct(null)이 0을 돌려줘서 그대로 쓰면
+      // "과제 0%"로 확정 표시되던 문제 — null은 그대로 보존
+      .map(r => ({ ...r, conceptRating: toPct(r.conceptRating), homeworkRating: r.homeworkRating == null ? null : toPct(r.homeworkRating) }));
   }, [reports, period]);
 
   const avg = (arr) => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length * 10) / 10 : 0;
