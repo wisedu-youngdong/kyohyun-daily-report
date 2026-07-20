@@ -63,6 +63,9 @@ function deriveColors(mainHex) {
 }
 
 export default function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDeleteTeacher, classes = [], onSaveClass, onDeleteClass, logoUrl, onSaveLogo, onDeleteLogo, academyId, academyPhone, academySkinColor, isPlatformAdmin = false }) {
+  // 플랫폼 관리 섹션(가입신청/새학원/분양학원)이 늘어나면서 학원 설정과 한 페이지에 다 있으면
+  // 스크롤이 너무 길어져 탭으로 분리 — 플랫폼 관리자가 아니면 애초에 두 번째 탭 내용이 없으니 탭 자체를 안 보여줌
+  const [settingsTab, setSettingsTab] = React.useState('academy'); // 'academy' | 'platform'
   // academies/{academyId} 문서에 저장된 값이 있으면 그걸 기준으로, 없으면(마이그레이션 직후 등)
   // 예전 localStorage 값을 폴백으로 사용 — 기기별로 갈리던 색상을 학원 단위로 통일하는 과도기 처리
   const [globalColor, setGlobalColor] = React.useState(() => {
@@ -507,8 +510,29 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
 
   return (
     <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto', boxSizing: 'border-box' }}>
-      <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '4px', letterSpacing: '-0.02em' }}>스킨 설정</h2>
-      <p style={{ fontSize: '12px', color: '#6B7280', marginBottom: '20px', fontWeight: 500 }}>학원 기본 색상을 설정하세요. 학생별로 다르게 설정할 수 있습니다.</p>
+      <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '4px', letterSpacing: '-0.02em' }}>설정</h2>
+      <p style={{ fontSize: '12px', color: '#6B7280', marginBottom: '16px', fontWeight: 500 }}>학원 기본 정보와 색상을 설정하세요. 학생별로 다르게 설정할 수 있습니다.</p>
+
+      {isPlatformAdmin && (
+        <div style={{ display: 'flex', gap: '6px', marginBottom: '18px' }}>
+          {[
+            { key: 'academy', label: '학원 설정' },
+            { key: 'platform', label: '플랫폼 관리' },
+          ].map(t => (
+            <button key={t.key} onClick={() => setSettingsTab(t.key)}
+              style={{
+                padding: '8px 16px', fontSize: '13px', fontWeight: 700, borderRadius: '9px', cursor: 'pointer', fontFamily: 'inherit',
+                border: settingsTab === t.key ? `1.5px solid ${C.primary}` : '1px solid #E5E7EB',
+                background: settingsTab === t.key ? C.primaryLight : '#fff',
+                color: settingsTab === t.key ? C.primary : '#6B7280',
+              }}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {settingsTab === 'academy' && (<>
 
       {/* 학원 로고 */}
       <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB', marginBottom: '14px' }}>
@@ -878,10 +902,12 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
         </div>
       )}
 
+      </>)}
+
       {/* 가입 신청 관리 — 플랫폼 관리자 전용. 목록만 먼저 보여주고 클릭하면 상세가 펼쳐지는
           패턴("분양 학원 관리"의 크레딧 지급 폼과 동일한 아코디언 방식). 승인/거절 후에도 탭을 옮기면
           신청 당시 정보(사업자등록번호·주소 등)를 계속 조회할 수 있음 — 세금계산서 발행 등에 필요 */}
-      {isPlatformAdmin && signupRequests.length > 0 && (() => {
+      {settingsTab === 'platform' && isPlatformAdmin && signupRequests.length > 0 && (() => {
         const tabCounts = {
           pending: signupRequests.filter(r => r.status === 'pending').length,
           approved: signupRequests.filter(r => r.status === 'approved').length,
@@ -994,7 +1020,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
       })()}
 
       {/* 새 학원 추가 — 플랫폼 관리자 전용 */}
-      {isPlatformAdmin && (
+      {settingsTab === 'platform' && isPlatformAdmin && (
         <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB', marginBottom: '14px' }}>
           <p style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>새 학원 추가</p>
           <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 500, marginBottom: '14px' }}>분양할 학원의 데이터 공간과 첫 원장 계정을 만듭니다.</p>
@@ -1018,7 +1044,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
       )}
 
       {/* 분양 학원 관리 — 플랫폼 관리자 전용. 학원별 사용량 통계 + 미납 등으로 이용을 정지/재개하는 스위치 */}
-      {isPlatformAdmin && academyList.length > 0 && (
+      {settingsTab === 'platform' && isPlatformAdmin && academyList.length > 0 && (
         <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB', marginBottom: '14px' }}>
           <p style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>분양 학원 관리</p>
           <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 500, marginBottom: '14px' }}>
@@ -1111,7 +1137,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
 
       {/* 학생별 스킨 — 요약만. 전체 학생을 나열해봐야 여기선 아무것도 못 하고
           "학생 관리 탭에서 하세요"로 보내던 죽은 목록이라 요약 한 줄로 축약 */}
-      {(() => {
+      {settingsTab === 'academy' && (() => {
         const activeStudents = students.filter(s => !s.archived);
         const customized = activeStudents.filter(s => s.skinColor);
         return (
