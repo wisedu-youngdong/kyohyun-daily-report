@@ -436,6 +436,21 @@ export default function App() {
     }
     return reportId;
   };
+  // 대시보드 "미작성" 목록에서 원터치로 결석 처리 — 수업 자체가 없었으니 무거운 진단 리포트
+  // 폼을 다 채울 이유가 없음. handleSaveReport를 그대로 재사용해 출결만 채운 최소 리포트를 만듦.
+  const handleQuickAbsence = async (student) => {
+    const teacher = teachers.find(t => t.id === userTeacherId);
+    await handleSaveReport({
+      studentId: student.id, studentName: student.name,
+      teacherId: userTeacherId || '', teacherName: teacher?.name || '',
+      attendance: '결석', arrivalTime: '',
+      homeworkRating: null, conceptRating: null,
+      hasTest: false, testName: null, testScore: null, testRound: null,
+      textbook: '', subject: '', unit: '', pages: '',
+      diagnosis: [], teacherNote: '', nextPlan: '', nextPlanDetail: '',
+      photoAnalysis: null, photoUrls: [], isDraft: false,
+    });
+  };
   const handleDeleteReport = async (id) => {
     try {
       await deleteDoc(doc(db, 'academies', academyId, 'reports', id));
@@ -589,6 +604,7 @@ export default function App() {
               students={visibleStudents} classes={classes} reports={visibleReports} onTabChange={setActiveTab}
               reviews={isDirector ? reviews : reviews.filter(rv => visibleStudents.some(s => s.id === rv.studentId))}
               onCompleteReview={handleCompleteReview}
+              onQuickAbsence={handleQuickAbsence}
               onWriteFor={(student, done) => {
                 // 완료된 학생이면 오늘 리포트를 수정 모드로, 대기면 새로 작성 — 랜딩에서 작업까지 한 번에
                 if (done) {

@@ -3,11 +3,27 @@ import { kstDay, kstWeekday, isReportSent } from '../growth.js';
 import { T, C, RADIUS2 } from '../tokens.jsx';
 import { AVATARS, StatCard } from './shared.jsx';
 
-export default function DashboardView({ students, reports, classes = [], onTabChange, onWriteFor, reviews = [], onCompleteReview }) {
-  // 발송 완료 판정 + 날짜 비교 — 리포트 탭 상태바/원장 보고서와 동일한 공용 기준(growth.js) 사용
+export default function DashboardView({ students, reports, classes = [], onTabChange, onWriteFor, reviews = [], onCompleteReview, onQuickAbsence }) {
+  const [markingAbsent, setMarkingAbsent] = React.useState(null); // studentId 처리 중
+
+  // 발송 완료 판정 + 날짜 비교 — 리포트 탭 상태바/원장 보고서와 동일한 공용 기준(growth.js) 사용.
+  // 결석 처리는 teacherNote 없이 출결만 채운 리포트라 isReportSent 기준으론 안 걸러지므로,
+  // "오늘 결석으로 처리됨(초안 아님)"도 완료로 별도 인정 — 안 그러면 결석 처리해도 계속 "대기"로 남음
   const todayKst = kstDay(Date.now() / 1000);
-  const todayReports = reports.filter(r => r.createdAt?.seconds && isReportSent(r) && kstDay(r.createdAt.seconds) === todayKst);
+  const isHandledToday = (r) => isReportSent(r) || (r.attendance === '결석' && r.isDraft !== true);
+  const todayReports = reports.filter(r => r.createdAt?.seconds && isHandledToday(r) && kstDay(r.createdAt.seconds) === todayKst);
   const doneOf = (s) => todayReports.some(r => r.studentId === s.id);
+
+  const handleQuickAbsence = async (e, student) => {
+    e.stopPropagation(); // 행 클릭(리포트 작성 이동)으로 안 번지게
+    if (markingAbsent) return;
+    setMarkingAbsent(student.id);
+    try {
+      await onQuickAbsence?.(student);
+    } finally {
+      setMarkingAbsent(null);
+    }
+  };
 
   const [classFilter, setClassFilter] = React.useState('');
   // 삭제된 반을 가리키는 고아 classId는 미배정으로 취급 — HistoryView/groupByClassId와 동일 기준
@@ -121,6 +137,17 @@ export default function DashboardView({ students, reports, classes = [], onTabCh
                   <p style={{ fontSize: '14px', fontWeight: 600, margin: 0 }}>{s.name}</p>
                   <p style={{ fontSize: '11px', color: T.textSub, margin: 0, fontWeight: 500 }}>{s.school}</p>
                 </div>
+                {/* 결석/공휴일 등으로 수업 자체가 없었던 학생 — 무거운 진단 리포트 폼 없이 출결만 원터치 기록 */}
+                {!done && (
+                  <button onClick={(e) => handleQuickAbsence(e, s)} disabled={markingAbsent === s.id}
+                    style={{
+                      fontSize: '11px', fontWeight: 700, padding: '4px 10px', borderRadius: `${RADIUS2.pill}px`, flexShrink: 0,
+                      border: '1px solid #E5E7EB', background: '#fff', color: T.textSub,
+                      cursor: markingAbsent === s.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+                    }}>
+                    {markingAbsent === s.id ? '처리 중' : '결석'}
+                  </button>
+                )}
                 {/* 대기가 유일한 '할 일' 신호 — 완료보다 눈에 띄어야 함 */}
                 <span style={{
                   fontSize: '11px', fontWeight: 700, padding: '4px 10px', borderRadius: `${RADIUS2.pill}px`, flexShrink: 0,
