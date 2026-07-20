@@ -2,18 +2,10 @@
 // Firestore 규칙상 reportQuestions의 list는 직원 전용(전체 질문 열람 방지)이라, 특정 reportId로
 // 스코프한 결과만 Admin SDK로 대신 조회해서 돌려준다. 질문 등록(create)은 여전히 클라이언트에서 직접.
 
-import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+import { ensureAdminApp } from './_lib/adminApp.js';
 
-function getAdminDb() {
-  if (!getApps().length) {
-    const raw = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
-    if (!raw) throw new Error('FIREBASE_SERVICE_ACCOUNT_BASE64 환경변수가 설정되지 않았습니다.');
-    const serviceAccount = JSON.parse(Buffer.from(raw, 'base64').toString('utf-8'));
-    initializeApp({ credential: cert(serviceAccount) });
-  }
-  return getFirestore();
-}
+function getAdminDb() { ensureAdminApp(); return getFirestore(); }
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).end();

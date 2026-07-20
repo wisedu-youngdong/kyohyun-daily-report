@@ -1,18 +1,10 @@
 // Vercel Serverless — 학부모가 질문을 남기면 그 학원 원장님께 이메일로 알림
 // PublicReport.jsx에서 fire-and-forget으로 호출(응답 대기/실패 여부와 무관하게 UX 진행)
 
-import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+import { ensureAdminApp } from './_lib/adminApp.js';
 
-function getAdminDb() {
-  if (!getApps().length) {
-    const raw = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
-    if (!raw) throw new Error('FIREBASE_SERVICE_ACCOUNT_BASE64 환경변수가 설정되지 않았습니다.');
-    const serviceAccount = JSON.parse(Buffer.from(raw, 'base64').toString('utf-8'));
-    initializeApp({ credential: cert(serviceAccount) });
-  }
-  return getFirestore();
-}
+function getAdminDb() { ensureAdminApp(); return getFirestore(); }
 
 // 이메일 HTML에 그대로 꽂아 넣는 값(학생 이름/질문 내용)은 학부모가 입력한 텍스트라
 // <script>나 <a> 태그를 넣어 원장님 메일함에서 실행/피싱 링크로 악용될 수 있어 이스케이프 필요

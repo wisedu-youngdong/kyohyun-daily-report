@@ -3,19 +3,11 @@
 //   1. Authorization 헤더의 ID 토큰을 검증해 호출자가 플랫폼 관리자인지 확인
 //   2. 대상 신청이 'approved'면 거부 — 이미 실제 학원이 된 계정을 실수로 지우는 것 방지
 //      (클라이언트 UI도 승인된 건에는 삭제 버튼을 안 보여주지만, 서버에서도 다시 확인)
-import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
+import { ensureAdminApp } from './_lib/adminApp.js';
 
-function getAdmin() {
-  if (!getApps().length) {
-    const raw = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
-    if (!raw) throw new Error('FIREBASE_SERVICE_ACCOUNT_BASE64 환경변수가 설정되지 않았습니다.');
-    const serviceAccount = JSON.parse(Buffer.from(raw, 'base64').toString('utf-8'));
-    initializeApp({ credential: cert(serviceAccount) });
-  }
-  return { auth: getAuth(), db: getFirestore() };
-}
+function getAdmin() { ensureAdminApp(); return { auth: getAuth(), db: getFirestore() }; }
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();

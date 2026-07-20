@@ -1,17 +1,7 @@
-import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { ensureAdminApp } from './_lib/adminApp.js';
 
-// Vercel 환경변수엔 JSON을 그대로 넣으면 개행(private_key의 \n)이 깨지기 쉬워서,
-// 서비스 계정 JSON 전체를 base64로 인코딩해 하나의 문자열로 저장 — 여기서 디코드.
-function ensureAdminApp() {
-  if (!getApps().length) {
-    const raw = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
-    if (!raw) throw new Error('FIREBASE_SERVICE_ACCOUNT_BASE64 환경변수가 설정되지 않았습니다.');
-    const serviceAccount = JSON.parse(Buffer.from(raw, 'base64').toString('utf-8'));
-    initializeApp({ credential: cert(serviceAccount) });
-  }
-}
 function getAdminAuth() { ensureAdminApp(); return getAuth(); }
 function getAdminDb() { ensureAdminApp(); return getFirestore(); }
 
