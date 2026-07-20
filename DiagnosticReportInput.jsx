@@ -107,6 +107,19 @@ const TOKENS = {
   border: '#E5E7EB', borderLight: '#F3F4F6', bg: '#FFFFFF', bgSoft: '#F9FAFB',
 };
 
+// 문항 정렬 — "13" 같은 순수 번호 문항을 먼저 오름차순으로, "유제3"/"서술형2"처럼 글자가 섞인
+// 식별자는 그 뒤에 내장된 숫자 기준 오름차순으로 배치. parseInt(a.number)는 "유제3" 같은 문자열 앞에
+// 숫자가 없으면 NaN이라 정렬이 통째로 무력화되므로(사진을 찍은 순서 그대로 남아버림), 문자열 어디에 있든
+// 숫자를 찾아내 비교한다.
+function sortByItemNumber(a, b) {
+  const numA = parseInt(String(a.number ?? '').match(/\d+/)?.[0] ?? '0', 10);
+  const numB = parseInt(String(b.number ?? '').match(/\d+/)?.[0] ?? '0', 10);
+  const isPureA = /^\d+$/.test(String(a.number ?? '').trim());
+  const isPureB = /^\d+$/.test(String(b.number ?? '').trim());
+  if (isPureA !== isPureB) return isPureA ? -1 : 1;
+  return numA - numB;
+}
+
 const DIAGNOSIS_TAGS = [
   { key: 'calc',    label: '계산 실수',  color: 'warn'    },
   { key: 'concept', label: '개념 누락',  color: 'warn'    },
@@ -1285,7 +1298,7 @@ export default function DiagnosticReportInput({
 
                             {sec.sectionType === 'concept' && (sec.problemTypes || [])
                               .slice()
-                              .sort((a, b) => parseInt(a.number) - parseInt(b.number))
+                              .sort(sortByItemNumber)
                               .map((p, i) => (
                               <div key={i} style={{
                                 display: 'flex', gap: '8px', alignItems: 'center',
@@ -1374,7 +1387,7 @@ export default function DiagnosticReportInput({
                               오답 문제별 원인 입력
                             </p>
                             {[...wrongItems]
-                              .sort((a, b) => parseInt(a.number) - parseInt(b.number))
+                              .sort(sortByItemNumber)
                               .map((item, idx) => {
                               const WRONG_TAGS = [
                                 { key: 'calc', label: '계산 실수', bg: '#FFF8EC', color: '#8A5A00', border: '#C9A22740' },
