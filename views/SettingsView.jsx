@@ -259,6 +259,37 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
     setRejecting(false);
   };
 
+  // 신청 삭제 — 아직 학원이 안 된 상태(대기/거절)만 대상. 승인된 건은 서버에서도 다시 막음.
+  const [confirmingDeleteId, setConfirmingDeleteId] = React.useState(null);
+  const [deletingRequestId, setDeletingRequestId] = React.useState(null);
+
+  const handleDeleteSignupRequest = async (req) => {
+    if (confirmingDeleteId !== req.id) {
+      setConfirmingDeleteId(req.id);
+      setTimeout(() => setConfirmingDeleteId(prev => prev === req.id ? null : prev), 3000);
+      return;
+    }
+    setConfirmingDeleteId(null);
+    setDeletingRequestId(req.id);
+    setSignupActionResult('');
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+      const res = await fetch('/api/delete-signup-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({ uid: req.uid }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `서버 오류 (${res.status})`);
+      setSignupActionResult(`${req.academyName} 신청 삭제 완료`);
+      setExpandedRequestId(null);
+      loadSignupRequests();
+    } catch (e) {
+      setSignupActionResult(`오류: ${e.message}`);
+    }
+    setDeletingRequestId(null);
+  };
+
   // 분양 학원 목록 + 정지/해제 + 통계 (플랫폼 관리자 전용)
   const [academyList, setAcademyList] = React.useState([]);
   const [academyStats, setAcademyStats] = React.useState({});
@@ -910,7 +941,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                         <p style={{ fontSize: '11px', color: '#374151', margin: 0 }}><strong>주소</strong> {req.address} {req.addressDetail}</p>
                         <p style={{ fontSize: '11px', color: '#374151', margin: 0 }}><strong>대표전화</strong> {req.academyPhone} · <strong>이메일</strong> {req.email}</p>
 
-                        {req.status === 'pending' ? (
+                        {req.status === 'pending' && (
                           <>
                             <div style={{ display: 'flex', gap: '6px', marginTop: '6px' }}>
                               <input value={academyIdForApproval} onChange={e => setAcademyIdForApproval(e.target.value)} placeholder="학원 ID (영문 소문자/숫자/하이픈)"
@@ -927,12 +958,25 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                               </button>
                             </div>
                           </>
-                        ) : (
+                        )}
+                        {req.status !== 'pending' && (
                           <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '4px 0 0' }}>
                             {req.status === 'approved' ? `학원 ID: ${req.academyId}` : '거절됨'}
                             {req.reviewedBy ? ` · ${req.reviewedBy}` : ''}
                             {req.reviewedAt?.seconds ? ` · ${new Date(req.reviewedAt.seconds * 1000).toLocaleDateString('ko-KR')}` : ''}
                           </p>
+                        )}
+                        {/* 삭제는 대기/거절만 — 승인된 건(이미 실제 학원)은 여기서 못 지움, 서버에서도 재확인 */}
+                        {req.status !== 'approved' && (
+                          <button onClick={() => handleDeleteSignupRequest(req)} disabled={deletingRequestId === req.id}
+                            style={{
+                              alignSelf: 'flex-start', marginTop: '4px', padding: '5px 10px', fontSize: '11px', fontWeight: 700, borderRadius: '7px',
+                              border: 'none', background: confirmingDeleteId === req.id ? '#DC2626' : 'transparent',
+                              color: confirmingDeleteId === req.id ? '#fff' : '#9CA3AF',
+                              cursor: deletingRequestId === req.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+                            }}>
+                            {deletingRequestId === req.id ? '삭제 중...' : confirmingDeleteId === req.id ? '삭제 확인 (재클릭)' : '신청 삭제'}
+                          </button>
                         )}
                       </div>
                     )}
