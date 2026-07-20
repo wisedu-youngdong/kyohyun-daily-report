@@ -1214,7 +1214,7 @@ export default function DiagnosticReportInput({
                         n + (s.problemTypes || []).filter(p => p.confidence === 'low').length
                           + (s.weakDetail || []).filter(p => p.confidence === 'low').length, 0);
                       return (
-                      <div style={{ background: TOKENS.successBg, borderRadius: '12px', padding: '12px', marginTop: '4px' }}>
+                      <div style={{ background: TOKENS.bgSoft, border: `1px solid ${TOKENS.borderLight}`, borderRadius: '12px', padding: '12px', marginTop: '4px' }}>
                         {(photoAnalysis.bookOrTest || photoAnalysis.unit || photoAnalysis.pageRange) && (
                           <p style={{ fontSize: '11px', color: TOKENS.success, fontWeight: 700, margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                             {[photoAnalysis.bookOrTest, photoAnalysis.unit, photoAnalysis.pageRange].filter(Boolean).join(' · ')}
@@ -1288,7 +1288,7 @@ export default function DiagnosticReportInput({
                               .sort((a, b) => parseInt(a.number) - parseInt(b.number))
                               .map((p, i) => (
                               <div key={i} style={{
-                                display: 'flex', gap: '8px', alignItems: 'flex-start',
+                                display: 'flex', gap: '8px', alignItems: 'center',
                                 padding: '6px 0', borderBottom: i < (sec.problemTypes || []).length - 1 ? `1px solid ${TOKENS.border}` : 'none',
                                 fontSize: '12px',
                                 ...(p.confidence === 'low' ? { background: TOKENS.warnBg, border: `1px solid ${TOKENS.warnBorder}`, borderRadius: '10px', padding: '8px' } : {}),
@@ -1323,7 +1323,7 @@ export default function DiagnosticReportInput({
                                   }}
                                   style={{
                                     flexShrink: 0, width: '68px', textAlign: 'center', fontWeight: 700, fontSize: '12px', padding: '8px 0', minHeight: '36px', borderRadius: '10px',
-                                    background: p.result === '잘함' ? '#E1F5EE' : TOKENS.dangerBg,
+                                    background: p.result === '잘함' ? TOKENS.successBg : TOKENS.dangerBg,
                                     color: p.result === '잘함' ? TOKENS.successDark : TOKENS.dangerBorder,
                                     border: 'none', cursor: 'pointer', fontFamily: 'inherit',
                                     WebkitTapHighlightColor: 'transparent',
