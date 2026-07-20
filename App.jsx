@@ -74,6 +74,7 @@ export default function App() {
   const [academyPhone, setAcademyPhone] = useState(null);
   const [academySkinColor, setAcademySkinColor] = useState(null);
   const [academyStatus, setAcademyStatus] = useState(null);
+  const [academySubjects, setAcademySubjects] = useState(null);
 
   // 학원 브랜딩(로고+기본 스킨색)+이용 상태 — 로그인 전(비인증) 화면에서도 로고가 보여야 해서 App 최상위에서 구독.
   // 로그인 후에는 그 계정의 academyId 학원 문서를 구독(분양학원 원장에게 교현 로고가 보이던 문제 해결),
@@ -88,8 +89,9 @@ export default function App() {
         setAcademyPhone(data.academyPhone || null);
         setAcademySkinColor(data.globalSkinColor || null);
         setAcademyStatus(data.status || 'active');
+        setAcademySubjects(Array.isArray(data.subjects) && data.subjects.length > 0 ? data.subjects : null);
       },
-      () => { setLogoUrl(null); setAcademyName(null); setAcademyPhone(null); setAcademySkinColor(null); setAcademyStatus(null); }
+      () => { setLogoUrl(null); setAcademyName(null); setAcademyPhone(null); setAcademySkinColor(null); setAcademyStatus(null); setAcademySubjects(null); }
     );
     return () => unsub();
   }, [academyId]);
@@ -100,25 +102,10 @@ export default function App() {
     appToastTimerRef.current = setTimeout(() => setAppToast(null), 2500);
   };
 
-  // 앱 이탈 방지 — 브라우저 밖으로 나갈 때 경고
-  useEffect(() => {
-    const handleBeforeUnload = (e) => {
-      e.preventDefault();
-      e.returnValue = `${academyName || '데일리 리포트'} 앱을 나가시겠습니까?`;
-    };
-    // 모바일 뒤로가기로 앱 밖 이탈 방지
-    const handlePopState = () => {
-      history.pushState(null, '', window.location.href);
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    window.addEventListener('popstate', handlePopState);
-    // 초기 진입 시 history 스택 확보
-    history.pushState(null, '', window.location.href);
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      window.removeEventListener('popstate', handlePopState);
-    };
-  }, [academyName]);
+  // 예전엔 로그인만 하면 조회만 해도 탭을 닫거나 뒤로가기할 때마다 항상 경고가 떴음(+모바일
+  // 뒤로가기 자체를 앱 전역에서 막아버림) — 정작 데이터 유실을 막아야 할 리포트 작성 화면은
+  // DiagnosticReportInput.jsx 자체에 isDirty 기반 beforeunload 경고가 이미 따로 있어서
+  // 이 App 레벨 경고는 순수 중복이면서 평소 탐색만 방해했음 — 제거.
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
@@ -664,9 +651,16 @@ export default function App() {
                       const done = r?.teacherNote && r.teacherNote.trim().length > 0;
                       return (
                         <button key={s.id}
-                          onClick={() => { setEditingReport(r); setActiveTab('write'); }}
+                          onClick={() => {
+                            // 이미 다른 학생 리포트를 작성 중인데 옆 칩을 오탭하면 폼이 조용히
+                            // 바뀌어 방금 쓰던 내용을 잃기 쉬움 — 실제로 다른 학생으로 전환할
+                            // 때만(같은 학생 재클릭은 그냥 통과) 한 번 확인
+                            if (editingReport && editingReport.studentId !== s.id
+                                && !window.confirm(`${s.name} 학생으로 전환하면 지금 작성 중인 내용이 저장되지 않을 수 있어요. 계속할까요?`)) return;
+                            setEditingReport(r); setActiveTab('write');
+                          }}
                           style={{
-                            padding: '3px 10px', borderRadius: '12px', border: 'none',
+                            padding: '7px 12px', borderRadius: '14px', border: 'none', minHeight: '32px',
                             background: done ? '#F0FAF5' : '#FFF8EC',
                             color: done ? '#0F6E56' : '#7A4F00',
                             fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
@@ -701,6 +695,7 @@ export default function App() {
               currentTeacherId={userTeacherId}
               isDirector={isDirector}
               academyName={academyName}
+              academySubjects={academySubjects}
               academyPhone={academyPhone}
             />
           </>
@@ -750,7 +745,7 @@ export default function App() {
                 : <SkeletonBlock rows={5} cardHeight={56} />
               )}
               {activeSubTab.manage === 'settings' && (dataReady
-                ? <SettingsView students={students} onSaveStudent={handleSaveStudent} teachers={teachers} onSaveTeacher={handleSaveTeacher} onDeleteTeacher={handleDeleteTeacher} classes={classes} onSaveClass={handleSaveClass} onDeleteClass={handleDeleteClass} logoUrl={logoUrl} onSaveLogo={handleSaveLogo} onDeleteLogo={handleDeleteLogo} academyId={academyId} academyPhone={academyPhone} academySkinColor={academySkinColor} isPlatformAdmin={isPlatformAdmin} />
+                ? <SettingsView students={students} onSaveStudent={handleSaveStudent} teachers={teachers} onSaveTeacher={handleSaveTeacher} onDeleteTeacher={handleDeleteTeacher} classes={classes} onSaveClass={handleSaveClass} onDeleteClass={handleDeleteClass} logoUrl={logoUrl} onSaveLogo={handleSaveLogo} onDeleteLogo={handleDeleteLogo} academyId={academyId} academyPhone={academyPhone} academySkinColor={academySkinColor} academySubjects={academySubjects} isPlatformAdmin={isPlatformAdmin} onToast={showAppToast} />
                 : <SkeletonBlock rows={4} cardHeight={70} />
               )}
             </div>

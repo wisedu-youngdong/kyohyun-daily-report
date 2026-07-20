@@ -442,7 +442,7 @@ export default function GrowthStory() {
             ].map(({ key, label }) => (
               <button key={key} onClick={() => handlePeriodChange(key)}
                 style={{
-                  padding: '5px 14px', borderRadius: '16px', border: 'none', cursor: 'pointer',
+                  padding: '10px 16px', minHeight: '40px', borderRadius: '16px', border: 'none', cursor: 'pointer',
                   background: period === key ? '#C9A227' : 'transparent',
                   color: period === key ? '#1A1A1A' : 'rgba(255,255,255,0.5)',
                   fontSize: '11px', fontWeight: 700, fontFamily: 'inherit', transition: 'all 0.2s',
@@ -459,7 +459,7 @@ export default function GrowthStory() {
               .then(() => alert('링크가 복사됐어요!'))
               .catch(() => window.prompt('아래 링크를 길게 눌러 복사하세요', url));
           }}
-            style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '16px', padding: '5px 14px', color: 'rgba(255,255,255,0.8)', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '16px', padding: '10px 16px', minHeight: '40px', color: 'rgba(255,255,255,0.8)', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             📤 링크 복사
           </button>
         </div>

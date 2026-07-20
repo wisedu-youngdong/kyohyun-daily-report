@@ -71,7 +71,12 @@ export default function DirectorView({ reports, students, classes = [], reportVi
 
   const handleMemoSave = async (reportId, memo) => {
     setSavingMemo(reportId);
-    await updateDoc(doc(db, 'academies', academyId, 'reports', reportId), { directorMemo: memo });
+    try {
+      await updateDoc(doc(db, 'academies', academyId, 'reports', reportId), { directorMemo: memo });
+    } catch (e) {
+      console.error('원장 메모 저장 실패:', e);
+      onToast?.('메모 저장에 실패했습니다. 잠시 후 다시 시도해주세요.', 'error');
+    }
     setSavingMemo(null);
   };
 

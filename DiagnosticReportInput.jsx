@@ -278,6 +278,7 @@ export default function DiagnosticReportInput({
   isDirector = false,
   academyName = null,
   academyPhone = null,
+  academySubjects = null,
 }) {
   const isWide = useMediaQuery('(min-width: 901px)');
   const [showStudentModal, setShowStudentModal] = useState(false);
@@ -1013,16 +1014,18 @@ export default function DiagnosticReportInput({
               {/* 5. 오늘 학습 */}
               <FormSection number="5" title="오늘 학습">
 
-                {/* 과목 선택 */}
+                {/* 과목 선택 — 학원마다 운영 과목이 달라(수학/영어만 있는 곳도, 국어·과학까지
+                    있는 곳도) academies/{id}.subjects로 커스터마이즈 가능. 미설정 학원은 기존과
+                    동일하게 수학/영어/기타 3개(curriculum.js에 단원표가 있는 건 수학/영어뿐이라
+                    다른 과목은 '기타'처럼 단원을 직접 입력하는 방식으로 동작) */}
                 <FieldLabel>과목</FieldLabel>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '14px' }}>
-                  {[
-                    // 국어/사회/과학/역사는 현재 교현학원에서 운영하지 않는 과목이라 선택지에서 제외.
-                    // 해당 과목 수업을 시작하면 여기에 다시 추가 + curriculum.js에 단원표 추가.
-                    { label: '수학', color: TOKENS.info },
-                    { label: '영어', color: TOKENS.success },
-                    { label: '기타', color: TOKENS.midGray },
-                  ].map(({ label, color }) => (
+                  {(() => {
+                    const SUBJECT_COLOR_MAP = { '수학': TOKENS.info, '영어': TOKENS.success, '기타': TOKENS.midGray };
+                    const SUBJECT_FALLBACK_COLORS = [TOKENS.warn, TOKENS.danger, '#7C3AED', '#0EA5E9'];
+                    const subjects = academySubjects && academySubjects.length ? academySubjects : ['수학', '영어', '기타'];
+                    return subjects.map((label, i) => ({ label, color: SUBJECT_COLOR_MAP[label] || SUBJECT_FALLBACK_COLORS[i % SUBJECT_FALLBACK_COLORS.length] }));
+                  })().map(({ label, color }) => (
                     <button key={label} onClick={() => { setSubject(label); setCurriculumCourseOverride(null); setShowAllCourses(false); setShowCoursePicker(null); }}
                       style={{
                         display: 'flex', alignItems: 'center', gap: 0,
@@ -1438,7 +1441,7 @@ export default function DiagnosticReportInput({
                                               tags: active ? w.tags.filter(t => t !== tag.key) : [...w.tags, tag.key]
                                             } : w))}
                                             style={{
-                                              fontSize: '11px', padding: '5px 11px', borderRadius: '20px',
+                                              fontSize: '11px', padding: '9px 13px', minHeight: '36px', borderRadius: '20px',
                                               background: active ? tag.bg : '#fff',
                                               color: active ? tag.color : TOKENS.textMute,
                                               border: `1px solid ${active ? tag.border : TOKENS.border}`,

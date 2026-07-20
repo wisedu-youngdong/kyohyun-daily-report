@@ -122,9 +122,9 @@ export default function GrowthDashboard({ reports, students, onSwitchTab }) {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '8px', flex: 1, minWidth: '280px' }}>
           {[
             { label: '🚨 관심 필요', value: `${atRisk}명`, sub: `주의 ${caution}명 포함`, c: '#A32D2D', bg: '#FCEBEB', bd: '#A32D2D' },
-            { label: '전체 평균', value: `${overallAvg}점`, sub: periodLabel, c: '#0D2D6B', bg: '#fff', bd: '#E8E6E0' },
+            { label: '전체 평균', value: `${overallAvg}%`, sub: periodLabel, c: '#0D2D6B', bg: '#fff', bd: '#E8E6E0' },
             { label: '총 학생', value: `${students.length}명`, sub: '등록', c: '#1A1A1A', bg: '#fff', bd: '#E8E6E0' },
-            { label: '최고 성취', value: bestStudent?.name || '-', sub: `${bestStudent ? getAvg(bestStudent.id) : 0}점`, c: bestStudent ? getStatus(bestStudent.id).color : '#98A1AC', bg: '#fff', bd: '#E8E6E0' },
+            { label: '최고 성취', value: bestStudent?.name || '-', sub: `${bestStudent ? getAvg(bestStudent.id) : 0}%`, c: bestStudent ? getStatus(bestStudent.id).color : '#98A1AC', bg: '#fff', bd: '#E8E6E0' },
           ].map((w, i) => (
             <div key={i} style={{ background: w.bg, border: `1px solid ${w.bd}`, borderRadius: '10px', padding: '10px 12px' }}>
               <p style={{ fontSize: '10px', color: w.c, margin: '0 0 3px', fontWeight: 700 }}>{w.label}</p>

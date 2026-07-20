@@ -334,7 +334,7 @@ export default function PublicReport() {
                       style={{ flex: 1, padding: '8px 10px', fontSize: '16px', border: `1px solid ${rule}`, borderRadius: '8px', fontFamily: 'inherit', resize: 'vertical', lineHeight: 1.6, boxSizing: 'border-box' }}
                     />
                     <button onClick={handleAskQuestion} disabled={questionSubmitting || !questionText.trim()}
-                      style={{ padding: '8px 14px', fontSize: '12px', fontWeight: 700, background: questionSubmitting || !questionText.trim() ? '#D1D5DB' : navy, color: '#fff', border: 'none', borderRadius: '8px', cursor: questionSubmitting || !questionText.trim() ? 'not-allowed' : 'pointer', fontFamily: 'inherit', alignSelf: 'flex-start', whiteSpace: 'nowrap' }}>
+                      style={{ padding: '12px 16px', minHeight: '44px', fontSize: '13px', fontWeight: 700, background: questionSubmitting || !questionText.trim() ? '#D1D5DB' : navy, color: '#fff', border: 'none', borderRadius: '8px', cursor: questionSubmitting || !questionText.trim() ? 'not-allowed' : 'pointer', fontFamily: 'inherit', alignSelf: 'flex-start', whiteSpace: 'nowrap' }}>
                       {questionSubmitting ? '전송 중...' : '질문하기'}
                     </button>
                   </div>

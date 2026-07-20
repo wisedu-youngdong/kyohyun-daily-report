@@ -62,7 +62,7 @@ function deriveColors(mainHex) {
   };
 }
 
-export default function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDeleteTeacher, classes = [], onSaveClass, onDeleteClass, logoUrl, onSaveLogo, onDeleteLogo, academyId, academyPhone, academySkinColor, isPlatformAdmin = false }) {
+export default function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDeleteTeacher, classes = [], onSaveClass, onDeleteClass, logoUrl, onSaveLogo, onDeleteLogo, academyId, academyPhone, academySkinColor, academySubjects, isPlatformAdmin = false, onToast }) {
   // 플랫폼 관리 섹션(가입신청/새학원/분양학원)이 늘어나면서 학원 설정과 한 페이지에 다 있으면
   // 스크롤이 너무 길어져 탭으로 분리 — 플랫폼 관리자가 아니면 애초에 두 번째 탭 내용이 없으니 탭 자체를 안 보여줌
   const [settingsTab, setSettingsTab] = React.useState('academy'); // 'academy' | 'platform'
@@ -86,12 +86,37 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
   const [phoneSaving, setPhoneSaving] = React.useState(false);
   const [phoneSaved, setPhoneSaved] = React.useState(false);
   React.useEffect(() => { setPhone(academyPhone || ''); }, [academyPhone]);
+
+  // 과목 목록 — 리포트 작성 화면의 "과목" 선택 버튼에 그대로 반영됨. 미설정이면 기본값(수학/영어/기타).
+  const [subjectsInput, setSubjectsInput] = React.useState((academySubjects || ['수학', '영어', '기타']).join(', '));
+  const [subjectsSaving, setSubjectsSaving] = React.useState(false);
+  const [subjectsSaved, setSubjectsSaved] = React.useState(false);
+  React.useEffect(() => { setSubjectsInput((academySubjects || ['수학', '영어', '기타']).join(', ')); }, [academySubjects]);
+  const saveSubjects = async () => {
+    const list = subjectsInput.split(',').map(s => s.trim()).filter(Boolean);
+    if (list.length === 0) { onToast?.('과목을 하나 이상 입력해주세요.', 'error'); return; }
+    setSubjectsSaving(true);
+    try {
+      await setDoc(doc(db, 'academies', academyId), { subjects: list }, { merge: true });
+      setSubjectsSaved(true);
+      setTimeout(() => setSubjectsSaved(false), 2000);
+    } catch (e) {
+      console.error('과목 목록 저장 실패:', e);
+      onToast?.('과목 목록 저장에 실패했습니다. 잠시 후 다시 시도해주세요.', 'error');
+    }
+    setSubjectsSaving(false);
+  };
   const savePhone = async () => {
     setPhoneSaving(true);
-    await setDoc(doc(db, 'academies', academyId), { academyPhone: phone.trim() }, { merge: true });
+    try {
+      await setDoc(doc(db, 'academies', academyId), { academyPhone: phone.trim() }, { merge: true });
+      setPhoneSaved(true);
+      setTimeout(() => setPhoneSaved(false), 2000);
+    } catch (e) {
+      console.error('전화번호 저장 실패:', e);
+      onToast?.('전화번호 저장에 실패했습니다. 잠시 후 다시 시도해주세요.', 'error');
+    }
     setPhoneSaving(false);
-    setPhoneSaved(true);
-    setTimeout(() => setPhoneSaved(false), 2000);
   };
 
   const handleLogoFile = async (file) => {
@@ -501,9 +526,16 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
 
   const saveGlobalColor = async () => {
     localStorage.setItem('globalSkinColor', globalColor); // 즉시 반영용 로컬 캐시, 진짜 저장은 아래 Firestore
-    await setDoc(doc(db, 'academies', academyId), { globalSkinColor: globalColor }, { merge: true });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    try {
+      await setDoc(doc(db, 'academies', academyId), { globalSkinColor: globalColor }, { merge: true });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e) {
+      // 실패해도 로컬 캐시(localStorage)는 이미 바뀌어서 화면상 색은 바뀐 것처럼 보일 수 있음 —
+      // Firestore 저장이 안 됐다는 걸 명확히 알려야 새로고침/다른 기기에서 안 바뀐 걸 보고 헷갈리지 않음
+      console.error('스킨 색상 저장 실패:', e);
+      onToast?.('색상 저장에 실패했습니다. 잠시 후 다시 시도해주세요.', 'error');
+    }
   };
 
   const derived = deriveColors(globalColor);
@@ -576,6 +608,23 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
           <button onClick={savePhone} disabled={phoneSaving}
             style={{ padding: '9px 16px', fontSize: '12px', fontWeight: 700, borderRadius: '9px', border: 'none', background: phoneSaving ? '#E5E7EB' : (phoneSaved ? C.success : C.primary), color: phoneSaving ? '#9CA3AF' : '#fff', cursor: phoneSaving ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
             {phoneSaving ? '저장 중...' : phoneSaved ? '✓ 저장됨' : '저장'}
+          </button>
+        </div>
+      </div>
+
+      {/* 과목 목록 — 수학/영어 외 과목(국어, 과학 등)을 운영하는 학원을 위한 커스터마이즈.
+          단, 표준 단원표(교재/단원 자동완성)는 수학·영어에만 있어 다른 과목은 직접 입력 방식으로 동작 */}
+      <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB', marginBottom: '14px' }}>
+        <p style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>과목 목록</p>
+        <p style={{ fontSize: '11px', color: '#6B7280', margin: '0 0 14px', lineHeight: 1.6 }}>
+          리포트 작성 화면의 과목 선택 버튼에 표시됩니다. 쉼표(,)로 구분해서 입력하세요.
+        </p>
+        <div style={{ display: 'flex', gap: '6px' }}>
+          <input value={subjectsInput} onChange={(e) => setSubjectsInput(e.target.value)} placeholder="예: 수학, 영어, 국어, 기타"
+            style={{ flex: 1, padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
+          <button onClick={saveSubjects} disabled={subjectsSaving}
+            style={{ padding: '9px 16px', fontSize: '12px', fontWeight: 700, borderRadius: '9px', border: 'none', background: subjectsSaving ? '#E5E7EB' : (subjectsSaved ? C.success : C.primary), color: subjectsSaving ? '#9CA3AF' : '#fff', cursor: subjectsSaving ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+            {subjectsSaving ? '저장 중...' : subjectsSaved ? '✓ 저장됨' : '저장'}
           </button>
         </div>
       </div>
@@ -706,16 +755,25 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                   <button onClick={() => { setEditingTeacherId(t.id); setEditingTeacherName(t.name); }} style={{ background: C.primaryLight, color: C.primary, border: 'none', borderRadius: '8px', padding: '5px 10px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                     <Pencil size={11} /> 수정
                   </button>
-                  <button onClick={() => {
-                    if (confirmingTeacherDelete === t.id) {
-                      onDeleteTeacher(t.id); setConfirmingTeacherDelete(null);
-                    } else {
-                      setConfirmingTeacherDelete(t.id);
-                      setTimeout(() => setConfirmingTeacherDelete(prev => prev === t.id ? null : prev), 3000);
-                    }
-                  }} style={{ background: confirmingTeacherDelete === t.id ? '#DC2626' : '#FEF2F2', color: confirmingTeacherDelete === t.id ? '#fff' : '#DC2626', border: 'none', borderRadius: '8px', padding: '5px 10px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-                    {confirmingTeacherDelete === t.id ? '확인 (재클릭)' : '삭제'}
-                  </button>
+                  {(() => {
+                    // 강사 삭제 전에 담당 학생이 몇 명인지 보여줘야 함 — 삭제해도 학생의
+                    // assignedTeacherId는 그대로 남아 "삭제된 강사"를 가리키는 고아 상태가 됨
+                    const assignedCount = students.filter(s => s.assignedTeacherId === t.id).length;
+                    return (
+                      <button onClick={() => {
+                        if (confirmingTeacherDelete === t.id) {
+                          onDeleteTeacher(t.id); setConfirmingTeacherDelete(null);
+                        } else {
+                          setConfirmingTeacherDelete(t.id);
+                          setTimeout(() => setConfirmingTeacherDelete(prev => prev === t.id ? null : prev), 3000);
+                        }
+                      }} style={{ background: confirmingTeacherDelete === t.id ? '#DC2626' : '#FEF2F2', color: confirmingTeacherDelete === t.id ? '#fff' : '#DC2626', border: 'none', borderRadius: '8px', padding: '5px 10px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                        {confirmingTeacherDelete === t.id
+                          ? (assignedCount > 0 ? `확인 (담당 학생 ${assignedCount}명 남음)` : '확인 (재클릭)')
+                          : (assignedCount > 0 ? `삭제 (담당 ${assignedCount}명)` : '삭제')}
+                      </button>
+                    );
+                  })()}
                 </>
               )}
             </div>
