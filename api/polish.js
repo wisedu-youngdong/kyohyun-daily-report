@@ -1,7 +1,10 @@
+import { verifyIdTokenHeader } from './_lib/verifyAuth.js';
+
 export const maxDuration = 30;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
+  if (!(await verifyIdTokenHeader(req))) return res.status(401).json({ error: '로그인이 필요합니다.' });
 
   try {
     const { note, studentName, textbook, unit, diagTags, photoContext, contentType } = req.body;

@@ -102,15 +102,17 @@ export default function PublicReport() {
     setQuestionSubmitting(true);
     setQuestionError('');
     try {
-      await addDoc(collection(db, 'academies', academyId, 'reportQuestions'), {
+      const questionRef = await addDoc(collection(db, 'academies', academyId, 'reportQuestions'), {
         reportId, studentId: report.studentId, studentName: report.studentName,
         questionText: text, askedAt: serverTimestamp(),
       });
-      // 원장님께 이메일 알림 — 실패해도 질문 등록 자체는 이미 끝났으니 UX를 막지 않음
+      // 원장님께 이메일 알림 — 실패해도 질문 등록 자체는 이미 끝났으니 UX를 막지 않음.
+      // questionId만 넘기고 실제 studentName/questionText는 서버가 Firestore에서 직접 읽음 —
+      // 클라이언트가 보낸 텍스트를 그대로 믿으면 임의 내용으로 이메일을 지어보낼 수 있어서
       fetch('/api/notify-question', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ academyId, studentName: report.studentName, questionText: text }),
+        body: JSON.stringify({ academyId, questionId: questionRef.id }),
       }).catch(() => {});
       setQuestionText('');
       setQuestionSubmitted(true);

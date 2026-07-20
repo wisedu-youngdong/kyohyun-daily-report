@@ -1,16 +1,41 @@
 import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 
 // Vercel 환경변수엔 JSON을 그대로 넣으면 개행(private_key의 \n)이 깨지기 쉬워서,
 // 서비스 계정 JSON 전체를 base64로 인코딩해 하나의 문자열로 저장 — 여기서 디코드.
-function getAdminAuth() {
+function ensureAdminApp() {
   if (!getApps().length) {
     const raw = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
     if (!raw) throw new Error('FIREBASE_SERVICE_ACCOUNT_BASE64 환경변수가 설정되지 않았습니다.');
     const serviceAccount = JSON.parse(Buffer.from(raw, 'base64').toString('utf-8'));
     initializeApp({ credential: cert(serviceAccount) });
   }
-  return getAuth();
+}
+function getAdminAuth() { ensureAdminApp(); return getAuth(); }
+function getAdminDb() { ensureAdminApp(); return getFirestore(); }
+
+// 이메일당 시간당 최대 요청 수 — rate limit 없으면 임의 주소로 재설정 메일을 무제한
+// 발송시켜 메일 폭탄으로 악용될 수 있음. _rateLimits는 클라이언트 규칙이 없어(firestore.rules
+// 에 미등록 = 기본 전면 차단) Admin SDK로만 접근 가능.
+const RESET_RATE_LIMIT_MAX = 3;
+const RESET_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
+
+async function checkAndBumpRateLimit(db, email) {
+  const key = email.toLowerCase().trim();
+  const ref = db.collection('_rateLimits').doc(`resetEmail_${key}`);
+  const snap = await ref.get();
+  const now = Date.now();
+  if (snap.exists) {
+    const data = snap.data();
+    if (now - data.windowStart < RESET_RATE_LIMIT_WINDOW_MS) {
+      if (data.count >= RESET_RATE_LIMIT_MAX) return false;
+      await ref.update({ count: FieldValue.increment(1) });
+      return true;
+    }
+  }
+  await ref.set({ count: 1, windowStart: now });
+  return true;
 }
 
 function buildResetEmailHtml({ resetLink }) {
@@ -93,6 +118,14 @@ export default async function handler(req, res) {
     const { email } = req.body || {};
     if (!email || typeof email !== 'string') {
       return res.status(400).json({ error: '이메일이 필요합니다.' });
+    }
+
+    const db = getAdminDb();
+    const allowed = await checkAndBumpRateLimit(db, email);
+    if (!allowed) {
+      // 계정 존재 여부를 노출하지 않으려 미가입 이메일과 동일하게 성공 응답으로 위장
+      console.error(`비밀번호 재설정 rate limit 초과: ${email}`);
+      return res.status(200).json({ ok: true });
     }
 
     const auth = getAdminAuth();

@@ -1,3 +1,5 @@
+import { verifyIdTokenHeader } from './_lib/verifyAuth.js';
+
 function buildPrompt(mode, hintTextbook, hintUnit, pageCount = 1, hintSubject = '') {
   const modeInstruction = {
     auto: `## 0단계: 페이지 유형 자동 분류
@@ -144,6 +146,7 @@ export const config = {
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
+  if (!(await verifyIdTokenHeader(req))) return res.status(401).json({ error: '로그인이 필요합니다.' });
 
   try {
     const { images, imageBase64, mimeType, hintTextbook, hintUnit, hintSubject, mode } = req.body;

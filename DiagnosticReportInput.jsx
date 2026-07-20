@@ -21,9 +21,15 @@ import { calculateReportPoints, toPct, ratingLabel } from './growth.js';
 import { DIAG_LABELS as diagLabels, DIAG_SOFT, DIAG_BADGE } from './diagnosis.js';
 import { findUnitKey, getUnits, getCourses } from './curriculum.js';
 import { formatPhone, isValidPhone } from './phone.js';
-import { storage } from './firebase.js';
+import { storage, auth } from './firebase.js';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { StudentModal } from './views/StudentModal.jsx';
+
+// AI 호출(polish/analyze-photo)은 서버에서 로그인 여부를 검증하므로 매번 최신 ID 토큰을 실어 보냄
+async function getAuthHeaders() {
+  const token = await auth.currentUser?.getIdToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 // 빠른 썸네일 생성 (canvas, 미리보기 전용 — imageCompression 생략으로 속도 2배)
 function makeThumbnail(file, maxPx = 300) {
@@ -544,7 +550,7 @@ export default function DiagnosticReportInput({
 
       const response = await fetch('/api/polish', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
         body: JSON.stringify({
           note: teacherNote,
           studentName: student?.name || '',
@@ -650,7 +656,7 @@ export default function DiagnosticReportInput({
       const images = analyzable.map(p => ({ imageBase64: p.base64, mimeType: p.mimeType || 'image/jpeg' }));
       const response = await fetch('/api/analyze-photo', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
         body: JSON.stringify({
           images,
           hintTextbook: textbook, hintUnit: unit, hintSubject: subject,
@@ -1558,7 +1564,7 @@ export default function DiagnosticReportInput({
                               try {
                                 const res = await fetch('/api/polish', {
                                   method: 'POST',
-                                  headers: { 'Content-Type': 'application/json' },
+                                  headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
                                   body: JSON.stringify({
                                     note: wrongSummary,
                                     studentName,

@@ -14,6 +14,17 @@ function getAdminDb() {
   return getFirestore();
 }
 
+// 이메일 HTML에 그대로 꽂아 넣는 값(학생 이름/질문 내용)은 학부모가 입력한 텍스트라
+// <script>나 <a> 태그를 넣어 원장님 메일함에서 실행/피싱 링크로 악용될 수 있어 이스케이프 필요
+function escapeHtml(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function buildNotifyEmailHtml({ studentName, questionText }) {
   const navy = '#0D2D6B';
   const ink = '#1A1A1A';
@@ -43,13 +54,13 @@ function buildNotifyEmailHtml({ studentName, questionText }) {
 
               <h1 style="font-size:19px;font-weight:800;letter-spacing:-0.01em;margin:0 0 14px;line-height:1.4;color:${ink};font-family:${fontStack};">새 질문이 도착했어요</h1>
               <p style="font-size:13.5px;line-height:1.75;color:${inkSoft};margin:0 0 20px;font-family:${fontStack};">
-                <b style="color:${ink};">${studentName}</b> 학생 리포트에 학부모님이 질문을 남기셨어요.
+                <b style="color:${ink};">${escapeHtml(studentName)}</b> 학생 리포트에 학부모님이 질문을 남기셨어요.
               </p>
 
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F5F8FF;border:1px solid #C5D5F0;border-radius:8px;margin-bottom:26px;">
                 <tr>
                   <td style="padding:14px 16px;">
-                    <p style="margin:0;font-size:13px;color:${ink};line-height:1.7;font-family:${fontStack};">${questionText}</p>
+                    <p style="margin:0;font-size:13px;color:${ink};line-height:1.7;font-family:${fontStack};">${escapeHtml(questionText)}</p>
                   </td>
                 </tr>
               </table>
@@ -80,12 +91,38 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
   try {
-    const { academyId, studentName, questionText } = req.body || {};
-    if (!academyId || !questionText) {
+    const { academyId, questionId } = req.body || {};
+    if (!academyId || !questionId) {
       return res.status(400).json({ error: '필수 정보가 없습니다.' });
     }
 
     const db = getAdminDb();
+
+    // 클라이언트가 보낸 studentName/questionText를 그대로 믿지 않고, 실제로 그 질문이
+    // Firestore에 저장돼 있는지 먼저 확인 + 내용도 저장된 값을 신뢰 소스로 사용.
+    // 이렇게 하면 아무나 이 엔드포인트에 임의 텍스트를 넣어 이메일을 지어보내는 걸 막는다
+    // (질문 자체를 Firestore에 실제로 만들어야만 알림이 나감).
+    const qDoc = await db.collection('academies').doc(academyId).collection('reportQuestions').doc(questionId).get();
+    if (!qDoc.exists) {
+      console.error(`알림 대상 질문 문서 없음 (academyId=${academyId}, questionId=${questionId})`);
+      return res.status(200).json({ ok: true, notified: false });
+    }
+    const qData = qDoc.data();
+    const studentName = qData.studentName || '학생';
+    const questionText = qData.questionText || '';
+
+    // 간단한 남용 방지 — 짧은 시간에 같은 학원 앞으로 질문이 비정상적으로 많이 몰리면
+    // (스팸/메일폭탄 의심) 메일 발송만 건너뜀. 질문 자체는 이미 저장돼 있어 원장님이
+    // 로그인하면 확인 가능하므로 데이터 유실은 없음.
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const recentSnap = await db.collection('academies').doc(academyId).collection('reportQuestions')
+      .where('askedAt', '>=', oneHourAgo)
+      .get();
+    if (recentSnap.size > 30) {
+      console.error(`알림 남용 의심 — academyId=${academyId} 최근 1시간 질문 ${recentSnap.size}건, 메일 발송 건너뜀`);
+      return res.status(200).json({ ok: true, notified: false });
+    }
+
     const snap = await db.collection('users')
       .where('academyId', '==', academyId)
       .where('role', '==', 'director')
