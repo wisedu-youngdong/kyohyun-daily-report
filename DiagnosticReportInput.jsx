@@ -1732,6 +1732,7 @@ export default function DiagnosticReportInput({
             teacherNote={aiPolishedNote || teacherNote}
             nextPlan={nextPlan} nextPlanDetail={nextPlanDetail}
             skin={selectedSkin === 'global' && globalSkin ? globalSkin : SKINS[selectedSkin] || SKINS.navy}
+            academyName={academyName} academyPhone={academyPhone}
           />
         </div>
       </div>
@@ -1780,7 +1781,7 @@ export function deriveColorsToSkin(mainHex) {
   };
 }
 
-function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating, conceptRating, hasTest, testName, testScore, textbook, unit, pages, diagnosis, teacherNote, nextPlan, nextPlanDetail, skin }) {
+function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating, conceptRating, hasTest, testName, testScore, textbook, unit, pages, diagnosis, teacherNote, nextPlan, nextPlanDetail, skin, academyName = null, academyPhone = null }) {
   const today = new Date();
   const dateStr = `${String(today.getMonth() + 1).padStart(2,'0')}.${String(today.getDate()).padStart(2,'0')} (${'일월화수목금토'[today.getDay()]})`;
   const homeworkPct = toPct(homeworkRating);
