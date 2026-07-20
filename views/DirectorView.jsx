@@ -407,12 +407,15 @@ export default function DirectorView({ reports, students, classes = [], reportVi
 
                   {/* 열람 배지 — draft(자동저장만 되고 아직 최종 저장 안 됨)는 열람 여부와
                       무관하게 "작성 중"으로 표시. 안 그러면 선생님이 쓰다 만 리포트가
-                      "미열람"으로 잡혀 실제로는 보낸 적도 없는데 발송된 것처럼 보임 */}
+                      "미열람"으로 잡혀 실제로는 보낸 적도 없는데 발송된 것처럼 보임.
+                      결석 처리된 날은 평가/열람 자체가 의미가 없어서 다른 배지보다 우선 표시 */}
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', flexShrink: 0 }}>
                     {unansweredCount > 0 && (
                       <span style={{ fontSize: '10px', fontWeight: 700, color: '#1A5CB8', background: '#EAF0F9', padding: '2px 8px', borderRadius: '10px' }}>질문 {unansweredCount}건</span>
                     )}
-                    {r.isDraft ? (
+                    {r.attendance === '결석' ? (
+                      <span style={{ fontSize: '10px', fontWeight: 700, color: C.errorDark, background: C.errorBg, padding: '2px 8px', borderRadius: '10px' }}>결석</span>
+                    ) : r.isDraft ? (
                       <span style={{ fontSize: '10px', fontWeight: 700, color: C.warningText, background: C.warningBg, padding: '2px 8px', borderRadius: '10px' }}>작성 중</span>
                     ) : isViewed ? (
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
@@ -425,13 +428,18 @@ export default function DirectorView({ reports, students, classes = [], reportVi
                   </div>
                 </div>
 
-                {/* 2행: 교재+단원 · 점수 — 항상 한 줄, 넘치면 말줄임(줄바꿈 안 함) */}
-                <p style={{ fontSize: '12px', color: '#1A1A1A', margin: '0 0 6px', paddingLeft: '36px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {r.textbook && <span style={{ fontWeight: 600 }}>{r.textbook}{r.unit ? ` · ${r.unit}` : ''}{r.pages ? ` ${r.pages}` : ''}</span>}
-                  <span style={{ color: '#5A6472' }}>
-                    {r.textbook ? ' · ' : ''}과제 {toPct(r.homeworkRating)}% · 개념 {toPct(r.conceptRating)}%
-                    {r.hasTest && r.testScore ? ` · 시험 ${r.testScore}점` : ''}
-                  </span>
+                {/* 2행: 교재+단원 · 점수 — 항상 한 줄, 넘치면 말줄임(줄바꿈 안 함).
+                    결석 처리된 날은 과제/개념 평가가 원래 없는 게 정상이라 0%로 보여주지 않음 */}
+                <p style={{ fontSize: '12px', color: r.attendance === '결석' ? '#9CA3AF' : '#1A1A1A', margin: '0 0 6px', paddingLeft: '36px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {r.attendance === '결석' ? '수업 없이 결석 처리됐어요' : (
+                    <>
+                      {r.textbook && <span style={{ fontWeight: 600 }}>{r.textbook}{r.unit ? ` · ${r.unit}` : ''}{r.pages ? ` ${r.pages}` : ''}</span>}
+                      <span style={{ color: '#5A6472' }}>
+                        {r.textbook ? ' · ' : ''}과제 {toPct(r.homeworkRating)}% · 개념 {toPct(r.conceptRating)}%
+                        {r.hasTest && r.testScore ? ` · 시험 ${r.testScore}점` : ''}
+                      </span>
+                    </>
+                  )}
                 </p>
 
                 {/* 3행: 진단태그(있으면) + 버튼 — 태그 유무와 무관하게 항상 이 줄 하나만 차지해서 카드 높이가 통일됨 */}
