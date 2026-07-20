@@ -1288,7 +1288,9 @@ export default function DiagnosticReportInput({
                               .sort((a, b) => parseInt(a.number) - parseInt(b.number))
                               .map((p, i) => (
                               <div key={i} style={{
-                                display: 'flex', gap: '8px', alignItems: 'flex-start', marginBottom: '6px', fontSize: '12px',
+                                display: 'flex', gap: '8px', alignItems: 'flex-start',
+                                padding: '6px 0', borderBottom: i < (sec.problemTypes || []).length - 1 ? `1px solid ${TOKENS.border}` : 'none',
+                                fontSize: '12px',
                                 ...(p.confidence === 'low' ? { background: TOKENS.warnBg, border: `1px solid ${TOKENS.warnBorder}`, borderRadius: '10px', padding: '8px' } : {}),
                               }}>
                                 <button type="button"
@@ -1330,7 +1332,7 @@ export default function DiagnosticReportInput({
                                   <p style={{ margin: 0, fontWeight: 600 }}>
                                     {p.number ? `${p.number}. ` : ''}{p.type}
                                   </p>
-                                  <p style={{ margin: '2px 0 0', color: TOKENS.textSub }}>{p.note}</p>
+                                  {p.note?.trim() && <p style={{ margin: '2px 0 0', color: TOKENS.textSub }}>{p.note}</p>}
                                   {p.confidence === 'low' && (
                                     <p style={{ margin: '4px 0 0', fontSize: '11px', color: TOKENS.warn, fontWeight: 600, lineHeight: 1.4 }}>
                                       <AlertTriangle size={10} style={{ verticalAlign: '-1px' }} /> AI가 표시를 확신하지 못했어요 — 실제 채점과 맞는지 확인해주세요
