@@ -48,6 +48,7 @@ export default function App() {
   const [academyId, setAcademyId] = useState(null);
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [unauthorized, setUnauthorized] = useState(false);
+  const [pendingApproval, setPendingApproval] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [activeSubTab, setActiveSubTab] = useState({ record: 'history', insight: 'director', manage: 'students' });
   const setSubTab = (group, key) => setActiveSubTab(prev => ({ ...prev, [group]: key }));
@@ -121,6 +122,7 @@ export default function App() {
     const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u);
       setUnauthorized(false);
+      setPendingApproval(false);
       if (u) {
         // users/{uid} 고정 경로에서 role·academyId 조회
         // (예전엔 addDoc으로 자동 ID 문서를 만들고 uid 필드로 쿼리해서 찾았는데,
@@ -146,7 +148,14 @@ export default function App() {
             setUserTeacherId(null);
             setAcademyId(null);
             setIsPlatformAdmin(false);
-            setUnauthorized(true);
+            // 셀프 가입 신청(SignupRequestScreen) 직후 상태 — role은 아직 없지만
+            // 승인 대기 중이라는 걸 구분해서 보여줌(거절된 계정은 별도 상태 없이 이 분기를 거쳐
+            // 아래 unauthorized 화면으로 자연스럽게 떨어짐)
+            if (userSnap.exists() && userSnap.data().status === 'pending') {
+              setPendingApproval(true);
+            } else {
+              setUnauthorized(true);
+            }
           }
         } catch (e) {
           setUserRole(null);
@@ -460,6 +469,14 @@ export default function App() {
   );
 
   if (!user) return <LoginScreen />;
+
+  if (pendingApproval) return (
+    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center', justifyContent: 'center', fontFamily: "'Pretendard Variable', Pretendard, sans-serif", padding: '24px', textAlign: 'center' }}>
+      <div style={{ color: T.text, fontSize: '15px', fontWeight: 700 }}>가입 신청이 승인 대기 중입니다.</div>
+      <div style={{ color: T.textMute, fontSize: '13px', lineHeight: 1.7 }}>검토 후 이메일로 안내드려요.<br />급하시면 서비스 관리자에게 문의해주세요.</div>
+      <button onClick={() => signOut(auth)} style={{ marginTop: '8px', padding: '10px 20px', background: T.brand, border: 'none', borderRadius: '8px', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>로그아웃</button>
+    </div>
+  );
 
   if (unauthorized) return (
     <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center', justifyContent: 'center', fontFamily: "'Pretendard Variable', Pretendard, sans-serif", padding: '24px', textAlign: 'center' }}>

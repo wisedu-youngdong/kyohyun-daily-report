@@ -1,6 +1,6 @@
 import React from 'react';
-import { db, createUserWithoutSignIn } from '../firebase';
-import { collection, addDoc, doc, getDoc, getDocs, setDoc, serverTimestamp, getCountFromServer, increment } from 'firebase/firestore';
+import { db, auth, createUserWithoutSignIn } from '../firebase';
+import { collection, addDoc, doc, getDoc, getDocs, setDoc, serverTimestamp, getCountFromServer, increment, query, where } from 'firebase/firestore';
 import { Pencil, AlertTriangle, Check, HelpCircle, X } from 'lucide-react';
 import { T, C } from '../tokens.jsx';
 import { PRESET_SKINS } from './shared.jsx';
@@ -176,6 +176,89 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
     if (!academyIdTouched) setNewAcademyId(slugifyAcademyId(newAcademyName));
   }, [newAcademyName, academyIdTouched]);
 
+  // 학원 가입 신청 목록 + 승인/거절 (플랫폼 관리자 전용).
+  // 승인/거절 후에도 신청 당시 정보(사업자등록번호·주소 등 — 세금계산서 발행 때 다시 필요)를
+  // 계속 조회할 수 있어야 해서, status로 걸러서 가져오지 않고 전체를 가져온 뒤 탭으로만 화면에서 나눔.
+  const [signupRequests, setSignupRequests] = React.useState([]);
+  const [signupTab, setSignupTab] = React.useState('pending'); // 'pending' | 'approved' | 'rejected'
+  const [expandedRequestId, setExpandedRequestId] = React.useState(null);
+  const [academyIdForApproval, setAcademyIdForApproval] = React.useState('');
+  const [approving, setApproving] = React.useState(false);
+  const [rejecting, setRejecting] = React.useState(false);
+  const [signupActionResult, setSignupActionResult] = React.useState('');
+
+  const loadSignupRequests = React.useCallback(async () => {
+    try {
+      const snap = await getDocs(collection(db, 'academySignupRequests'));
+      setSignupRequests(snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
+    } catch (e) {
+      console.error('가입 신청 목록 조회 실패:', e);
+    }
+  }, []);
+
+  const toggleSignupRequest = (req) => {
+    if (expandedRequestId === req.id) { setExpandedRequestId(null); return; }
+    setExpandedRequestId(req.id);
+    setAcademyIdForApproval(slugifyAcademyId(req.academyName || ''));
+    setSignupActionResult('');
+  };
+
+  const handleApproveSignup = async (req) => {
+    const trimmedId = academyIdForApproval.trim();
+    if (!isValidAcademyId(trimmedId)) {
+      setSignupActionResult('학원 ID는 영문 소문자/숫자/하이픈만, 3~63자로 입력해주세요.');
+      return;
+    }
+    setApproving(true);
+    setSignupActionResult('');
+    try {
+      // 1. ID 중복 체크
+      const existing = await getDoc(doc(db, 'academies', trimmedId));
+      if (existing.exists()) throw new Error('이미 사용 중인 학원 ID입니다.');
+      // 2. academies/{id} 브랜딩 문서 — handleCreateAcademy와 동일한 형태
+      await setDoc(doc(db, 'academies', trimmedId), {
+        academyName: req.academyName, globalSkinColor: DEFAULT_SKIN_COLOR, createdAt: serverTimestamp(),
+      });
+      // 3. 원장 본인의 teachers 레코드
+      const teacherRef = await addDoc(collection(db, 'academies', trimmedId, 'teachers'), {
+        name: req.directorName, createdAt: serverTimestamp(),
+      });
+      // 4. users/{uid} — 신청 시점에 이미 만들어진 계정을 활성화(role/academyId 채워넣기).
+      //    handleCreateAcademy와 달리 여기선 Auth 계정을 새로 만들지 않음(이미 있음).
+      await setDoc(doc(db, 'users', req.uid), {
+        role: 'director', teacherId: teacherRef.id, academyId: trimmedId, email: req.email,
+        status: null, createdAt: serverTimestamp(),
+      }, { merge: true });
+      // 5. 신청 문서 상태 갱신 — academyId를 같이 남겨야 승인 후에도 "이 신청이 어느 학원이 됐는지" 추적 가능
+      await setDoc(doc(db, 'academySignupRequests', req.uid), {
+        status: 'approved', academyId: trimmedId, reviewedAt: serverTimestamp(), reviewedBy: auth.currentUser?.email || null,
+      }, { merge: true });
+      setSignupActionResult(`${req.academyName} 승인 완료! (ID: ${trimmedId})`);
+      setExpandedRequestId(null);
+      loadSignupRequests();
+      loadAcademies();
+    } catch (e) {
+      setSignupActionResult(`오류: ${e.message}`);
+    }
+    setApproving(false);
+  };
+
+  const handleRejectSignup = async (req) => {
+    setRejecting(true);
+    try {
+      await setDoc(doc(db, 'academySignupRequests', req.uid), {
+        status: 'rejected', reviewedAt: serverTimestamp(), reviewedBy: auth.currentUser?.email || null,
+      }, { merge: true });
+      await setDoc(doc(db, 'users', req.uid), { status: 'rejected' }, { merge: true });
+      setExpandedRequestId(null);
+      loadSignupRequests();
+    } catch (e) {
+      setSignupActionResult(`오류: ${e.message}`);
+    }
+    setRejecting(false);
+  };
+
   // 분양 학원 목록 + 정지/해제 + 통계 (플랫폼 관리자 전용)
   const [academyList, setAcademyList] = React.useState([]);
   const [academyStats, setAcademyStats] = React.useState({});
@@ -274,8 +357,8 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
   }, []);
 
   React.useEffect(() => {
-    if (isPlatformAdmin) loadAcademies();
-  }, [isPlatformAdmin, loadAcademies]);
+    if (isPlatformAdmin) { loadAcademies(); loadSignupRequests(); }
+  }, [isPlatformAdmin, loadAcademies, loadSignupRequests]);
 
   const handleToggleSuspend = async (academy) => {
     const suspending = academy.status !== 'suspended';
@@ -763,6 +846,108 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
           </div>
         </div>
       )}
+
+      {/* 가입 신청 관리 — 플랫폼 관리자 전용. 목록만 먼저 보여주고 클릭하면 상세가 펼쳐지는
+          패턴("분양 학원 관리"의 크레딧 지급 폼과 동일한 아코디언 방식). 승인/거절 후에도 탭을 옮기면
+          신청 당시 정보(사업자등록번호·주소 등)를 계속 조회할 수 있음 — 세금계산서 발행 등에 필요 */}
+      {isPlatformAdmin && signupRequests.length > 0 && (() => {
+        const tabCounts = {
+          pending: signupRequests.filter(r => r.status === 'pending').length,
+          approved: signupRequests.filter(r => r.status === 'approved').length,
+          rejected: signupRequests.filter(r => r.status === 'rejected').length,
+        };
+        const visibleRequests = signupRequests.filter(r => r.status === signupTab);
+        return (
+          <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB', marginBottom: '14px' }}>
+            <p style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>가입 신청 관리</p>
+            <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 500, marginBottom: '12px' }}>
+              학원 등록 신청 내역입니다. 승인된 신청도 사업자등록번호·주소 등 원본 정보를 여기서 다시 볼 수 있어요.
+            </p>
+            <div style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
+              {[
+                { key: 'pending', label: '대기' },
+                { key: 'approved', label: '승인됨' },
+                { key: 'rejected', label: '거절됨' },
+              ].map(t => (
+                <button key={t.key} onClick={() => { setSignupTab(t.key); setExpandedRequestId(null); }}
+                  style={{
+                    padding: '6px 12px', fontSize: '12px', fontWeight: 700, borderRadius: '20px', cursor: 'pointer', fontFamily: 'inherit',
+                    border: signupTab === t.key ? `1.5px solid ${C.info}` : '1px solid #E5E7EB',
+                    background: signupTab === t.key ? C.infoBg : '#fff',
+                    color: signupTab === t.key ? C.infoDark : '#6B7280',
+                  }}>
+                  {t.label} {tabCounts[t.key]}
+                </button>
+              ))}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {visibleRequests.length === 0 && (
+                <p style={{ fontSize: '12px', color: '#9CA3AF', margin: 0, textAlign: 'center', padding: '12px 0' }}>해당하는 신청이 없습니다</p>
+              )}
+              {visibleRequests.map(req => {
+                const expanded = expandedRequestId === req.id;
+                const badge = req.status === 'pending'
+                  ? { label: '신청', bg: '#FFF8EC', color: '#8A5A00' }
+                  : req.status === 'approved'
+                  ? { label: '승인됨', bg: C.successBg, color: C.successDark }
+                  : { label: '거절됨', bg: C.errorBg, color: C.errorDark };
+                return (
+                  <div key={req.id} style={{ background: '#F9FAFB', borderRadius: '10px', padding: '10px 12px' }}>
+                    <div onClick={() => toggleSignupRequest(req)} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: '13px', fontWeight: 600, color: '#1A1A1A', margin: 0 }}>{req.academyName}</p>
+                        <p style={{ fontSize: '11px', color: '#6B7280', margin: '2px 0 0' }}>
+                          {req.directorName} 원장 · {req.createdAt?.seconds ? new Date(req.createdAt.seconds * 1000).toLocaleDateString('ko-KR') : ''}
+                        </p>
+                      </div>
+                      <span style={{ fontSize: '9px', fontWeight: 700, color: badge.color, background: badge.bg, padding: '2px 8px', borderRadius: '6px', flexShrink: 0 }}>{badge.label}</span>
+                    </div>
+
+                    {expanded && (
+                      <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #E5E7EB', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <p style={{ fontSize: '11px', color: '#374151', margin: 0 }}><strong>신청자</strong> {req.applicantName}{req.applicantPosition ? ` (${req.applicantPosition})` : ''} · {req.phone}</p>
+                        <p style={{ fontSize: '11px', color: '#374151', margin: 0 }}><strong>사업자등록번호</strong> {req.businessNumber}</p>
+                        <p style={{ fontSize: '11px', color: '#374151', margin: 0 }}><strong>주소</strong> {req.address} {req.addressDetail}</p>
+                        <p style={{ fontSize: '11px', color: '#374151', margin: 0 }}><strong>대표전화</strong> {req.academyPhone} · <strong>이메일</strong> {req.email}</p>
+
+                        {req.status === 'pending' ? (
+                          <>
+                            <div style={{ display: 'flex', gap: '6px', marginTop: '6px' }}>
+                              <input value={academyIdForApproval} onChange={e => setAcademyIdForApproval(e.target.value)} placeholder="학원 ID (영문 소문자/숫자/하이픈)"
+                                style={{ flex: 1, padding: '7px 9px', fontSize: '12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontFamily: 'monospace', outline: 'none' }} />
+                            </div>
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                              <button onClick={() => handleApproveSignup(req)} disabled={approving || rejecting}
+                                style={{ flex: 1, padding: '8px', fontSize: '12px', fontWeight: 700, borderRadius: '8px', border: 'none', background: approving ? '#E5E7EB' : C.primary, color: '#fff', cursor: approving ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                                {approving ? '승인 중...' : '승인'}
+                              </button>
+                              <button onClick={() => handleRejectSignup(req)} disabled={approving || rejecting}
+                                style={{ flex: 1, padding: '8px', fontSize: '12px', fontWeight: 700, borderRadius: '8px', border: 'none', background: '#FEF2F2', color: '#DC2626', cursor: rejecting ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                                {rejecting ? '거절 중...' : '거절'}
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '4px 0 0' }}>
+                            {req.status === 'approved' ? `학원 ID: ${req.academyId}` : '거절됨'}
+                            {req.reviewedBy ? ` · ${req.reviewedBy}` : ''}
+                            {req.reviewedAt?.seconds ? ` · ${new Date(req.reviewedAt.seconds * 1000).toLocaleDateString('ko-KR')}` : ''}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {signupActionResult && (
+                <p style={{ fontSize: '12px', margin: 0, padding: '8px 12px', borderRadius: '8px', background: signupActionResult.startsWith('오류') ? C.errorBg : C.successBg, color: signupActionResult.startsWith('오류') ? C.errorDark : C.successDark, fontWeight: 600 }}>
+                  {signupActionResult}
+                </p>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 새 학원 추가 — 플랫폼 관리자 전용 */}
       {isPlatformAdmin && (
