@@ -1248,6 +1248,13 @@ export default function DiagnosticReportInput({
                       const lowConfidenceCount = (photoAnalysis.sections || []).reduce((n, s) =>
                         n + (s.problemTypes || []).filter(p => p.confidence === 'low').length
                           + (s.weakDetail || []).filter(p => p.confidence === 'low').length, 0);
+                      // concept 섹션 문항 번호 — 이 번호들은 체크리스트 행 안에 오답 원인 입력을 바로
+                      // 붙여서 보여주므로, 아래쪽 "오답 원인 입력"에서는 중복 표시하지 않고 제외함
+                      const conceptNumbers = new Set(
+                        (photoAnalysis.sections || []).filter(s => s.sectionType === 'concept')
+                          .flatMap(s => (s.problemTypes || []).map(p => p.number))
+                      );
+                      const leftoverWrongItems = wrongItems.filter(w => !conceptNumbers.has(w.number));
                       return (
                       <div style={{ background: TOKENS.bgSoft, border: `1px solid ${TOKENS.borderLight}`, borderRadius: '12px', padding: '12px', marginTop: '4px' }}>
                         {(photoAnalysis.bookOrTest || photoAnalysis.unit || photoAnalysis.pageRange) && (
@@ -1318,16 +1325,26 @@ export default function DiagnosticReportInput({
                               </div>
                             )}
 
-                            {sec.sectionType === 'concept' && (sec.problemTypes || [])
+                            {sec.sectionType === 'concept' && (() => {
+                              const WRONG_TAGS = [
+                                { key: 'calc', label: '계산 실수', bg: '#FFF8EC', color: '#8A5A00', border: '#C9A22740' },
+                                { key: 'concept', label: '개념 누락', bg: '#FDF0F0', color: '#8A2020', border: '#8A202040' },
+                                { key: 'apply', label: '응용 부족', bg: '#FDF0F0', color: '#8A2020', border: '#8A202040' },
+                                { key: 'time', label: '시간 부족', bg: '#F3F0FA', color: '#4A3080', border: '#4A308040' },
+                                { key: 'unread', label: '문제 안 읽음', bg: '#FFF8EC', color: '#8A5A00', border: '#C9A22740' },
+                              ];
+                              return (sec.problemTypes || [])
                               .slice()
                               .sort(sortByItemNumber)
-                              .map((p, i) => (
+                              .map((p, i) => {
+                              const wrongItem = p.result === '약점' ? wrongItems.find(w => w.number === p.number) : null;
+                              return (
                               <div key={i} style={{
-                                display: 'flex', gap: '8px', alignItems: 'center',
                                 padding: '6px 0', borderBottom: i < (sec.problemTypes || []).length - 1 ? `1px solid ${TOKENS.border}` : 'none',
                                 fontSize: '12px',
                                 ...(p.confidence === 'low' ? { background: TOKENS.warnBg, border: `1px solid ${TOKENS.warnBorder}`, borderRadius: '10px', padding: '8px' } : {}),
                               }}>
+                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                 <button type="button"
                                   onClick={() => {
                                     let becameWrong = false;
@@ -1374,8 +1391,47 @@ export default function DiagnosticReportInput({
                                     </p>
                                   )}
                                 </div>
+                                </div>
+
+                                {/* 오답 원인 입력 — 체크리스트 바로 이 줄 안에 붙여서, 옆에 따로 뒀을 때
+                                    정답 문항 때문에 줄이 안 맞던 문제를 근본적으로 없앰 */}
+                                {wrongItem && (
+                                  <div style={{ marginTop: '8px', paddingLeft: '76px' }}>
+                                    <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginBottom: '6px' }}>
+                                      {WRONG_TAGS.map(tag => {
+                                        const active = wrongItem.tags.includes(tag.key);
+                                        return (
+                                          <button type="button" key={tag.key}
+                                            onClick={() => setWrongItems(prev => prev.map((w) => w.number === p.number ? {
+                                              ...w,
+                                              tags: active ? w.tags.filter(t => t !== tag.key) : [...w.tags, tag.key]
+                                            } : w))}
+                                            style={{
+                                              fontSize: '11px', padding: '5px 11px', borderRadius: '20px',
+                                              background: active ? tag.bg : '#fff',
+                                              color: active ? tag.color : TOKENS.textMute,
+                                              border: `1px solid ${active ? tag.border : TOKENS.border}`,
+                                              cursor: 'pointer', fontFamily: 'inherit', fontWeight: active ? 700 : 400,
+                                              WebkitTapHighlightColor: 'transparent',
+                                              touchAction: 'manipulation',
+                                            }}>
+                                            {active ? '✓ ' : ''}{tag.label}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                    <input
+                                      value={wrongItem.memo}
+                                      onChange={e => setWrongItems(prev => prev.map((w) => w.number === p.number ? { ...w, memo: e.target.value } : w))}
+                                      placeholder="직접 입력 (선택) — 답 잘못 씀, 문제 안 읽음 등"
+                                      style={{ width: '100%', padding: '6px 10px', fontSize: '16px', border: `1px solid ${TOKENS.border}`, borderRadius: '8px', fontFamily: 'inherit', outline: 'none', background: '#fff', boxSizing: 'border-box', color: TOKENS.text }}
+                                    />
+                                  </div>
+                                )}
                               </div>
-                            ))}
+                              );
+                            });
+                            })()}
 
                             {sec.sectionType === 'mock_exam' && (
                               <div style={{ background: '#fff', borderRadius: '10px', padding: '10px' }}>
@@ -1402,13 +1458,14 @@ export default function DiagnosticReportInput({
                           </div>
                         ))}
 
-                        {/* 오답 문제별 진단 카드 */}
-                        {wrongItems.length > 0 && (
+                        {/* 모의고사 등 concept 섹션 밖에서 나온 오답 — 체크리스트 행 안에 못 붙인 것만 여기 별도로 */}
+                        {leftoverWrongItems.length > 0 && (
                           <div style={{ marginTop: '12px' }}>
                             <p style={{ fontSize: '11px', fontWeight: 700, color: TOKENS.textSub, margin: '0 0 8px' }}>
                               오답 문제별 원인 입력
                             </p>
-                            {[...wrongItems]
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '8px' }}>
+                            {[...leftoverWrongItems]
                               .sort(sortByItemNumber)
                               .map((item, idx) => {
                               const WRONG_TAGS = [
@@ -1419,7 +1476,7 @@ export default function DiagnosticReportInput({
                                 { key: 'unread', label: '문제 안 읽음', bg: '#FFF8EC', color: '#8A5A00', border: '#C9A22740' },
                               ];
                               return (
-                                <div key={item.number || idx} style={{ border: '1px solid #DC262630', borderRadius: `${RADIUS2.thumbnail}px`, padding: '14px', marginBottom: '8px', background: '#FFF5F5' }}>
+                                <div key={item.number || idx} style={{ border: '1px solid #DC262630', borderRadius: `${RADIUS2.thumbnail}px`, padding: '14px', background: '#FFF5F5' }}>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
                                     <span style={{ background: TOKENS.dangerBorder, color: '#fff', fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px' }}>
                                       {item.number}번 오답
@@ -1463,8 +1520,12 @@ export default function DiagnosticReportInput({
                                 </div>
                               );
                             })}
+                            </div>
+                          </div>
+                        )}
 
-                            {/* 오답 카드 기반 코멘트 생성 */}
+                        {/* 오답 카드 기반 코멘트 생성 — 체크리스트 인라인이든 leftover 카드든 상관없이 wrongItems 전체 기준 */}
+                        {wrongItems.length > 0 && (
                             <button type="button" disabled={generatingComment} onClick={async () => {
                               if (generatingComment) return;
                               setGeneratingComment(true);
@@ -1510,7 +1571,6 @@ export default function DiagnosticReportInput({
                               style={aiButtonStyle(generatingComment)}>
                               <Sparkles size={13} /> {generatingComment ? '생성 중...' : '오답 분석 기반 코멘트 생성'}
                             </button>
-                          </div>
                         )}
                       </div>
                       );
