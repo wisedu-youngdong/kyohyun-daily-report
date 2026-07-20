@@ -11,3 +11,4 @@ firebase-debug.log
 .firebase/
 serviceAccountKey*.json
 *-service-account*.json
+.vercel

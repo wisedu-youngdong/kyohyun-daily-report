@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Pencil, Trash2, AlertTriangle } from 'lucide-react';
+import { Pencil, Trash2, AlertTriangle, Link as LinkIcon } from 'lucide-react';
 import { toPct } from '../growth.js';
 import { useMediaQuery } from '../hooks.js';
 import { C } from '../tokens.jsx';
@@ -245,11 +245,18 @@ export default function HistoryView({ reports, students, classes = [], reportVie
                 </div>
               )}
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: selected.isDraft ? '1fr 1fr' : '1fr 1fr 1fr', gap: '8px' }}>
                 <button onClick={() => { onEdit(selected); setSelectedId(null); }}
                   style={{ padding: '11px', border: '1px solid #E5E7EB', borderRadius: '8px', background: '#fff', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', color: '#374151', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
                   <Pencil size={12} /> 수정
                 </button>
+                {/* 초안은 아직 학부모에게 보낼 상태가 아니라 링크 복사를 막음(DirectorView와 동일 기준) */}
+                {!selected.isDraft && (
+                  <button onClick={() => handleCopyLink(selected.id)}
+                    style={{ padding: '11px', border: `1px solid ${C.primary}`, borderRadius: '8px', background: copied ? C.primary : '#fff', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', color: copied ? '#fff' : C.primary, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
+                    <LinkIcon size={12} /> {copied ? '✓ 복사됨' : '링크 복사'}
+                  </button>
+                )}
                 <button onClick={() => setDeleteConfirmReport(selected.id)}
                   style={{ padding: '11px', border: '1px solid #FECACA', borderRadius: '8px', background: '#FFF5F5', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', color: '#DC2626', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
                   <Trash2 size={12} /> 삭제
