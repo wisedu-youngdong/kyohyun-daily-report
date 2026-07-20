@@ -1320,7 +1320,7 @@ export default function DiagnosticReportInput({
                                     });
                                   }}
                                   style={{
-                                    flexShrink: 0, fontWeight: 700, fontSize: '12px', padding: '8px 14px', minHeight: '36px', borderRadius: '10px',
+                                    flexShrink: 0, width: '68px', textAlign: 'center', fontWeight: 700, fontSize: '12px', padding: '8px 0', minHeight: '36px', borderRadius: '10px',
                                     background: p.result === '잘함' ? '#E1F5EE' : TOKENS.dangerBg,
                                     color: p.result === '잘함' ? TOKENS.successDark : TOKENS.dangerBorder,
                                     border: 'none', cursor: 'pointer', fontFamily: 'inherit',
