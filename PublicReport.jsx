@@ -46,6 +46,7 @@ export default function PublicReport() {
   const [questionSubmitting, setQuestionSubmitting] = useState(false);
   const [questionSubmitted, setQuestionSubmitted] = useState(false);
   const [questionError, setQuestionError] = useState('');
+  const [newAnswerIds, setNewAnswerIds] = useState(new Set()); // 이번 방문에서 처음 보는 답변 — "답변 도착" 배지용
   const viewLoggedRef = React.useRef(false); // StrictMode 개발 모드 이펙트 2회 실행 시 열람 기록 중복 방지
   const touchStartXRef = React.useRef(null); // 라이트박스 스와이프 넘기기용
 
@@ -133,6 +134,23 @@ export default function PublicReport() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [lightboxIndex, brokenPhotos, report]);
+
+  // 답변 도착 배지 — "이 답변을 이 브라우저에서 이미 봤는지"를 서버 없이 localStorage로 추적.
+  // reportViews는 직원 전용 컬렉션이라 공개 페이지에서 "지난 방문 시각"을 읽을 방법이 없고,
+  // 새 프록시 API를 추가하기엔 Vercel 함수가 이미 12개 한도에 닿아 있어 이 방식을 택함.
+  // 단점: 기기/브라우저를 바꾸면 다시 "새 답변"으로 보일 수 있음 — 낮은 리스크로 판단.
+  useEffect(() => {
+    if (questions.length === 0) return;
+    const storageKey = `seenAnswers_${reportId}`;
+    let seen = [];
+    try { seen = JSON.parse(localStorage.getItem(storageKey) || '[]'); } catch { /* 손상된 값은 무시 */ }
+    const seenSet = new Set(seen);
+    const answered = questions.filter(q => q.answerText);
+    const freshlyAnswered = answered.filter(q => !seenSet.has(q.id));
+    if (freshlyAnswered.length > 0) setNewAnswerIds(new Set(freshlyAnswered.map(q => q.id)));
+    // 이번에 보여준 답변들은 "본 것"으로 기록 — 다음 방문부턴 배지가 안 뜸
+    try { localStorage.setItem(storageKey, JSON.stringify(answered.map(q => q.id))); } catch { /* 저장 실패해도 배지 표시엔 지장 없음 */ }
+  }, [questions, reportId]);
 
   const handleAskQuestion = async () => {
     const text = questionText.trim();
@@ -373,8 +391,13 @@ export default function PublicReport() {
               {questions.length > 0 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '12px' }}>
                   {questions.map(q => (
-                    <div key={q.id}>
-                      <p style={{ fontSize: '12px', color: ink, margin: '0 0 4px', fontWeight: 600 }}>Q. {q.questionText}</p>
+                    <div key={q.id} style={newAnswerIds.has(q.id) ? { background: '#FDF8EC', border: '1px solid #F0D584', borderRadius: '8px', padding: '8px 10px' } : undefined}>
+                      <p style={{ fontSize: '12px', color: ink, margin: '0 0 4px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        Q. {q.questionText}
+                        {newAnswerIds.has(q.id) && (
+                          <span style={{ fontSize: '9px', fontWeight: 700, color: '#8A5A00', background: '#FFF3D6', padding: '2px 7px', borderRadius: '10px', flexShrink: 0 }}>답변 도착</span>
+                        )}
+                      </p>
                       {q.answerText
                         ? <p style={{ fontSize: '12px', color: inkSub, margin: 0, lineHeight: 1.7 }}>A. {q.answerText}</p>
                         : <p style={{ fontSize: '11px', color: inkMute, margin: 0, fontStyle: 'italic' }}>답변 대기 중이에요</p>}
