@@ -16,6 +16,19 @@ function isValidAcademyId(id) {
   return /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(id) && !/^__.*__$/.test(id);
 }
 
+// 플랫폼 관리자 조치 로그 — 승인/거절/생성/정지·재개/크레딧 지급 5곳에서 호출.
+// 로그 자체가 실패해도 원래 하려던 작업(승인 등)을 막으면 안 되므로 실패는 콘솔에만 남김
+async function logPlatformEvent(type, { academyId, academyName, detail = '' }) {
+  try {
+    await addDoc(collection(db, 'platformEvents'), {
+      type, academyId: academyId || null, academyName: academyName || '',
+      actorEmail: auth.currentUser?.email || null, detail, createdAt: serverTimestamp(),
+    });
+  } catch (e) {
+    console.error('플랫폼 이벤트 로그 기록 실패:', e);
+  }
+}
+
 // "교현초 5학년" 형태의 school 문자열에서 학년 숫자만 찾아 +1 — DiagnosticReportInput.jsx의
 // guessCourseKey와 동일한 급(초/중/고) 판별 규칙을 재사용해 일관성 유지.
 // 초6/중3/고3(급 전환 대상 — 학교명 자체가 바뀌어야 함)은 건드리지 않고 null 반환.
@@ -261,10 +274,12 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
       await setDoc(doc(db, 'academySignupRequests', req.uid), {
         status: 'approved', academyId: trimmedId, reviewedAt: serverTimestamp(), reviewedBy: auth.currentUser?.email || null,
       }, { merge: true });
+      logPlatformEvent('signup_approved', { academyId: trimmedId, academyName: req.academyName });
       setSignupActionResult(`${req.academyName} 승인 완료! (ID: ${trimmedId})`);
       setExpandedRequestId(null);
       loadSignupRequests();
       loadAcademies();
+      loadPlatformEvents();
     } catch (e) {
       setSignupActionResult(`오류: ${e.message}`);
     }
@@ -278,8 +293,10 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
         status: 'rejected', reviewedAt: serverTimestamp(), reviewedBy: auth.currentUser?.email || null,
       }, { merge: true });
       await setDoc(doc(db, 'users', req.uid), { status: 'rejected' }, { merge: true });
+      logPlatformEvent('signup_rejected', { academyName: req.academyName });
       setExpandedRequestId(null);
       loadSignupRequests();
+      loadPlatformEvents();
     } catch (e) {
       setSignupActionResult(`오류: ${e.message}`);
     }
@@ -368,7 +385,13 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
       await addDoc(collection(db, 'academies', targetAcademyId, 'paymentHistory'), {
         packageSize: pkg, amount, method: 'bank_transfer', memo: creditMemo.trim(), grantedAt: serverTimestamp(),
       });
+      logPlatformEvent('credit_granted', {
+        academyId: targetAcademyId,
+        academyName: academyList.find(a => a.id === targetAcademyId)?.academyName || targetAcademyId,
+        detail: `${pkg}건 · ${amount.toLocaleString()}원`,
+      });
       await loadBilling(targetAcademyId);
+      loadPlatformEvents();
       setCreditFormOpen(null);
     } catch (e) {
       console.error('크레딧 지급 실패:', e);
@@ -414,9 +437,25 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
     }
   }, []);
 
+  // 플랫폼 관리자 조치 이벤트 로그 — 최근 50건만. 색인 없이도 되게 orderBy 없이 받아와
+  // 클라이언트에서 최신순 정렬(양 자체가 적어 문제 없음)
+  const [platformEvents, setPlatformEvents] = React.useState([]);
+  const loadPlatformEvents = React.useCallback(async () => {
+    try {
+      const snap = await getDocs(collection(db, 'platformEvents'));
+      const events = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
+        .slice(0, 50);
+      setPlatformEvents(events);
+    } catch (e) {
+      console.error('플랫폼 이벤트 로그 조회 실패:', e);
+    }
+  }, []);
+
   React.useEffect(() => {
-    if (isPlatformAdmin) { loadAcademies(); loadSignupRequests(); }
-  }, [isPlatformAdmin, loadAcademies, loadSignupRequests]);
+    if (isPlatformAdmin) { loadAcademies(); loadSignupRequests(); loadPlatformEvents(); }
+  }, [isPlatformAdmin, loadAcademies, loadSignupRequests, loadPlatformEvents]);
 
   const handleToggleSuspend = async (academy) => {
     const suspending = academy.status !== 'suspended';
@@ -430,7 +469,9 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
     setTogglingAcademy(academy.id);
     try {
       await setDoc(doc(db, 'academies', academy.id), { status: suspending ? 'suspended' : 'active' }, { merge: true });
+      logPlatformEvent(suspending ? 'academy_suspended' : 'academy_resumed', { academyId: academy.id, academyName: academy.academyName });
       await loadAcademies();
+      loadPlatformEvents();
     } catch (e) {
       console.error('학원 상태 변경 실패:', e);
     }
@@ -509,11 +550,13 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
       await setDoc(doc(db, 'users', newUid), {
         role: 'director', teacherId: teacherRef.id, academyId: trimmedId, email: newDirectorEmail, createdAt: serverTimestamp(),
       });
+      logPlatformEvent('academy_created', { academyId: trimmedId, academyName: trimmedName });
       setAcademyResult(`${trimmedName} 학원 생성 완료! (ID: ${trimmedId})`);
       setAcademySuccess(true);
       setNewAcademyName(''); setNewAcademyId(''); setAcademyIdTouched(false);
       setNewDirectorName(''); setNewDirectorEmail(''); setNewDirectorPassword('');
       loadAcademies();
+      loadPlatformEvents();
     } catch (e) {
       const msg = e.code === 'auth/email-already-in-use' ? '이미 사용 중인 이메일입니다.'
         : e.code === 'auth/weak-password' ? '비밀번호는 6자 이상이어야 합니다.' : e.message;
@@ -1191,6 +1234,49 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
           </div>
         </div>
       )}
+
+      {/* 활동 로그 — 플랫폼 관리자가 여러 명일 때 "누가 이 학원을 정지시켰지?" 같은 걸
+          바로 확인하기 위함. 승인/거절/생성/정지·재개/크레딧 지급 5가지 조치만 기록(로그인 등은 소음이라 제외) */}
+      {settingsTab === 'platform' && isPlatformAdmin && platformEvents.length > 0 && (() => {
+        const EVENT_LABELS = {
+          signup_approved: { icon: '✅', label: '가입 신청 승인' },
+          signup_rejected: { icon: '❌', label: '가입 신청 거절' },
+          academy_created: { icon: '✨', label: '학원 생성' },
+          academy_suspended: { icon: '⏸️', label: '이용 정지' },
+          academy_resumed: { icon: '▶️', label: '이용 재개' },
+          credit_granted: { icon: '💳', label: '크레딧 지급' },
+        };
+        return (
+          <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: `1px solid ${T.border}`, marginBottom: '14px' }}>
+            <p style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>활동 로그</p>
+            <p style={{ fontSize: '11px', color: T.textSub, margin: '0 0 14px', lineHeight: 1.6 }}>
+              관리자가 학원에 취한 조치 최근 {platformEvents.length}건이에요.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', maxHeight: '360px', overflowY: 'auto' }}>
+              {platformEvents.map(ev => {
+                const meta = EVENT_LABELS[ev.type] || { icon: '•', label: ev.type };
+                const dateStr = ev.createdAt?.seconds
+                  ? new Date(ev.createdAt.seconds * 1000).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                  : '';
+                return (
+                  <div key={ev.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '8px 4px', borderBottom: `1px solid ${T.border}` }}>
+                    <span style={{ fontSize: '14px', flexShrink: 0 }}>{meta.icon}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: '12px', fontWeight: 600, color: T.text, margin: 0 }}>
+                        {meta.label} — {ev.academyName || '(학원명 없음)'}
+                        {ev.detail && <span style={{ color: T.textSub, fontWeight: 500 }}> · {ev.detail}</span>}
+                      </p>
+                      <p style={{ fontSize: '10px', color: T.textMute, margin: '2px 0 0' }}>
+                        {ev.actorEmail || '알 수 없음'} · {dateStr}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 학생별 스킨 — 요약만. 전체 학생을 나열해봐야 여기선 아무것도 못 하고
           "학생 관리 탭에서 하세요"로 보내던 죽은 목록이라 요약 한 줄로 축약 */}

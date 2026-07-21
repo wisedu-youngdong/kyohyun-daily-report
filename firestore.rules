@@ -44,6 +44,13 @@ service cloud.firestore {
       allow list:   if isPlatformAdmin();
       allow update: if isPlatformAdmin();
     }
+    // 플랫폼 관리자의 분양 학원 관련 조치(승인/거절/생성/정지·재개/크레딧 지급) 이벤트 로그 —
+    // 여러 관리자가 있을 때 "누가 이 조치를 했는지" 추적용. 수정/삭제 없이 생성·조회만.
+    match /platformEvents/{id} {
+      allow create: if isPlatformAdmin();
+      allow get, list: if isPlatformAdmin();
+      allow update, delete: if false;
+    }
 
     // ── academies/{academyId} — 학원 문서(브랜딩 필드 포함) ──
     match /academies/{academyId} {
