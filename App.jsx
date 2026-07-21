@@ -9,7 +9,6 @@ import {
   signOut,
   onAuthStateChanged
 } from 'firebase/auth';
-import DiagnosticReportInput from './DiagnosticReportInput';
 import {
   LayoutDashboard, Users, FileText, History, BarChart2, LogOut
 } from 'lucide-react';
@@ -21,11 +20,15 @@ import LoginScreen from './views/LoginScreen.jsx';
 import DashboardView from './views/DashboardView.jsx';
 import StudentsView from './views/StudentsView.jsx';
 import HistoryView from './views/HistoryView.jsx';
-import SettingsView from './views/SettingsView.jsx';
 import GrowthDashboard from './views/GrowthDashboard.jsx';
 import DirectorView from './views/DirectorView.jsx';
 // recharts(vendor-charts, 375KB)를 쓰는 화면 — 종합 분석 탭을 열 때만 다운로드되도록 lazy 분리
 const AnalysisView = React.lazy(() => import('./views/AnalysisView.jsx'));
+// ~2100줄로 가장 큰 화면 파일(사진 분석/heic2any 트리거 로직 포함) — 리포트 작성 탭을 열 때만
+// 다운로드되도록 lazy 분리. 대시보드만 보고 나가는 방문(가장 흔한 경우)의 초기 로딩을 줄임
+const DiagnosticReportInput = React.lazy(() => import('./DiagnosticReportInput'));
+// 1300줄 넘게 커진 설정 화면(가입 신청 관리·활동 로그 등) — 설정 탭을 열 때만 다운로드
+const SettingsView = React.lazy(() => import('./views/SettingsView.jsx'));
 
 function SkeletonBlock({ rows = 4, cardHeight = 64 }) {
   return (
@@ -689,22 +692,24 @@ export default function App() {
                 </div>
               );
             })()}
-            <DiagnosticReportInput
-              students={visibleStudents} teachers={teachers} classes={classes}
-              reports={visibleReports}
-              onSaveStudent={handleSaveStudent}
-              onSave={handleSaveReport}
-              editingReport={editingReport}
-              onEditDone={() => setEditingReport(null)}
-              commentTemplates={commentTemplates}
-              onSaveCommentTemplate={handleSaveCommentTemplate}
-              onDeleteCommentTemplate={handleDeleteCommentTemplate}
-              currentTeacherId={userTeacherId}
-              isDirector={isDirector}
-              academyName={academyName}
-              academySubjects={academySubjects}
-              academyPhone={academyPhone}
-            />
+            <React.Suspense fallback={<SkeletonBlock rows={5} cardHeight={80} />}>
+              <DiagnosticReportInput
+                students={visibleStudents} teachers={teachers} classes={classes}
+                reports={visibleReports}
+                onSaveStudent={handleSaveStudent}
+                onSave={handleSaveReport}
+                editingReport={editingReport}
+                onEditDone={() => setEditingReport(null)}
+                commentTemplates={commentTemplates}
+                onSaveCommentTemplate={handleSaveCommentTemplate}
+                onDeleteCommentTemplate={handleDeleteCommentTemplate}
+                currentTeacherId={userTeacherId}
+                isDirector={isDirector}
+                academyName={academyName}
+                academySubjects={academySubjects}
+                academyPhone={academyPhone}
+              />
+            </React.Suspense>
           </>
         )}
         {activeTab === 'record' && (
@@ -752,7 +757,9 @@ export default function App() {
                 : <SkeletonBlock rows={5} cardHeight={56} />
               )}
               {activeSubTab.manage === 'settings' && (dataReady
-                ? <SettingsView students={students} onSaveStudent={handleSaveStudent} teachers={teachers} onSaveTeacher={handleSaveTeacher} onDeleteTeacher={handleDeleteTeacher} classes={classes} onSaveClass={handleSaveClass} onDeleteClass={handleDeleteClass} logoUrl={logoUrl} onSaveLogo={handleSaveLogo} onDeleteLogo={handleDeleteLogo} academyId={academyId} academyPhone={academyPhone} academySkinColor={academySkinColor} academySubjects={academySubjects} isPlatformAdmin={isPlatformAdmin} onToast={showAppToast} />
+                ? <React.Suspense fallback={<SkeletonBlock rows={4} cardHeight={70} />}>
+                    <SettingsView students={students} onSaveStudent={handleSaveStudent} teachers={teachers} onSaveTeacher={handleSaveTeacher} onDeleteTeacher={handleDeleteTeacher} classes={classes} onSaveClass={handleSaveClass} onDeleteClass={handleDeleteClass} logoUrl={logoUrl} onSaveLogo={handleSaveLogo} onDeleteLogo={handleDeleteLogo} academyId={academyId} academyPhone={academyPhone} academySkinColor={academySkinColor} academySubjects={academySubjects} isPlatformAdmin={isPlatformAdmin} onToast={showAppToast} />
+                  </React.Suspense>
                 : <SkeletonBlock rows={4} cardHeight={70} />
               )}
             </div>
