@@ -3,7 +3,7 @@ import { toPct } from '../growth.js';
 import { DIAG_BADGE as DIAG_MAP, DIAG_LABELS as diagLabels } from '../diagnosis.js';
 import { useMediaQuery } from '../hooks.js';
 
-export default function GrowthDashboard({ reports, students, onSwitchTab }) {
+export default function GrowthDashboard({ reports, students }) {
   const isMobile = !useMediaQuery('(min-width: 768px)');
   const [period, setPeriod] = React.useState('week');
   const [sortMode, setSortMode] = React.useState('decline');
@@ -328,12 +328,6 @@ export default function GrowthDashboard({ reports, students, onSwitchTab }) {
         const trend = getTrend(selId);
         const trendStr = trend === null ? '―' : trend > 0 ? `▲${Math.abs(trend)}` : trend < 0 ? `▼${Math.abs(trend)}` : '―';
         const trendColor = trend === null ? '#98A1AC' : trend > 0 ? '#0F6E56' : trend < 0 ? '#A32D2D' : '#98A1AC';
-
-        const diagCount = {};
-        rs.forEach(r => (r.diagnosis || []).forEach(d => {
-          if (d.key !== 'perfect') diagCount[d.key] = (diagCount[d.key] || 0) + 1;
-        }));
-        const topWeak = Object.entries(diagCount).sort((a, b) => b[1] - a[1])[0];
 
         const openGrowthStory = () => {
           const query = storyPeriod === '3m' ? '?period=3m' : '';

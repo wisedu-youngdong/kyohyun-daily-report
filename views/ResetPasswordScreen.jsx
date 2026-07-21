@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { auth } from '../firebase';
 import { verifyPasswordResetCode, confirmPasswordReset } from 'firebase/auth';

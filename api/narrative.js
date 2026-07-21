@@ -98,7 +98,7 @@ JSON만 반환 (코드블록 없이, 순수 JSON만): {"chapter1":"...","chapter
         return res.status(500).json({ error: '일부 항목이 비어서 생성됐습니다. 다시 시도해주세요. (' + Object.keys(parsed).filter(k => parsed[k]).join(',') + '만 생성됨)' });
       }
       res.status(200).json(parsed);
-    } catch (parseErr) {
+    } catch {
       // JSON이 잘렸을 경우 — 가능한 필드만 추출
       const fallback = extractFields(cleaned);
       if (isComplete(fallback)) {

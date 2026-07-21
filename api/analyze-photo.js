@@ -213,7 +213,7 @@ export default async function handler(req, res) {
     let parsed;
     try {
       parsed = JSON.parse(cleaned);
-    } catch (parseErr) {
+    } catch {
       if (finishReason === 'MAX_TOKENS') {
         console.error('MAX_TOKENS로 응답 잘림. 길이:', cleaned.length);
         return res.status(200).json({
@@ -226,7 +226,7 @@ export default async function handler(req, res) {
       if (start !== -1 && end !== -1 && end > start) {
         try {
           parsed = JSON.parse(cleaned.slice(start, end + 1));
-        } catch (secondErr) {
+        } catch {
           console.error('JSON 파싱 2차 실패:', cleaned);
           return res.status(200).json({
             error: 'AI 응답을 정리하지 못했습니다. 다시 시도하거나 직접 입력해주세요.',

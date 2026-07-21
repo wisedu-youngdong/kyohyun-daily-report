@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LabelList
 } from 'recharts';
@@ -148,7 +148,6 @@ function InsightCard({ reports }) {
 export default function AnalysisView({ students, reports }) {
   const [selectedId, setSelectedId] = useState('');
   const studentReports = reports.filter(r => r.studentId === selectedId);
-  const avg = (key) => studentReports.length ? Math.round(studentReports.reduce((a, r) => a + (r[key] || 0), 0) / studentReports.length * 10) / 10 : 0;
 
   // ── 기간 설정 (월간 고정 버튼 + 커스텀 기간) ──
   const [periodMode, setPeriodMode] = useState('all'); // all | thisMonth | lastMonth | custom

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { db, auth } from './firebase';
 import { collection, getDoc, getDocs, query, where, doc, setDoc, limit } from 'firebase/firestore';
@@ -643,7 +643,6 @@ export default function GrowthStory() {
         <div style={S.section}>
           <p style={S.label}>단원별 평가 추이 — 진솔한 성장의 기록</p>
           {visibleUnits.map((u, ui) => {
-            const maxS = Math.max(...u.scores.map(s => s.score), 1);
             return (
               <div key={ui} style={{ marginBottom: ui < visibleUnits.length - 1 ? '16px' : 0 }}>
                 <p style={{ fontSize: '11px', fontWeight: 700, color: '#2C2C2C', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>

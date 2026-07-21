@@ -55,9 +55,6 @@ export default function DirectorView({ reports, students, classes = [], reportVi
   // 선택 날짜 리포트 필터 (KST 기준) — 원장 보고서는 발송 여부와 무관하게 해당 날짜의 모든 작성 활동을 보여줌
   const todayReports = reports.filter(r => r.createdAt?.seconds && kstDay(r.createdAt.seconds) === selectedDate);
 
-  // 오늘 수업한 학생 ID 목록
-  const reportedIds = new Set(todayReports.map(r => r.studentId));
-
   // 진단 집계
   const diagCount = {};
   todayReports.forEach(r => (r.diagnosis || []).forEach(d => {

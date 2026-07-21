@@ -12,7 +12,7 @@ const getHeic2any = async () => {
 import React, { useState, useMemo, useEffect } from 'react';
 import { useMediaQuery } from './hooks.js';
 import {
-  User, Clock, Target, MessageCircle, ArrowRight,
+  User, Clock,
   FileText, Sparkles, Send, Plus, X, Check,
   UserPlus, GraduationCap, Info, Star, AlertTriangle, Palette
 } from 'lucide-react';
@@ -20,7 +20,6 @@ import { C, RADIUS2, TYPE, SHADOW } from './tokens.jsx';
 import { calculateReportPoints, toPct, ratingLabel } from './growth.js';
 import { DIAG_LABELS as diagLabels, DIAG_SOFT, DIAG_BADGE } from './diagnosis.js';
 import { findUnitKey, getUnits, getCourses } from './curriculum.js';
-import { formatPhone, isValidPhone } from './phone.js';
 import { storage, auth } from './firebase.js';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { StudentModal } from './views/StudentModal.jsx';
@@ -266,8 +265,6 @@ export default function DiagnosticReportInput({
   classes = [],
   reports = [],
   onSaveStudent = async () => {},
-  onSaveTeacher = async () => {},
-  onDeleteTeacher = async () => {},
   onSave = async () => {},
   editingReport = null,
   onEditDone = () => {},
@@ -1220,7 +1217,7 @@ export default function DiagnosticReportInput({
                           <div className="fallback-label" style={{ display: 'none' }} />
                           <span style={{ position: 'absolute', bottom: '4px', left: '4px', background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: `${RADIUS2.badge}px` }}>{i + 1}</span>
                           {!analyzingPhoto && (
-                            <button onClick={() => removeOnePhoto(i)} style={{
+                            <button onClick={() => removeOnePhoto(i)} title="사진 삭제" style={{
                               position: 'absolute', top: '2px', right: '2px', background: 'rgba(0,0,0,0.55)',
                               border: 'none', borderRadius: '50%', width: '32px', height: '32px', color: '#fff', cursor: 'pointer',
                               display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent'
@@ -1631,7 +1628,7 @@ export default function DiagnosticReportInput({
                         <div key={idx} style={{ background: '#fff', borderRadius: `${RADIUS2.thumbnail}px`, padding: '14px' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                             <span style={tagStyle(tagDef.color, true)}>{tagDef.label}</span>
-                            <button onClick={() => toggleTag(tag.key)} style={{ background: 'none', border: 'none', color: TOKENS.textMute, cursor: 'pointer', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}><X size={14} /></button>
+                            <button onClick={() => toggleTag(tag.key)} title="태그 제거" style={{ background: 'none', border: 'none', color: TOKENS.textMute, cursor: 'pointer', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}><X size={14} /></button>
                           </div>
                           <div style={{ display: 'flex', gap: '5px', marginBottom: '5px' }}>
                             <input value={tag.unit} onChange={(e) => updateTagDetail(idx, 'unit', e.target.value)} placeholder="단원 (예: 4단원)" style={{ ...inputStyle, fontSize: '16px', padding: '6px 10px', minWidth: 0 }} />
@@ -1932,13 +1929,6 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
   const cardLabel = (text, dark=false) => (
     <p style={{ fontSize: '9px', fontWeight: 800, color: dark ? 'rgba(255,255,255,0.55)' : s.cardSub, letterSpacing: '0.1em', margin: '0 0 5px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif", textTransform: 'uppercase' }}>{text}</p>
   );
-  const cardValue = (text, dark=false, size='13px') => (
-    <p style={{ fontSize: size, fontWeight: 700, color: dark ? '#ffffff' : s.cardText, margin: 0, lineHeight: 1.35, wordBreak: 'keep-all' }}>{text}</p>
-  );
-  const cardSub = (text, dark=false) => (
-    <p style={{ fontSize: '10px', fontWeight: 600, color: dark ? 'rgba(255,255,255,0.65)' : s.cardSub, margin: '3px 0 0' }}>{text}</p>
-  );
-
   return (
     <div style={{ background: s.bodyBg, borderRadius: '18px', overflow: 'hidden', boxShadow: '0 4px 24px rgba(0,0,0,0.12)' }}>
 

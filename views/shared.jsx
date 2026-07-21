@@ -1,4 +1,3 @@
-import React from 'react';
 import { C, RADIUS2 } from '../tokens.jsx';
 
 // ── 캐릭터 아바타 목록 — DashboardView/StudentsView 공용

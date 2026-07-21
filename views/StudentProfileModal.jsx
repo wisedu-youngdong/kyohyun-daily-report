@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Pencil } from 'lucide-react';
 import { toPct } from '../growth.js';
 import { findUnitKey } from '../curriculum.js';
@@ -37,7 +37,6 @@ export function StudentProfileModal({ student, reports, reviews = [], onClose, o
   const sorted = [...reports]
     .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0))
     .map(r => ({ ...r, conceptRating: r.conceptRating == null ? null : toPct(r.conceptRating), homeworkRating: r.homeworkRating == null ? null : toPct(r.homeworkRating) }));
-  const recent = sorted.slice(-10); // 최근 10회
 
   const conceptRated = sorted.filter(r => r.conceptRating != null);
   const homeworkRated = sorted.filter(r => r.homeworkRating != null);
@@ -402,7 +401,6 @@ export function StudentProfileModal({ student, reports, reviews = [], onClose, o
             {/* 링크 생성 */}
             {(() => {
               const baseUrl = `${window.location.origin}/story/${student.id}`;
-              const kakaoUrl = `${baseUrl}?src=kakao`;
               const copyUrl = `${baseUrl}?src=copy`;
 
               const handleCopy = () => {
@@ -495,7 +493,7 @@ export function StudentProfileModal({ student, reports, reviews = [], onClose, o
 }
 
 // ── 주간 요약 카드 — StudentProfileModal 안에서만 씀
-function WeeklySummaryCard({ student, reports, teachers, academyName }) {
+function WeeklySummaryCard({ student, reports, academyName }) {
   const [copied, setCopied] = useState(false);
 
   const now = new Date();

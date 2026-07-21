@@ -1,6 +1,6 @@
 import React from 'react';
 import { db, auth, createUserWithoutSignIn } from '../firebase';
-import { collection, addDoc, doc, getDoc, getDocs, setDoc, serverTimestamp, getCountFromServer, increment, query, where } from 'firebase/firestore';
+import { collection, addDoc, doc, getDoc, getDocs, setDoc, serverTimestamp, getCountFromServer, increment } from 'firebase/firestore';
 import { Pencil, AlertTriangle, Check, HelpCircle, X } from 'lucide-react';
 import { T, C } from '../tokens.jsx';
 import { PRESET_SKINS } from './shared.jsx';
@@ -74,7 +74,6 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
   React.useEffect(() => {
     if (academySkinColor) setGlobalColor(academySkinColor);
   }, [academySkinColor]);
-  const [saving, setSaving] = React.useState(false);
   const [saved, setSaved] = React.useState(false);
   const colorInputRef = React.useRef(null);
   const [logoUploading, setLogoUploading] = React.useState(false);
@@ -814,7 +813,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
           <div style={{ background: C.primaryLight, borderRadius: '12px', padding: '14px', marginBottom: '14px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
               <p style={{ fontSize: '12px', fontWeight: 700, color: C.primary, margin: 0 }}>반 사용법</p>
-              <button type="button" onClick={() => setShowClassGuide(false)} style={{ background: 'none', border: 'none', color: C.primary, cursor: 'pointer', padding: '2px', display: 'flex' }}>
+              <button type="button" onClick={() => setShowClassGuide(false)} title="닫기" style={{ background: 'none', border: 'none', color: C.primary, cursor: 'pointer', padding: '2px', display: 'flex' }}>
                 <X size={14} />
               </button>
             </div>

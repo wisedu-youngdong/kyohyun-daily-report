@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { UserPlus, Pencil, X, Plus, Check } from 'lucide-react';
 import { formatPhone, isValidPhone } from '../phone.js';
 import { C, RADIUS2, SHADOW } from '../tokens.jsx';
@@ -131,7 +131,7 @@ export function StudentModal({ student, onClose, onSubmit, teachers = [], classe
               </p>
             </div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#6B7280', cursor: 'pointer', padding: '4px' }}><X size={18} /></button>
+          <button onClick={onClose} title="닫기" style={{ background: 'none', border: 'none', color: '#6B7280', cursor: 'pointer', padding: '4px' }}><X size={18} /></button>
         </div>
 
         <div style={{ padding: '18px 22px' }}>
@@ -239,7 +239,7 @@ export function StudentModal({ student, onClose, onSubmit, teachers = [], classe
                   <div style={{ background: C.primaryLight, color: C.primary, width: '22px', height: '22px', borderRadius: `${RADIUS2.iconBg}px`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>{idx + 1}</div>
                   <input value={t.name} onChange={(e) => updateTextbook(t.id, e.target.value)} placeholder="예: 초등 수학 5-2" style={inputStyle} />
                   {textbooks.length > 1 && (
-                    <button onClick={() => removeTextbook(t.id)} style={{ background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer', padding: '3px', flexShrink: 0 }}><X size={14} /></button>
+                    <button onClick={() => removeTextbook(t.id)} title="교재 삭제" style={{ background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer', padding: '3px', flexShrink: 0 }}><X size={14} /></button>
                   )}
                 </div>
               ))}

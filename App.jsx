@@ -147,6 +147,7 @@ export default function App() {
             }
           }
         } catch (e) {
+          console.error('사용자 권한 조회 실패:', e);
           setUserRole(null);
           setUserTeacherId(null);
           setAcademyId(null);
@@ -582,9 +583,6 @@ export default function App() {
         <span style={{ marginLeft: 'auto', fontSize: '10px', color: T.textMute, fontWeight: 500, background: T.bgSoft, padding: '3px 8px', borderRadius: '6px', border: `1px solid ${T.border}`, flexShrink: 0 }}>
           {new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
         </span>
-
-
-
         <span style={{ fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '6px', background: isDirector ? '#EAF0F9' : '#E1F5EE', color: isDirector ? '#0D2D6B' : '#0F6E56', flexShrink: 0 }}>
           {isDirector ? '원장' : (teachers.find(t => t.id === userTeacherId)?.name || '강사')}
         </span>
@@ -684,8 +682,6 @@ export default function App() {
               students={visibleStudents} teachers={teachers} classes={classes}
               reports={visibleReports}
               onSaveStudent={handleSaveStudent}
-              onSaveTeacher={handleSaveTeacher}
-              onDeleteTeacher={handleDeleteTeacher}
               onSave={handleSaveReport}
               editingReport={editingReport}
               onEditDone={() => setEditingReport(null)}
@@ -721,7 +717,7 @@ export default function App() {
             ], { director: 960, analysis: 600 })}
             <div style={{ marginTop: '12px' }}>
               {activeSubTab.insight === 'director' && (dataReady
-                ? <div><DirectorView reports={visibleReports} students={visibleStudents} classes={classes} reportViews={reportViews} reportQuestions={reportQuestions} reviews={reviews} onToast={showAppToast} academyId={academyId} academyName={academyName} /><GrowthDashboard reports={visibleReports} students={visibleStudents} onSwitchTab={setActiveTab} /></div>
+                ? <div><DirectorView reports={visibleReports} students={visibleStudents} classes={classes} reportViews={reportViews} reportQuestions={reportQuestions} reviews={reviews} onToast={showAppToast} academyId={academyId} academyName={academyName} /><GrowthDashboard reports={visibleReports} students={visibleStudents} /></div>
                 : <SkeletonBlock rows={4} cardHeight={70} />
               )}
               {activeSubTab.insight === 'analysis' && (dataReady
