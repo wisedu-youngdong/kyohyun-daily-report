@@ -218,21 +218,21 @@ function AlertModal({ message, onClose }) {
       padding: '20px',
     }} onClick={onClose}>
       <div style={{
-        background: '#fff', borderRadius: '16px', padding: '32px 24px',
+        background: TOKENS.bg, borderRadius: `${RADIUS2.panel}px`, padding: '32px 24px',
         width: '100%', maxWidth: '320px', textAlign: 'center',
         boxShadow: SHADOW[3],
       }} onClick={e => e.stopPropagation()}>
         <div style={{
           width: '52px', height: '52px', borderRadius: '50%',
-          background: '#FFF3E0', border: '2px solid #F59E0B',
+          background: TOKENS.warnBg, border: `2px solid ${TOKENS.warnBorder}`, color: TOKENS.warnText,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           margin: '0 auto 16px', fontSize: '24px',
         }}>!</div>
-        <p style={{ fontSize: '17px', fontWeight: 700, color: '#1A1A1A', margin: '0 0 8px' }}>알림</p>
-        <p style={{ fontSize: '14px', color: '#4B5563', margin: '0 0 24px', lineHeight: 1.6 }}>{message}</p>
+        <p style={{ fontSize: '17px', fontWeight: 700, color: TOKENS.text, margin: '0 0 8px' }}>알림</p>
+        <p style={{ fontSize: '14px', color: TOKENS.textSub, margin: '0 0 24px', lineHeight: 1.6 }}>{message}</p>
         <button onClick={onClose} style={{
           width: '100%', padding: '12px', fontSize: '14px', fontWeight: 700,
-          border: 'none', borderRadius: `${RADIUS2.input}px`, background: C.primary,
+          border: 'none', borderRadius: `${RADIUS2.input}px`, background: TOKENS.brand,
           color: '#fff', cursor: 'pointer', fontFamily: 'inherit',
         }}>확인</button>
       </div>
@@ -773,12 +773,12 @@ export default function DiagnosticReportInput({
     setSaving(false);
   };
 
-  // 토스트 색상
+  // 토스트 색상 — 화면 전역에서 쓰는 TOKENS 성공/실패/경고 어휘와 통일
   const toastColors = {
-    success: { bg: '#0F6E56', icon: '✓' },
-    error:   { bg: '#8B2020', icon: '✕' },
-    warn:    { bg: '#8A5A00', icon: '!' },
-    info:    { bg: C.primary, icon: 'i' },
+    success: { bg: TOKENS.successDark, icon: '✓' },
+    error:   { bg: TOKENS.danger, icon: '✕' },
+    warn:    { bg: TOKENS.warn, icon: '!' },
+    info:    { bg: TOKENS.brand, icon: 'i' },
   };
 
   return (
@@ -830,20 +830,20 @@ export default function DiagnosticReportInput({
       {editingReport && (
         <div style={{
           maxWidth: '1100px', margin: '0 auto 16px',
-          background: '#FFF8E7', border: '1.5px solid #F5A623', borderRadius: '10px',
+          background: TOKENS.warnBg, border: `1.5px solid ${TOKENS.warnBorder}`, borderRadius: `${RADIUS2.input}px`,
           padding: '12px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           flexWrap: 'wrap', gap: '10px'
         }}>
           <div style={{ minWidth: 0 }}>
-            <p style={{ fontSize: '12px', fontWeight: 800, color: '#7A5200', margin: 0, wordBreak: 'keep-all' }}>
+            <p style={{ fontSize: '12px', fontWeight: 800, color: TOKENS.warnText, margin: 0, wordBreak: 'keep-all' }}>
               수정 모드 — {editingReport.studentName} 리포트를 수정 중입니다
             </p>
-            <p style={{ fontSize: '11px', color: '#9A6800', margin: '2px 0 0' }}>
+            <p style={{ fontSize: '11px', color: TOKENS.warnText, margin: '2px 0 0' }}>
               내용을 수정한 뒤 저장하면 기존 리포트가 업데이트됩니다.
             </p>
           </div>
           <button onClick={() => { onEditDone(); setStudentId(''); }}
-            style={{ background: 'none', border: '1px solid #F5A623', borderRadius: '6px', padding: '5px 12px', fontSize: '11px', fontWeight: 700, color: '#7A5200', cursor: 'pointer', flexShrink: 0 }}>
+            style={{ background: 'none', border: `1px solid ${TOKENS.warnBorder}`, borderRadius: `${RADIUS2.chip}px`, padding: '5px 12px', fontSize: '11px', fontWeight: 700, color: TOKENS.warnText, cursor: 'pointer', flexShrink: 0 }}>
             취소
           </button>
         </div>
@@ -1618,7 +1618,7 @@ export default function DiagnosticReportInput({
                 {selectedTags.length > 0 && (
                   <div style={{ background: TOKENS.warnBg, borderRadius: '12px', padding: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <p style={{ fontSize: '11px', color: TOKENS.warn, fontWeight: 700, margin: '0 0 2px' }}>선택된 진단 상세 입력</p>
-                    <p style={{ fontSize: '10px', color: '#8A5A00', margin: '0 0 4px', lineHeight: 1.5 }}>
+                    <p style={{ fontSize: '10px', color: TOKENS.warn, margin: '0 0 4px', lineHeight: 1.5 }}>
                       <Info size={11} style={{ verticalAlign: '-2px' }} /> 구체적으로 적을수록 원장 보고서에서 바로 확인됩니다<br/>
                       예: <strong>4단원 · 111p · 비례식 문장제 — 식 세우기 단계에서 막힘</strong>
                     </p>
@@ -1764,7 +1764,7 @@ export default function DiagnosticReportInput({
 
               {/* 8. 다음 수업 계획 */}
               <FormSection number="8" title="다음 수업 계획">
-                <p style={{ fontSize: '11px', color: '#8A5A00', background: '#FFF8E7', border: '1px solid #F5D76E', borderRadius: '8px', padding: '8px 12px', margin: '0 0 10px', lineHeight: 1.6 }}>
+                <p style={{ fontSize: '11px', color: TOKENS.warn, background: TOKENS.warnBg, border: `1px solid ${TOKENS.warnBorder}`, borderRadius: `${RADIUS2.input}px`, padding: '8px 12px', margin: '0 0 10px', lineHeight: 1.6 }}>
                   <Info size={11} style={{ verticalAlign: '-2px' }} /> 오늘 진단된 약점과 연결되는 전략을 적으면 학부모 신뢰도가 높아집니다.<br/>
                   예: <strong>"응용력 보완을 위한 5단원 개념 연계 풀이 진행"</strong>
                 </p>
@@ -1814,18 +1814,18 @@ export default function DiagnosticReportInput({
           <p style={{ fontSize: '11px', color: TOKENS.textMute, fontWeight: 700, marginBottom: '8px' }}>학부모 발송 미리보기</p>
 
           {/* 스킨 표시 — 학생 개별 스킨 or 선택 스킨 */}
-          <div style={{ background: '#fff', borderRadius: '14px', border: '1px solid #E5E7EB', padding: '10px 14px', marginBottom: '10px', boxShadow: SHADOW[1] }}>
+          <div style={{ background: TOKENS.bg, borderRadius: `${RADIUS2.card}px`, border: `1px solid ${TOKENS.border}`, padding: '10px 14px', marginBottom: '10px', boxShadow: SHADOW[1] }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <p style={{ fontSize: '10px', fontWeight: 700, color: '#6B7280', margin: 0, letterSpacing: '0.06em' }}><Palette size={10} style={{ verticalAlign: '-1px', marginRight: '3px' }} />리포트 스킨</p>
+              <FieldLabel><Palette size={10} style={{ verticalAlign: '-1px', marginRight: '3px' }} />리포트 스킨</FieldLabel>
               {student?.skinColor && (
-                <span style={{ fontSize: '9px', fontWeight: 600, color: '#fff', background: TOKENS.info, padding: '2px 8px', borderRadius: '4px' }}>학생 개별 스킨 적용 중</span>
+                <span style={{ fontSize: '9px', fontWeight: 600, color: '#fff', background: TOKENS.info, padding: '2px 8px', borderRadius: `${RADIUS2.badge}px` }}>학생 개별 스킨 적용 중</span>
               )}
             </div>
             {student?.skinColor ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#F9FAFB', borderRadius: '10px', padding: '8px 10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: TOKENS.bgSoft, borderRadius: `${RADIUS2.input}px`, padding: '8px 10px' }}>
                 <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: student.skinColor, border: '2px solid rgba(0,0,0,0.08)', flexShrink: 0 }}></div>
-                <span style={{ fontSize: '11px', fontWeight: 600, color: '#1A1A1A' }}>개별 설정 색상</span>
-                <span style={{ fontSize: '10px', color: '#9CA3AF', fontFamily: 'monospace' }}>{student.skinColor}</span>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: TOKENS.text }}>개별 설정 색상</span>
+                <span style={{ fontSize: '10px', color: TOKENS.textMute, fontFamily: 'monospace' }}>{student.skinColor}</span>
               </div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
@@ -1834,15 +1834,15 @@ export default function DiagnosticReportInput({
                     key={sk.key}
                     onClick={() => setSelectedSkin(sk.key)}
                     style={{
-                      border: `2px solid ${selectedSkin === sk.key ? TOKENS.info : '#E5E7EB'}`,
-                      borderRadius: '10px', padding: '7px 4px', cursor: 'pointer',
-                      background: selectedSkin === sk.key ? TOKENS.infoBg : '#F9FAFB',
+                      border: `2px solid ${selectedSkin === sk.key ? TOKENS.info : TOKENS.border}`,
+                      borderRadius: `${RADIUS2.input}px`, padding: '7px 4px', cursor: 'pointer',
+                      background: selectedSkin === sk.key ? TOKENS.infoBg : TOKENS.bgSoft,
                       display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px',
                       fontFamily: 'inherit', transition: 'all 0.15s',
                     }}
                   >
                     <div style={{ width: '100%', height: '18px', borderRadius: '5px', background: sk.dots[0], marginBottom: '2px' }}></div>
-                    <span style={{ fontSize: '8px', fontWeight: 700, color: selectedSkin === sk.key ? TOKENS.infoDark : '#6B7280', textAlign: 'center', lineHeight: 1.3 }}>{sk.name}</span>
+                    <span style={{ fontSize: '8px', fontWeight: 700, color: selectedSkin === sk.key ? TOKENS.infoDark : TOKENS.textSub, textAlign: 'center', lineHeight: 1.3 }}>{sk.name}</span>
                   </button>
                 ))}
               </div>
@@ -2128,7 +2128,7 @@ function FormSection({ number, title, badge, badgeTone = 'neutral', children }) 
     neutral: { background: TOKENS.borderLight, color: TOKENS.textSub },
   }[badgeTone];
   return (
-    <div style={{ background: '#fff', borderRadius: `${RADIUS2.card}px`, padding: '16px', border: `1px solid #E5E7EB`, boxShadow: SHADOW[1] }}>
+    <div style={{ background: TOKENS.bg, borderRadius: `${RADIUS2.card}px`, padding: '16px', border: `1px solid ${TOKENS.border}`, boxShadow: SHADOW[1] }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
         <span style={{ width: '4px', height: '15px', borderRadius: '2px', background: TOKENS.brand, flexShrink: 0 }} />
         <h2 style={{ fontSize: '14px', fontWeight: 700, margin: 0, letterSpacing: '-0.02em' }}>{title}</h2>
@@ -2140,7 +2140,7 @@ function FormSection({ number, title, badge, badgeTone = 'neutral', children }) 
 }
 
 function FieldLabel({ children }) {
-  return <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 700, margin: '0 0 5px' }}>{children}</p>;
+  return <p style={{ fontSize: '11px', color: TOKENS.textSub, fontWeight: 700, margin: '0 0 5px' }}>{children}</p>;
 }
 
 function RatingPicker({ label, value, onChange }) {
@@ -2149,10 +2149,10 @@ function RatingPicker({ label, value, onChange }) {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-        <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 700, margin: 0 }}>{label}</p>
+        <p style={{ fontSize: '11px', color: TOKENS.textSub, fontWeight: 700, margin: 0 }}>{label}</p>
         <span style={{
           fontSize: '12px', fontWeight: 800, padding: '2px 11px', borderRadius: '20px', fontVariantNumeric: 'tabular-nums',
-          color: isEmpty ? '#9CA3AF' : TOKENS.infoDark, background: isEmpty ? '#F3F4F6' : TOKENS.infoBg,
+          color: isEmpty ? TOKENS.textMute : TOKENS.infoDark, background: isEmpty ? TOKENS.borderLight : TOKENS.infoBg,
         }}>
           {isEmpty ? '미입력' : `${pct}%`}
         </span>
@@ -2163,7 +2163,7 @@ function RatingPicker({ label, value, onChange }) {
         onChange={(e) => onChange(Number(e.target.value))}
         aria-label={label}
         aria-valuetext={isEmpty ? '미입력' : `${pct}% (${ratingLabel(pct) || '노력 필요'})`}
-        style={{ width: '100%', accentColor: isEmpty ? '#9CA3AF' : TOKENS.info, cursor: 'pointer', display: 'block', height: '44px' }}
+        style={{ width: '100%', accentColor: isEmpty ? TOKENS.textMute : TOKENS.info, cursor: 'pointer', display: 'block', height: '44px' }}
       />
     </div>
   );
@@ -2171,10 +2171,10 @@ function RatingPicker({ label, value, onChange }) {
 
 const inputStyle = {
   width: '100%', padding: '9px 11px', fontSize: '16px',
-  border: `1px solid #E5E7EB`, borderRadius: `${RADIUS2.input}px`,
-  background: '#F9FAFB', outline: 'none',
+  border: `1px solid ${TOKENS.border}`, borderRadius: `${RADIUS2.input}px`,
+  background: TOKENS.bgSoft, outline: 'none',
   fontFamily: "'Pretendard Variable', Pretendard, sans-serif",
-  fontWeight: 500, color: '#1A1A1A', letterSpacing: '-0.02em', boxSizing: 'border-box',
+  fontWeight: 500, color: TOKENS.text, letterSpacing: '-0.02em', boxSizing: 'border-box',
 };
 const selectStyle = {
   ...inputStyle, cursor: 'pointer', appearance: 'none',
@@ -2187,32 +2187,32 @@ const selectStyle = {
 // 선택 토글(chip/toggle)의 활성 상태는 Info 계열 — Primary(전송/저장)와 시각적으로 분리
 const chipStyle = (active) => ({
   padding: '6px 12px', fontSize: '12px', fontWeight: active ? 700 : 500,
-  borderRadius: `${RADIUS2.chip}px`, border: `1px solid ${active ? TOKENS.info : '#E5E7EB'}`,
-  background: active ? TOKENS.infoBg : '#fff', color: active ? TOKENS.infoDark : '#6B7280',
+  borderRadius: `${RADIUS2.chip}px`, border: `1px solid ${active ? TOKENS.info : TOKENS.border}`,
+  background: active ? TOKENS.infoBg : TOKENS.bg, color: active ? TOKENS.infoDark : TOKENS.textSub,
   cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '-0.02em',
 });
 const tagStyle = (color, active) => {
   const c = { warn: { bg: TOKENS.warnBg, border: TOKENS.warnBorder, text: TOKENS.warnText }, danger: { bg: TOKENS.dangerBg, border: TOKENS.dangerBorder, text: TOKENS.danger }, success: { bg: TOKENS.successBg, border: TOKENS.success, text: TOKENS.successDark } }[color] || {};
-  return { padding: '4px 9px', fontSize: '12px', fontWeight: 600, borderRadius: `${RADIUS2.chip}px`, border: `1px solid ${active ? c.border : '#E5E7EB'}`, background: active ? c.bg : '#fff', color: active ? c.text : '#6B7280', cursor: 'pointer', fontFamily: 'inherit' };
+  return { padding: '4px 9px', fontSize: '12px', fontWeight: 600, borderRadius: `${RADIUS2.chip}px`, border: `1px solid ${active ? c.border : TOKENS.border}`, background: active ? c.bg : TOKENS.bg, color: active ? c.text : TOKENS.textSub, cursor: 'pointer', fontFamily: 'inherit' };
 };
 const toggleStyle = (active) => ({
   flex: 1, padding: '7px', fontSize: '12px', fontWeight: active ? 700 : 500,
-  border: 'none', borderRadius: `${RADIUS2.chip}px`, background: active ? '#fff' : 'transparent',
-  color: active ? TOKENS.infoDark : '#6B7280', cursor: 'pointer', fontFamily: 'inherit',
+  border: 'none', borderRadius: `${RADIUS2.chip}px`, background: active ? TOKENS.bg : 'transparent',
+  color: active ? TOKENS.infoDark : TOKENS.textSub, cursor: 'pointer', fontFamily: 'inherit',
   boxShadow: active ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
 });
 const suggestionStyle = { padding: '7px 12px', fontSize: '12px', fontWeight: 500, borderRadius: `${RADIUS2.chip}px`, border: 'none', background: TOKENS.brandLight, color: TOKENS.brand, cursor: 'pointer', fontFamily: 'inherit', minHeight: '32px' };
 const aiButtonStyle = (disabled) => ({
   marginTop: '8px', width: '100%', padding: '9px', fontSize: '12px', fontWeight: 700,
-  borderRadius: `${RADIUS2.input}px`, border: `1px solid ${disabled ? '#E5E7EB' : TOKENS.success}`,
-  background: disabled ? '#F9FAFB' : '#fff', color: disabled ? '#9CA3AF' : TOKENS.success,
+  borderRadius: `${RADIUS2.input}px`, border: `1px solid ${disabled ? TOKENS.border : TOKENS.success}`,
+  background: disabled ? TOKENS.bgSoft : TOKENS.bg, color: disabled ? TOKENS.textMute : TOKENS.success,
   cursor: disabled ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center',
   justifyContent: 'center', gap: '5px', fontFamily: 'inherit',
 });
 // 메인 액션(저장/발송) — Primary Navy 전용. padding은 스펙 섹션 5 "Primary 버튼 padding: 16px(수직)/20px(수평)" 그대로
 const submitButtonStyle = (valid) => ({
   padding: '16px 20px', fontSize: '14px', fontWeight: 700, borderRadius: `${RADIUS2.input}px`, border: 'none',
-  background: valid ? TOKENS.brand : '#E5E7EB', color: valid ? '#fff' : '#9CA3AF', cursor: valid ? 'pointer' : 'not-allowed',
+  background: valid ? TOKENS.brand : TOKENS.border, color: valid ? '#fff' : TOKENS.textMute, cursor: valid ? 'pointer' : 'not-allowed',
   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px',
   fontFamily: 'inherit', boxShadow: valid ? '0 4px 14px rgba(13,45,107,0.28)' : 'none',
 });
