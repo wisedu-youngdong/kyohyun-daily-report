@@ -54,6 +54,31 @@ export function StudentProfileModal({ student, reports, reviews = [], onClose, o
   // 최근 학습 단원 목록
   const unitHistory = [...new Set(sorted.map(r => [r.textbook, r.unit].filter(Boolean).join(' · ')).filter(Boolean))].slice(-5).reverse();
 
+  // 단원별 이해도 히트맵 — unitKey(표준 단원 정규화)로 묶어 개념 이해 평균을 계산.
+  // AnalysisView.jsx의 "단원별 정답률"은 시험 점수(hasTest)만 쓰지만, 시험이 매번 있는 게
+  // 아니라 데이터가 성겨서(sparse) — 상담용 히트맵은 거의 매 리포트에 있는 conceptRating으로
+  // 계산해 단원 커버리지를 넓힘.
+  const unitAccuracy = (() => {
+    const map = {};
+    sorted.forEach(r => {
+      if (r.conceptRating == null) return;
+      const label = [r.textbook, r.unit].filter(Boolean).join(' · ');
+      if (!label) return;
+      const key = r.unitKey || findUnitKey(r.subject || '수학', r.unit || '') || label;
+      if (!map[key]) map[key] = { name: label, sum: 0, count: 0 };
+      map[key].sum += r.conceptRating;
+      map[key].count += 1;
+    });
+    return Object.values(map)
+      .map(u => ({ ...u, pct: Math.round(u.sum / u.count) }))
+      .sort((a, b) => a.pct - b.pct);
+  })();
+  const heatTier = (pct) => pct >= 80
+    ? { bg: '#F0FAF5', color: '#0F6E56', border: '#0F6E5630' }
+    : pct >= 60
+      ? { bg: '#FFF8EC', color: '#8A5A00', border: '#C9A22730' }
+      : { bg: '#FDF0F0', color: '#A32D2D', border: '#A32D2D30' };
+
   // 완료된 복습 이력 — 최신순. "완료" 자체보다 그때 실제로 뭘 했는지(note/testScore)를 보여주는 게 목적
   const completedReviews = [...reviews]
     .filter(rv => rv.status === 'done')
@@ -302,6 +327,27 @@ export function StudentProfileModal({ student, reports, reviews = [], onClose, o
                   );
                 })}
               </div>
+            </div>
+          )}
+
+          {/* 단원별 이해도 히트맵 */}
+          {unitAccuracy.length > 0 && (
+            <div style={{ marginBottom: '20px' }}>
+              <p style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 6px', color: '#1A1A1A' }}>단원별 이해도</p>
+              <div style={{ width: '32px', height: '2px', background: '#C9A227', marginBottom: '12px' }} />
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(92px, 1fr))', gap: '6px' }}>
+                {unitAccuracy.map((u) => {
+                  const tier = heatTier(u.pct);
+                  return (
+                    <div key={u.name} title={u.name}
+                      style={{ background: tier.bg, border: `1px solid ${tier.border}`, borderRadius: '8px', padding: '8px 8px 7px', minHeight: '54px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                      <p style={{ fontSize: '10px', color: tier.color, fontWeight: 600, margin: 0, lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{u.name}</p>
+                      <p style={{ fontSize: '15px', color: tier.color, fontWeight: 800, margin: 0, fontVariantNumeric: 'tabular-nums' }}>{u.pct}%</p>
+                    </div>
+                  );
+                })}
+              </div>
+              <p style={{ fontSize: '10px', color: '#98A1AC', margin: '8px 0 0' }}>개념 이해 평가 평균 · 낮은 순 정렬 · 빨강/주황일수록 보강이 필요해요</p>
             </div>
           )}
 
