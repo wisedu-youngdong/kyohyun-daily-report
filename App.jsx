@@ -19,6 +19,8 @@ import { T } from './tokens.jsx';
 import LoginScreen from './views/LoginScreen.jsx';
 // 로그인 직후 기본 랜딩 화면이라 즉시 페인트가 중요 — 이것만 정적 import로 남김
 import DashboardView from './views/DashboardView.jsx';
+// 신규 학원 첫 로그인 시 바로 떠야 해서(lazy 분리 시 깜빡임) 마찬가지로 정적 import — 파일 자체가 가벼움
+import OnboardingGuide from './views/OnboardingGuide.jsx';
 // 아래는 전부 특정 탭을 열 때만 필요한 화면들 — React.lazy로 분리해 dashboard 첫 진입 시
 // 이 코드를 같이 안 받아가도록 함(recharts(vendor-charts, 375KB)를 쓰는 AnalysisView가
 // 원조 사례, 이후 같은 패턴으로 확장)
@@ -81,6 +83,8 @@ export default function App() {
   const [academySkinColor, setAcademySkinColor] = useState(null);
   const [academyStatus, setAcademyStatus] = useState(null);
   const [academySubjects, setAcademySubjects] = useState(null);
+  const [academyCreatedAt, setAcademyCreatedAt] = useState(null);
+  const [onboardingPromptShown, setOnboardingPromptShown] = useState(true); // 필드 없는(기존) 학원은 기본 true=이미 봄 취급
 
   // 학원 브랜딩(로고+기본 스킨색)+이용 상태 — 로그인 전(비인증) 화면에서도 로고가 보여야 해서 App 최상위에서 구독.
   // 로그인 후에는 그 계정의 academyId 학원 문서를 구독(분양학원 원장에게 교현 로고가 보이던 문제 해결),
@@ -96,8 +100,12 @@ export default function App() {
         setAcademySkinColor(data.globalSkinColor || null);
         setAcademyStatus(data.status || 'active');
         setAcademySubjects(Array.isArray(data.subjects) && data.subjects.length > 0 ? data.subjects : null);
+        setAcademyCreatedAt(data.createdAt?.seconds || null);
+        // 필드가 아예 없으면(기존 학원) true로 취급해 시작 가이드가 안 뜨게 함 —
+        // 새로 만든 학원만 handleCreateAcademy/handleApproveSignup에서 명시적으로 false를 심어둠
+        setOnboardingPromptShown(data.onboardingPromptShown !== false);
       },
-      () => { setLogoUrl(null); setAcademyName(null); setAcademyPhone(null); setAcademySkinColor(null); setAcademyStatus(null); setAcademySubjects(null); }
+      () => { setLogoUrl(null); setAcademyName(null); setAcademyPhone(null); setAcademySkinColor(null); setAcademyStatus(null); setAcademySubjects(null); setAcademyCreatedAt(null); setOnboardingPromptShown(true); }
     );
     return () => unsub();
   }, [academyId]);
@@ -106,6 +114,23 @@ export default function App() {
     if (appToastTimerRef.current) clearTimeout(appToastTimerRef.current);
     setAppToast({ msg, type });
     appToastTimerRef.current = setTimeout(() => setAppToast(null), 2500);
+  };
+
+  // 시작 가이드 — 첫 화면(프롬프트) 닫으면 다시는 안 뜨게 기록만 남김(체크리스트 진행 상태
+  // 자체는 학생/리포트/로고/열람 실데이터로 매번 계산하므로 별도 저장 불필요)
+  const handleDismissOnboardingPrompt = async () => {
+    try {
+      await setDoc(doc(db, 'academies', academyId), { onboardingPromptShown: true }, { merge: true });
+    } catch (e) {
+      console.error('온보딩 프롬프트 상태 저장 실패:', e);
+    }
+  };
+  // 설정의 "가이드 다시 보기" 버튼이 이 값을 올리면(매번 다른 값이어야 useEffect가 다시 반응함)
+  // 7일 경과/4단계 완료로 숨겨진 상태여도 강제로 체크리스트를 다시 연다
+  const [onboardingReopenSignal, setOnboardingReopenSignal] = useState(0);
+  const handleOnboardingNavigate = (tab, sub) => {
+    setActiveTab(tab);
+    if (sub) setSubTab(tab, sub);
   };
 
   // 예전엔 로그인만 하면 조회만 해도 탭을 닫거나 뒤로가기할 때마다 항상 경고가 떴음(+모바일
@@ -619,6 +644,20 @@ export default function App() {
         }}>{appToast.msg}</div>
       )}
 
+      <OnboardingGuide
+        isDirector={isDirector}
+        promptShown={onboardingPromptShown}
+        academyId={academyId}
+        academyCreatedAt={academyCreatedAt}
+        students={activeStudents}
+        reports={reports}
+        reportViews={reportViews}
+        logoUrl={logoUrl}
+        forceOpenSignal={onboardingReopenSignal}
+        onDismissPrompt={handleDismissOnboardingPrompt}
+        onNavigate={handleOnboardingNavigate}
+      />
+
       <main>
       <ErrorBoundary key={activeTab} minHeight="400px">
         {activeTab === 'dashboard' && (dataReady
@@ -768,7 +807,7 @@ export default function App() {
               )}
               {activeSubTab.manage === 'settings' && (dataReady
                 ? <React.Suspense fallback={<SkeletonBlock rows={4} cardHeight={70} />}>
-                    <SettingsView students={students} onSaveStudent={handleSaveStudent} teachers={teachers} onSaveTeacher={handleSaveTeacher} onDeleteTeacher={handleDeleteTeacher} classes={classes} onSaveClass={handleSaveClass} onDeleteClass={handleDeleteClass} logoUrl={logoUrl} onSaveLogo={handleSaveLogo} onDeleteLogo={handleDeleteLogo} academyId={academyId} academyPhone={academyPhone} academySkinColor={academySkinColor} academySubjects={academySubjects} isPlatformAdmin={isPlatformAdmin} onToast={showAppToast} />
+                    <SettingsView students={students} onSaveStudent={handleSaveStudent} teachers={teachers} onSaveTeacher={handleSaveTeacher} onDeleteTeacher={handleDeleteTeacher} classes={classes} onSaveClass={handleSaveClass} onDeleteClass={handleDeleteClass} logoUrl={logoUrl} onSaveLogo={handleSaveLogo} onDeleteLogo={handleDeleteLogo} academyId={academyId} academyPhone={academyPhone} academySkinColor={academySkinColor} academySubjects={academySubjects} isPlatformAdmin={isPlatformAdmin} onToast={showAppToast} onReopenGuide={() => setOnboardingReopenSignal(s => s + 1)} />
                   </React.Suspense>
                 : <SkeletonBlock rows={4} cardHeight={70} />
               )}

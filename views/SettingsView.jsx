@@ -91,7 +91,7 @@ function deriveColors(mainHex) {
   };
 }
 
-export default function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDeleteTeacher, classes = [], onSaveClass, onDeleteClass, logoUrl, onSaveLogo, onDeleteLogo, academyId, academyPhone, academySkinColor, academySubjects, isPlatformAdmin = false, onToast }) {
+export default function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDeleteTeacher, classes = [], onSaveClass, onDeleteClass, logoUrl, onSaveLogo, onDeleteLogo, academyId, academyPhone, academySkinColor, academySubjects, isPlatformAdmin = false, onToast, onReopenGuide }) {
   // 플랫폼 관리 섹션(가입신청/새학원/분양학원)이 늘어나면서 학원 설정과 한 페이지에 다 있으면
   // 스크롤이 너무 길어져 탭으로 분리 — 플랫폼 관리자가 아니면 애초에 두 번째 탭 내용이 없으니 탭 자체를 안 보여줌
   const [settingsTab, setSettingsTab] = React.useState('academy'); // 'academy' | 'platform'
@@ -272,9 +272,12 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
       // 1. ID 중복 체크
       const existing = await getDoc(doc(db, 'academies', trimmedId));
       if (existing.exists()) throw new Error('이미 사용 중인 학원 ID입니다.');
-      // 2. academies/{id} 브랜딩 문서 — handleCreateAcademy와 동일한 형태
+      // 2. academies/{id} 브랜딩 문서 — handleCreateAcademy와 동일한 형태.
+      //    onboardingPromptShown: false로 시작해야 첫 로그인 때 시작 가이드가 뜸(기존 학원은
+      //    이 필드 자체가 없어서 자동으로 안 뜸 — App.jsx가 필드 부재를 "이미 봤음"으로 취급)
       await setDoc(doc(db, 'academies', trimmedId), {
         academyName: req.academyName, globalSkinColor: DEFAULT_SKIN_COLOR, createdAt: serverTimestamp(),
+        onboardingPromptShown: false,
       });
       // 3. 원장 본인의 teachers 레코드
       const teacherRef = await addDoc(collection(db, 'academies', trimmedId, 'teachers'), {
@@ -555,9 +558,11 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
       // 2. 원장 Auth 계정 생성 — 실패 가능성이 가장 높은 단계를 Firestore 쓰기보다 먼저 수행해서,
       //    여기서 실패하면 Firestore에 아무 흔적도 안 남고 재시도가 항상 깨끗하게 시작되게 함
       const newUid = await createUserWithoutSignIn(newDirectorEmail, newDirectorPassword);
-      // 3. academies/{id} 브랜딩 문서
+      // 3. academies/{id} 브랜딩 문서 — onboardingPromptShown: false로 시작해야
+      //    첫 로그인 때 시작 가이드가 뜸(기존 학원은 필드 자체가 없어서 자동으로 안 뜸)
       await setDoc(doc(db, 'academies', trimmedId), {
         academyName: trimmedName, globalSkinColor: DEFAULT_SKIN_COLOR, createdAt: serverTimestamp(),
+        onboardingPromptShown: false,
       });
       // 4. 원장 본인의 teachers 레코드 — 리포트 작성 시 담당 강사(teacherId) 선택이 필수라서,
       //    직접 리포트를 쓰려면 원장도 강사 레코드가 있어야 함
@@ -625,6 +630,19 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
       )}
 
       {settingsTab === 'academy' && (<>
+
+      {onReopenGuide && (
+        <div style={{ background: '#fff', borderRadius: '16px', padding: '14px 18px', border: '1px solid #E5E7EB', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+          <div>
+            <p style={{ fontSize: '13px', fontWeight: 700, margin: '0 0 2px' }}>시작 가이드</p>
+            <p style={{ fontSize: '11px', color: '#6B7280', margin: 0 }}>학생 등록·리포트 작성 등 4단계 안내를 다시 볼 수 있어요.</p>
+          </div>
+          <button onClick={onReopenGuide}
+            style={{ padding: '8px 14px', fontSize: '12px', fontWeight: 700, borderRadius: '9px', border: `1px solid ${C.primary}`, background: '#fff', color: C.primary, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0 }}>
+            가이드 다시 보기
+          </button>
+        </div>
+      )}
 
       {/* 학원 로고 */}
       <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB', marginBottom: '14px' }}>
