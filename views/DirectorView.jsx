@@ -302,7 +302,7 @@ export default function DirectorView({ reports, students, classes = [], reportVi
                 lucide 아이콘으로 대체. 아이콘 클릭 시 showPicker()로 같은 달력을 띄움. */}
             <style>{`.dv-date-input::-webkit-calendar-picker-indicator { display: none; }`}</style>
             <input ref={dateInputRef} type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="dv-date-input"
-              style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: '16px', fontFamily: 'inherit', color: 'inherit', fontWeight: 700, cursor: 'pointer', width: '105px' }}
+              style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: '16px', fontFamily: 'inherit', color: 'inherit', fontWeight: 700, cursor: 'pointer', width: '132px', flexShrink: 0 }}
             />
             <CalendarDays size={20} strokeWidth={2}
               onClick={() => dateInputRef.current?.showPicker ? dateInputRef.current.showPicker() : dateInputRef.current?.focus()}
