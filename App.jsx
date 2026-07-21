@@ -351,9 +351,11 @@ export default function App() {
       showAppToast('로고 삭제에 실패했습니다.', 'error');
     }
   };
-  const handleSaveCommentTemplate = async (label, text) => {
+  const handleSaveCommentTemplate = async (label, text, tags = []) => {
     try {
-      await addDoc(collection(db, 'academies', academyId, 'commentTemplates'), { label, text, createdAt: serverTimestamp() });
+      // tags: 저장 시점에 선택돼 있던 진단 태그 키(calc/concept/apply/time/perfect) — 다음에
+      // 같은 태그로 리포트를 쓸 때 이 즐겨찾기를 자동으로 상위 추천하는 데 씀
+      await addDoc(collection(db, 'academies', academyId, 'commentTemplates'), { label, text, tags, createdAt: serverTimestamp() });
     } catch (e) {
       console.error('코멘트 즐겨찾기 저장 실패:', e);
       showAppToast('즐겨찾기 저장에 실패했습니다.', 'error');

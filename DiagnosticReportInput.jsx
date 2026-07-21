@@ -1704,28 +1704,42 @@ export default function DiagnosticReportInput({
                   )}
                 </div>
 
-                {/* 코멘트 즐겨찾기 — 학원 공용, 탭하면 메모에 이어붙임 */}
-                {commentTemplates.length > 0 && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: '8px' }}>
-                    {commentTemplates.map(t => (
-                      <span key={t.id} style={{
-                        display: 'inline-flex', alignItems: 'center', gap: '4px',
-                        background: '#FFF8E7', border: '1px solid #F5D76E', borderRadius: '20px',
-                        padding: '4px 6px 4px 12px', fontSize: '11px', color: '#7A5200', fontWeight: 500,
-                      }}>
-                        <Star size={10} fill={C.accent} color={C.accent} style={{ flexShrink: 0 }} />
-                        <button type="button" onClick={() => setTeacherNote(prev => prev ? `${prev}\n${t.text}` : t.text)}
-                          style={{ background: 'none', border: 'none', color: '#7A5200', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', padding: 0, maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {t.label}
-                        </button>
-                        <button type="button" onClick={() => { if (window.confirm(`"${t.label}" 즐겨찾기를 삭제할까요?`)) onDeleteCommentTemplate(t.id); }}
-                          style={{ background: 'none', border: 'none', color: '#B08900', cursor: 'pointer', padding: '2px', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          <X size={11} />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
+                {/* 코멘트 즐겨찾기 — 학원 공용, 탭하면 메모에 이어붙임.
+                    오늘 선택한 진단 태그와 겹치는 즐겨찾기(저장 당시 태그 기록해둔 것)를
+                    앞으로 정렬 + "추천" 표시 — 목록이 늘어날수록 원하는 걸 찾기 어려워지는 걸 방지 */}
+                {commentTemplates.length > 0 && (() => {
+                  const currentTagKeys = new Set(selectedTags.map(t => t.key));
+                  const scored = commentTemplates.map(t => ({
+                    t, score: (t.tags || []).filter(k => currentTagKeys.has(k)).length,
+                  }));
+                  const sorted = currentTagKeys.size > 0
+                    ? [...scored].sort((a, b) => b.score - a.score)
+                    : scored;
+                  return (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: '8px' }}>
+                      {sorted.map(({ t, score }) => {
+                        const recommended = score > 0;
+                        return (
+                          <span key={t.id} style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '4px',
+                            background: recommended ? '#FFF0D6' : '#FFF8E7', border: `1px solid ${recommended ? C.accent : '#F5D76E'}`, borderRadius: '20px',
+                            padding: '4px 6px 4px 12px', fontSize: '11px', color: '#7A5200', fontWeight: 500,
+                          }}>
+                            <Star size={10} fill={C.accent} color={C.accent} style={{ flexShrink: 0 }} />
+                            <button type="button" onClick={() => setTeacherNote(prev => prev ? `${prev}\n${t.text}` : t.text)}
+                              style={{ background: 'none', border: 'none', color: '#7A5200', fontWeight: recommended ? 800 : 700, cursor: 'pointer', fontFamily: 'inherit', padding: 0, maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {recommended && '👍 '}{t.label}
+                            </button>
+                            <button type="button" onClick={() => { if (window.confirm(`"${t.label}" 즐겨찾기를 삭제할까요?`)) onDeleteCommentTemplate(t.id); }}
+                              style={{ background: 'none', border: 'none', color: '#B08900', cursor: 'pointer', padding: '2px', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                              <X size={11} />
+                            </button>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
 
                 <textarea value={teacherNote} onChange={(e) => setTeacherNote(e.target.value)}
                   placeholder="예: 3단원 자릿수 실수 2번, 응용은 시간 부족으로 못 풂. 개념은 알고 있음"
@@ -1733,7 +1747,7 @@ export default function DiagnosticReportInput({
                 <button type="button" onClick={() => {
                   if (!teacherNote.trim()) return;
                   const label = window.prompt('즐겨찾기 이름을 입력해주세요 (예: 계산실수 안내)', teacherNote.trim().slice(0, 12));
-                  if (label && label.trim()) onSaveCommentTemplate(label.trim(), teacherNote.trim());
+                  if (label && label.trim()) onSaveCommentTemplate(label.trim(), teacherNote.trim(), selectedTags.map(t => t.key));
                 }} disabled={!teacherNote.trim()} style={{
                   marginTop: '6px', width: '100%', padding: '7px', fontSize: '11px', fontWeight: 700, borderRadius: '8px',
                   border: `1px solid ${teacherNote.trim() ? '#C9A227' : '#E5E7EB'}`, background: '#fff',
