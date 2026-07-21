@@ -1,4 +1,4 @@
-import { C, RADIUS2 } from '../tokens.jsx';
+import { T, C, RADIUS2 } from '../tokens.jsx';
 
 // ── 캐릭터 아바타 목록 — DashboardView/StudentsView 공용
 export const AVATARS = [
@@ -50,11 +50,11 @@ export function groupByClassId(items, getStudentId, students, classes) {
 
 export function StatCard({ label, value, unit, color = C.midGray }) {
   return (
-    <div style={{ background: '#fff', borderRadius: `${RADIUS2.card}px`, padding: '16px', border: `1px solid #E5E7EB` }}>
-      <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 700, margin: '0 0 6px' }}>{label}</p>
+    <div style={{ background: T.bg, borderRadius: `${RADIUS2.card}px`, padding: '16px', border: `1px solid ${T.border}` }}>
+      <p style={{ fontSize: '11px', color: T.textSub, fontWeight: 700, margin: '0 0 6px' }}>{label}</p>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
         <span style={{ fontSize: '28px', fontWeight: 700, color, letterSpacing: '-0.02em' }}>{value}</span>
-        <span style={{ fontSize: '12px', color: '#9CA3AF', fontWeight: 500 }}>{unit}</span>
+        <span style={{ fontSize: '12px', color: T.textMute, fontWeight: 500 }}>{unit}</span>
       </div>
     </div>
   );

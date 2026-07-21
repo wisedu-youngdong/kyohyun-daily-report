@@ -5,7 +5,7 @@ import {
 import { toPct } from '../growth.js';
 import { findUnitKey } from '../curriculum.js';
 import { DIAG_LABELS as TAG_LABELS, DIAG_SOFT as DIAG_SOFT_COLORS } from '../diagnosis.js';
-import { C } from '../tokens.jsx';
+import { T, C, RADIUS2 } from '../tokens.jsx';
 import { StatCard } from './shared.jsx';
 
 // ── 과제/개념/시험 추이 차트 — AnalysisView 전용
@@ -24,19 +24,19 @@ function HomeworkTestChart({ reports }) {
   if (data.length === 0) return null;
 
   return (
-    <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB' }}>
+    <div style={{ background: T.bg, borderRadius: `${RADIUS2.panel}px`, padding: '18px', border: `1px solid ${T.border}` }}>
       <h3 style={{ fontSize: '13px', fontWeight: 700, marginBottom: '12px' }}>과제 · 개념 · 시험 추이</h3>
-      <p style={{ fontSize: '10px', color: '#9CA3AF', margin: '0 0 10px' }}>막대가 높을수록 그날 점수가 좋았다는 뜻입니다 (100점 만점 기준).</p>
+      <p style={{ fontSize: '10px', color: T.textMute, margin: '0 0 10px' }}>막대가 높을수록 그날 점수가 좋았다는 뜻입니다 (100점 만점 기준).</p>
       <div style={{ width: '100%', height: 220 }}>
         <ResponsiveContainer>
           <BarChart data={data} margin={{ top: 16, right: 4, left: -20, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
             <XAxis dataKey="date" tick={{ fontSize: 10 }} />
             <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} />
-            <Tooltip contentStyle={{ fontSize: '11px', borderRadius: '8px' }} />
+            <Tooltip contentStyle={{ fontSize: '11px', borderRadius: `${RADIUS2.input}px` }} />
             <Legend wrapperStyle={{ fontSize: '11px' }} />
-            <Bar dataKey="과제" fill="#185FA5" radius={[4, 4, 0, 0]}>
-              <LabelList dataKey="과제" position="top" style={{ fontSize: '10px', fill: '#185FA5', fontWeight: 700 }} />
+            <Bar dataKey="과제" fill={T.brand} radius={[4, 4, 0, 0]}>
+              <LabelList dataKey="과제" position="top" style={{ fontSize: '10px', fill: T.brand, fontWeight: 700 }} />
             </Bar>
             <Bar dataKey="개념" fill="#9B6FD4" radius={[4, 4, 0, 0]}>
               <LabelList dataKey="개념" position="top" style={{ fontSize: '10px', fill: '#9B6FD4', fontWeight: 700 }} />
@@ -118,28 +118,28 @@ function InsightCard({ reports }) {
   const insight = buildInsights(reports);
   if (!insight) return null;
   return (
-    <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB' }}>
+    <div style={{ background: T.bg, borderRadius: `${RADIUS2.panel}px`, padding: '18px', border: `1px solid ${T.border}` }}>
       <h3 style={{ fontSize: '13px', fontWeight: 700, marginBottom: '10px' }}>📊 인사이트 요약</h3>
-      <p style={{ fontSize: '13px', lineHeight: 1.6, color: '#1A1A1A', margin: '0 0 12px', fontWeight: 500 }}>{insight.summary}</p>
+      <p style={{ fontSize: '13px', lineHeight: 1.6, color: T.text, margin: '0 0 12px', fontWeight: 500 }}>{insight.summary}</p>
 
       {insight.strengths.length > 0 && (
-        <div style={{ background: '#E1F5EE', borderRadius: '10px', padding: '10px 12px', marginBottom: '8px' }}>
-          <p style={{ fontSize: '11px', fontWeight: 700, color: '#0F6E56', margin: '0 0 6px' }}>✅ 강점</p>
+        <div style={{ background: C.successBg, borderRadius: `${RADIUS2.iconBg}px`, padding: '10px 12px', marginBottom: '8px' }}>
+          <p style={{ fontSize: '11px', fontWeight: 700, color: C.successDark, margin: '0 0 6px' }}>✅ 강점</p>
           {insight.strengths.map((s, i) => (
-            <p key={i} style={{ fontSize: '12px', color: '#085041', margin: i > 0 ? '4px 0 0' : 0, lineHeight: 1.5 }}>{s}</p>
+            <p key={i} style={{ fontSize: '12px', color: C.successDark, margin: i > 0 ? '4px 0 0' : 0, lineHeight: 1.5 }}>{s}</p>
           ))}
         </div>
       )}
       {insight.weaknesses.length > 0 && (
-        <div style={{ background: '#FAEEDA', borderRadius: '10px', padding: '10px 12px' }}>
-          <p style={{ fontSize: '11px', fontWeight: 700, color: '#854F0B', margin: '0 0 6px' }}>🔧 보완 포인트</p>
+        <div style={{ background: C.warningBg, borderRadius: `${RADIUS2.iconBg}px`, padding: '10px 12px' }}>
+          <p style={{ fontSize: '11px', fontWeight: 700, color: C.warningText, margin: '0 0 6px' }}>🔧 보완 포인트</p>
           {insight.weaknesses.map((s, i) => (
-            <p key={i} style={{ fontSize: '12px', color: '#633806', margin: i > 0 ? '4px 0 0' : 0, lineHeight: 1.5 }}>{s}</p>
+            <p key={i} style={{ fontSize: '12px', color: C.warningText, margin: i > 0 ? '4px 0 0' : 0, lineHeight: 1.5 }}>{s}</p>
           ))}
         </div>
       )}
       {insight.sampleSize < 4 && (
-        <p style={{ fontSize: '10px', color: '#9CA3AF', marginTop: '8px' }}>* 리포트가 더 쌓이면(4건 이상) 추세 분석이 추가됩니다.</p>
+        <p style={{ fontSize: '10px', color: T.textMute, marginTop: '8px' }}>* 리포트가 더 쌓이면(4건 이상) 추세 분석이 추가됩니다.</p>
       )}
     </div>
   );
@@ -190,8 +190,8 @@ export default function AnalysisView({ students, reports }) {
   return (
     <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto', boxSizing: 'border-box' }}>
       <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '16px', letterSpacing: '-0.02em' }}>종합 분석</h2>
-      <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: `1px solid #E5E7EB`, marginBottom: '16px' }}>
-        <select value={selectedId} onChange={(e) => setSelectedId(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontSize: '16px', fontWeight: 500, border: `1px solid #E5E7EB`, borderRadius: '10px', background: '#F9FAFB', outline: 'none', fontFamily: 'inherit' }}>
+      <div style={{ background: T.bg, borderRadius: `${RADIUS2.panel}px`, padding: '18px', border: `1px solid ${T.border}`, marginBottom: '16px' }}>
+        <select value={selectedId} onChange={(e) => setSelectedId(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontSize: '16px', fontWeight: 500, border: `1px solid ${T.border}`, borderRadius: `${RADIUS2.input}px`, background: T.bgSoft, outline: 'none', fontFamily: 'inherit' }}>
           <option value="">학생을 선택하세요</option>
           {students.map(s => <option key={s.id} value={s.id}>{s.name} · {s.school}</option>)}
         </select>
@@ -199,31 +199,31 @@ export default function AnalysisView({ students, reports }) {
       {selectedId && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {/* 기간 선택 */}
-          <div style={{ background: '#fff', borderRadius: '16px', padding: '14px 16px', border: `1px solid #E5E7EB` }}>
+          <div style={{ background: T.bg, borderRadius: `${RADIUS2.panel}px`, padding: '14px 16px', border: `1px solid ${T.border}` }}>
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: periodMode === 'custom' ? '10px' : 0 }}>
               {[['all', '전체'], ['thisMonth', '이번달'], ['lastMonth', '지난달'], ['custom', '기간 지정']].map(([key, label]) => (
                 <button key={key} onClick={() => setPeriodMode(key)}
                   style={{
-                    padding: '6px 12px', fontSize: '11px', fontWeight: 700, borderRadius: '20px', cursor: 'pointer', fontFamily: 'inherit',
-                    border: periodMode === key ? `1.5px solid ${C.info}` : '1px solid #E5E7EB',
-                    background: periodMode === key ? C.infoBg : '#fff',
-                    color: periodMode === key ? C.infoDark : '#6B7280',
+                    padding: '6px 12px', fontSize: '11px', fontWeight: 700, borderRadius: `${RADIUS2.pill}px`, cursor: 'pointer', fontFamily: 'inherit',
+                    border: periodMode === key ? `1.5px solid ${C.info}` : `1px solid ${T.border}`,
+                    background: periodMode === key ? C.infoBg : T.bg,
+                    color: periodMode === key ? C.infoDark : T.textSub,
                   }}>{label}</button>
               ))}
             </div>
             {periodMode === 'custom' && (
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)}
-                  style={{ flex: 1, padding: '8px 10px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '8px', fontFamily: 'inherit' }} />
-                <span style={{ fontSize: '12px', color: '#9CA3AF' }}>~</span>
+                  style={{ flex: 1, padding: '8px 10px', fontSize: '16px', border: `1px solid ${T.border}`, borderRadius: `${RADIUS2.input}px`, fontFamily: 'inherit' }} />
+                <span style={{ fontSize: '12px', color: T.textMute }}>~</span>
                 <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)}
-                  style={{ flex: 1, padding: '8px 10px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '8px', fontFamily: 'inherit' }} />
+                  style={{ flex: 1, padding: '8px 10px', fontSize: '16px', border: `1px solid ${T.border}`, borderRadius: `${RADIUS2.input}px`, fontFamily: 'inherit' }} />
               </div>
             )}
           </div>
 
           {periodReports.length === 0 ? (
-            <div style={{ background: '#fff', borderRadius: '16px', padding: '32px 16px', border: '1px solid #E5E7EB', textAlign: 'center', color: '#9CA3AF', fontSize: '13px' }}>
+            <div style={{ background: T.bg, borderRadius: `${RADIUS2.panel}px`, padding: '32px 16px', border: `1px solid ${T.border}`, textAlign: 'center', color: T.textMute, fontSize: '13px' }}>
               {periodLabel}에 기록된 리포트가 없습니다
             </div>
           ) : (
@@ -263,10 +263,10 @@ export default function AnalysisView({ students, reports }) {
                 .sort((a, b) => a.pct - b.pct);
               if (units.length === 0) return null;
               return (
-                <div style={{ background: '#fff', borderRadius: '12px', padding: '14px 16px', border: '1px solid #E5E7EB' }}>
+                <div style={{ background: T.bg, borderRadius: `${RADIUS2.card}px`, padding: '14px 16px', border: `1px solid ${T.border}` }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                     <p style={{ fontSize: '12px', fontWeight: 700, margin: 0 }}>단원별 정답률</p>
-                    <span style={{ fontSize: '9px', color: '#9CA3AF' }}>목표 {TARGET}%</span>
+                    <span style={{ fontSize: '9px', color: T.textMute }}>목표 {TARGET}%</span>
                   </div>
                   <div style={{ position: 'relative' }}>
                     <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${TARGET}%`, width: '1px', background: C.primary, opacity: 0.12 }} />
@@ -277,7 +277,7 @@ export default function AnalysisView({ students, reports }) {
                         return (
                           <div key={u.name}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                              <span style={{ fontSize: '11px', color: '#1A1A1A', fontWeight: isWorst ? 700 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>{u.name}</span>
+                              <span style={{ fontSize: '11px', color: T.text, fontWeight: isWorst ? 700 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>{u.name}</span>
                               <span style={{ fontSize: '11px', fontWeight: 700, color: barColor, flexShrink: 0 }}>{u.pct}%{u.pct >= TARGET ? ' ✓' : ''}</span>
                             </div>
                             <div style={{ height: '6px', background: isWorst ? C.errorBg : '#F3F4F6', borderRadius: '3px', overflow: 'hidden' }}>
@@ -319,7 +319,7 @@ export default function AnalysisView({ students, reports }) {
               if (diagList.length === 0) return null;
 
               return (
-                <div style={{ background: '#fff', borderRadius: '12px', padding: '14px 16px', border: '1px solid #E5E7EB' }}>
+                <div style={{ background: T.bg, borderRadius: `${RADIUS2.card}px`, padding: '14px 16px', border: `1px solid ${T.border}` }}>
                   <p style={{ fontSize: '12px', fontWeight: 700, margin: '0 0 12px' }}>반복 오답 유형</p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                     {diagList.map(([key, val], i) => {
@@ -333,9 +333,9 @@ export default function AnalysisView({ students, reports }) {
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                               <span style={{ width: '14px', height: '14px', borderRadius: '50%', background: info.color, color: '#fff', fontSize: '8px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{i + 1}</span>
-                              <span style={{ fontSize: '11px', color: '#1A1A1A', fontWeight: 600 }}>{info.label}</span>
+                              <span style={{ fontSize: '11px', color: T.text, fontWeight: 600 }}>{info.label}</span>
                             </div>
-                            <span style={{ fontSize: '11px', color: '#9CA3AF' }}>{val.count}회</span>
+                            <span style={{ fontSize: '11px', color: T.textMute }}>{val.count}회</span>
                           </div>
                           <div style={{ height: '6px', background: '#F3F4F6', borderRadius: '3px', overflow: 'hidden', marginBottom: '6px' }}>
                             <div style={{ width: `${Math.round(val.count / maxCount * 100)}%`, height: '100%', background: info.color, borderRadius: '3px' }} />
@@ -345,7 +345,7 @@ export default function AnalysisView({ students, reports }) {
                             <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                               {topUnits.map(([uKey, uVal]) => (
                                 <span key={uKey} style={{
-                                  fontSize: '9px', padding: '2px 7px', borderRadius: '10px',
+                                  fontSize: '9px', padding: '2px 7px', borderRadius: `${RADIUS2.chip}px`,
                                   background: `${info.color}12`,
                                   border: `0.5px solid ${info.color}40`,
                                   color: info.color, fontWeight: 600,
