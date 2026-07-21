@@ -8,6 +8,16 @@ import { C, R } from '../tokens.jsx';
 import { StudentProfileModal } from './StudentProfileModal.jsx';
 import { groupByClassId } from './shared.jsx';
 
+// 두 Firestore Timestamp(초 단위) 사이 경과 시간을 "N분/N시간/N일" 중 가장 자연스러운 단위로 표시
+function formatElapsed(fromSeconds, toSeconds) {
+  const diffSec = Math.max(0, toSeconds - fromSeconds);
+  const diffMin = Math.round(diffSec / 60);
+  if (diffMin < 60) return `${Math.max(1, diffMin)}분`;
+  const diffHour = Math.round(diffMin / 60);
+  if (diffHour < 24) return `${diffHour}시간`;
+  return `${Math.round(diffHour / 24)}일`;
+}
+
 export default function DirectorView({ reports, students, classes = [], reportViews = [], reportQuestions = [], reviews = [], onToast, academyId, academyName }) {
   const [selectedDate, setSelectedDate] = useState(kstDay(Date.now() / 1000));
   const dateInputRef = React.useRef(null);
@@ -201,6 +211,9 @@ export default function DirectorView({ reports, students, classes = [], reportVi
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '4px' }}>
                     <p style={{ fontSize: '11px', color: '#98A1AC', margin: 0 }}>
                       {q.studentName} · {reportLabel}
+                      {q.askedAt?.seconds && (
+                        <span style={{ color: '#B0752A', fontWeight: 700 }}> · {formatElapsed(q.askedAt.seconds, Date.now() / 1000)}째 대기</span>
+                      )}
                     </p>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
                       {reportDateStr && (
@@ -281,6 +294,9 @@ export default function DirectorView({ reports, students, classes = [], reportVi
                       <p style={{ fontSize: '12px', color: '#1A1A1A', margin: '0 0 6px', fontWeight: 600, lineHeight: 1.6 }}>Q. {q.questionText}</p>
                       <div style={{ borderLeft: '2px solid #0F6E56', paddingLeft: '10px' }}>
                         <p style={{ fontSize: '12px', color: '#5A6472', margin: 0, lineHeight: 1.6 }}>A. {q.answerText}</p>
+                        {q.askedAt?.seconds && q.answeredAt?.seconds && (
+                          <p style={{ fontSize: '10px', color: '#9CA3AF', margin: '4px 0 0' }}>답변까지 {formatElapsed(q.askedAt.seconds, q.answeredAt.seconds)} 소요</p>
+                        )}
                       </div>
                     </div>
                   );

@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { C, RADIUS2, TYPE, SHADOW } from './tokens.jsx';
 import { calculateReportPoints, toPct, ratingLabel } from './growth.js';
-import { DIAG_LABELS as diagLabels, DIAG_SOFT, DIAG_BADGE } from './diagnosis.js';
+import { DIAG_LABELS as diagLabels, DIAG_BADGE, WRONG_TAGS, WRONG_TAG_LABELS } from './diagnosis.js';
 import { findUnitKey, getUnits, getCourses } from './curriculum.js';
 import { storage, auth } from './firebase.js';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -134,18 +134,6 @@ const DIAGNOSIS_TAGS = [
   { key: 'perfect', label: diagLabels.perfect, color: 'success' },
 ];
 
-// 오답 문항 원인 태그 — 진단 태그(DIAG_SOFT)와 계산실수/개념누락/응용부족/시간부족은 같은 색을
-// 공유하고, '문제 안 읽음'만 이 화면 고유(보고서 전체 진단에는 없는 원인이라 perfect 대신 추가됨).
-// 예전엔 이 배열이 두 군데(오답 카드 인라인/leftover 카드)에 복붙돼 있었고, 그 사본에서
-// concept과 apply가 같은 색으로 잘못 겹쳐 있던 버그가 있었음 — 단일화하며 함께 고침.
-const WRONG_TAGS = [
-  { key: 'calc',    ...DIAG_SOFT.calc },
-  { key: 'concept', ...DIAG_SOFT.concept },
-  { key: 'apply',   ...DIAG_SOFT.apply },
-  { key: 'time',    ...DIAG_SOFT.time },
-  { key: 'unread',  label: '문제 안 읽음', bg: '#FFF8EC', color: '#8A5A00', border: '#C9A22740' },
-];
-const WRONG_TAG_LABELS = Object.fromEntries(WRONG_TAGS.map(t => [t.key, t.label]));
 
 // 학부모 발송 미리보기용 진단 배지(prefix+라벨을 한 문자열로) — PublicReport.jsx의 파생 방식과 동일
 const DIAG_PREVIEW_BADGE = Object.fromEntries(

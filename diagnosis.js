@@ -30,3 +30,17 @@ export const DIAG_SOFT = {
   time:    { label: DIAG_LABELS.time,    color: '#4A3080', bg: '#F3F0FA', border: '#4A308040' },
   perfect: { label: DIAG_LABELS.perfect, color: '#0F6E56', bg: '#F0FAF5', border: '#0F6E5640' },
 };
+
+// 오답 문항 원인 태그(리포트 작성 화면의 오답 카드용) — 보고서 전체 진단(DIAG_*)과는 별개
+// taxonomy지만 calc/concept/apply/time 네 개는 같은 색을 공유하고, 'unread'(문제 안 읽음)만
+// 이 화면 고유(전체 진단에는 없는 원인이라 perfect 대신 추가됨). 원래 DiagnosticReportInput.jsx
+// 안에 로컬로만 있었는데, 종합 분석(AnalysisView.jsx)에서도 같은 태그로 통계를 내야 해서 이
+// 파일로 옮겨 단일 소스화함.
+export const WRONG_TAGS = [
+  { key: 'calc',    ...DIAG_SOFT.calc },
+  { key: 'concept', ...DIAG_SOFT.concept },
+  { key: 'apply',   ...DIAG_SOFT.apply },
+  { key: 'time',    ...DIAG_SOFT.time },
+  { key: 'unread',  label: '문제 안 읽음', color: '#8A5A00', bg: '#FFF8EC', border: '#C9A22740' },
+];
+export const WRONG_TAG_LABELS = Object.fromEntries(WRONG_TAGS.map(t => [t.key, t.label]));

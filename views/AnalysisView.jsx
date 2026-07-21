@@ -4,7 +4,7 @@ import {
 } from 'recharts';
 import { toPct, kstDay } from '../growth.js';
 import { findUnitKey } from '../curriculum.js';
-import { DIAG_LABELS as TAG_LABELS, DIAG_SOFT as DIAG_SOFT_COLORS } from '../diagnosis.js';
+import { DIAG_LABELS as TAG_LABELS, DIAG_SOFT as DIAG_SOFT_COLORS, WRONG_TAGS } from '../diagnosis.js';
 import { T, C, RADIUS2 } from '../tokens.jsx';
 import { StatCard } from './shared.jsx';
 
@@ -401,6 +401,67 @@ export default function AnalysisView({ students, reports }) {
               );
             })()}
           </div>
+
+          {/* 오답 원인 통계 — wrongItems[].tags(계산실수/개념누락/응용부족/시간부족/문제안읽음) 집계 */}
+          {(() => {
+            const tagInfo = Object.fromEntries(WRONG_TAGS.map(t => [t.key, t]));
+            const causeMap = {};
+            periodReports.forEach(r => {
+              const unitLabel = [r.unit, r.textbook].filter(Boolean).join(' ') || '';
+              const unitGroupKey = unitLabel ? (r.unitKey || findUnitKey(r.subject || '수학', r.unit || '') || unitLabel) : '';
+              (r.wrongItems || []).forEach(w => {
+                (w.tags || []).forEach(tagKey => {
+                  if (!causeMap[tagKey]) causeMap[tagKey] = { count: 0, units: {} };
+                  causeMap[tagKey].count++;
+                  if (unitGroupKey) {
+                    if (!causeMap[tagKey].units[unitGroupKey]) causeMap[tagKey].units[unitGroupKey] = { label: unitLabel, count: 0 };
+                    causeMap[tagKey].units[unitGroupKey].count++;
+                  }
+                });
+              });
+            });
+            const causeList = Object.entries(causeMap).sort((a, b) => b[1].count - a[1].count).slice(0, 5);
+            const maxCount = causeList[0]?.[1].count || 1;
+            if (causeList.length === 0) return null;
+
+            return (
+              <div style={{ background: T.bg, borderRadius: `${RADIUS2.card}px`, padding: '14px 16px', border: `1px solid ${T.border}`, marginTop: '12px' }}>
+                <p style={{ fontSize: '12px', fontWeight: 700, margin: '0 0 12px' }}>오답 원인 통계</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  {causeList.map(([key, val], i) => {
+                    const info = tagInfo[key] || { label: key, color: '#4A4A4A' };
+                    const topUnits = Object.entries(val.units).sort((a, b) => b[1].count - a[1].count).slice(0, 2);
+                    return (
+                      <div key={key}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            <span style={{ width: '14px', height: '14px', borderRadius: '50%', background: info.color, color: '#fff', fontSize: '8px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{i + 1}</span>
+                            <span style={{ fontSize: '11px', color: T.text, fontWeight: 600 }}>{info.label}</span>
+                          </div>
+                          <span style={{ fontSize: '11px', color: T.textMute }}>{val.count}문항</span>
+                        </div>
+                        <div style={{ height: '6px', background: '#F3F4F6', borderRadius: '3px', overflow: 'hidden', marginBottom: '6px' }}>
+                          <div style={{ width: `${Math.round(val.count / maxCount * 100)}%`, height: '100%', background: info.color, borderRadius: '3px' }} />
+                        </div>
+                        {topUnits.length > 0 && (
+                          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                            {topUnits.map(([uKey, uVal]) => (
+                              <span key={uKey} style={{
+                                fontSize: '9px', padding: '2px 7px', borderRadius: `${RADIUS2.chip}px`,
+                                background: `${info.color}12`,
+                                border: `0.5px solid ${info.color}40`,
+                                color: info.color, fontWeight: 600,
+                              }}>{uVal.label} {uVal.count}회</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>
