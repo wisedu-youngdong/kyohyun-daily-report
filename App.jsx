@@ -236,6 +236,15 @@ export default function App() {
     }
   };
 
+  // 대시보드 "미열람 리마인더"에서만 숨김 — 리포트 자체나 열람 여부는 안 건드림, 이 위젯에서만 다시 안 뜨게
+  const handleDismissUnreadReminder = async (reportId) => {
+    try {
+      await updateDoc(doc(db, 'academies', academyId, 'reports', reportId), { reminderDismissed: true });
+    } catch (e) {
+      console.error('미열람 리마인더 숨기기 실패:', e);
+    }
+  };
+
   const handleSaveStudent = async (d) => {
   try {
     // 학부모 연락처는 학생 문서(공개 성장스토리 페이지에서 누구나 get 가능)와 분리 보관 —
@@ -611,6 +620,7 @@ export default function App() {
               reviews={isDirector ? reviews : reviews.filter(rv => visibleStudents.some(s => s.id === rv.studentId))}
               onCompleteReview={handleCompleteReview}
               onQuickAbsence={handleQuickAbsence}
+              onDismissUnreadReminder={handleDismissUnreadReminder}
               onWriteFor={(student, done) => {
                 // 완료된 학생이면 오늘 리포트를 수정 모드로, 대기면 새로 작성 — 랜딩에서 작업까지 한 번에
                 if (done) {

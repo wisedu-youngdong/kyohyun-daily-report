@@ -1,15 +1,22 @@
 import React from 'react';
+import { X } from 'lucide-react';
 import { kstDay, kstWeekday, isReportSent } from '../growth.js';
 import { T, C, RADIUS2 } from '../tokens.jsx';
 import { AVATARS, StatCard } from './shared.jsx';
 
-export default function DashboardView({ students, reports, classes = [], reportViews = [], onTabChange, onWriteFor, reviews = [], onCompleteReview, onQuickAbsence }) {
+export default function DashboardView({ students, reports, classes = [], reportViews = [], onTabChange, onWriteFor, reviews = [], onCompleteReview, onQuickAbsence, onDismissUnreadReminder }) {
   const [copiedReportId, setCopiedReportId] = React.useState(null);
   const handleCopyReportLink = (reportId) => {
     navigator.clipboard.writeText(`${window.location.origin}/report/${reportId}`).then(() => {
       setCopiedReportId(reportId);
       setTimeout(() => setCopiedReportId(prev => prev === reportId ? null : prev), 2000);
     });
+  };
+  // 리마인더에서 숨김 처리한 리포트 — Firestore 반영 전에도 바로 목록에서 사라지도록 낙관적 갱신
+  const [dismissedIds, setDismissedIds] = React.useState(new Set());
+  const handleDismissUnread = (reportId) => {
+    setDismissedIds(prev => new Set(prev).add(reportId));
+    onDismissUnreadReminder?.(reportId);
   };
   const [markingAbsent, setMarkingAbsent] = React.useState(null); // studentId 처리 중
   const [confirmAbsenceStudent, setConfirmAbsenceStudent] = React.useState(null); // 결석 처리 확인 모달 대상
@@ -45,10 +52,19 @@ export default function DashboardView({ students, reports, classes = [], reportV
 
   // 미열람 리마인더 — 발송된(초안 아닌) 리포트 중 reportViews에 기록이 없는 것.
   // 오늘 보낸 건 아직 확인 못 봤을 수 있어 제외하고, "하루 이상 지났는데도 안 읽음"만 모아서
-  // 실제로 따라가볼 만한 것만 노출 (매일 전체 미열람을 다 보여주면 그냥 소음이 됨)
+  // 실제로 따라가볼 만한 것만 노출. 기간도 최근 14일로 제한 — 안 그러면 오래된 것까지 계속
+  // 쌓여서(수십 건) 정작 챙길 만한 최근 건이 묻히고 소음이 됨. 그래도 남는 개별 건은 X로 숨김 가능.
+  const UNREAD_REMINDER_WINDOW_DAYS = 14;
+  const unreadCutoff = new Date(todayKst); unreadCutoff.setDate(unreadCutoff.getDate() - UNREAD_REMINDER_WINDOW_DAYS);
+  const unreadCutoffStr = unreadCutoff.toISOString().split('T')[0];
   const viewedReportIds = new Set(reportViews.map(v => v.reportId));
   const unreadReports = reports
-    .filter(r => r.createdAt?.seconds && isReportSent(r) && kstDay(r.createdAt.seconds) < todayKst && !viewedReportIds.has(r.id))
+    .filter(r => r.createdAt?.seconds && isReportSent(r) && !r.reminderDismissed && !dismissedIds.has(r.id))
+    .filter(r => {
+      const day = kstDay(r.createdAt.seconds);
+      return day < todayKst && day >= unreadCutoffStr;
+    })
+    .filter(r => !viewedReportIds.has(r.id))
     .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
 
   // 버튼 클릭 → 확인 모달만 띄움(오탭 방지). 실제 처리는 handleConfirmAbsence에서.
@@ -207,6 +223,10 @@ export default function DashboardView({ students, reports, classes = [], reportV
                 <button onClick={() => handleCopyReportLink(r.id)}
                   style={{ flexShrink: 0, padding: '6px 12px', fontSize: '11px', fontWeight: 700, borderRadius: '8px', border: '1px solid #1A5CB8', background: copiedReportId === r.id ? '#1A5CB8' : '#fff', color: copiedReportId === r.id ? '#fff' : '#1A5CB8', cursor: 'pointer', fontFamily: 'inherit' }}>
                   {copiedReportId === r.id ? '✓ 복사됨' : '링크 복사'}
+                </button>
+                <button onClick={() => handleDismissUnread(r.id)} title="이 리마인더에서 숨기기 (리포트 자체는 그대로 남아요)"
+                  style={{ flexShrink: 0, width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', background: 'none', color: '#98A1AC', cursor: 'pointer', borderRadius: '6px' }}>
+                  <X size={15} />
                 </button>
               </div>
             );
