@@ -17,18 +17,21 @@ import { DIAG_LABELS } from './diagnosis.js';
 import ErrorBoundary from './ErrorBoundary.jsx';
 import { T } from './tokens.jsx';
 import LoginScreen from './views/LoginScreen.jsx';
+// 로그인 직후 기본 랜딩 화면이라 즉시 페인트가 중요 — 이것만 정적 import로 남김
 import DashboardView from './views/DashboardView.jsx';
-import StudentsView from './views/StudentsView.jsx';
-import HistoryView from './views/HistoryView.jsx';
-import GrowthDashboard from './views/GrowthDashboard.jsx';
-import DirectorView from './views/DirectorView.jsx';
-// recharts(vendor-charts, 375KB)를 쓰는 화면 — 종합 분석 탭을 열 때만 다운로드되도록 lazy 분리
+// 아래는 전부 특정 탭을 열 때만 필요한 화면들 — React.lazy로 분리해 dashboard 첫 진입 시
+// 이 코드를 같이 안 받아가도록 함(recharts(vendor-charts, 375KB)를 쓰는 AnalysisView가
+// 원조 사례, 이후 같은 패턴으로 확장)
 const AnalysisView = React.lazy(() => import('./views/AnalysisView.jsx'));
 // ~2100줄로 가장 큰 화면 파일(사진 분석/heic2any 트리거 로직 포함) — 리포트 작성 탭을 열 때만
 // 다운로드되도록 lazy 분리. 대시보드만 보고 나가는 방문(가장 흔한 경우)의 초기 로딩을 줄임
 const DiagnosticReportInput = React.lazy(() => import('./DiagnosticReportInput'));
 // 1300줄 넘게 커진 설정 화면(가입 신청 관리·활동 로그 등) — 설정 탭을 열 때만 다운로드
 const SettingsView = React.lazy(() => import('./views/SettingsView.jsx'));
+const StudentsView = React.lazy(() => import('./views/StudentsView.jsx'));
+const HistoryView = React.lazy(() => import('./views/HistoryView.jsx'));
+const GrowthDashboard = React.lazy(() => import('./views/GrowthDashboard.jsx'));
+const DirectorView = React.lazy(() => import('./views/DirectorView.jsx'));
 
 function SkeletonBlock({ rows = 4, cardHeight = 64 }) {
   return (
@@ -719,7 +722,9 @@ export default function App() {
             ])}
             <div style={{ marginTop: '12px' }}>
               {activeSubTab.record === 'history' && (dataReady
-                ? <HistoryView reports={visibleReports} students={visibleStudents} classes={classes} reportViews={reportViews} onDelete={handleDeleteReport} onBulkDelete={handleBulkDeleteReports} onEdit={(report) => { setEditingReport(report); setActiveTab('write'); }} />
+                ? <React.Suspense fallback={<SkeletonBlock rows={5} cardHeight={56} />}>
+                    <HistoryView reports={visibleReports} students={visibleStudents} classes={classes} reportViews={reportViews} onDelete={handleDeleteReport} onBulkDelete={handleBulkDeleteReports} onEdit={(report) => { setEditingReport(report); setActiveTab('write'); }} />
+                  </React.Suspense>
                 : <SkeletonBlock rows={5} cardHeight={56} />
               )}
             </div>
@@ -733,7 +738,10 @@ export default function App() {
             ], { director: 960, analysis: 600 })}
             <div style={{ marginTop: '12px' }}>
               {activeSubTab.insight === 'director' && (dataReady
-                ? <div><DirectorView reports={visibleReports} students={visibleStudents} classes={classes} reportViews={reportViews} reportQuestions={reportQuestions} reviews={reviews} onToast={showAppToast} academyId={academyId} academyName={academyName} /><GrowthDashboard reports={visibleReports} students={visibleStudents} /></div>
+                ? <React.Suspense fallback={<SkeletonBlock rows={4} cardHeight={70} />}>
+                    <DirectorView reports={visibleReports} students={visibleStudents} classes={classes} reportViews={reportViews} reportQuestions={reportQuestions} reviews={reviews} onToast={showAppToast} academyId={academyId} academyName={academyName} />
+                    <GrowthDashboard reports={visibleReports} students={visibleStudents} />
+                  </React.Suspense>
                 : <SkeletonBlock rows={4} cardHeight={70} />
               )}
               {activeSubTab.insight === 'analysis' && (dataReady
@@ -753,7 +761,9 @@ export default function App() {
             ], 600)}
             <div style={{ marginTop: '12px' }}>
               {activeSubTab.manage === 'students' && (dataReady
-                ? <StudentsView students={studentsWithContact} reports={reports} reviews={reviews} onSave={handleSaveStudent} onDelete={handleDeleteStudent} onRestore={handleRestoreStudent} teachers={teachers} classes={classes} currentTeacherId={userTeacherId} isDirector={isDirector} onToast={showAppToast} />
+                ? <React.Suspense fallback={<SkeletonBlock rows={5} cardHeight={56} />}>
+                    <StudentsView students={studentsWithContact} reports={reports} reviews={reviews} onSave={handleSaveStudent} onDelete={handleDeleteStudent} onRestore={handleRestoreStudent} teachers={teachers} classes={classes} currentTeacherId={userTeacherId} isDirector={isDirector} onToast={showAppToast} />
+                  </React.Suspense>
                 : <SkeletonBlock rows={5} cardHeight={56} />
               )}
               {activeSubTab.manage === 'settings' && (dataReady
