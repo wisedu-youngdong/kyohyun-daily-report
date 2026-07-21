@@ -18,6 +18,7 @@ export default function DirectorView({ reports, students, classes = [], reportVi
   const [answerDrafts, setAnswerDrafts] = useState({});
   const [savingAnswer, setSavingAnswer] = useState(null);
   const [showAnswered, setShowAnswered] = useState(false);
+  const [showEngagement, setShowEngagement] = useState(false);
   // 질문 삭제 — 계속 쌓이는 목록이라 정리 용도. 2번 눌러야 지워짐(오터치 방지), 3초 지나면 확인 상태 풀림
   const [confirmDeleteQuestionId, setConfirmDeleteQuestionId] = useState(null);
   const [deletingQuestionId, setDeletingQuestionId] = useState(null);
@@ -284,6 +285,61 @@ export default function DirectorView({ reports, students, classes = [], reportVi
                     </div>
                   );
                 })}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* 학부모 참여도 — 열람률/질문 여부로 "조용한 집"을 먼저 찾아줌. 퇴원은 대개 조용한
+          집에서 나오는데, 지금까지는 "리포트를 열람했는지"를 개별 리포트 배지로만 봤지
+          학생 단위로 모아서 우선순위를 알려주는 화면이 없었음 */}
+      {(() => {
+        const MIN_REPORTS = 3; // 샘플이 너무 적으면(신규생 등) 판단 근거가 약해 제외
+        const engagement = students
+          .filter(s => !s.archived)
+          .map(s => {
+            const sentReports = reports.filter(r => r.studentId === s.id && !r.isDraft);
+            if (sentReports.length < MIN_REPORTS) return null;
+            const viewedCount = sentReports.filter(r => reportViews.some(v => v.reportId === r.id)).length;
+            const viewRate = Math.round(viewedCount / sentReports.length * 100);
+            const questionCount = reportQuestions.filter(q => q.studentId === s.id).length;
+            let label, labelBg, labelColor;
+            if (questionCount > 0) { label = '적극적'; labelBg = '#F0FAF5'; labelColor = '#0F6E56'; }
+            else if (viewRate < 50) { label = '조용함'; labelBg = '#FDF0F0'; labelColor = '#A32D2D'; }
+            else { label = '양호'; labelBg = '#F3F4F6'; labelColor = '#6B7280'; }
+            return { student: s, sentCount: sentReports.length, viewRate, questionCount, label, labelBg, labelColor };
+          })
+          .filter(Boolean)
+          .sort((a, b) => a.viewRate - b.viewRate);
+
+        if (engagement.length === 0) return null;
+        const quietCount = engagement.filter(e => e.label === '조용함').length;
+
+        return (
+          <div style={{ background: '#fff', border: '1px solid #E8E6E0', borderRadius: '14px', marginBottom: '20px', overflow: 'hidden' }}>
+            <button onClick={() => setShowEngagement(v => !v)}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px', padding: '16px 18px', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A' }}>학부모 참여도</span>
+              {quietCount > 0 && (
+                <span style={{ fontSize: '11px', fontWeight: 700, background: '#FDF0F0', color: '#A32D2D', padding: '2px 8px', borderRadius: '10px' }}>조용함 {quietCount}명</span>
+              )}
+              <span style={{ marginLeft: 'auto', fontSize: '11px', color: '#9CA3AF' }}>{showEngagement ? '접기' : '펼치기'}</span>
+            </button>
+            {showEngagement && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', padding: '0 18px 16px' }}>
+                <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '0 0 6px' }}>최근 발송 {MIN_REPORTS}건 이상인 학생만 표시 · 열람률 낮은 순</p>
+                {engagement.map(e => (
+                  <div key={e.student.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderTop: '1px solid #F3F4F6' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 600, color: '#1A1A1A', flexShrink: 0, minWidth: '52px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.student.name}</span>
+                    <div style={{ flex: 1, height: '5px', background: '#F3F4F6', borderRadius: '4px', overflow: 'hidden' }}>
+                      <div style={{ width: `${e.viewRate}%`, height: '100%', background: e.viewRate < 50 ? '#A32D2D' : '#0D2D6B', borderRadius: '4px' }} />
+                    </div>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#5A6472', flexShrink: 0, width: '34px', textAlign: 'right' }}>{e.viewRate}%</span>
+                    {e.questionCount > 0 && <span style={{ fontSize: '10px', color: '#98A1AC', flexShrink: 0, whiteSpace: 'nowrap' }}>질문{e.questionCount}</span>}
+                    <span style={{ fontSize: '10px', fontWeight: 700, background: e.labelBg, color: e.labelColor, padding: '2px 8px', borderRadius: '10px', flexShrink: 0 }}>{e.label}</span>
+                  </div>
+                ))}
               </div>
             )}
           </div>
