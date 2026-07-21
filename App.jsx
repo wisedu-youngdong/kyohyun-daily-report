@@ -607,7 +607,7 @@ export default function App() {
       <ErrorBoundary key={activeTab} minHeight="400px">
         {activeTab === 'dashboard' && (dataReady
           ? <DashboardView
-              students={visibleStudents} classes={classes} reports={visibleReports} onTabChange={setActiveTab}
+              students={visibleStudents} classes={classes} reports={visibleReports} reportViews={reportViews} onTabChange={setActiveTab}
               reviews={isDirector ? reviews : reviews.filter(rv => visibleStudents.some(s => s.id === rv.studentId))}
               onCompleteReview={handleCompleteReview}
               onQuickAbsence={handleQuickAbsence}

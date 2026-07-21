@@ -3,7 +3,14 @@ import { kstDay, kstWeekday, isReportSent } from '../growth.js';
 import { T, C, RADIUS2 } from '../tokens.jsx';
 import { AVATARS, StatCard } from './shared.jsx';
 
-export default function DashboardView({ students, reports, classes = [], onTabChange, onWriteFor, reviews = [], onCompleteReview, onQuickAbsence }) {
+export default function DashboardView({ students, reports, classes = [], reportViews = [], onTabChange, onWriteFor, reviews = [], onCompleteReview, onQuickAbsence }) {
+  const [copiedReportId, setCopiedReportId] = React.useState(null);
+  const handleCopyReportLink = (reportId) => {
+    navigator.clipboard.writeText(`${window.location.origin}/report/${reportId}`).then(() => {
+      setCopiedReportId(reportId);
+      setTimeout(() => setCopiedReportId(prev => prev === reportId ? null : prev), 2000);
+    });
+  };
   const [markingAbsent, setMarkingAbsent] = React.useState(null); // studentId 처리 중
   const [confirmAbsenceStudent, setConfirmAbsenceStudent] = React.useState(null); // 결석 처리 확인 모달 대상
   // 복습 "완료" — 그냥 done 플래그만 남기면 나중에 "뭘 했었는지" 알 길이 없어서, 완료 처리 전에
@@ -35,6 +42,14 @@ export default function DashboardView({ students, reports, classes = [], onTabCh
   const isHandledToday = (r) => isReportSent(r) || (r.attendance === '결석' && r.isDraft !== true);
   const todayReports = reports.filter(r => r.createdAt?.seconds && isHandledToday(r) && kstDay(r.createdAt.seconds) === todayKst);
   const doneOf = (s) => todayReports.some(r => r.studentId === s.id);
+
+  // 미열람 리마인더 — 발송된(초안 아닌) 리포트 중 reportViews에 기록이 없는 것.
+  // 오늘 보낸 건 아직 확인 못 봤을 수 있어 제외하고, "하루 이상 지났는데도 안 읽음"만 모아서
+  // 실제로 따라가볼 만한 것만 노출 (매일 전체 미열람을 다 보여주면 그냥 소음이 됨)
+  const viewedReportIds = new Set(reportViews.map(v => v.reportId));
+  const unreadReports = reports
+    .filter(r => r.createdAt?.seconds && isReportSent(r) && kstDay(r.createdAt.seconds) < todayKst && !viewedReportIds.has(r.id))
+    .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
 
   // 버튼 클릭 → 확인 모달만 띄움(오탭 방지). 실제 처리는 handleConfirmAbsence에서.
   const handleQuickAbsence = (e, student) => {
@@ -166,6 +181,43 @@ export default function DashboardView({ students, reports, classes = [], onTabCh
           </div>
         );
       })()}
+
+      {/* 미열람 리마인더 — 발송된 지 하루 넘었는데도 학부모가 안 읽은 리포트. 오늘 막 보낸
+          건 아직 안 읽었을 수 있어 자연스러운 거라 제외하고, 진짜 따라가볼 만한 것만 모음 */}
+      {unreadReports.length > 0 && (
+        <div style={{ background: '#F5F8FF', borderRadius: '16px', border: '1px solid #C5D5F0', overflow: 'hidden', marginBottom: '20px' }}>
+          <div style={{ padding: '12px 18px', borderBottom: '1px solid #C5D5F060' }}>
+            <h3 style={{ fontSize: '13px', fontWeight: 700, color: '#0D2D6B', margin: 0 }}>
+              📭 아직 안 읽은 리포트 · {unreadReports.length}건
+            </h3>
+            <p style={{ fontSize: '11px', color: '#1A5CB8', margin: '2px 0 0' }}>발송한 지 하루가 지났는데도 학부모가 확인하지 않았어요</p>
+          </div>
+          {unreadReports.slice(0, 5).map(r => {
+            const unreadDays = Math.floor((new Date(todayKst) - new Date(kstDay(r.createdAt.seconds))) / 86400000);
+            return (
+              <div key={r.id} style={{ padding: '10px 18px', borderBottom: '1px solid #C5D5F030', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>
+                    {r.studentName} <span style={{ fontSize: '10px', fontWeight: 600, color: '#1A5CB8' }}>{unreadDays}일째 미열람</span>
+                  </p>
+                  <p style={{ fontSize: '11px', color: '#6B7280', margin: '1px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {[r.textbook, r.unit].filter(Boolean).join(' · ')}
+                  </p>
+                </div>
+                <button onClick={() => handleCopyReportLink(r.id)}
+                  style={{ flexShrink: 0, padding: '6px 12px', fontSize: '11px', fontWeight: 700, borderRadius: '8px', border: '1px solid #1A5CB8', background: copiedReportId === r.id ? '#1A5CB8' : '#fff', color: copiedReportId === r.id ? '#fff' : '#1A5CB8', cursor: 'pointer', fontFamily: 'inherit' }}>
+                  {copiedReportId === r.id ? '✓ 복사됨' : '링크 복사'}
+                </button>
+              </div>
+            );
+          })}
+          {unreadReports.length > 5 && (
+            <p style={{ padding: '8px 18px', fontSize: '11px', color: '#1A5CB8', margin: 0, textAlign: 'center' }}>
+              외 {unreadReports.length - 5}건 더 있어요
+            </p>
+          )}
+        </div>
+      )}
 
       <div style={{ background: T.bg, borderRadius: '16px', border: `1px solid ${T.border}`, overflow: 'hidden' }}>
         <div style={{ padding: '14px 18px', borderBottom: `1px solid #F3F4F6`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
