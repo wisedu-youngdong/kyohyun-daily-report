@@ -96,7 +96,8 @@ function buildInsights(reports) {
   if (!reports || reports.length === 0) return null;
   const sorted = [...reports].sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
 
-  const avgOf = (arr, key) => arr.length ? arr.reduce((s, r) => s + (r[key] || 0), 0) / arr.length : 0;
+  // testScore는 문자열로 저장돼 있어 Number() 없이 더하면 "0"+"76" 식으로 문자열 이어붙이기가 됨 — 반드시 숫자 변환 후 합산
+  const avgOf = (arr, key) => arr.length ? arr.reduce((s, r) => s + (Number(r[key]) || 0), 0) / arr.length : 0;
   // 미입력(null)은 분모에서 제외
   const avgPctOf = (arr, key) => {
     const rated = arr.filter(r => r[key] != null);
