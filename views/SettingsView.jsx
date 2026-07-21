@@ -29,6 +29,22 @@ async function logPlatformEvent(type, { academyId, academyName, detail = '' }) {
   }
 }
 
+// 가입 신청 승인/거절 결과를 신청자 본인에게 이메일로 알림 — Firestore 반영은 이미 끝난 뒤
+// fire-and-forget으로 호출하므로 메일 발송 실패가 승인/거절 처리 자체를 막지 않음.
+async function notifySignupDecision(type, req) {
+  try {
+    const idToken = await auth.currentUser?.getIdToken();
+    if (!idToken) return;
+    await fetch('/api/notify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+      body: JSON.stringify({ type, email: req.email, academyName: req.academyName }),
+    });
+  } catch (e) {
+    console.error('가입 신청 결과 메일 발송 실패:', e);
+  }
+}
+
 // "교현초 5학년" 형태의 school 문자열에서 학년 숫자만 찾아 +1 — DiagnosticReportInput.jsx의
 // guessCourseKey와 동일한 급(초/중/고) 판별 규칙을 재사용해 일관성 유지.
 // 초6/중3/고3(급 전환 대상 — 학교명 자체가 바뀌어야 함)은 건드리지 않고 null 반환.
@@ -275,6 +291,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
         status: 'approved', academyId: trimmedId, reviewedAt: serverTimestamp(), reviewedBy: auth.currentUser?.email || null,
       }, { merge: true });
       logPlatformEvent('signup_approved', { academyId: trimmedId, academyName: req.academyName });
+      notifySignupDecision('signup-approved', req);
       setSignupActionResult(`${req.academyName} 승인 완료! (ID: ${trimmedId})`);
       setExpandedRequestId(null);
       loadSignupRequests();
@@ -294,6 +311,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
       }, { merge: true });
       await setDoc(doc(db, 'users', req.uid), { status: 'rejected' }, { merge: true });
       logPlatformEvent('signup_rejected', { academyName: req.academyName });
+      notifySignupDecision('signup-rejected', req);
       setExpandedRequestId(null);
       loadSignupRequests();
       loadPlatformEvents();

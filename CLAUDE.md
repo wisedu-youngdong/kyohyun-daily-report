@@ -17,6 +17,7 @@
 - `App.jsx` (~720줄): 최상위 셸 — 인증/역할(academyId, isPlatformAdmin) 상태 관리, 탭 라우팅, 화면(views/)에 데이터 전달
 - `views/` — 화면별 컴포넌트 (구 App.jsx 4,111줄을 여기로 분리)
   - `LoginScreen.jsx`, `ResetPasswordScreen.jsx`: 로그인 / 비밀번호 재설정
+  - `SignupRequestScreen.jsx`: 학원 셀프 가입 신청(/signup, 공개) — 주소는 다음 우편번호 API로 검색, 신청 승인/거절은 SettingsView.jsx "가입 신청 관리"에서 처리
   - `DashboardView.jsx`: 오늘의 현황 대시보드
   - `StudentsView.jsx`, `StudentModal.jsx`, `StudentProfileModal.jsx`: 학생 목록 / 등록·수정 모달 / 상세 프로필
   - `HistoryView.jsx`: 기록 보관소
@@ -30,10 +31,12 @@
 - `tokens.jsx`: 디자인 토큰 — `C`(컬러 규칙), `RADIUS2`, `TYPE`, `SHADOW` 공용 스케일 + `T`/`R` 화면별 팔레트
 - `api/analyze-photo.js`: Gemini Vision으로 채점 사진 분석 (정답/오답 판정)
 - `api/polish.js`: 선생님 메모를 학부모 톤으로 다듬기
-- `api/notify-question.js`: 학부모 질문 등록 시 원장 이메일 알림 (firebase-admin)
+- `api/notify.js`: 이메일 알림 — `type`으로 분기(`question`=학부모 질문 등록 시 원장 알림/기본값·인증 불필요, `signup-approved`/`signup-rejected`=가입 신청 심사 결과를 신청자에게 알림·플랫폼 관리자 인증 필요) (firebase-admin). 원래 `notify-question.js` 하나였는데 12개 함수 제한 때문에 새 파일 대신 이 파일을 일반화함
+- `api/delete-signup-request.js`: 대기/거절 상태인 가입 신청 삭제 (firebase-admin, 플랫폼 관리자 인증 필요 — Auth 계정도 함께 삭제)
 - `api/report-questions.js`: 공개 리포트 페이지에서 특정 리포트의 질문/답변 조회 (firebase-admin — reportQuestions의 Firestore list는 직원 전용이라 공개 조회는 이 프록시를 거침)
 - `api/review-history.js`: 공개 성장 스토리 페이지의 "복습 효과" 그래프용 완료된 복습 이력 조회 (firebase-admin — reviews도 같은 이유로 직원 전용이라 프록시를 거침)
 - `api/send-reset-email.js`: 비밀번호 재설정 이메일 발송 (firebase-admin, 서비스 계정은 base64 인코딩 env로 전달)
+- `api/narrative.js`: 성장 스토리 AI 서사 생성 (로그인 필요)
 - `api/og.js`, `api/report-og.js`, `api/story-og.js`, `api/award-og.js`: OG 미리보기 이미지 — `api/_lib/academyName.js` 공용 헬퍼로 학원명 표시(Admin SDK 없이 Firestore REST API 사용)
 - `scripts/migrate-to-academies.js`: 멀티테넌시 마이그레이션 스크립트
 - `scripts/seed-emulator.js`: Firebase 에뮬레이터용 테스트 데이터 시드 (프로덕션에 연결 안 됨)

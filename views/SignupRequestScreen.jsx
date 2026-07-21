@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { auth, db } from '../firebase';
 import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -32,6 +32,31 @@ export default function SignupRequestScreen() {
     && applicantName.trim() && phone.trim() && isValidPhone(phone)
     && academyName.trim() && businessNumber.trim()
     && address.trim() && academyPhone.trim() && directorName.trim() && agreed;
+
+  // 다음 우편번호 서비스 — API 키 없이 쓰는 공개 스크립트라 필요할 때(모달 열 때)만 1회 로드.
+  // .open()은 window.open 팝업이라 카카오톡 인앱브라우저 등에서 막히는 사례가 있어(CLAUDE.md
+  // 참고), 화면 안에 직접 그리는 .embed() 방식의 모달 오버레이로 구현
+  const [showPostcode, setShowPostcode] = useState(false);
+  const postcodeContainerRef = useRef(null);
+
+  useEffect(() => {
+    if (!showPostcode) return;
+    const launch = () => {
+      if (!postcodeContainerRef.current) return;
+      new window.daum.Postcode({
+        oncomplete: (data) => {
+          setAddress(data.roadAddress || data.jibunAddress || '');
+          setShowPostcode(false);
+        },
+        width: '100%', height: '100%',
+      }).embed(postcodeContainerRef.current);
+    };
+    if (window.daum?.Postcode) { launch(); return; }
+    const script = document.createElement('script');
+    script.src = '//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
+    script.onload = launch;
+    document.body.appendChild(script);
+  }, [showPostcode]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -170,8 +195,16 @@ export default function SignupRequestScreen() {
               </div>
               <div style={fieldWrap}>
                 <label style={labelStyle}>*학원 주소</label>
-                <input value={address} onChange={e => setAddress(e.target.value)}
-                  onFocus={focusInput} onBlur={blurInput} placeholder="기본주소" style={{ ...inputStyle, marginBottom: '6px' }} />
+                <div style={{ display: 'flex', gap: '6px', marginBottom: '6px' }}>
+                  <input value={address} readOnly onClick={() => setShowPostcode(true)}
+                    placeholder="주소 검색을 눌러주세요" style={{ ...inputStyle, flex: 1, cursor: 'pointer', background: '#FAFAF8' }} />
+                  <button type="button" onClick={() => setShowPostcode(true)}
+                    style={{
+                      flexShrink: 0, padding: '0 16px', fontSize: '13px', fontWeight: 700,
+                      fontFamily: R.body, color: R.navy, background: '#fff',
+                      border: `1px solid ${R.navy}`, borderRadius: '6px', cursor: 'pointer',
+                    }}>주소 검색</button>
+                </div>
                 <input value={addressDetail} onChange={e => setAddressDetail(e.target.value)}
                   onFocus={focusInput} onBlur={blurInput} placeholder="상세주소 (선택)" style={inputStyle} />
               </div>
@@ -218,6 +251,26 @@ export default function SignupRequestScreen() {
           )}
         </div>
       </div>
+
+      {showPostcode && (
+        <div onClick={() => setShowPostcode(false)} style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px',
+        }}>
+          <div onClick={(e) => e.stopPropagation()} style={{
+            width: '100%', maxWidth: '420px', height: '480px', maxHeight: '80vh',
+            background: '#fff', borderRadius: '8px', overflow: 'hidden', position: 'relative',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
+          }}>
+            <button type="button" onClick={() => setShowPostcode(false)} aria-label="닫기" style={{
+              position: 'absolute', top: '8px', right: '8px', zIndex: 1,
+              width: '28px', height: '28px', border: 'none', borderRadius: '6px',
+              background: '#F3F3EF', color: R.ink, fontSize: '14px', fontWeight: 700, cursor: 'pointer',
+            }}>✕</button>
+            <div ref={postcodeContainerRef} style={{ width: '100%', height: '100%' }} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
