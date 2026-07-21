@@ -1,52 +1,91 @@
 import { useState } from 'react';
 import {
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LabelList
+  ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend
 } from 'recharts';
-import { toPct } from '../growth.js';
+import { toPct, kstDay } from '../growth.js';
 import { findUnitKey } from '../curriculum.js';
 import { DIAG_LABELS as TAG_LABELS, DIAG_SOFT as DIAG_SOFT_COLORS } from '../diagnosis.js';
 import { T, C, RADIUS2 } from '../tokens.jsx';
 import { StatCard } from './shared.jsx';
 
-// ── 과제/개념/시험 추이 차트 — AnalysisView 전용
+// 월요일 시작 기준 주간 범위 계산 — weekOffset 0=이번 주, 1=지난 주, 2=지지난 주...
+// kstWeekday/kstDay(growth.js)와 동일한 "UTC로 +9h 시프트해서 KST 벽시계로 취급" 방식 사용
+function getKstWeekRange(weekOffset) {
+  const shiftedNow = new Date(Date.now() + 9 * 3600 * 1000);
+  const dow = shiftedNow.getUTCDay(); // 0=일 ... 6=토
+  const mondayOffset = dow === 0 ? -6 : 1 - dow;
+  const monday = new Date(shiftedNow);
+  monday.setUTCDate(shiftedNow.getUTCDate() + mondayOffset - weekOffset * 7);
+  monday.setUTCHours(0, 0, 0, 0);
+  const sunday = new Date(monday);
+  sunday.setUTCDate(monday.getUTCDate() + 6);
+  const toStr = (d) => d.toISOString().split('T')[0];
+  const weekOfMonth = Math.ceil(monday.getUTCDate() / 7);
+  return {
+    startStr: toStr(monday),
+    endStr: toStr(sunday),
+    label: `${monday.getUTCMonth() + 1}월 ${weekOfMonth}주차`,
+    rangeLabel: `${monday.getUTCMonth() + 1}/${monday.getUTCDate()} ~ ${sunday.getUTCMonth() + 1}/${sunday.getUTCDate()}`,
+  };
+}
+
+// ── 과제/개념/시험 추이 차트 — AnalysisView 전용. 학생마다 등원 요일이 달라(월수금/화목토/방학
+// 특강 매일 등) 세션 개수로 자르면 시험처럼 어쩌다 있는 값 사이 간격이 몇 주씩 벌어져 보기 불편함 —
+// 대신 달력 기준 한 주(월~일) 단위로 넘겨보게 해서 간격을 항상 최대 일주일로 묶음
 function HomeworkTestChart({ reports }) {
-  const data = [...reports]
+  const [weekOffset, setWeekOffset] = useState(0);
+  const week = getKstWeekRange(weekOffset);
+
+  const weekReports = reports.filter(r => {
+    if (!r.createdAt?.seconds) return false;
+    const day = kstDay(r.createdAt.seconds);
+    return day >= week.startStr && day <= week.endStr;
+  });
+
+  const data = [...weekReports]
     .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0))
     .map(r => ({
       date: r.createdAt?.seconds
-        ? new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })
+        ? new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric', weekday: 'short' })
         : '',
       과제: toPct(r.homeworkRating),
       개념: toPct(r.conceptRating),
       시험: r.hasTest && r.testScore ? Number(r.testScore) : null, // 과제/개념도 100점 척도로 통일되어 별도 환산 불필요
     }));
 
-  if (data.length === 0) return null;
-
   return (
     <div style={{ background: T.bg, borderRadius: `${RADIUS2.panel}px`, padding: '18px', border: `1px solid ${T.border}` }}>
-      <h3 style={{ fontSize: '13px', fontWeight: 700, marginBottom: '12px' }}>과제 · 개념 · 시험 추이</h3>
-      <p style={{ fontSize: '10px', color: T.textMute, margin: '0 0 10px' }}>막대가 높을수록 그날 점수가 좋았다는 뜻입니다 (100점 만점 기준).</p>
-      <div style={{ width: '100%', height: 220 }}>
-        <ResponsiveContainer>
-          <BarChart data={data} margin={{ top: 16, right: 4, left: -20, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
-            <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-            <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} />
-            <Tooltip contentStyle={{ fontSize: '11px', borderRadius: `${RADIUS2.input}px` }} />
-            <Legend wrapperStyle={{ fontSize: '11px' }} />
-            <Bar dataKey="과제" fill={T.brand} radius={[4, 4, 0, 0]}>
-              <LabelList dataKey="과제" position="top" style={{ fontSize: '10px', fill: T.brand, fontWeight: 700 }} />
-            </Bar>
-            <Bar dataKey="개념" fill="#9B6FD4" radius={[4, 4, 0, 0]}>
-              <LabelList dataKey="개념" position="top" style={{ fontSize: '10px', fill: '#9B6FD4', fontWeight: 700 }} />
-            </Bar>
-            <Bar dataKey="시험" fill="#0F6E56" radius={[4, 4, 0, 0]}>
-              <LabelList dataKey="시험" position="top" style={{ fontSize: '10px', fill: '#0F6E56', fontWeight: 700 }} />
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+        <h3 style={{ fontSize: '13px', fontWeight: 700, margin: 0 }}>과제 · 개념 · 시험 추이</h3>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <button onClick={() => setWeekOffset(o => o + 1)} title="이전 주"
+            style={{ background: 'none', border: 'none', color: T.textSub, cursor: 'pointer', fontSize: '13px', padding: '4px', width: '24px', height: '24px' }}>‹</button>
+          <span style={{ fontSize: '11px', fontWeight: 700, color: T.text, minWidth: '58px', textAlign: 'center' }}>{week.label}</span>
+          <button onClick={() => setWeekOffset(o => Math.max(0, o - 1))} disabled={weekOffset === 0} title="다음 주"
+            style={{ background: 'none', border: 'none', color: weekOffset === 0 ? T.border : T.textSub, cursor: weekOffset === 0 ? 'not-allowed' : 'pointer', fontSize: '13px', padding: '4px', width: '24px', height: '24px' }}>›</button>
+        </div>
       </div>
+      <p style={{ fontSize: '10px', color: T.textMute, margin: '0 0 10px' }}>{week.rangeLabel} · 점을 짚으면 정확한 값이 보여요 (100점 만점 기준)</p>
+      {data.length === 0 ? (
+        <div style={{ height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.textMute, fontSize: '12px' }}>
+          이 주에는 기록이 없어요
+        </div>
+      ) : (
+        <div style={{ width: '100%', height: 220 }}>
+          <ResponsiveContainer>
+            <LineChart data={data} margin={{ top: 8, right: 4, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
+              <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+              <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} />
+              <Tooltip contentStyle={{ fontSize: '11px', borderRadius: `${RADIUS2.input}px` }} />
+              <Legend wrapperStyle={{ fontSize: '11px' }} />
+              <Line type="monotone" dataKey="과제" stroke={T.brand} strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} connectNulls />
+              <Line type="monotone" dataKey="개념" stroke="#9B6FD4" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} connectNulls />
+              <Line type="monotone" dataKey="시험" stroke={C.success} strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} connectNulls={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
     </div>
   );
 }
