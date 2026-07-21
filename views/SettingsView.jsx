@@ -601,11 +601,11 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
         <p style={{ fontSize: '11px', color: '#6B7280', margin: '0 0 14px', lineHeight: 1.6 }}>
           리포트 작성 화면의 미리보기 카드 하단에 표시됩니다. 비워두면 표시되지 않습니다.
         </p>
-        <div style={{ display: 'flex', gap: '6px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
           <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="예: 031-000-0000"
-            style={{ flex: 1, padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
+            style={{ flex: '1 1 160px', minWidth: 0, padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
           <button onClick={savePhone} disabled={phoneSaving}
-            style={{ padding: '9px 16px', fontSize: '12px', fontWeight: 700, borderRadius: '9px', border: 'none', background: phoneSaving ? '#E5E7EB' : (phoneSaved ? C.success : C.primary), color: phoneSaving ? '#9CA3AF' : '#fff', cursor: phoneSaving ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+            style={{ flexShrink: 0, padding: '9px 16px', fontSize: '12px', fontWeight: 700, borderRadius: '9px', border: 'none', background: phoneSaving ? '#E5E7EB' : (phoneSaved ? C.success : C.primary), color: phoneSaving ? '#9CA3AF' : '#fff', cursor: phoneSaving ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
             {phoneSaving ? '저장 중...' : phoneSaved ? '✓ 저장됨' : '저장'}
           </button>
         </div>
@@ -618,11 +618,11 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
         <p style={{ fontSize: '11px', color: '#6B7280', margin: '0 0 14px', lineHeight: 1.6 }}>
           리포트 작성 화면의 과목 선택 버튼에 표시됩니다. 쉼표(,)로 구분해서 입력하세요.
         </p>
-        <div style={{ display: 'flex', gap: '6px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
           <input value={subjectsInput} onChange={(e) => setSubjectsInput(e.target.value)} placeholder="예: 수학, 영어, 국어, 기타"
-            style={{ flex: 1, padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
+            style={{ flex: '1 1 160px', minWidth: 0, padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
           <button onClick={saveSubjects} disabled={subjectsSaving}
-            style={{ padding: '9px 16px', fontSize: '12px', fontWeight: 700, borderRadius: '9px', border: 'none', background: subjectsSaving ? '#E5E7EB' : (subjectsSaved ? C.success : C.primary), color: subjectsSaving ? '#9CA3AF' : '#fff', cursor: subjectsSaving ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+            style={{ flexShrink: 0, padding: '9px 16px', fontSize: '12px', fontWeight: 700, borderRadius: '9px', border: 'none', background: subjectsSaving ? '#E5E7EB' : (subjectsSaved ? C.success : C.primary), color: subjectsSaving ? '#9CA3AF' : '#fff', cursor: subjectsSaving ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
             {subjectsSaving ? '저장 중...' : subjectsSaved ? '✓ 저장됨' : '저장'}
           </button>
         </div>
