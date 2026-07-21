@@ -792,27 +792,37 @@ export default function GrowthStory() {
                     )}
                   </p>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                    {/* 4칸 모두 "캡션 줄(9px, 고정) + 값 줄(20px 고정 높이, 세로 중앙정렬)" 구조로
+                        통일 — 폰트 크기가 13/16/12/11px로 제각각이라 lineHeight 차이로 살짝
+                        어긋나 보이던 걸, 값 줄 자체를 고정 높이 박스로 만들어 완전히 맞춤 */}
                     <div style={{ textAlign: 'center' }}>
                       <p style={{ fontSize: '9px', color: '#B0B0B0', fontWeight: 600, margin: '0 0 2px' }}>복습 전</p>
-                      <span style={{ fontSize: '13px', fontWeight: 700, color: '#8A8A8A' }}>{p.before}점</span>
+                      <div style={{ height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 700, color: '#8A8A8A', lineHeight: 1 }}>{p.before}점</span>
+                      </div>
                     </div>
                     <div style={{ textAlign: 'center' }}>
-                      {/* 캡션 줄과 같은 높이를 차지하는 투명 자리 — 화살표가 숫자와 나란한 줄에 오도록 맞춤 */}
                       <p style={{ fontSize: '9px', margin: '0 0 2px', visibility: 'hidden' }}>·</p>
-                      <span style={{ fontSize: '12px', color: '#C9A227' }}>→</span>
+                      <div style={{ height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <span style={{ fontSize: '12px', color: '#C9A227', lineHeight: 1 }}>→</span>
+                      </div>
                     </div>
                     <div style={{ textAlign: 'center' }}>
                       <p style={{ fontSize: '9px', color: '#B0B0B0', fontWeight: 600, margin: '0 0 2px' }}>복습 후</p>
-                      <span style={{ fontSize: '16px', fontWeight: 800, color: delta > 0 ? '#0D2D6B' : '#2C2C2C' }}>{p.after}점</span>
+                      <div style={{ height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <span style={{ fontSize: '16px', fontWeight: 800, color: delta > 0 ? '#0D2D6B' : '#2C2C2C', lineHeight: 1 }}>{p.after}점</span>
+                      </div>
                     </div>
                     <div style={{ textAlign: 'center' }}>
                       <p style={{ fontSize: '9px', margin: '0 0 2px', visibility: 'hidden' }}>·</p>
-                      <span style={{ fontSize: '11px', fontWeight: 700, color: delta > 0 ? '#0F6E56' : delta < 0 ? '#A32D2D' : '#B0B0B0' }}>
-                        {delta === 0 ? '동일' : delta > 0 ? `+${delta}` : `${delta}`}
-                      </span>
+                      <div style={{ height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 700, color: delta > 0 ? '#0F6E56' : delta < 0 ? '#A32D2D' : '#B0B0B0', lineHeight: 1 }}>
+                          {delta === 0 ? '동일' : delta > 0 ? `+${delta}` : `${delta}`}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  {p.note && <p style={{ fontSize: '11px', color: '#8A8A8A', margin: '5px 0 0', lineHeight: 1.5 }}>{p.note}</p>}
+                  {p.note && <p style={{ fontSize: '12px', color: '#2C2C2C', margin: '5px 0 0', lineHeight: 1.5 }}>{p.note}</p>}
                 </div>
               );
             })}
