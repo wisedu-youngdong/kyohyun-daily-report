@@ -12,11 +12,26 @@ export default function DashboardView({ students, reports, classes = [], reportV
       setTimeout(() => setCopiedReportId(prev => prev === reportId ? null : prev), 2000);
     });
   };
-  // 리마인더에서 숨김 처리한 리포트 — Firestore 반영 전에도 바로 목록에서 사라지도록 낙관적 갱신
+  // 리마인더에서 숨김 처리한 리포트 — Firestore 반영 전에도 바로 목록에서 사라지도록 낙관적 갱신.
+  // X는 아이콘만 있고 title(툴팁)은 모바일에서 안 보여서 "삭제되나?" 오해를 살 수 있어 —
+  // 숨긴 직후 몇 초간 "실행취소" 배너를 화면에 직접 띄워 "삭제 아니고 숨김"이라는 걸 눈으로 보여줌
   const [dismissedIds, setDismissedIds] = React.useState(new Set());
-  const handleDismissUnread = (reportId) => {
-    setDismissedIds(prev => new Set(prev).add(reportId));
-    onDismissUnreadReminder?.(reportId);
+  const [undoBanner, setUndoBanner] = React.useState(null); // { id, studentName, timeoutId }
+  const handleDismissUnread = (report) => {
+    setDismissedIds(prev => new Set(prev).add(report.id));
+    onDismissUnreadReminder?.(report.id, true);
+    setUndoBanner(prev => {
+      if (prev) clearTimeout(prev.timeoutId);
+      const timeoutId = setTimeout(() => setUndoBanner(cur => cur?.id === report.id ? null : cur), 5000);
+      return { id: report.id, studentName: report.studentName, timeoutId };
+    });
+  };
+  const handleUndoDismiss = () => {
+    if (!undoBanner) return;
+    clearTimeout(undoBanner.timeoutId);
+    setDismissedIds(prev => { const next = new Set(prev); next.delete(undoBanner.id); return next; });
+    onDismissUnreadReminder?.(undoBanner.id, false);
+    setUndoBanner(null);
   };
   const [markingAbsent, setMarkingAbsent] = React.useState(null); // studentId 처리 중
   const [confirmAbsenceStudent, setConfirmAbsenceStudent] = React.useState(null); // 결석 처리 확인 모달 대상
@@ -224,13 +239,21 @@ export default function DashboardView({ students, reports, classes = [], reportV
                   style={{ flexShrink: 0, padding: '6px 12px', fontSize: '11px', fontWeight: 700, borderRadius: '8px', border: '1px solid #1A5CB8', background: copiedReportId === r.id ? '#1A5CB8' : '#fff', color: copiedReportId === r.id ? '#fff' : '#1A5CB8', cursor: 'pointer', fontFamily: 'inherit' }}>
                   {copiedReportId === r.id ? '✓ 복사됨' : '링크 복사'}
                 </button>
-                <button onClick={() => handleDismissUnread(r.id)} title="이 리마인더에서 숨기기 (리포트 자체는 그대로 남아요)"
+                <button onClick={() => handleDismissUnread(r)} title="이 리마인더에서 숨기기 (리포트 자체는 그대로 남아요)"
                   style={{ flexShrink: 0, width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', background: 'none', color: '#98A1AC', cursor: 'pointer', borderRadius: '6px' }}>
                   <X size={15} />
                 </button>
               </div>
             );
           })}
+          {undoBanner && (
+            <div style={{ padding: '9px 18px', background: '#EAF0F9', borderTop: '1px solid #C5D5F0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+              <span style={{ fontSize: '11px', color: '#1A5CB8' }}>{undoBanner.studentName} 리포트를 리마인더에서 숨겼어요 (삭제 아님)</span>
+              <button onClick={handleUndoDismiss} style={{ flexShrink: 0, background: 'none', border: 'none', color: '#0D2D6B', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>
+                실행취소
+              </button>
+            </div>
+          )}
           {unreadReports.length > 5 && (
             <p style={{ padding: '8px 18px', fontSize: '11px', color: '#1A5CB8', margin: 0, textAlign: 'center' }}>
               외 {unreadReports.length - 5}건 더 있어요

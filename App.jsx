@@ -236,10 +236,11 @@ export default function App() {
     }
   };
 
-  // 대시보드 "미열람 리마인더"에서만 숨김 — 리포트 자체나 열람 여부는 안 건드림, 이 위젯에서만 다시 안 뜨게
-  const handleDismissUnreadReminder = async (reportId) => {
+  // 대시보드 "미열람 리마인더"에서만 숨김 — 리포트 자체나 열람 여부는 안 건드림, 이 위젯에서만 다시 안 뜨게.
+  // dismissed=false로 부르면 실행취소(다시 보이게)
+  const handleDismissUnreadReminder = async (reportId, dismissed = true) => {
     try {
-      await updateDoc(doc(db, 'academies', academyId, 'reports', reportId), { reminderDismissed: true });
+      await updateDoc(doc(db, 'academies', academyId, 'reports', reportId), { reminderDismissed: dismissed });
     } catch (e) {
       console.error('미열람 리마인더 숨기기 실패:', e);
     }
