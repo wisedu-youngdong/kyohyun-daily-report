@@ -691,9 +691,16 @@ export default function App() {
 
               // 작성 중인 초안은 아직 학부모에게 보여줄 내용이 아니므로 링크 복사 대상에서 제외
               const sentReports = todayReports.filter(r => !r.isDraft);
-              const allLinks = sentReports
-                .map(r => `${r.studentName} 학생 리포트\n${window.location.origin}/report/${r.id}`)
-                .join('\n\n');
+              const linksText = (list) => list.map(r => `${r.studentName} 학생 리포트\n${window.location.origin}/report/${r.id}`).join('\n\n');
+              const allLinks = linksText(sentReports);
+
+              // 오늘 발송분이 반 2개 이상에 걸쳐 있을 때만 반별 버튼을 추가로 보여줌 —
+              // 반이 없거나 하나뿐이면 기존처럼 "전체 링크 복사" 버튼 하나로 충분
+              const studentClassId = (studentId) => visibleStudents.find(s => s.id === studentId)?.classId || null;
+              const classGroups = classes
+                .map(c => ({ cls: c, reports: sentReports.filter(r => studentClassId(r.studentId) === c.id) }))
+                .filter(g => g.reports.length > 0);
+              const showPerClass = classes.length > 0 && classGroups.length > 1;
 
               return (
                 <div style={{ background: '#F8F9FC', borderBottom: '1px solid #E5E7EB', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -725,11 +732,20 @@ export default function App() {
                     })
                   }
                   {sentReports.length > 0 && (
-                    <button
-                      onClick={() => navigator.clipboard.writeText(allLinks).then(() => showAppToast(`발송 완료 리포트 ${sentReports.length}건 링크 복사됐어요!`))}
-                      style={{ marginLeft: 'auto', padding: '4px 10px', borderRadius: '12px', border: '1px solid #0D2D6B', background: '#fff', color: '#0D2D6B', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
-                      전체 링크 복사 ({sentReports.length}건)
-                    </button>
+                    <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                      {showPerClass && classGroups.map(g => (
+                        <button key={g.cls.id}
+                          onClick={() => navigator.clipboard.writeText(linksText(g.reports)).then(() => showAppToast(`${g.cls.name} 리포트 ${g.reports.length}건 링크 복사됐어요!`))}
+                          style={{ padding: '4px 10px', borderRadius: '12px', border: '1px solid #E5E7EB', background: '#fff', color: '#374151', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
+                          {g.cls.name} ({g.reports.length}건)
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => navigator.clipboard.writeText(allLinks).then(() => showAppToast(`발송 완료 리포트 ${sentReports.length}건 링크 복사됐어요!`))}
+                        style={{ padding: '4px 10px', borderRadius: '12px', border: '1px solid #0D2D6B', background: '#fff', color: '#0D2D6B', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
+                        전체 링크 복사 ({sentReports.length}건)
+                      </button>
+                    </div>
                   )}
                 </div>
               );
