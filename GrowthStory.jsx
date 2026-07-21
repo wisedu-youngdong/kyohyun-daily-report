@@ -45,6 +45,7 @@ export default function GrowthStory() {
   const [editing, setEditing] = useState(null);
   const [showAllUnits, setShowAllUnits] = useState(false);
   const [showAllSessions, setShowAllSessions] = useState(false);
+  const [completedReviews, setCompletedReviews] = useState([]); // 복습 효과 증명 그래프용
   const [editText, setEditText] = useState('');
 
   // 기간 토글 — URL 파라미터 연동
@@ -90,6 +91,12 @@ export default function GrowthStory() {
         const foundAcademyId = indexSnap.data().academyId;
         setAcademyId(foundAcademyId);
         fetchAcademyBranding(foundAcademyId).then(b => setAcademyName(b.academyName || null));
+
+        // 복습 효과 증명 그래프용 — reviews는 강사 전용 컬렉션이라 서버 프록시로 조회 (부가 기능이라 실패해도 본문 표시는 계속)
+        fetch(`/api/review-history?academyId=${encodeURIComponent(foundAcademyId)}&studentId=${encodeURIComponent(studentId)}`)
+          .then(r => r.ok ? r.json() : { reviews: [] })
+          .then(({ reviews }) => setCompletedReviews(reviews || []))
+          .catch(() => {});
 
         const [stuSnap, rSnap] = await Promise.all([
           getDoc(doc(db, 'academies', foundAcademyId, 'students', studentId)),
@@ -164,6 +171,29 @@ export default function GrowthStory() {
   const avgScore = allScores.length > 0 ? Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length) : null;
   const maxScore = allScores.length > 0 ? Math.max(...allScores) : null;
   const minScore = allScores.length > 0 ? Math.min(...allScores) : null;
+
+  // 복습 효과 증명 — 완료된 복습마다 "진단 당시 원본 리포트 점수 → 복습 후 재시험 점수" 비교.
+  // 원본 리포트에 시험 점수 자체가 없던 진단(개념 이해도 기반 등)은 비교 대상이 없어 자연히 제외됨.
+  const periodCutoff = period === '3m' ? Date.now() / 1000 - 90 * 86400 : null;
+  const reviewProof = completedReviews
+    .filter(rv => rv.testScore != null && (!periodCutoff || rv.completedAt >= periodCutoff))
+    .map(rv => {
+      const sourceReport = reports.find(r => r.id === rv.reportId);
+      if (!sourceReport?.hasTest || !sourceReport.testScore) return null;
+      return {
+        id: rv.id,
+        unit: rv.unit || sourceReport.unit || '',
+        weakLabel: rv.weakTypes?.[0]?.label || diagLabels[rv.weakTypes?.[0]?.key] || '',
+        round: rv.round,
+        before: Number(sourceReport.testScore),
+        after: Number(rv.testScore),
+        note: rv.note,
+        completedAt: rv.completedAt,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.completedAt - a.completedAt);
+  const reviewProofImproved = reviewProof.filter(p => p.after > p.before).length;
 
   // 최고 이해도 수업
   const bestReport = [...sorted].sort((a, b) => (b.conceptRating || 0) - (a.conceptRating || 0))[0];
@@ -737,6 +767,61 @@ export default function GrowthStory() {
           </div>
         );
       })()}
+
+      {/* 복습 효과 — 약점 진단 당시 원본 리포트 점수 대비, 복습을 거친 뒤 재시험 점수가
+          어떻게 바뀌었는지 보여줌. 시험 점수가 없던 진단은 비교 대상이 없어 자연히 빠짐 */}
+      {reviewProof.length > 0 && (
+        <div style={S.section}>
+          <p style={S.label}>복습 효과</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', background: '#F7F5F1', borderRadius: '4px', borderLeft: '2px solid #C9A227', marginBottom: '14px' }}>
+            <span style={{ fontSize: '11px', color: '#8A8A8A', fontWeight: 600 }}>복습 완료</span>
+            <span style={{ fontSize: '16px', fontWeight: 800, color: '#0D2D6B' }}>{reviewProof.length}건</span>
+            {reviewProofImproved > 0 && (
+              <span style={{ fontSize: '11px', color: '#0F6E56', fontWeight: 700, marginLeft: 'auto' }}>{reviewProofImproved}건 점수 향상</span>
+            )}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {reviewProof.slice(0, 5).map(p => {
+              const delta = p.after - p.before;
+              return (
+                <div key={p.id}>
+                  <p style={{ fontSize: '11px', fontWeight: 700, color: '#2C2C2C', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {p.unit || '복습'}
+                    {p.weakLabel && (
+                      <span style={{ fontSize: '9px', color: '#0D2D6B', background: '#EAF0F9', padding: '2px 7px', borderRadius: '3px', fontWeight: 600 }}>{p.weakLabel}</span>
+                    )}
+                  </p>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                    <div style={{ textAlign: 'center' }}>
+                      <p style={{ fontSize: '9px', color: '#B0B0B0', fontWeight: 600, margin: '0 0 2px' }}>복습 전</p>
+                      <span style={{ fontSize: '13px', fontWeight: 700, color: '#8A8A8A' }}>{p.before}점</span>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      {/* 캡션 줄과 같은 높이를 차지하는 투명 자리 — 화살표가 숫자와 나란한 줄에 오도록 맞춤 */}
+                      <p style={{ fontSize: '9px', margin: '0 0 2px', visibility: 'hidden' }}>·</p>
+                      <span style={{ fontSize: '12px', color: '#C9A227' }}>→</span>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <p style={{ fontSize: '9px', color: '#B0B0B0', fontWeight: 600, margin: '0 0 2px' }}>복습 후</p>
+                      <span style={{ fontSize: '16px', fontWeight: 800, color: delta > 0 ? '#0D2D6B' : '#2C2C2C' }}>{p.after}점</span>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <p style={{ fontSize: '9px', margin: '0 0 2px', visibility: 'hidden' }}>·</p>
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: delta > 0 ? '#0F6E56' : delta < 0 ? '#A32D2D' : '#B0B0B0' }}>
+                        {delta === 0 ? '동일' : delta > 0 ? `+${delta}` : `${delta}`}
+                      </span>
+                    </div>
+                  </div>
+                  {p.note && <p style={{ fontSize: '11px', color: '#8A8A8A', margin: '5px 0 0', lineHeight: 1.5 }}>{p.note}</p>}
+                </div>
+              );
+            })}
+          </div>
+          {reviewProof.length > 5 && (
+            <p style={{ fontSize: '10px', color: '#8A8A8A', marginTop: '10px', textAlign: 'center' }}>외 {reviewProof.length - 5}건 더</p>
+          )}
+        </div>
+      )}
 
       {/* 핵심 지표 */}
       <div style={S.section}>
