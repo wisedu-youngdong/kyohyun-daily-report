@@ -1,8 +1,13 @@
 // Vercel Serverless — AI 서사 자동 생성
+import { verifyIdTokenHeader } from './_lib/verifyAuth.js';
+
 export const maxDuration = 30;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  // 학부모 열람(GET student)과 달리 이건 Gemini 호출 + narrative 필드 쓰기를 트리거하는
+  // 액션이라 로그인 필수 — analyze-photo.js/polish.js와 동일한 기준
+  if (!(await verifyIdTokenHeader(req))) return res.status(401).json({ error: '로그인이 필요합니다.' });
 
   const { studentName, milestones, unitScores, teacherNotes, isNewStudent, totalReports } = req.body;
 

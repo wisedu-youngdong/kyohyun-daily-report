@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { db } from './firebase';
+import { db, auth } from './firebase';
 import { collection, getDoc, getDocs, query, where, doc, setDoc, limit } from 'firebase/firestore';
 import { ReportCard } from './tokens.jsx';
 import { toPct, isNewStudent as computeIsNewStudent, fetchAcademyBranding } from './growth.js';
@@ -347,13 +347,17 @@ export default function GrowthStory() {
       .filter(r => r.teacherNote)
       .map(r => r.teacherNote);
     try {
+      const idToken = await auth.currentUser?.getIdToken();
       const response = await fetch('/api/narrative', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          studentName: student?.name || '학생', 
-          milestones, 
-          unitScores, 
+        headers: {
+          'Content-Type': 'application/json',
+          ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+        },
+        body: JSON.stringify({
+          studentName: student?.name || '학생',
+          milestones,
+          unitScores,
           teacherNotes,
           isNewStudent,
           totalReports: sorted.length,
@@ -361,7 +365,7 @@ export default function GrowthStory() {
       });
       const data = await response.json();
       if (!response.ok) {
-        alert(`오류: ${JSON.stringify(data)}`);
+        alert(data?.error === '로그인이 필요합니다.' ? '로그인 후 이용해주세요.' : `오류: ${JSON.stringify(data)}`);
       } else {
         setNarrative(data);
         try {
