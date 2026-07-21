@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { db } from './firebase';
-import { doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, addDoc, serverTimestamp, getDocs, query, where, limit } from 'firebase/firestore';
 import { R, ReportCard } from './tokens.jsx';
 import { toPct, ratingLabel, fetchAcademyBranding } from './growth.js';
 import { DIAG_BADGE } from './diagnosis.js';
@@ -36,16 +36,18 @@ export default function PublicReport() {
   const [loading, setLoading] = useState(true);
   const [errorType, setErrorType] = useState(null); // 'notfound' | 'network'
   const [retryKey, setRetryKey] = useState(0);
-  const [lightboxUrl, setLightboxUrl] = useState(null);
+  const [lightboxIndex, setLightboxIndex] = useState(null); // photoUrls 배열의 인덱스 — 좌우 넘기기 위해 URL 대신 인덱스로 관리
   const [brokenPhotos, setBrokenPhotos] = useState({});
   const [academyName, setAcademyName] = useState(null);
   const [academyId, setAcademyId] = useState(null);
+  const [prevReport, setPrevReport] = useState(null); // 지난 리포트 — 과제/개념 점수 추세(▲▼) 표시용
   const [questions, setQuestions] = useState([]);
   const [questionText, setQuestionText] = useState('');
   const [questionSubmitting, setQuestionSubmitting] = useState(false);
   const [questionSubmitted, setQuestionSubmitted] = useState(false);
   const [questionError, setQuestionError] = useState('');
   const viewLoggedRef = React.useRef(false); // StrictMode 개발 모드 이펙트 2회 실행 시 열람 기록 중복 방지
+  const touchStartXRef = React.useRef(null); // 라이트박스 스와이프 넘기기용
 
   useEffect(() => {
     setLoading(true);
@@ -64,6 +66,21 @@ export default function PublicReport() {
         setLoading(false);
         setAcademyId(academyId);
         fetchAcademyBranding(academyId).then(b => setAcademyName(b.academyName || null));
+
+        // 지난 리포트 조회 — 과제/개념 점수 추세(▲▼) 표시용. studentId 단일 조건만 걸고
+        // (createdAt과 함께 걸면 복합 색인이 필요해짐) 클라이언트에서 정렬/필터
+        // — GrowthAward.jsx가 같은 이유로 쓰는 것과 동일한 패턴
+        if (r.studentId && r.createdAt?.seconds) {
+          getDocs(query(collection(db, 'academies', academyId, 'reports'), where('studentId', '==', r.studentId), limit(200)))
+            .then(snap => {
+              const candidates = snap.docs
+                .map(d => ({ id: d.id, ...d.data() }))
+                .filter(pr => pr.id !== r.id && pr.isDraft !== true && pr.createdAt?.seconds && pr.createdAt.seconds < r.createdAt.seconds)
+                .sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
+              if (candidates[0]) setPrevReport(candidates[0]);
+            })
+            .catch(() => {}); // 추세 표시는 부가 기능 — 실패해도 리포트 본문엔 영향 없음
+        }
 
         // 이 리포트에 남긴 질문/답변 — Firestore 직접 list는 전체 학원 질문 열람으로 이어질 수 있어
         // 막혀 있고(firestore.rules), reportId로 스코프된 결과만 서버(Admin SDK)를 통해 받아온다.
@@ -95,6 +112,27 @@ export default function PublicReport() {
       } catch (e) { console.error('리포트 로드 실패:', e); setErrorType('network'); setLoading(false); }
     })();
   }, [reportId, retryKey]);
+
+  // 라이트박스 열려있을 때 키보드로도 넘기기/닫기 — early return(로딩/에러 화면)보다 위에 있어야
+  // hooks 순서가 매 렌더 동일하게 유지됨
+  useEffect(() => {
+    if (lightboxIndex == null || !report?.photoUrls) return;
+    const visible = report.photoUrls.map((_, i) => i).filter(i => !brokenPhotos[i]);
+    const move = (delta) => {
+      setLightboxIndex(prev => {
+        const pos = visible.indexOf(prev);
+        if (pos === -1 || visible.length < 2) return prev;
+        return visible[(pos + delta + visible.length) % visible.length];
+      });
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') setLightboxIndex(null);
+      else if (e.key === 'ArrowLeft') move(-1);
+      else if (e.key === 'ArrowRight') move(1);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [lightboxIndex, brokenPhotos, report]);
 
   const handleAskQuestion = async () => {
     const text = questionText.trim();
@@ -150,8 +188,22 @@ export default function PublicReport() {
   const conceptPct = toPct(r.conceptRating);
   const teacherSuffix = /선생님?$/.test(r.teacherName || '') ? '' : ' 선생님';
 
+  // 지난 리포트 대비 추세 — 둘 다 값이 있을 때만 계산(한쪽이 미입력이면 비교 자체가 의미 없음)
+  const homeworkTrend = (r.homeworkRating != null && prevReport?.homeworkRating != null)
+    ? homeworkPct - toPct(prevReport.homeworkRating) : null;
+  const conceptTrend = (r.conceptRating != null && prevReport?.conceptRating != null)
+    ? conceptPct - toPct(prevReport.conceptRating) : null;
+
   // DS 토큰
   const { navy, gold, rule, inkMute, inkSub, ink, positive, serif, body } = R;
+
+  // 추세 배지 — 지난 리포트 대비 ▲/▼N%p, 변화 없으면 "동일"
+  const TrendBadge = ({ trend }) => {
+    if (trend == null) return null;
+    const color = trend > 0 ? positive : trend < 0 ? '#B92C2C' : inkMute;
+    const text = trend > 0 ? `▲${trend}` : trend < 0 ? `▼${Math.abs(trend)}` : '동일';
+    return <span style={{ fontSize: '11px', fontWeight: 700, color, marginLeft: '5px' }}>{text}</span>;
+  };
 
   return (
     <>
@@ -185,14 +237,20 @@ export default function PublicReport() {
                 <p style={{ fontSize: '24px', fontWeight: 800, color: navy, margin: 0, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
                   {r.homeworkRating != null ? homeworkPct : '-'}<span style={{ fontSize: '12px', fontWeight: 500, color: inkMute }}>%</span>
                 </p>
-                <p style={{ fontSize: '12px', fontWeight: 600, color: inkSub, margin: '3px 0 0' }}>{r.homeworkRating != null ? ratingLabel(homeworkPct) : ''}</p>
+                <p style={{ fontSize: '12px', fontWeight: 600, color: inkSub, margin: '3px 0 0' }}>
+                  {r.homeworkRating != null ? ratingLabel(homeworkPct) : ''}
+                  <TrendBadge trend={homeworkTrend} />
+                </p>
               </div>
               <div style={{ borderRight: `1px solid ${rule}`, padding: '0 8px', textAlign: 'center' }}>
                 <p style={{ fontSize: '10px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 4px' }}>개념 이해</p>
                 <p style={{ fontSize: '24px', fontWeight: 800, color: navy, margin: 0, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
                   {r.conceptRating != null ? conceptPct : '-'}<span style={{ fontSize: '12px', fontWeight: 500, color: inkMute }}>%</span>
                 </p>
-                <p style={{ fontSize: '12px', fontWeight: 600, color: inkSub, margin: '3px 0 0' }}>{r.conceptRating != null ? ratingLabel(conceptPct) : ''}</p>
+                <p style={{ fontSize: '12px', fontWeight: 600, color: inkSub, margin: '3px 0 0' }}>
+                  {r.conceptRating != null ? ratingLabel(conceptPct) : ''}
+                  <TrendBadge trend={conceptTrend} />
+                </p>
               </div>
               <div style={{ padding: '0 8px', textAlign: 'center' }}>
                 <p style={{ fontSize: '10px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 4px' }}>출결</p>
@@ -277,15 +335,16 @@ export default function PublicReport() {
               </>
             )}
 
-            {/* 문제집 사진 */}
+            {/* 문제집 사진 — 2장/4장은 꽉 채워지는 2열, 그 외(1/3/5장)는 3열이라 마지막 줄에
+                사진 하나만 어중간하게 남는 걸 피함 */}
             {r.photoUrls?.filter((_, i) => !brokenPhotos[i]).length > 0 && (
               <>
                 <div style={{ marginBottom: '18px' }}>
                   <p style={{ fontSize: '10px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 8px' }}>TODAY'S WORK</p>
-                  <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(r.photoUrls.length, 2)}, 1fr)`, gap: '6px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: `repeat(${r.photoUrls.length === 1 ? 1 : (r.photoUrls.length === 2 || r.photoUrls.length === 4) ? 2 : 3}, 1fr)`, gap: '6px' }}>
                     {r.photoUrls.map((url, i) => !brokenPhotos[i] && (
                       <img key={i} src={url} alt={`문제집 ${i+1}`} loading="lazy"
-                        onClick={() => setLightboxUrl(url)}
+                        onClick={() => setLightboxIndex(i)}
                         onError={() => setBrokenPhotos(prev => ({ ...prev, [i]: true }))}
                         style={{ width: '100%', aspectRatio: '3/4', objectFit: 'cover', borderRadius: '4px', border: `1px solid ${rule}`, cursor: 'pointer' }} />
                     ))}
@@ -347,19 +406,51 @@ export default function PublicReport() {
           </div>
 
     </ReportCard>
-    {lightboxUrl && (
-      <div onClick={() => setLightboxUrl(null)} style={{
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 999,
-        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', cursor: 'zoom-out',
-      }}>
-        <img src={lightboxUrl} alt="확대 이미지" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '4px' }} />
-        <button onClick={() => setLightboxUrl(null)} style={{
-          position: 'fixed', top: '16px', right: '16px', width: '40px', height: '40px', borderRadius: '50%',
+    {lightboxIndex != null && (() => {
+      const visible = r.photoUrls.map((_, i) => i).filter(i => !brokenPhotos[i]);
+      const pos = visible.indexOf(lightboxIndex);
+      const hasMultiple = visible.length > 1;
+      const goPrev = (e) => { e.stopPropagation(); setLightboxIndex(visible[(pos - 1 + visible.length) % visible.length]); };
+      const goNext = (e) => { e.stopPropagation(); setLightboxIndex(visible[(pos + 1) % visible.length]); };
+      const arrowBtnStyle = {
+        position: 'fixed', top: '50%', transform: 'translateY(-50%)', width: '44px', height: '44px', borderRadius: '50%',
+        background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      };
+      return (
+      <div
+        onClick={() => setLightboxIndex(null)}
+        onTouchStart={(e) => { touchStartXRef.current = e.touches[0].clientX; }}
+        onTouchEnd={(e) => {
+          if (touchStartXRef.current == null || !hasMultiple) return;
+          const delta = e.changedTouches[0].clientX - touchStartXRef.current;
+          touchStartXRef.current = null;
+          if (Math.abs(delta) < 40) return; // 짧은 탭/흔들림은 무시
+          if (delta > 0) setLightboxIndex(visible[(pos - 1 + visible.length) % visible.length]);
+          else setLightboxIndex(visible[(pos + 1) % visible.length]);
+        }}
+        style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', cursor: 'zoom-out',
+        }}>
+        <img src={r.photoUrls[lightboxIndex]} alt={`문제집 ${lightboxIndex + 1}`} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '4px' }} />
+        {hasMultiple && (
+          <>
+            <button onClick={goPrev} title="이전 사진" style={{ ...arrowBtnStyle, left: '12px' }}>‹</button>
+            <button onClick={goNext} title="다음 사진" style={{ ...arrowBtnStyle, right: '12px' }}>›</button>
+            <span style={{ position: 'fixed', bottom: '20px', left: '50%', transform: 'translateX(-50%)', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.8)', background: 'rgba(255,255,255,0.15)', padding: '4px 12px', borderRadius: '20px' }}>
+              {pos + 1} / {visible.length}
+            </span>
+          </>
+        )}
+        <button onClick={() => setLightboxIndex(null)} title="닫기" style={{
+          position: 'fixed', top: '16px', right: '16px', width: '44px', height: '44px', borderRadius: '50%',
           background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>×</button>
       </div>
-    )}
+      );
+    })()}
     </>
   );
 }
