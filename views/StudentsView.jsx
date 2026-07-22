@@ -1,126 +1,11 @@
 import React, { useState } from 'react';
 import { Pencil, AlertTriangle } from 'lucide-react';
-import { isNewStudent, toPct } from '../growth.js';
+import { isNewStudent } from '../growth.js';
 import { T, C } from '../tokens.jsx';
-import { DIAG_LABELS, DIAG_SOFT } from '../diagnosis.js';
 import { StudentModal } from './StudentModal.jsx';
 import { AVATARS } from './shared.jsx';
-import { StudentProfileModal } from './StudentProfileModal.jsx';
+import { StudentProfileModal, StudentProfileContent } from './StudentProfileModal.jsx';
 import { useMediaQuery } from '../hooks.js';
-
-// PC 마스터-디테일 오른쪽 패널 — 학생 프로필 모달의 핵심 지표 3종(개념 이해/과제 수행/정시
-// 출석률)과 동일한 계산을 그대로 재사용해, "자세히 보기"로 연 모달과 숫자가 어긋나지 않게 함.
-// 목록을 빠르게 훑어보기 위한 "요약"이 목적이라 출결 캘린더 등 무거운 내용은 넣지 않고,
-// 필요하면 "자세히 보기"로 기존 전체 모달을 그대로 연다.
-function StudentDetailSummary({ student, reports, onOpenFull }) {
-  const sorted = [...reports]
-    .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0))
-    .map(r => ({ ...r, conceptRating: r.conceptRating == null ? null : toPct(r.conceptRating), homeworkRating: r.homeworkRating == null ? null : toPct(r.homeworkRating) }));
-
-  const conceptRated = sorted.filter(r => r.conceptRating != null);
-  const homeworkRated = sorted.filter(r => r.homeworkRating != null);
-  const avgConcept = conceptRated.length ? Math.round(conceptRated.reduce((s, r) => s + r.conceptRating, 0) / conceptRated.length) : 0;
-  const avgHomework = homeworkRated.length ? Math.round(homeworkRated.reduce((s, r) => s + r.homeworkRating, 0) / homeworkRated.length) : 0;
-  const attendanceRated = sorted.filter(r => r.attendance != null);
-  const attendanceRate = attendanceRated.length ? Math.round(attendanceRated.filter(r => r.attendance === '정시').length / attendanceRated.length * 100) : 0;
-
-  const diagCount = {};
-  sorted.forEach(r => (r.diagnosis || []).forEach(d => {
-    if (d.key !== 'perfect') diagCount[d.key] = (diagCount[d.key] || 0) + 1;
-  }));
-  const weakTop = Object.entries(diagCount).sort((a, b) => b[1] - a[1]).slice(0, 3);
-
-  const recent = [...sorted].reverse().slice(0, 3);
-  const fmtDate = (r) => r.createdAt?.seconds
-    ? new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })
-    : '';
-
-  const avatarUrl = AVATARS.find(a => a.key === student.avatar)?.url;
-
-  return (
-    <div style={{ background: '#fff', borderRadius: '16px', border: `1px solid ${T.border}`, overflow: 'hidden' }}>
-      <div style={{ background: '#0D2D6B', padding: '18px 22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
-          <div style={{ width: '44px', height: '44px', borderRadius: '12px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: 'rgba(255,255,255,0.16)' }}>
-            {avatarUrl
-              ? <img src={avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              : <span style={{ fontSize: '17px', fontWeight: 800, color: '#fff' }}>{student.name?.[0]}</span>}
-          </div>
-          <div style={{ minWidth: 0 }}>
-            <p style={{ fontSize: '19px', fontWeight: 800, color: '#fff', margin: 0, letterSpacing: '-0.01em' }}>{student.name}</p>
-            <p style={{ fontSize: '12.5px', color: 'rgba(255,255,255,0.65)', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {[student.school, `리포트 ${sorted.length}건`].filter(Boolean).join(' · ')}
-            </p>
-          </div>
-        </div>
-        <button onClick={onOpenFull}
-          style={{ flexShrink: 0, padding: '7px 14px', borderRadius: '9px', border: '1px solid rgba(255,255,255,0.3)', background: 'transparent', color: '#fff', fontSize: '12.5px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-          자세히 보기
-        </button>
-      </div>
-
-      <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px' }}>
-          {[
-            { label: '개념 이해 평균', value: `${avgConcept}%`, color: avgConcept >= 80 ? '#0F6E56' : avgConcept >= 60 ? '#8A5A00' : '#A32D2D' },
-            { label: '과제 수행 평균', value: `${avgHomework}%`, color: avgHomework >= 80 ? '#0F6E56' : '#8A5A00' },
-            { label: '정시 출석률', value: `${attendanceRate}%`, color: attendanceRate >= 90 ? '#0F6E56' : attendanceRate >= 70 ? '#8A5A00' : '#A32D2D' },
-          ].map((item, i) => (
-            <div key={i} style={{ border: '0.5px solid #E8E6E0', borderRadius: '10px', padding: '12px', textAlign: 'center' }}>
-              <p style={{ fontSize: '10px', color: '#98A1AC', margin: '0 0 4px', letterSpacing: '0.06em' }}>{item.label}</p>
-              <p style={{ fontSize: '20px', fontWeight: 800, color: item.color, margin: 0, fontVariantNumeric: 'tabular-nums' }}>{item.value}</p>
-            </div>
-          ))}
-        </div>
-
-        <div>
-          <p style={{ fontSize: '13px', fontWeight: 700, color: T.text, margin: '0 0 10px' }}>최근 학습</p>
-          {recent.length === 0
-            ? <p style={{ fontSize: '12px', color: T.textMute, margin: 0 }}>아직 리포트가 없어요</p>
-            : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {recent.map((r, i) => {
-                  const score = r.hasTest && r.testScore ? `${r.testScore}점` : (r.conceptRating != null ? `이해 ${r.conceptRating}%` : '-');
-                  return (
-                    <div key={r.id || i} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', border: `1px solid ${T.border}`, borderRadius: '10px' }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: '13px', fontWeight: 700, color: T.text, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {[r.textbook, r.unit].filter(Boolean).join(' · ') || '리포트'}
-                        </p>
-                        <p style={{ fontSize: '11px', color: T.textMute, margin: '2px 0 0' }}>{fmtDate(r)}</p>
-                      </div>
-                      <span style={{ fontSize: '13px', fontWeight: 800, color: T.text, flexShrink: 0 }}>{score}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-        </div>
-
-        <div>
-          <p style={{ fontSize: '13px', fontWeight: 700, color: T.text, margin: '0 0 10px' }}>약점 요약</p>
-          {weakTop.length === 0
-            ? <p style={{ fontSize: '12px', color: T.textMute, margin: 0 }}>진단된 약점이 없어요</p>
-            : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {weakTop.map(([key, count]) => {
-                  const soft = DIAG_SOFT[key] || { color: T.textSub, bg: T.bgSoft };
-                  return (
-                    <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: T.bgSoft, borderRadius: '10px' }}>
-                      <span style={{ padding: '3px 9px', borderRadius: '6px', fontSize: '11.5px', fontWeight: 800, color: soft.color, background: soft.bg }}>
-                        {DIAG_LABELS[key] || key}
-                      </span>
-                      <span style={{ flex: 1, fontSize: '12px', color: T.textSub }}>{count}회 진단됨</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function StudentsView({ students, reports, reviews = [], onSave, onDelete, onRestore, teachers = [], classes = [], currentTeacherId = null, isDirector = false, onToast }) {
   const [showAddStudent, setShowAddStudent] = useState(false);
@@ -399,27 +284,33 @@ export default function StudentsView({ students, reports, reviews = [], onSave, 
   );
 
   if (isWide) {
+    // 목록을 빠르게 훑어보는 게 목적이라, 오른쪽 상세 내용이 아무리 길어도(출결 캘린더 등)
+    // 왼쪽 목록이 스크롤에 같이 밀려나면 안 됨 — 2단 영역 자체를 뷰포트 높이로 고정하고
+    // 왼쪽/오른쪽이 각자 안에서만 스크롤되게 함(검색·필터는 왼쪽 컬럼 상단에 고정).
     return (
       <div style={{ padding: '20px', maxWidth: '1040px', margin: '0 auto', boxSizing: 'border-box' }}>
         {modals}
         {header}
-        <div style={{ display: 'grid', gridTemplateColumns: '392px 1fr', gap: '20px', alignItems: 'start' }}>
-          <div>
+        <div style={{ display: 'grid', gridTemplateColumns: '392px 1fr', gap: '20px', height: 'calc(100vh - 180px)', minHeight: '480px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
             {!showArchived && searchAndFilter}
-            {rosterList}
+            <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, paddingRight: '2px' }}>
+              {rosterList}
+            </div>
           </div>
-          <div>
+          <div style={{ minHeight: 0, overflowY: 'auto', background: '#fff', borderRadius: '16px', border: `1px solid ${T.border}` }}>
             {selectedStudent
               ? (
-                <StudentDetailSummary
+                <StudentProfileContent
                   student={selectedStudent}
                   reports={reports.filter(r => r.studentId === selectedStudent.id)}
-                  onOpenFull={() => setProfileStudent(selectedStudent)}
+                  reviews={reviews.filter(rv => rv.studentId === selectedStudent.id)}
+                  onToast={onToast}
                 />
               )
               : (
-                <div style={{ background: '#fff', borderRadius: '16px', border: `1px solid ${T.border}`, padding: '60px 20px', textAlign: 'center', color: T.textSub, fontSize: '13px' }}>
-                  왼쪽에서 학생을 선택하면 요약이 보여요
+                <div style={{ padding: '60px 20px', textAlign: 'center', color: T.textSub, fontSize: '13px' }}>
+                  왼쪽에서 학생을 선택하면 상세 내용이 보여요
                 </div>
               )}
           </div>

@@ -6,9 +6,12 @@ import { DIAG_LABELS as diagLabels, DIAG_BADGE as DIAG_MAP, DIAG_SOFT } from '..
 import { C } from '../tokens.jsx';
 
 // ============================================================
-// 학생 종합 프로필 모달 — 상담용
+// 학생 종합 프로필 — 내용 본체(모달 크롬 없음)
+// PC 학생 관리의 마스터-디테일 오른쪽 패널에 그대로 인라인으로 꽂아 쓰기 위해 모달 오버레이/
+// 뒤로가기 히스토리 처리와 분리해둠. onClose가 있으면(모바일 모달) ×버튼을 보여주고,
+// 없으면(PC 인라인) 안 보여줌.
 // ============================================================
-export function StudentProfileModal({ student, reports, reviews = [], onClose, onToast, academyName }) {
+export function StudentProfileContent({ student, reports, reviews = [], onClose, onToast, academyName }) {
   const [showWeekly, setShowWeekly] = useState(false);
   // 캘린더가 기본으로 펼쳐져 있으면 그 아래 내용(수업 기록/약점 패턴 등) 보려고 매번 스크롤을 많이 해야 해서, 기본은 요약만 접어서 보여줌
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -17,20 +20,6 @@ export function StudentProfileModal({ student, reports, reviews = [], onClose, o
     const d = last?.createdAt?.seconds ? new Date(last.createdAt.seconds * 1000) : new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
-
-  // 모바일 뒤로가기 지원 — SPA history 보호
-  useEffect(() => {
-    // 현재 페이지를 history에 한 번 더 쌓아서 뒤로가기가 앱 밖으로 안 나가게
-    history.pushState(null, '', window.location.href);
-    history.pushState({ modal: 'profile' }, '', window.location.href);
-    const handlePop = (e) => {
-      // 모달 닫고 앱 내 페이지로 복귀
-      history.pushState(null, '', window.location.href);
-      onClose();
-    };
-    window.addEventListener('popstate', handlePop);
-    return () => window.removeEventListener('popstate', handlePop);
-  }, []);
 
   // 과제/개념 평가는 구 리포트(1~5)와 신규 리포트(0~100)가 섞여 있으므로 0~100(%) 기준으로 정규화
   // null(미입력)은 보존 — 평균 계산에서 제외해 미입력이 평균을 끌어내리지 않도록
@@ -90,12 +79,9 @@ export function StudentProfileModal({ student, reports, reviews = [], onClose, o
     : '';
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px', backdropFilter: 'blur(4px)' }}
-      onClick={onClose}>
-      <div style={{ background: '#fff', borderRadius: '12px', width: '100%', maxWidth: '620px', maxHeight: '88vh', overflow: 'auto', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}
-        onClick={e => e.stopPropagation()}>
+    <div style={{ fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>
 
-        {/* 모달 헤더 */}
+        {/* 헤더 — onClose가 있을 때만(모바일 모달) ×버튼 표시. PC 인라인 패널에선 안 보임 */}
         <div style={{ background: '#0D2D6B', padding: '18px 22px', position: 'relative' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
             <div style={{ width: '4px', height: '18px', background: '#C9A227', borderRadius: '0', flexShrink: 0 }} />
@@ -103,7 +89,9 @@ export function StudentProfileModal({ student, reports, reviews = [], onClose, o
           </div>
           <p style={{ fontSize: '22px', fontWeight: 700, color: '#fff', margin: '0 0 4px' }}>{student.name}</p>
           <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.55)', margin: 0 }}>총 {sorted.length}회 수업 누적</p>
-          <button onClick={onClose} style={{ position: 'absolute', top: '16px', right: '18px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: '22px', cursor: 'pointer', lineHeight: 1, width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>×</button>
+          {onClose && (
+            <button onClick={onClose} style={{ position: 'absolute', top: '16px', right: '18px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: '22px', cursor: 'pointer', lineHeight: 1, width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>×</button>
+          )}
         </div>
 
         <div style={{ padding: '20px 22px' }}>
@@ -534,6 +522,35 @@ export function StudentProfileModal({ student, reports, reviews = [], onClose, o
           </div>
 
         </div>
+    </div>
+  );
+}
+
+// ============================================================
+// 모바일 모달 크롬 — 오버레이/배경 클릭 닫기 + 뒤로가기 히스토리 처리.
+// 실제 내용은 StudentProfileContent를 그대로 씀(PC 인라인 패널과 동일 소스).
+// ============================================================
+export function StudentProfileModal({ student, reports, reviews = [], onClose, onToast, academyName }) {
+  // 모바일 뒤로가기 지원 — SPA history 보호
+  useEffect(() => {
+    // 현재 페이지를 history에 한 번 더 쌓아서 뒤로가기가 앱 밖으로 안 나가게
+    history.pushState(null, '', window.location.href);
+    history.pushState({ modal: 'profile' }, '', window.location.href);
+    const handlePop = () => {
+      // 모달 닫고 앱 내 페이지로 복귀
+      history.pushState(null, '', window.location.href);
+      onClose();
+    };
+    window.addEventListener('popstate', handlePop);
+    return () => window.removeEventListener('popstate', handlePop);
+  }, []);
+
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px', backdropFilter: 'blur(4px)' }}
+      onClick={onClose}>
+      <div style={{ background: '#fff', borderRadius: '12px', width: '100%', maxWidth: '620px', maxHeight: '88vh', overflow: 'auto' }}
+        onClick={e => e.stopPropagation()}>
+        <StudentProfileContent student={student} reports={reports} reviews={reviews} onClose={onClose} onToast={onToast} academyName={academyName} />
       </div>
     </div>
   );
