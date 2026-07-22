@@ -864,7 +864,8 @@ export default function DiagnosticReportInput({
       {/* 토스트 알림 */}
       {toast && (
         <div style={{
-          position: 'fixed', bottom: '80px', left: '50%', transform: 'translateX(-50%)',
+          // PC(≥900px)는 상단 탭으로 바뀌면서 하단 탭 바가 없어짐 — 그 자리를 비울 필요가 없어짐
+          position: 'fixed', bottom: isWide ? '20px' : '80px', left: '50%', transform: 'translateX(-50%)',
           background: toastColors[toast.type]?.bg || '#0F6E56',
           color: '#fff', padding: '12px 20px', borderRadius: '10px',
           fontSize: '13px', fontWeight: 600, zIndex: 9999,

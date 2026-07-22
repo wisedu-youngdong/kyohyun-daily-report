@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useMediaQuery } from '../hooks.js';
 
 // 신규 학원 시작 가이드 — 가입 승인 직후 첫 로그인에서 한 번 뜨고, 건너뛰어도 완전히 사라지지
 // 않고 화면 구석 위젯으로 남아있다가(재오픈 가능) 7일 경과 또는 4단계 모두 완료 시 위젯도
@@ -27,6 +28,8 @@ export default function OnboardingGuide({
   forceOpenSignal = 0, onDismissPrompt, onNavigate,
 }) {
   const [view, setView] = useState('hidden'); // 'hidden' | 'prompt' | 'checklist' | 'widget'
+  // PC(≥900px)는 App.jsx가 상단 탭으로 바뀌면서 하단 탭 바가 없어짐 — 위젯이 비울 필요 없음
+  const isPc = useMediaQuery('(min-width: 900px)');
 
   const items = [
     { key: 'student', title: '학생 등록하기', hint: '학생 정보와 담당 반을 먼저 등록해요', go: '학생 관리로 →', done: students.length > 0, nav: { tab: 'manage', sub: 'students' } },
@@ -155,7 +158,7 @@ export default function OnboardingGuide({
   return (
     <div onClick={() => setView('checklist')}
       style={{
-        position: 'fixed', right: '16px', bottom: 'calc(80px + env(safe-area-inset-bottom))', zIndex: 500,
+        position: 'fixed', right: '16px', bottom: isPc ? '20px' : 'calc(80px + env(safe-area-inset-bottom))', zIndex: 500,
         display: 'flex', alignItems: 'center', gap: '10px', background: CARD_BG, border: `1px solid ${BORDER}`,
         borderRadius: '100px', padding: '8px 16px 8px 8px', boxShadow: '0 8px 24px -6px rgba(13,45,107,0.28)', cursor: 'pointer',
       }}>

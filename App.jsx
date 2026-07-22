@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { kstDay } from './growth.js';
 import { DIAG_LABELS } from './diagnosis.js';
+import { useMediaQuery } from './hooks.js';
 import ErrorBoundary from './ErrorBoundary.jsx';
 import { T } from './tokens.jsx';
 import LoginScreen from './views/LoginScreen.jsx';
@@ -59,6 +60,10 @@ export default function App() {
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [unauthorized, setUnauthorized] = useState(false);
   const [pendingApproval, setPendingApproval] = useState(false);
+  // PC(900px 이상)는 상단 탭, 모바일은 기존처럼 하단 탭 — 학습기록/학생관리 화면이 이미
+  // PC에서 좌측 목록+우측 상세 구조를 쓰고 있어서, 거기에 전역 좌측 사이드바까지 얹으면
+  // 폭이 너무 빠듯해짐. 그래서 사이드바 대신 상단 탭으로 결정.
+  const isPc = useMediaQuery('(min-width: 900px)');
   const [activeTab, setActiveTab] = useState('dashboard');
   const [activeSubTab, setActiveSubTab] = useState({ record: 'history', insight: 'director', manage: 'students' });
   const setSubTab = (group, key) => setActiveSubTab(prev => ({ ...prev, [group]: key }));
@@ -629,27 +634,45 @@ export default function App() {
   };
 
   return (
-    <div style={{ minHeight: '100dvh', background: T.bgSoft, paddingBottom: 'calc(80px + env(safe-area-inset-bottom))' }}>
-      <header style={{ background: T.bg, borderBottom: `1px solid ${T.border}`, padding: '14px 20px', display: 'flex', alignItems: 'center', gap: '10px', position: 'sticky', top: 0, zIndex: 100 }}>
-        <div style={{ width: '28px', height: '28px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
-          <img src={logoUrl || '/kyohyun-logo.png'} alt="로고" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        </div>
-        <h1 style={{ fontSize: '16px', fontWeight: 700, color: T.text, letterSpacing: '-0.02em', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{academyName || '데일리 리포트 시스템'}</h1>
-        <span style={{ marginLeft: 'auto', fontSize: '10px', color: T.textMute, fontWeight: 500, background: T.bgSoft, padding: '3px 8px', borderRadius: '6px', border: `1px solid ${T.border}`, flexShrink: 0 }}>
-          {new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
-        </span>
-        <span style={{ fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '6px', background: isDirector ? '#EAF0F9' : '#E1F5EE', color: isDirector ? '#0D2D6B' : '#0F6E56', flexShrink: 0 }}>
-          {isDirector ? '원장' : (teachers.find(t => t.id === userTeacherId)?.name || '강사')}
-        </span>
-        <button onClick={() => signOut(auth)} style={{ background: 'none', border: 'none', color: T.textMute, cursor: 'pointer', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, WebkitTapHighlightColor: 'transparent' }} title="로그아웃">
-          <LogOut size={16} />
-        </button>
-      </header>
+    <div style={{ minHeight: '100dvh', background: T.bgSoft, paddingBottom: isPc ? 0 : 'calc(80px + env(safe-area-inset-bottom))' }}>
+      <div style={{ position: 'sticky', top: 0, zIndex: 100 }}>
+        <header style={{ background: T.bg, borderBottom: isPc ? 'none' : `1px solid ${T.border}`, padding: '14px 20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ width: '28px', height: '28px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
+            <img src={logoUrl || '/kyohyun-logo.png'} alt="로고" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          </div>
+          <h1 style={{ fontSize: '16px', fontWeight: 700, color: T.text, letterSpacing: '-0.02em', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{academyName || '데일리 리포트 시스템'}</h1>
+          <span style={{ marginLeft: 'auto', fontSize: '10px', color: T.textMute, fontWeight: 500, background: T.bgSoft, padding: '3px 8px', borderRadius: '6px', border: `1px solid ${T.border}`, flexShrink: 0 }}>
+            {new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
+          </span>
+          <span style={{ fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '6px', background: isDirector ? '#EAF0F9' : '#E1F5EE', color: isDirector ? '#0D2D6B' : '#0F6E56', flexShrink: 0 }}>
+            {isDirector ? '원장' : (teachers.find(t => t.id === userTeacherId)?.name || '강사')}
+          </span>
+          <button onClick={() => signOut(auth)} style={{ background: 'none', border: 'none', color: T.textMute, cursor: 'pointer', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, WebkitTapHighlightColor: 'transparent' }} title="로그아웃">
+            <LogOut size={16} />
+          </button>
+        </header>
 
-      {/* 앱 레벨 토스트 */}
+        {/* PC 상단 탭 — 모바일은 기존 하단 탭(아래 <nav>)을 그대로 씀 */}
+        {isPc && (
+          <div style={{ background: T.bg, borderBottom: `1px solid ${T.border}`, display: 'flex', padding: '0 20px', gap: '4px' }}>
+            {tabs.map(tab => {
+              const active = activeTab === tab.key;
+              return (
+                <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '12px 16px', border: 'none', borderBottom: `2px solid ${active ? T.brand : 'transparent'}`, background: 'none', cursor: 'pointer', color: active ? T.brand : T.textMute, fontFamily: "'Pretendard Variable', Pretendard, sans-serif", marginBottom: '-1px' }}>
+                  {tab.icon}
+                  <span style={{ fontSize: '13px', fontWeight: active ? 700 : 500 }}>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* 앱 레벨 토스트 — 모바일은 하단 탭 위, PC는 하단 탭이 없으니 화면 아래쪽에 여유 있게 */}
       {appToast && (
         <div style={{
-          position: 'fixed', bottom: 'calc(80px + env(safe-area-inset-bottom))', left: '50%', transform: 'translateX(-50%)',
+          position: 'fixed', bottom: isPc ? '24px' : 'calc(80px + env(safe-area-inset-bottom))', left: '50%', transform: 'translateX(-50%)',
           background: appToast.type === 'success' ? '#0F6E56' : '#0D2D6B',
           color: '#fff', padding: '10px 20px', borderRadius: '20px',
           fontSize: '13px', fontWeight: 600, zIndex: 9999,
@@ -855,19 +878,21 @@ export default function App() {
       </ErrorBoundary>
       </main>
 
-      <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: T.bg, borderTop: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', padding: '6px 0 calc(8px + env(safe-area-inset-bottom))', zIndex: 100, boxShadow: '0 -4px 20px rgba(0,0,0,0.04)' }}>
-        {tabs.map(tab => {
-          const active = activeTab === tab.key;
-          return (
-            <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-              style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', padding: '6px 2px', border: 'none', background: 'none', cursor: 'pointer', color: active ? T.brand : T.textMute, fontFamily: "'Pretendard Variable', Pretendard, sans-serif", position: 'relative' }}>
-              {active && <span style={{ position: 'absolute', top: '-6px', left: '50%', transform: 'translateX(-50%)', width: '24px', height: '2px', background: T.brand, borderRadius: '0 0 2px 2px' }} />}
-              {tab.icon}
-              <span style={{ fontSize: '10px', fontWeight: active ? 700 : 400 }}>{tab.label}</span>
-            </button>
-          );
-        })}
-      </nav>
+      {!isPc && (
+        <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: T.bg, borderTop: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', padding: '6px 0 calc(8px + env(safe-area-inset-bottom))', zIndex: 100, boxShadow: '0 -4px 20px rgba(0,0,0,0.04)' }}>
+          {tabs.map(tab => {
+            const active = activeTab === tab.key;
+            return (
+              <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', padding: '6px 2px', border: 'none', background: 'none', cursor: 'pointer', color: active ? T.brand : T.textMute, fontFamily: "'Pretendard Variable', Pretendard, sans-serif", position: 'relative' }}>
+                {active && <span style={{ position: 'absolute', top: '-6px', left: '50%', transform: 'translateX(-50%)', width: '24px', height: '2px', background: T.brand, borderRadius: '0 0 2px 2px' }} />}
+                {tab.icon}
+                <span style={{ fontSize: '10px', fontWeight: active ? 700 : 400 }}>{tab.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+      )}
     </div>
   );
 }
