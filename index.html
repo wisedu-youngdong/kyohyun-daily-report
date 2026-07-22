@@ -53,7 +53,10 @@
 
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
-      html { -webkit-tap-highlight-color: transparent; }
+      /* scrollbar-gutter: 세로 스크롤바 자리를 항상 비워둠. 없으면 내용이 긴 화면(스크롤바 있음)과
+         짧은 화면(없음)을 오갈 때 가용 폭이 15px씩 달라져서, 가운데 정렬된 상단 탭·서브탭·본문이
+         전환할 때마다 7.5px씩 좌우로 튐 */
+      html { -webkit-tap-highlight-color: transparent; scrollbar-gutter: stable; }
       body {
         font-family: 'Pretendard Variable', Pretendard, -apple-system, sans-serif;
         background: #F9FAFB;

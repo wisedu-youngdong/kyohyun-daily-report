@@ -696,21 +696,18 @@ export default function App() {
     { key: 'manage',    label: '관리',      icon: <Users size={20} />,           roles: ['director'] },
   ];
   const tabs = mainTabs.filter(t => t.roles.includes(userRole || 'director'));
-  // widths: 숫자면 항상 그 폭, {key: 폭} 객체면 현재 활성 서브탭에 맞는 폭을 사용
-  // (서브탭마다 콘텐츠 컨테이너 폭이 다르면 탭 전환 시 탭 바도 같이 맞춰줘야 정렬이 유지됨)
-  const renderSubTabBar = (group, items, widths) => {
-    const maxWidth = typeof widths === 'object' ? widths[activeSubTab[group]] : widths;
-    const wrapStyle = maxWidth
-      ? { maxWidth: `${maxWidth}px`, margin: '16px auto 0', padding: '0 20px', boxSizing: 'border-box' }
-      : { margin: '16px 20px 0' };
-    // 탭이 1개뿐이면 선택 UI 자체가 무의미 — 섹션 제목으로만 표시
+  // 서브탭 바는 항상 화면 정가운데 — 예전엔 서브탭마다 아래 콘텐츠 폭(원장 보고서 960 /
+  // 종합 분석 600)에 맞춰 컨테이너 maxWidth를 바꿨는데, 가운데 정렬이라 폭이 바뀌면 탭 바가
+  // 통째로 187px씩 옆으로 튀었음. 상단 탭도 가운데 정렬이라 그 아래 세로선을 맞추는 게 자연스러움.
+  const renderSubTabBar = (group, items) => {
+    // 탭이 1개뿐이면 선택 UI 자체가 무의미 — 섹션 제목으로만 표시(제목은 본문처럼 좌측 정렬)
     if (items.length <= 1) {
       return (
-        <p style={{ ...wrapStyle, fontSize: '13px', fontWeight: 700, color: '#374151' }}>{items[0]?.label}</p>
+        <p style={{ margin: '16px 20px 0', fontSize: '13px', fontWeight: 700, color: '#374151' }}>{items[0]?.label}</p>
       );
     }
     return (
-      <div style={wrapStyle}>
+      <div style={{ display: 'flex', justifyContent: 'center', margin: '16px 0 0', padding: '0 20px' }}>
         <div style={{ display: 'inline-flex', background: '#F3F4F6', borderRadius: '10px', padding: '3px', gap: '2px' }}>
           {items.map(item => {
             const isActive = activeSubTab[group] === item.key;
@@ -925,7 +922,7 @@ export default function App() {
               { key: 'director', label: '원장 보고서' },
               { key: 'analysis', label: '종합 분석' },
               ...(hasWeeklyMode ? [{ key: 'weekly', label: '주간 리포트 검토' }] : []),
-            ], { director: 960, analysis: 600, weekly: 960 })}
+            ])}
             <div style={{ marginTop: '12px' }}>
               {activeSubTab.insight === 'director' && (dataReady
                 ? <React.Suspense fallback={<SkeletonBlock rows={4} cardHeight={70} />}>
@@ -954,7 +951,7 @@ export default function App() {
             {renderSubTabBar('manage', [
               { key: 'students', label: '학생 관리' },
               { key: 'settings', label: '설정' },
-            ], 600)}
+            ])}
             <div style={{ marginTop: '12px' }}>
               {activeSubTab.manage === 'students' && (dataReady
                 ? <React.Suspense fallback={<SkeletonBlock rows={5} cardHeight={56} />}>
