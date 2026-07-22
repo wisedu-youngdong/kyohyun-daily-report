@@ -69,7 +69,14 @@ export async function sendMorningBriefing(db, academyId, academy, todayStr, toda
   });
   const pending = scheduledToday.filter(s => !handledIds.has(s.id));
 
-  const qSnap = await db.collection('academies').doc(academyId).collection('reportQuestions').get();
+  // 전체 질문 이력을 매일 읽으면(where 없이 .get()) 질문이 쌓일수록 이 크론의 Firestore 읽기
+  // 비용이 끝없이 늘어남 — 브리핑 목적상 "최근에 온 미답변 질문"만 알려주면 충분하므로 최근
+  // 60일로만 창을 잡는다(그보다 오래 방치된 질문은 브리핑 집계에서만 빠질 뿐, 원장이 로그인하면
+  // reportQuestions 화면에서 여전히 볼 수 있어 데이터 유실은 아님)
+  const questionsCutoff = new Date(Date.now() - 60 * 24 * 3600 * 1000);
+  const qSnap = await db.collection('academies').doc(academyId).collection('reportQuestions')
+    .where('askedAt', '>=', questionsCutoff)
+    .get();
   const unanswered = qSnap.docs.filter(d => !d.data().answerText).length;
 
   if (pending.length === 0 && unanswered === 0) return false;
