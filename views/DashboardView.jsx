@@ -225,13 +225,13 @@ export default function DashboardView({ students, reports, classes = [], reportV
               <h3 style={{ fontSize: '15px', fontWeight: 800, color: '#2A2724', margin: 0 }}>
                 복습할 때가 됐어요 · {studentSections.length}명 {groups.length}건
               </h3>
-              <p style={{ fontSize: '12px', color: '#A69E90', margin: '2px 0 0' }}>
+              <p style={{ fontSize: '12px', color: '#7D7465', margin: '2px 0 0' }}>
                 지남 {overdueCount}건 · 오늘 기한 {todayCount}건
               </p>
             </div>
           </div>
           <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 10px', borderRadius: '20px', background: '#F5EFE1' }}>
-            <span style={{ fontSize: '11px', color: '#A69E90', fontWeight: 700 }}>지시</span>
+            <span style={{ fontSize: '11px', color: '#7D7465', fontWeight: 700 }}>지시</span>
             <span style={{ fontSize: '13px', fontWeight: 800, color: '#8A6412' }}>{instructedCount}/{groups.length}</span>
           </div>
         </div>
@@ -269,7 +269,7 @@ export default function DashboardView({ students, reports, classes = [], reportV
                         </span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginTop: '4px' }}>
-                        {diagLabel && <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#A69E90' }}>{diagLabel} 진단</span>}
+                        {diagLabel && <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#7D7465' }}>{diagLabel} 진단</span>}
                         {diagLabel && (group.textbook || group.unit) && <span style={{ width: '3px', height: '3px', borderRadius: '50%', background: '#D6CEBE' }} />}
                         <span style={{ fontSize: '13px', color: '#5C564C' }}>{[group.textbook, group.unit].filter(Boolean).join(' · ')}</span>
                       </div>
@@ -319,7 +319,7 @@ export default function DashboardView({ students, reports, classes = [], reportV
           ))}
         </div>
         {overflow > 0 && (
-          <p style={{ padding: '0 18px 14px', fontSize: '11px', color: '#A69E90', margin: 0, textAlign: 'center' }}>
+          <p style={{ padding: '0 18px 14px', fontSize: '11px', color: '#7D7465', margin: 0, textAlign: 'center' }}>
             외 {overflow}건 더 있어요
           </p>
         )}
@@ -372,7 +372,7 @@ export default function DashboardView({ students, reports, classes = [], reportV
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ fontSize: '14.5px', fontWeight: 800, color: '#2A2724', margin: 0 }}>{s.name}</p>
-            <p style={{ fontSize: '12px', color: '#A69E90', margin: '1px 0 0' }}>{s.school}</p>
+            <p style={{ fontSize: '12px', color: '#7D7465', margin: '1px 0 0' }}>{s.school}</p>
           </div>
           {/* 결석/공휴일 등으로 수업 자체가 없었던 학생 — 무거운 진단 리포트 폼 없이 출결만 원터치 기록 */}
           {!done && (
@@ -418,7 +418,7 @@ export default function DashboardView({ students, reports, classes = [], reportV
               {copiedReportId === r.id ? '✓ 복사됨' : '링크 복사'}
             </button>
             <button onClick={() => handleDismissUnread(r)} title="이 리마인더에서 숨기기 (리포트 자체는 그대로 남아요)"
-              style={{ flexShrink: 0, width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', background: 'none', color: '#98A1AC', cursor: 'pointer', borderRadius: '6px' }}>
+              style={{ flexShrink: 0, width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', background: 'none', color: '#6B7785', cursor: 'pointer', borderRadius: '6px' }}>
               <X size={15} />
             </button>
           </div>
@@ -478,9 +478,9 @@ export default function DashboardView({ students, reports, classes = [], reportV
                   </div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px', marginTop: '8px' }}>
                     <span style={{ fontSize: '30px', fontWeight: 800, color: '#E3A11B', lineHeight: 1 }}>{Math.max(0, pendingCount)}</span>
-                    <span style={{ fontSize: '14px', color: '#A69E90', fontWeight: 700 }}>명</span>
+                    <span style={{ fontSize: '14px', color: '#7D7465', fontWeight: 700 }}>명</span>
                   </div>
-                  <div style={{ fontSize: '12px', color: '#B0A896', marginTop: '6px' }}>전체 {filteredStudents.length}명 중</div>
+                  <div style={{ fontSize: '12px', color: '#7E755F', marginTop: '6px' }}>전체 {filteredStudents.length}명 중</div>
                 </div>
                 <div style={{ background: '#fff', border: '1px solid #EDE6D7', borderRadius: '16px', padding: '16px 18px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -489,9 +489,9 @@ export default function DashboardView({ students, reports, classes = [], reportV
                   </div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px', marginTop: '8px' }}>
                     <span style={{ fontSize: '30px', fontWeight: 800, color: '#3F6B49', lineHeight: 1 }}>{filteredTodayReports.length}</span>
-                    <span style={{ fontSize: '14px', color: '#A69E90', fontWeight: 700 }}>건</span>
+                    <span style={{ fontSize: '14px', color: '#7D7465', fontWeight: 700 }}>건</span>
                   </div>
-                  <div style={{ fontSize: '12px', color: '#B0A896', marginTop: '6px' }}>리포트 발송 완료</div>
+                  <div style={{ fontSize: '12px', color: '#7E755F', marginTop: '6px' }}>리포트 발송 완료</div>
                 </div>
               </div>
 

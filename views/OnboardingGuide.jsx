@@ -15,7 +15,7 @@ const BORDER = '#E5E7EB';
 const BORDER_SOFT = '#EEF0EE';
 const TEXT = '#181B1F';
 const TEXT_SUB = '#5B6470';
-const TEXT_MUTE = '#98A1AC';
+const TEXT_MUTE = '#6B7785';
 const OVERLAY = 'rgba(11,16,26,0.5)';
 const SHADOW_MODAL = '0 24px 60px -12px rgba(13,45,107,0.35), 0 4px 16px rgba(0,0,0,0.08)';
 

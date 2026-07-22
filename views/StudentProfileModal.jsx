@@ -104,7 +104,7 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
               { label: '정시 출석률', value: `${attendanceRate}%`, color: attendanceRate >= 90 ? '#0F6E56' : attendanceRate >= 70 ? '#8A5A00' : '#A32D2D' },
             ].map((item, i) => (
               <div key={i} style={{ border: '0.5px solid #E8E6E0', borderRadius: '10px', padding: '12px', textAlign: 'center' }}>
-                <p style={{ fontSize: '10px', color: '#98A1AC', margin: '0 0 4px', letterSpacing: '0.06em' }}>{item.label}</p>
+                <p style={{ fontSize: '10px', color: '#6B7785', margin: '0 0 4px', letterSpacing: '0.06em' }}>{item.label}</p>
                 <p style={{ fontSize: '22px', fontWeight: 800, color: item.color, margin: 0, fontVariantNumeric: 'tabular-nums' }}>{item.value}</p>
               </div>
             ))}
@@ -160,7 +160,7 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
 
                 {!calendarOpen ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', padding: '11px 13px', background: '#FAFAF8', border: '0.5px solid #E5E7EB', borderRadius: '10px' }}>
-                    <span style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: 700 }}>{calYear}년 {calMonthIdx + 1}월</span>
+                    <span style={{ fontSize: '11px', color: '#6C7586', fontWeight: 700 }}>{calYear}년 {calMonthIdx + 1}월</span>
                     {Object.entries(ATTEND_COLORS).map(([label, color]) => (
                       monthCounts[label] ? (
                         <span key={label} style={{ fontSize: '11px', color: '#374151', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -175,7 +175,7 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
                   <>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', marginBottom: '4px' }}>
                       {['일', '월', '화', '수', '목', '금', '토'].map(d => (
-                        <p key={d} style={{ textAlign: 'center', fontSize: '10px', color: '#9CA3AF', margin: 0, fontWeight: 600 }}>{d}</p>
+                        <p key={d} style={{ textAlign: 'center', fontSize: '10px', color: '#6C7586', margin: 0, fontWeight: 600 }}>{d}</p>
                       ))}
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
@@ -256,7 +256,7 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
 
                     {/* 교재 + 단원 */}
                     {(r.textbook || r.unit) && (
-                      <p style={{ fontSize: '10px', color: '#9CA3AF', margin: '0 0 5px' }}>
+                      <p style={{ fontSize: '10px', color: '#6C7586', margin: '0 0 5px' }}>
                         {[r.textbook, r.unit, r.pages && `${r.pages}쪽`].filter(Boolean).join(' · ')}
                       </p>
                     )}
@@ -289,7 +289,7 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
               })}
             </div>
             {sorted.length > 5 && (
-              <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '8px 0 0', textAlign: 'center' }}>
+              <p style={{ fontSize: '11px', color: '#6C7586', margin: '8px 0 0', textAlign: 'center' }}>
                 최근 5회 표시 · 전체 {sorted.length}회
               </p>
             )}
@@ -336,7 +336,7 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
                   );
                 })}
               </div>
-              <p style={{ fontSize: '10px', color: '#98A1AC', margin: '8px 0 0' }}>개념 이해 평가 평균 · 낮은 순 정렬 · 빨강/주황일수록 보강이 필요해요</p>
+              <p style={{ fontSize: '10px', color: '#6B7785', margin: '8px 0 0' }}>개념 이해 평가 평균 · 낮은 순 정렬 · 빨강/주황일수록 보강이 필요해요</p>
             </div>
           )}
 
@@ -354,12 +354,12 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
                         {rv.round}차 복습
                         {rv.weakTypes?.length > 0 && <span style={{ fontWeight: 500, color: '#6B7280' }}> · {rv.weakTypes.map(w => w.label).join(', ')}</span>}
                       </span>
-                      <span style={{ fontSize: '10px', color: '#9CA3AF' }}>
+                      <span style={{ fontSize: '10px', color: '#6C7586' }}>
                         {rv.completedAt?.seconds ? new Date(rv.completedAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' }) : ''}
                       </span>
                     </div>
                     {(rv.textbook || rv.unit) && (
-                      <p style={{ fontSize: '10px', color: '#9CA3AF', margin: '0 0 4px' }}>{[rv.textbook, rv.unit].filter(Boolean).join(' · ')}</p>
+                      <p style={{ fontSize: '10px', color: '#6C7586', margin: '0 0 4px' }}>{[rv.textbook, rv.unit].filter(Boolean).join(' · ')}</p>
                     )}
                     {rv.testScore != null && rv.testScore !== '' && (
                       <p style={{ fontSize: '10px', color: '#C9A227', fontWeight: 700, margin: '0 0 4px' }}>재시험 {rv.testScore}점</p>
@@ -371,7 +371,7 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
                 ))}
               </div>
               {completedReviews.length > 5 && (
-                <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '8px 0 0', textAlign: 'center' }}>
+                <p style={{ fontSize: '11px', color: '#6C7586', margin: '8px 0 0', textAlign: 'center' }}>
                   최근 5건 표시 · 전체 {completedReviews.length}건
                 </p>
               )}
@@ -403,7 +403,7 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {sorted.filter(r => r.teacherNote).slice(-3).reverse().map((r, i) => (
                   <div key={i} style={{ borderLeft: '2px solid #C9A227', paddingLeft: '12px' }}>
-                    <p style={{ fontSize: '10px', color: '#98A1AC', margin: '0 0 3px' }}>{fmtDate(r)}</p>
+                    <p style={{ fontSize: '10px', color: '#6B7785', margin: '0 0 3px' }}>{fmtDate(r)}</p>
                     <p style={{ fontSize: '12px', color: '#5A6472', margin: 0, lineHeight: 1.7, fontStyle: 'italic' }}>"{r.teacherNote}"</p>
                   </div>
                 ))}
@@ -423,7 +423,7 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
                 </div>
               ))}
               {sorted.filter(r => r.directorMemo).length === 0 && (
-                <p style={{ fontSize: '12px', color: '#98A1AC', margin: 0 }}>저장된 상담 메모가 없습니다.</p>
+                <p style={{ fontSize: '12px', color: '#6B7785', margin: 0 }}>저장된 상담 메모가 없습니다.</p>
               )}
             </div>
           </div>
@@ -663,7 +663,7 @@ function WeeklySummaryCard({ student, reports, academyName }) {
       </div>
 
       {weekReports.length === 0 ? (
-        <div style={{ padding: '40px 22px', textAlign: 'center', color: '#9CA3AF', fontSize: '13px' }}>
+        <div style={{ padding: '40px 22px', textAlign: 'center', color: '#6C7586', fontSize: '13px' }}>
           이번 주 수업 기록이 없습니다
         </div>
       ) : (
@@ -676,7 +676,7 @@ function WeeklySummaryCard({ student, reports, academyName }) {
               { label: '출석률', value: `${attendRate}%`, color: attendRate === 100 ? '#0F6E56' : '#7A4F00' },
             ].map((s, i) => (
               <div key={i} style={{ padding: '14px 12px', textAlign: 'center', borderRight: i < 2 ? '0.5px solid #E5E7EB' : 'none' }}>
-                <p style={{ fontSize: '10px', color: '#9CA3AF', margin: '0 0 4px', fontWeight: 500 }}>{s.label}</p>
+                <p style={{ fontSize: '10px', color: '#6C7586', margin: '0 0 4px', fontWeight: 500 }}>{s.label}</p>
                 <p style={{ fontSize: '20px', fontWeight: 700, color: s.color, margin: 0 }}>{s.value}</p>
               </div>
             ))}
@@ -685,7 +685,7 @@ function WeeklySummaryCard({ student, reports, academyName }) {
           {/* 이번 주 학습 단원 */}
           {units.length > 0 && (
             <div style={{ padding: '16px 22px', borderBottom: '0.5px solid #E5E7EB' }}>
-              <p style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: 600, letterSpacing: '0.1em', margin: '0 0 10px' }}>이번 주 학습 단원</p>
+              <p style={{ fontSize: '10px', color: '#6C7586', fontWeight: 600, letterSpacing: '0.1em', margin: '0 0 10px' }}>이번 주 학습 단원</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {units.map((u, i) => {
                   const avgScore = u.scores.length ? Math.round(u.scores.reduce((a,b)=>a+b,0)/u.scores.length) : null;
@@ -696,7 +696,7 @@ function WeeklySummaryCard({ student, reports, academyName }) {
                       <div style={{ width: '3px', height: '34px', background: barColor, borderRadius: '2px', flexShrink: 0 }} />
                       <div style={{ flex: 1 }}>
                         <p style={{ fontSize: '12px', fontWeight: 600, color: '#1A1A1A', margin: '0 0 1px' }}>{u.name}</p>
-                        {avgScore && <p style={{ fontSize: '11px', color: '#9CA3AF', margin: 0 }}>{avgScore}점</p>}
+                        {avgScore && <p style={{ fontSize: '11px', color: '#6C7586', margin: 0 }}>{avgScore}점</p>}
                       </div>
                       {avgScore && (
                         <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '8px', background: achieved ? '#F0FAF5' : '#FFF8EC', color: achieved ? '#0F6E56' : '#7A4F00', flexShrink: 0 }}>
@@ -713,7 +713,7 @@ function WeeklySummaryCard({ student, reports, academyName }) {
           {/* 집중 포인트 */}
           {diagList.length > 0 && (
             <div style={{ padding: '14px 22px', borderBottom: '0.5px solid #E5E7EB' }}>
-              <p style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: 600, letterSpacing: '0.1em', margin: '0 0 8px' }}>이번 주 집중 포인트</p>
+              <p style={{ fontSize: '10px', color: '#6C7586', fontWeight: 600, letterSpacing: '0.1em', margin: '0 0 8px' }}>이번 주 집중 포인트</p>
               <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                 {diagList.map(d => {
                   const info = DIAG[d.key] || { label: d.key, color: '#4A4A4A', bg: '#F3F4F6' };
@@ -730,18 +730,18 @@ function WeeklySummaryCard({ student, reports, academyName }) {
           {/* 선생님 한마디 */}
           {lastNote && (
             <div style={{ padding: '16px 22px', borderBottom: '0.5px solid #E5E7EB', background: '#FAFAF8' }}>
-              <p style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: 600, letterSpacing: '0.1em', margin: '0 0 8px' }}>선생님 한마디</p>
+              <p style={{ fontSize: '10px', color: '#6C7586', fontWeight: 600, letterSpacing: '0.1em', margin: '0 0 8px' }}>선생님 한마디</p>
               <p style={{ fontSize: '12px', color: '#1A1A1A', lineHeight: 1.8, margin: 0 }}>
                 {lastNote}
               </p>
-              {teacherName && <p style={{ fontSize: '10px', color: '#9CA3AF', margin: '8px 0 0', textAlign: 'right' }}>— {teacherName}</p>}
+              {teacherName && <p style={{ fontSize: '10px', color: '#6C7586', margin: '8px 0 0', textAlign: 'right' }}>— {teacherName}</p>}
             </div>
           )}
 
           {/* 다음 주 예고 */}
           {nextPlan && (
             <div style={{ padding: '12px 22px', borderBottom: '0.5px solid #E5E7EB' }}>
-              <p style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: 600, letterSpacing: '0.1em', margin: '0 0 4px' }}>다음 주 학습 예정</p>
+              <p style={{ fontSize: '10px', color: '#6C7586', fontWeight: 600, letterSpacing: '0.1em', margin: '0 0 4px' }}>다음 주 학습 예정</p>
               <p style={{ fontSize: '12px', color: '#1A1A1A', margin: 0 }}>{nextPlan}</p>
             </div>
           )}

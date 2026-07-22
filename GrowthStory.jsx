@@ -14,7 +14,7 @@ function EditCharCount({ text, dark }) {
   const len = (text || '').length;
   const over = len >= NARRATIVE_MAX_LEN;
   return (
-    <p style={{ fontSize: '10px', textAlign: 'right', margin: '4px 0 0', color: over ? '#DC2626' : dark ? 'rgba(255,255,255,0.4)' : '#9CA3AF' }}>
+    <p style={{ fontSize: '10px', textAlign: 'right', margin: '4px 0 0', color: over ? '#DC2626' : dark ? 'rgba(255,255,255,0.4)' : '#6C7586' }}>
       {len}/{NARRATIVE_MAX_LEN}자
     </p>
   );
@@ -503,7 +503,7 @@ export default function GrowthStory() {
       {isEditor && (
         <div style={{ padding: '12px 22px 0' }}>
           <button onClick={handleGenNarrative} disabled={narLoading}
-            style={{ width: '100%', padding: '11px', background: narLoading ? '#E5E7EB' : narrative ? '#F0FAF5' : '#0D2D6B', color: narLoading ? '#9CA3AF' : narrative ? '#0F6E56' : '#fff', border: narrative ? '1px solid #0F6E5640' : 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: narLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+            style={{ width: '100%', padding: '11px', background: narLoading ? '#E5E7EB' : narrative ? '#F0FAF5' : '#0D2D6B', color: narLoading ? '#6C7586' : narrative ? '#0F6E56' : '#fff', border: narrative ? '1px solid #0F6E5640' : 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: narLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
             {narLoading ? '⏳ AI 서사 생성 중...' : narrative ? '🔄 서사 재생성' : '✨ AI 서사 자동 생성'}
           </button>
         </div>
@@ -513,12 +513,12 @@ export default function GrowthStory() {
       <div style={S.section}>
         <p style={S.label}>GROWTH MILESTONE</p>
         {milestones.length > 0 && sorted.length > milestones.length && (
-          <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '-10px 0 16px', lineHeight: 1.6 }}>
+          <p style={{ fontSize: '11px', color: '#6C7586', margin: '-10px 0 16px', lineHeight: 1.6 }}>
             총 {sorted.length}회 수업 중 의미 있었던 {milestones.length}개의 순간을 모았어요
           </p>
         )}
         {milestones.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '24px 0', color: '#9CA3AF', fontSize: '13px' }}>
+          <div style={{ textAlign: 'center', padding: '24px 0', color: '#6C7586', fontSize: '13px' }}>
             리포트가 쌓이면 성장 마일스톤이 자동으로 생성됩니다
           </div>
         ) : (
@@ -642,13 +642,13 @@ export default function GrowthStory() {
                   const cleanNote = (r.teacherNote || '').replace(/\[([^\]]+)\]\s*/g, '').trim();
                   return (
                     <div key={r.id || ri} style={{ display: 'flex', gap: '8px', padding: '8px 10px', background: '#F9FAFB', borderRadius: '8px' }}>
-                      <span style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: 600, flexShrink: 0, width: '44px' }}>{fmtDate(r)}</span>
+                      <span style={{ fontSize: '11px', color: '#6C7586', fontWeight: 600, flexShrink: 0, width: '44px' }}>{fmtDate(r)}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p style={{ fontSize: '11px', color: '#374151', fontWeight: 600, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {[r.textbook, r.unit].filter(Boolean).join(' · ') || '수업'}
                         </p>
                         {cleanNote && (
-                          <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <p style={{ fontSize: '11px', color: '#6C7586', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {cleanNote}
                           </p>
                         )}

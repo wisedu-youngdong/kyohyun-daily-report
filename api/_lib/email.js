@@ -13,7 +13,7 @@ export const FONT_STACK = "-apple-system,BlinkMacSystemFont,'Malgun Gothic','App
 export const NAVY = '#0D2D6B';
 export const INK = '#1A1A1A';
 export const INK_SOFT = '#4B5563';
-export const INK_MUTE = '#9CA3AF';
+export const INK_MUTE = '#6C7586';
 export const LINE = '#E9EAEE';
 
 export function emailShell({ title, bodyHtml }) {

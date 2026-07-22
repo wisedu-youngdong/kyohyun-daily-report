@@ -125,14 +125,14 @@ export default function HistoryView({ reports, students, classes = [], reportVie
         <p style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', margin: '0 0 8px', textAlign: 'center' }}>
           방치된 초안 {draftIdsInView.length}건을 삭제할까요?
         </p>
-        <p style={{ fontSize: '12px', color: '#9CA3AF', textAlign: 'center', margin: '0 0 20px', lineHeight: 1.6 }}>
+        <p style={{ fontSize: '12px', color: '#6C7586', textAlign: 'center', margin: '0 0 20px', lineHeight: 1.6 }}>
           선생님이 쓰다가 저장하지 않고 나간 자동저장본이에요. 학부모에게 나간 적 없는 내용이라 삭제해도 안전합니다. 삭제 후 복구는 불가능합니다.
         </p>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button onClick={() => setBulkDeleteConfirm(false)} disabled={bulkDeleting}
             style={{ flex: 1, padding: '11px', fontSize: '13px', fontWeight: 600, border: '1px solid #E5E7EB', borderRadius: '8px', background: '#fff', cursor: 'pointer', fontFamily: 'inherit', color: '#374151' }}>취소</button>
           <button onClick={handleBulkDeleteDrafts} disabled={bulkDeleting}
-            style={{ flex: 1, padding: '11px', fontSize: '13px', fontWeight: 700, border: 'none', borderRadius: '8px', background: bulkDeleting ? '#E5E7EB' : '#DC2626', color: bulkDeleting ? '#9CA3AF' : '#fff', cursor: bulkDeleting ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+            style={{ flex: 1, padding: '11px', fontSize: '13px', fontWeight: 700, border: 'none', borderRadius: '8px', background: bulkDeleting ? '#E5E7EB' : '#DC2626', color: bulkDeleting ? '#6C7586' : '#fff', cursor: bulkDeleting ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
             {bulkDeleting ? '삭제 중...' : '삭제'}
           </button>
         </div>
@@ -170,7 +170,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
         {renderDraftCleanupBar()}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {filtered.length === 0 && (
-            <div style={{ padding: '40px 0', textAlign: 'center', color: '#9CA3AF', fontSize: '13px' }}>
+            <div style={{ padding: '40px 0', textAlign: 'center', color: '#6C7586', fontSize: '13px' }}>
               {searchText.trim() || studentFilter ? '검색 결과가 없습니다' : '작성된 리포트가 없습니다'}
             </div>
           )}
@@ -233,7 +233,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
                   <p style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.8, margin: 0 }}>{selected.teacherNote}</p>
                 </div>
               ) : (
-                <p style={{ fontSize: '12px', color: '#9CA3AF', marginBottom: '12px', fontStyle: 'italic' }}>아직 작성된 코멘트가 없습니다</p>
+                <p style={{ fontSize: '12px', color: '#6C7586', marginBottom: '12px', fontStyle: 'italic' }}>아직 작성된 코멘트가 없습니다</p>
               )}
 
               {selected.photoUrls?.length > 0 && (
@@ -279,7 +279,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
                 <p style={{ fontSize: '13px', color: '#374151', margin: '0 0 4px', textAlign: 'center' }}><strong>{fmtDate(deleteTarget)}</strong></p>
                 <p style={{ fontSize: '14px', fontWeight: 700, color: '#DC2626', margin: 0, textAlign: 'center' }}>{deleteTarget.studentName} 학생 리포트</p>
               </div>
-              <p style={{ fontSize: '12px', color: '#9CA3AF', textAlign: 'center', margin: '0 0 20px' }}>삭제 후 복구가 불가능합니다.</p>
+              <p style={{ fontSize: '12px', color: '#6C7586', textAlign: 'center', margin: '0 0 20px' }}>삭제 후 복구가 불가능합니다.</p>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button onClick={() => setDeleteConfirmReport(null)}
                   style={{ flex: 1, padding: '11px', fontSize: '13px', fontWeight: 600, border: '1px solid #E5E7EB', borderRadius: '8px', background: '#fff', cursor: 'pointer', fontFamily: 'inherit', color: '#374151' }}>취소</button>
@@ -328,7 +328,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
               {classes.map(cls => <option key={cls.id} value={cls.id}>{cls.name}</option>)}
             </select>
           )}
-          <p style={{ fontSize: '11px', color: '#9CA3AF', margin: 0 }}>{filtered.length}건</p>
+          <p style={{ fontSize: '11px', color: '#6C7586', margin: 0 }}>{filtered.length}건</p>
         </div>
 
         {draftCount > 0 && (
@@ -340,7 +340,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
         {/* 리스트 */}
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {filtered.length === 0 ? (
-            <p style={{ textAlign: 'center', color: '#9CA3AF', fontSize: '13px', padding: '40px 20px' }}>리포트가 없습니다</p>
+            <p style={{ textAlign: 'center', color: '#6C7586', fontSize: '13px', padding: '40px 20px' }}>리포트가 없습니다</p>
           ) : filtered.map(r => {
             const isSelected = (selected?.id === r.id);
             const badge = statusBadge(r);
@@ -362,7 +362,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
                   </div>
                   <span style={{ fontSize: '10px', fontWeight: 600, background: badge.bg, color: badge.color, padding: '1px 6px', borderRadius: '8px', flexShrink: 0 }}>{badge.label}</span>
                 </div>
-                <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '0 0 2px', paddingLeft: '28px' }}>{fmtDate(r)}</p>
+                <p style={{ fontSize: '11px', color: '#6C7586', margin: '0 0 2px', paddingLeft: '28px' }}>{fmtDate(r)}</p>
                 <p style={{ fontSize: '11px', color: '#6B7280', margin: 0, paddingLeft: '28px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{[r.textbook, r.subject].filter(Boolean).join(' · ')}</p>
               </div>
             );
@@ -424,7 +424,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
               { label: '단원평가', value: selected.hasTest && selected.testScore ? `${selected.testScore}점` : '—', color: '#1A1A1A' },
             ].map((s, i) => (
               <div key={i} style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: '10px', padding: '14px 16px' }}>
-                <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '0 0 6px', fontWeight: 500 }}>{s.label}</p>
+                <p style={{ fontSize: '11px', color: '#6C7586', margin: '0 0 6px', fontWeight: 500 }}>{s.label}</p>
                 <p style={{ fontSize: '22px', fontWeight: 700, color: s.color, margin: 0 }}>{s.value}</p>
               </div>
             ))}
@@ -434,7 +434,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
           {/* 진단 태그 */}
           {selected.diagnosis?.length > 0 && (
             <div style={{ marginBottom: '18px' }}>
-              <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '0 0 8px', fontWeight: 600, letterSpacing: '0.06em' }}>진단 태그</p>
+              <p style={{ fontSize: '11px', color: '#6C7586', margin: '0 0 8px', fontWeight: 600, letterSpacing: '0.06em' }}>진단 태그</p>
               <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                 {selected.diagnosis.map(d => {
                   const c = DIAG_COLORS[d.key] || { bg: '#F3F4F6', color: '#374151', border: '#E5E7EB' };
@@ -468,7 +468,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
 
             return (
               <div style={{ marginBottom: '18px' }}>
-                <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '0 0 8px', fontWeight: 600, letterSpacing: '0.06em' }}>선생님 코멘트</p>
+                <p style={{ fontSize: '11px', color: '#6C7586', margin: '0 0 8px', fontWeight: 600, letterSpacing: '0.06em' }}>선생님 코멘트</p>
 
                 {/* 퀵 태그 칩 */}
                 {tags.length > 0 && (
@@ -491,7 +491,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
                   ) : raw ? (
                     <p style={{ fontSize: '13px', color: '#1A1A1A', lineHeight: 1.9, margin: 0 }}>{raw}</p>
                   ) : (
-                    <p style={{ fontSize: '13px', color: '#9CA3AF', lineHeight: 1.9, margin: 0, fontStyle: 'italic' }}>아직 작성된 코멘트가 없습니다</p>
+                    <p style={{ fontSize: '13px', color: '#6C7586', lineHeight: 1.9, margin: 0, fontStyle: 'italic' }}>아직 작성된 코멘트가 없습니다</p>
                   )}
                 </div>
               </div>
@@ -501,7 +501,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
           {/* 학습 범위 */}
           {(selected.textbook || selected.unit || selected.pages) && (
             <div style={{ marginBottom: '18px' }}>
-              <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '0 0 8px', fontWeight: 600, letterSpacing: '0.06em' }}>학습 범위</p>
+              <p style={{ fontSize: '11px', color: '#6C7586', margin: '0 0 8px', fontWeight: 600, letterSpacing: '0.06em' }}>학습 범위</p>
               <p style={{ fontSize: '13px', color: '#374151', margin: 0 }}>
                 {[selected.textbook, selected.unit, selected.pages && `${selected.pages}쪽`].filter(Boolean).join(' · ')}
               </p>
@@ -511,7 +511,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
           {/* 다음 계획 */}
           {selected.nextPlan && (
             <div style={{ marginBottom: '18px' }}>
-              <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '0 0 8px', fontWeight: 600, letterSpacing: '0.06em' }}>다음 수업 계획</p>
+              <p style={{ fontSize: '11px', color: '#6C7586', margin: '0 0 8px', fontWeight: 600, letterSpacing: '0.06em' }}>다음 수업 계획</p>
               <p style={{ fontSize: '13px', color: '#374151', margin: 0 }}>{selected.nextPlan}</p>
             </div>
           )}
@@ -519,7 +519,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
           {/* 수업 사진 */}
           {selected.photoUrls?.length > 0 && (
             <div>
-              <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '0 0 8px', fontWeight: 600, letterSpacing: '0.06em' }}>수업 사진 ({selected.photoUrls.length}장)</p>
+              <p style={{ fontSize: '11px', color: '#6C7586', margin: '0 0 8px', fontWeight: 600, letterSpacing: '0.06em' }}>수업 사진 ({selected.photoUrls.length}장)</p>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '8px' }}>
                 {selected.photoUrls.map((url, i) => (
                   <a key={i} href={url} target="_blank" rel="noopener noreferrer">
@@ -545,7 +545,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
             }));
             const topDiag = Object.entries(diagCountMap).sort((a, b) => b[1] - a[1]).slice(0, 3);
             const cardStyle = { background: '#fff', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '14px 16px' };
-            const cardTitle = { fontSize: '11px', color: '#9CA3AF', margin: '0 0 10px', fontWeight: 600, letterSpacing: '0.06em' };
+            const cardTitle = { fontSize: '11px', color: '#6C7586', margin: '0 0 10px', fontWeight: 600, letterSpacing: '0.06em' };
             const chartW = 260, chartH = 40, padX = 8;
             const xOf = (i) => padX + (i / Math.max(1, recentAsc.length - 1)) * (chartW - padX * 2);
             const yOf = (v) => chartH - 4 - (v / 100) * (chartH - 10);
@@ -609,7 +609,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
                         <button key={r.id} onClick={() => setSelectedId(r.id)}
                           style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', padding: '8px 10px', border: 'none', borderRadius: '8px', background: '#F9FAFB', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', width: '100%' }}>
                           <span style={{ fontSize: '11px', color: '#374151', fontWeight: 600 }}>{fmtDate(r)}</span>
-                          <span style={{ fontSize: '10px', color: '#9CA3AF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.unit || r.textbook || ''}</span>
+                          <span style={{ fontSize: '10px', color: '#6C7586', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.unit || r.textbook || ''}</span>
                         </button>
                       ))}
                     </div>
@@ -635,7 +635,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
           </div>
         </div>
       ) : (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9CA3AF', fontSize: '13px', background: '#FAFAFA' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6C7586', fontSize: '13px', background: '#FAFAFA' }}>
           좌측에서 리포트를 선택하세요
         </div>
       )}
@@ -654,7 +654,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
               <p style={{ fontSize: '13px', color: '#374151', margin: '0 0 4px', textAlign: 'center' }}><strong>{fmtDate(deleteTarget)}</strong></p>
               <p style={{ fontSize: '14px', fontWeight: 700, color: '#DC2626', margin: 0, textAlign: 'center' }}>{deleteTarget.studentName} 학생 리포트</p>
             </div>
-            <p style={{ fontSize: '12px', color: '#9CA3AF', textAlign: 'center', margin: '0 0 20px' }}>삭제 후 복구가 불가능합니다.</p>
+            <p style={{ fontSize: '12px', color: '#6C7586', textAlign: 'center', margin: '0 0 20px' }}>삭제 후 복구가 불가능합니다.</p>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button onClick={() => setDeleteConfirmReport(null)}
                 style={{ flex: 1, padding: '11px', fontSize: '13px', fontWeight: 600, border: '1px solid #E5E7EB', borderRadius: '8px', background: '#fff', cursor: 'pointer', fontFamily: 'inherit', color: '#374151' }}>취소</button>

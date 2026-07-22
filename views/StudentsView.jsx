@@ -202,8 +202,8 @@ export default function StudentsView({ students, reports, reviews = [], onSave, 
       <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
         <div style={{ flex: 1, position: 'relative' }}>
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
-            <circle cx="6" cy="6" r="4.5" stroke="#9CA3AF" strokeWidth="1.5"/>
-            <path d="M9.5 9.5L12 12" stroke="#9CA3AF" strokeWidth="1.5" strokeLinecap="round"/>
+            <circle cx="6" cy="6" r="4.5" stroke="#6C7586" strokeWidth="1.5"/>
+            <path d="M9.5 9.5L12 12" stroke="#6C7586" strokeWidth="1.5" strokeLinecap="round"/>
           </svg>
           <input
             value={search} onChange={e => setSearch(e.target.value)}
@@ -211,7 +211,7 @@ export default function StudentsView({ students, reports, reviews = [], onSave, 
             style={{ width: '100%', padding: '9px 12px 9px 32px', border: '1px solid #E5E7EB', borderRadius: '10px', fontSize: '16px', fontFamily: 'inherit', outline: 'none', background: '#fff' }}
           />
           {search && (
-            <button onClick={() => setSearch('')} style={{ position: 'absolute', right: '4px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer', fontSize: '16px', lineHeight: 1, width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>×</button>
+            <button onClick={() => setSearch('')} style={{ position: 'absolute', right: '4px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#6C7586', cursor: 'pointer', fontSize: '16px', lineHeight: 1, width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>×</button>
           )}
         </div>
         <select value={sortBy} onChange={e => setSortBy(e.target.value)}
