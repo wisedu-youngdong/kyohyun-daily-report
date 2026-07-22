@@ -277,6 +277,15 @@ export default function App() {
       showAppToast('복습 완료 처리에 실패했습니다.', 'error');
     }
   };
+  // "복습 지시" — 학생에게 복습하라고 알려줬다는 가벼운 표시. status는 그대로 pending으로 남아
+  // 목록에서 사라지지 않고(진짜 끝난 건 아니니까) 카드만 흐려짐 — 실제 완료 처리는 handleCompleteReview.
+  const handleToggleReviewInstructed = async (ids, instructed) => {
+    try {
+      await Promise.all(ids.map(id => updateDoc(doc(db, 'academies', academyId, 'reviews', id), { instructed })));
+    } catch (e) {
+      console.error('복습 지시 표시 실패:', e);
+    }
+  };
 
   // 대시보드 "미열람 리마인더"에서만 숨김 — 리포트 자체나 열람 여부는 안 건드림, 이 위젯에서만 다시 안 뜨게.
   // dismissed=false로 부르면 실행취소(다시 보이게)
@@ -686,6 +695,7 @@ export default function App() {
               students={visibleStudents} classes={classes} reports={visibleReports} reportViews={reportViews} onTabChange={setActiveTab}
               reviews={isDirector ? reviews : reviews.filter(rv => visibleStudents.some(s => s.id === rv.studentId))}
               onCompleteReview={handleCompleteReview}
+              onToggleReviewInstructed={handleToggleReviewInstructed}
               onQuickAbsence={handleQuickAbsence}
               onDismissUnreadReminder={handleDismissUnreadReminder}
               onWriteFor={(student, done) => {
