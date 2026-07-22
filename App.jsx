@@ -37,79 +37,48 @@ const GrowthDashboard = React.lazy(() => import('./views/GrowthDashboard.jsx'));
 const DirectorView = React.lazy(() => import('./views/DirectorView.jsx'));
 const WeeklyReviewView = React.lazy(() => import('./views/WeeklyReviewView.jsx'));
 
-// PC 상단 탭 전용 아이콘 — "세트 F" 디자인 시안(네이비→골드 글로시 3D 블롭) 그대로 이식.
-// 모바일 하단 탭은 계속 lucide 선 아이콘을 씀 — 둘을 섞지 않고 PC 상단 탭에서만 사용.
-const BLOB_PATH = 'M23 3.8C34 3.8 42.2 12 42.2 23C42.2 34 34 42.2 23 42.2C12 42.2 3.8 34 3.8 23C3.8 12 12 3.8 23 3.8Z';
-const BLOB_SHAPES = {
+// PC 상단 탭 전용 아이콘 — "세트 G-1" 디자인 시안(플랫 미니멀) 그대로 이식.
+// 전부 20px · stroke 1.8 · currentColor 단색 — 다색/솔리드/그림자/원형칩 없음. 활성 여부는
+// 아이콘이 아니라 알약 배경과 글자색으로만 구분한다(아이콘은 색만 따라감).
+// 모바일 하단 탭은 계속 mainTabs의 lucide 아이콘을 씀 — PC 상단 탭에서만 사용.
+const TAB_ICON_PATHS = {
   dashboard: (
     <>
-      <rect x="-9" y="-9" width="7.5" height="7.5" rx="2" stroke="none" />
-      <rect x="1.5" y="-9" width="7.5" height="7.5" rx="2" fill="none" />
-      <rect x="-9" y="1.5" width="7.5" height="7.5" rx="2" fill="none" />
-      <rect x="1.5" y="1.5" width="7.5" height="7.5" rx="2" stroke="none" />
+      <rect x="3" y="3" width="7" height="7" rx="1.5" />
+      <rect x="14" y="3" width="7" height="7" rx="1.5" />
+      <rect x="3" y="14" width="7" height="7" rx="1.5" />
+      <rect x="14" y="14" width="7" height="7" rx="1.5" />
     </>
   ),
   write: (
     <>
-      <path d="M-6-9.5h7l5 5v13a1.6 1.6 0 0 1-1.6 1.6H-6A1.6 1.6 0 0 1-7.6 8.5V-8A1.6 1.6 0 0 1-6-9.5Z" fill="none" />
-      <path d="M1-9.5v5h5" fill="none" />
-      <path d="M-3-1h7M-3 3h5" fill="none" />
+      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+      <path d="M14 3v5h5" />
+      <path d="M9 13h6M9 17h4" />
     </>
   ),
   record: (
     <>
-      <circle cx="0" cy="0" r="9.5" fill="none" />
-      <path d="M0-5.5V0l3.5 2.2" fill="none" />
+      <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+      <path d="M3 4v4h4" />
+      <path d="M12 8v4l3 2" />
     </>
   ),
-  insight: (
-    <>
-      <path d="M-9 9h18" fill="none" />
-      <rect x="-8" y="0" width="4" height="9" rx="1.3" stroke="none" />
-      <rect x="-2" y="-6" width="4" height="15" rx="1.3" stroke="none" />
-      <rect x="4" y="-3" width="4" height="12" rx="1.3" stroke="none" />
-    </>
-  ),
+  insight: <path d="M4 20V10M10 20V4M16 20v-7M4 20h16" />,
   manage: (
     <>
-      <circle cx="0" cy="-4" r="4" stroke="none" />
-      <path d="M-8 9a8 8 0 0 1 16 0Z" stroke="none" />
+      <circle cx="9" cy="8" r="3" />
+      <path d="M3 20a6 6 0 0 1 12 0" />
+      <circle cx="18" cy="9" r="2.2" />
+      <path d="M17 20a5 5 0 0 1 5-5" />
     </>
   ),
 };
-function TabBlobIcon({ tabKey, active, size = 30 }) {
-  const uid = `tabicon-${tabKey}`;
-  const sil = active ? '#FFFFFF' : '#FBF7EC';
-  const silOp = active ? 1 : 0.92;
+function TabLineIcon({ tabKey }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 46 46" fill="none" style={{ filter: 'drop-shadow(0 3px 6px rgba(18,51,111,0.28))', flexShrink: 0 }}>
-      <defs>
-        <linearGradient id={`${uid}-b`} x1="8" y1="6" x2="40" y2="42" gradientUnits="userSpaceOnUse">
-          {active ? (
-            <>
-              <stop offset="0" stopColor="#0D2D6B" />
-              <stop offset="0.62" stopColor="#3A4E7E" />
-              <stop offset="1" stopColor="#C9A227" />
-            </>
-          ) : (
-            <>
-              <stop offset="0" stopColor="#3E4E74" stopOpacity="0.62" />
-              <stop offset="1" stopColor="#C9A227" stopOpacity="0.58" />
-            </>
-          )}
-        </linearGradient>
-        <radialGradient id={`${uid}-g`} cx="0" cy="0" r="1" gradientTransform="translate(15 11) rotate(58) scale(26)">
-          <stop offset="0" stopColor="#fff" stopOpacity={active ? 0.55 : 0.32} />
-          <stop offset="0.55" stopColor="#fff" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-      <path d={BLOB_PATH} fill={`url(#${uid}-b)`} />
-      <path d={BLOB_PATH} fill={`url(#${uid}-g)`} />
-      {active && <path d={BLOB_PATH} fill="none" stroke="#E8C34A" strokeWidth="1.6" strokeOpacity="0.95" />}
-      <g transform="translate(23 23)" stroke={sil} strokeOpacity={silOp} fill={sil} fillOpacity={silOp} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-        {BLOB_SHAPES[tabKey]}
-      </g>
-      {active && <circle cx="35.3" cy="10.7" r="3.2" fill="#E8C34A" stroke="#fff" strokeWidth="1.2" />}
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      {TAB_ICON_PATHS[tabKey]}
     </svg>
   );
 }
@@ -742,18 +711,21 @@ export default function App() {
           </button>
         </header>
 
-        {/* PC 상단 탭 — 모바일은 기존 하단 탭(아래 <nav>)을 그대로 씀. 활성 탭만 네이비 톤
-            채움 배경(#EAF0F9/#0D2D6B — 원장 배지 등 앱 전반에 이미 쓰는 네이비 조합 재사용) +
-            굵게, 아이콘은 기존 lucide 20px 그대로 두되 획 굵기만 1.8로 통일 */}
+        {/* PC 상단 탭 — 모바일은 기존 하단 탭(아래 <nav>)을 그대로 씀. "세트 G-1" 스펙:
+            알약 하나에 아이콘+라벨을 직접 얹고(원형칩·그림자 없는 1단 구조), 비활성은 배경 없이
+            매트 차콜, 활성만 옅은 네이비 알약 + 딥 네이비 + 굵게. hover는 인라인 스타일로
+            표현할 수 없어 클래스로 처리 — 활성 탭은 인라인 background가 우선이라 안 덮임 */}
         {isPc && (
-          <div style={{ background: T.bg, borderBottom: `1px solid ${T.border}`, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '10px 20px', gap: '4px' }}>
+          <div style={{ background: T.bg, borderBottom: `1px solid ${T.border}`, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '10px 16px', gap: '4px' }}>
+            <style>{`.pc-tab { background: transparent; transition: background .15s; } .pc-tab:hover { background: #F4F5F8; }`}</style>
             {tabs.map(tab => {
               const active = activeTab === tab.key;
               return (
-                <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 14px', border: 'none', borderRadius: '10px', background: active ? '#EAF0F9' : 'transparent', cursor: 'pointer', color: active ? '#0D2D6B' : T.textMute, fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>
-                  <TabBlobIcon tabKey={tab.key} active={active} />
-                  <span style={{ fontSize: '13px', fontWeight: active ? 700 : 500 }}>{tab.label}</span>
+                <button key={tab.key} className="pc-tab" onClick={() => setActiveTab(tab.key)}
+                  aria-current={active ? 'page' : undefined}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', height: '44px', padding: '0 18px', border: 'none', borderRadius: '22px', cursor: 'pointer', fontSize: '14.5px', fontWeight: active ? 800 : 600, color: active ? '#12336F' : '#3A3A38', background: active ? '#EAEFF8' : undefined, fontFamily: "'Pretendard Variable', Pretendard, sans-serif", whiteSpace: 'nowrap' }}>
+                  <TabLineIcon tabKey={tab.key} />
+                  <span>{tab.label}</span>
                 </button>
               );
             })}
