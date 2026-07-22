@@ -291,7 +291,10 @@ export default function StudentsView({ students, reports, reviews = [], onSave, 
       <div style={{ padding: '20px', maxWidth: '1040px', margin: '0 auto', boxSizing: 'border-box' }}>
         {modals}
         {header}
-        <div style={{ display: 'grid', gridTemplateColumns: '392px 1fr', gap: '20px', height: 'calc(100vh - 180px)', minHeight: '480px' }}>
+        {/* 193px = 이 그리드 위에 쌓인 것들의 높이(헤더 + 관리 서브탭 + 화면 제목/버튼 줄).
+            학습기록(108)보다 큰 건 여기엔 서브탭 알약과 제목 줄이 더 있기 때문. 값이 실제보다
+            작으면 뷰포트 밖으로 넘치므로, 상단 구조가 바뀌면 다시 잴 것 */}
+        <div style={{ display: 'grid', gridTemplateColumns: '392px 1fr', gap: '20px', height: 'calc(100vh - 193px)', minHeight: '480px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
             {!showArchived && searchAndFilter}
             <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, paddingRight: '2px' }}>

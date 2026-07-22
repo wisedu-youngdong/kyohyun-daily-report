@@ -300,10 +300,10 @@ export default function HistoryView({ reports, students, classes = [], reportVie
   // PC: 스플릿 뷰
   return (
     <>
-    {/* PC 상단 탭 도입(App.jsx) 이후 헤더+상단탭+서브탭 라벨 높이가 늘어나서 180px로 보정
-        (기존 120px 기준이면 뷰포트 아래로 콘텐츠가 넘쳐 스크롤이 이중으로 생겼음 — 상단 탭
-        아이콘을 F 세트로 교체하며 탭 바가 조금 더 높아져서 174→180으로 재조정) */}
-    <div style={{ display: 'grid', gridTemplateColumns: (isUltraWide && selected) ? '392px 1fr 360px' : '392px 1fr', height: 'calc(100dvh - 180px)', overflow: 'hidden' }}>
+    {/* 108px = 이 그리드 위에 쌓인 것들의 높이(헤더 65 + 서브탭 라벨 영역). 헤더를 한 줄로
+        합치면서 상단 크롬이 72px 줄어 180 → 108로 재조정함. 값이 실제보다 크면 화면 아래가
+        비고, 작으면 뷰포트 밖으로 넘쳐 스크롤이 이중으로 생기므로 헤더 구조가 바뀌면 다시 잴 것 */}
+    <div style={{ display: 'grid', gridTemplateColumns: (isUltraWide && selected) ? '392px 1fr 360px' : '392px 1fr', height: 'calc(100dvh - 108px)', overflow: 'hidden' }}>
 
       {/* 좌측 목록 */}
       <div style={{ borderRight: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>

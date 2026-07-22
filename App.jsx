@@ -694,43 +694,57 @@ export default function App() {
 
   return (
     <div style={{ minHeight: '100dvh', background: T.bgSoft, paddingBottom: isPc ? 0 : 'calc(80px + env(safe-area-inset-bottom))' }}>
+      {/* PC는 [로고·학원명] [탭 가운데] [날짜·역할·로그아웃]을 한 줄에 담는다 — 탭을 별도
+          두 번째 줄로 내렸더니 첫 줄에 채울 게 없어서, 넓은 모니터에서 로고와 우측 메타가
+          1500px 넘게 벌어져 보였음. 가운데를 탭이 채우면서 그 문제가 사라지고 세로도 아낌.
+          모바일은 탭이 하단 <nav>에 따로 있으므로 기존 한 줄(로고+메타) 그대로. */}
       <div style={{ position: 'sticky', top: 0, zIndex: 100 }}>
-        <header style={{ background: T.bg, borderBottom: isPc ? 'none' : `1px solid ${T.border}`, padding: '14px 20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: '28px', height: '28px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
-            <img src={logoUrl || '/kyohyun-logo.png'} alt="로고" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          </div>
-          <h1 style={{ fontSize: '16px', fontWeight: 700, color: T.text, letterSpacing: '-0.02em', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{academyName || '데일리 리포트 시스템'}</h1>
-          <span style={{ marginLeft: 'auto', fontSize: '10px', color: T.textMute, fontWeight: 500, background: T.bgSoft, padding: '3px 8px', borderRadius: '6px', border: `1px solid ${T.border}`, flexShrink: 0 }}>
-            {new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
-          </span>
-          <span style={{ fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '6px', background: isDirector ? '#EAF0F9' : '#E1F5EE', color: isDirector ? '#0D2D6B' : '#0F6E56', flexShrink: 0 }}>
-            {isDirector ? '원장' : (teachers.find(t => t.id === userTeacherId)?.name || '강사')}
-          </span>
-          <button onClick={() => signOut(auth)} style={{ background: 'none', border: 'none', color: T.textMute, cursor: 'pointer', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, WebkitTapHighlightColor: 'transparent' }} title="로그아웃">
-            <LogOut size={16} />
-          </button>
-        </header>
+        <header style={isPc
+          ? { background: T.bg, borderBottom: `1px solid ${T.border}`, padding: '10px 24px', display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: '20px' }
+          : { background: T.bg, borderBottom: `1px solid ${T.border}`, padding: '14px 20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
 
-        {/* PC 상단 탭 — 모바일은 기존 하단 탭(아래 <nav>)을 그대로 씀. "세트 G-1" 스펙:
-            알약 하나에 아이콘+라벨을 직접 얹고(원형칩·그림자 없는 1단 구조), 비활성은 배경 없이
-            매트 차콜, 활성만 옅은 네이비 알약 + 딥 네이비 + 굵게. hover는 인라인 스타일로
-            표현할 수 없어 클래스로 처리 — 활성 탭은 인라인 background가 우선이라 안 덮임 */}
-        {isPc && (
-          <div style={{ background: T.bg, borderBottom: `1px solid ${T.border}`, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '10px 16px', gap: '4px' }}>
-            <style>{`.pc-tab { background: transparent; transition: background .15s; } .pc-tab:hover { background: #F4F5F8; }`}</style>
-            {tabs.map(tab => {
-              const active = activeTab === tab.key;
-              return (
-                <button key={tab.key} className="pc-tab" onClick={() => setActiveTab(tab.key)}
-                  aria-current={active ? 'page' : undefined}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', height: '44px', padding: '0 18px', border: 'none', borderRadius: '22px', cursor: 'pointer', fontSize: '14.5px', fontWeight: active ? 800 : 600, color: active ? '#12336F' : '#3A3A38', background: active ? '#EAEFF8' : undefined, fontFamily: "'Pretendard Variable', Pretendard, sans-serif", whiteSpace: 'nowrap' }}>
-                  <TabLineIcon tabKey={tab.key} />
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
+          {/* 좌 — 로고 + 학원명 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, ...(isPc ? {} : { flex: 1 }) }}>
+            <div style={{ width: '28px', height: '28px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
+              <img src={logoUrl || '/kyohyun-logo.png'} alt="로고" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            </div>
+            <h1 style={{ fontSize: '16px', fontWeight: 700, color: T.text, letterSpacing: '-0.02em', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{academyName || '데일리 리포트 시스템'}</h1>
           </div>
-        )}
+
+          {/* 가운데 — PC 탭. "세트 G-1" 스펙: 알약 하나에 아이콘+라벨을 직접 얹고(원형칩·그림자
+              없는 1단 구조), 비활성은 배경 없이 매트 차콜, 활성만 옅은 네이비 알약 + 딥 네이비 +
+              굵게. hover는 인라인 스타일로 표현할 수 없어 클래스로 처리 — 활성 탭은 인라인
+              background가 우선이라 안 덮임 */}
+          {isPc && (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px', minWidth: 0 }}>
+              <style>{`.pc-tab { background: transparent; transition: background .15s; } .pc-tab:hover { background: #F4F5F8; }`}</style>
+              {tabs.map(tab => {
+                const active = activeTab === tab.key;
+                return (
+                  <button key={tab.key} className="pc-tab" onClick={() => setActiveTab(tab.key)}
+                    aria-current={active ? 'page' : undefined}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', height: '44px', padding: '0 18px', border: 'none', borderRadius: '22px', cursor: 'pointer', fontSize: '14.5px', fontWeight: active ? 800 : 600, color: active ? '#12336F' : '#3A3A38', background: active ? '#EAEFF8' : undefined, fontFamily: "'Pretendard Variable', Pretendard, sans-serif", whiteSpace: 'nowrap' }}>
+                    <TabLineIcon tabKey={tab.key} />
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* 우 — 날짜 · 역할 · 로그아웃 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, justifySelf: 'end' }}>
+            <span style={{ fontSize: '10px', color: T.textMute, fontWeight: 500, background: T.bgSoft, padding: '3px 8px', borderRadius: '6px', border: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>
+              {new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
+            </span>
+            <span style={{ fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '6px', background: isDirector ? '#EAF0F9' : '#E1F5EE', color: isDirector ? '#0D2D6B' : '#0F6E56', whiteSpace: 'nowrap' }}>
+              {isDirector ? '원장' : (teachers.find(t => t.id === userTeacherId)?.name || '강사')}
+            </span>
+            <button onClick={() => signOut(auth)} style={{ background: 'none', border: 'none', color: T.textMute, cursor: 'pointer', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, WebkitTapHighlightColor: 'transparent' }} title="로그아웃">
+              <LogOut size={16} />
+            </button>
+          </div>
+        </header>
       </div>
 
       {/* 앱 레벨 토스트 — 모바일은 하단 탭 위, PC는 하단 탭이 없으니 화면 아래쪽에 여유 있게 */}
