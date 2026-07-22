@@ -31,6 +31,29 @@ export function kstWeekday(seconds) {
   return new Date(seconds * 1000 + 9 * 3600 * 1000).getUTCDay();
 }
 
+// 월요일 시작 기준 주간 범위 계산 — weekOffset 0=이번 주, 1=지난 주, 2=지지난 주...
+// kstWeekday/kstDay와 동일한 "UTC로 +9h 시프트해서 KST 벽시계로 취급" 방식 사용.
+// 원래 AnalysisView.jsx에만 로컬로 있었는데, 주간 리포트 작성/검토 화면도 같은 주간 경계
+// 계산이 필요해서 공용화함.
+export function getKstWeekRange(weekOffset) {
+  const shiftedNow = new Date(Date.now() + 9 * 3600 * 1000);
+  const dow = shiftedNow.getUTCDay(); // 0=일 ... 6=토
+  const mondayOffset = dow === 0 ? -6 : 1 - dow;
+  const monday = new Date(shiftedNow);
+  monday.setUTCDate(shiftedNow.getUTCDate() + mondayOffset - weekOffset * 7);
+  monday.setUTCHours(0, 0, 0, 0);
+  const sunday = new Date(monday);
+  sunday.setUTCDate(monday.getUTCDate() + 6);
+  const toStr = (d) => d.toISOString().split('T')[0];
+  const weekOfMonth = Math.ceil(monday.getUTCDate() / 7);
+  return {
+    startStr: toStr(monday),
+    endStr: toStr(sunday),
+    label: `${monday.getUTCMonth() + 1}월 ${weekOfMonth}주차`,
+    rangeLabel: `${monday.getUTCMonth() + 1}/${monday.getUTCDate()} ~ ${sunday.getUTCMonth() + 1}/${sunday.getUTCDate()}`,
+  };
+}
+
 // 리포트 발송 완료 판정 — 자동저장 draft(isDraft: true)는 코멘트가 채워져 있어도
 // 아직 선생님이 최종 저장하지 않은 상태이므로 완료로 세지 않음
 export function isReportSent(r) {

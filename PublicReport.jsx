@@ -353,6 +353,45 @@ export default function PublicReport() {
               </>
             )}
 
+            {/* 이번 주 수업 기록 — 주간형(reportType:'weekly') 리포트에만 존재. 그룹수업 학원은
+                하루치 리포트 대신 한 주를 모아 보내므로, 위 TEACHER'S NOTE(원장이 다듬은 총평)
+                아래에 실제 수업마다의 기록을 날짜별로 펼쳐서 "묶음 요약"이 아니라는 걸 보여줌 */}
+            {r.sessions?.length > 0 && (
+              <>
+                <div style={{ marginBottom: '18px' }}>
+                  <p style={{ fontSize: '10px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 10px' }}>THIS WEEK'S SESSIONS</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {[...r.sessions].sort((a, b) => a.date.localeCompare(b.date)).map((s, i) => (
+                      <div key={i} style={{ borderLeft: `2px solid ${rule}`, paddingLeft: '10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '3px', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 700, color: navy }}>{s.date}</span>
+                          <span style={{ fontSize: '11px', color: inkSub }}>{s.attendance}</span>
+                          {(s.homeworkRating != null || s.conceptRating != null) && (
+                            <span style={{ fontSize: '11px', color: inkMute }}>
+                              {s.homeworkRating != null ? `과제 ${toPct(s.homeworkRating)}%` : ''}
+                              {s.homeworkRating != null && s.conceptRating != null ? ' · ' : ''}
+                              {s.conceptRating != null ? `개념 ${toPct(s.conceptRating)}%` : ''}
+                            </span>
+                          )}
+                        </div>
+                        {(s.diagnosis || []).length > 0 && (
+                          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: '3px' }}>
+                            {s.diagnosis.map((d, di) => {
+                              const badge = DIAG_BADGES[d.key];
+                              if (!badge) return null;
+                              return <span key={di} style={{ fontSize: '9px', fontWeight: 700, color: '#fff', background: badge.bg, padding: '2px 7px', borderRadius: '3px' }}>{badge.label}</span>;
+                            })}
+                          </div>
+                        )}
+                        {s.teacherNote && <p style={{ fontSize: '12px', color: ink, margin: 0, lineHeight: 1.7 }}>{s.teacherNote}</p>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ height: '1px', background: rule, marginBottom: '18px' }} />
+              </>
+            )}
+
             {/* 문제집 사진 — 2장/4장은 꽉 채워지는 2열, 그 외(1/3/5장)는 3열이라 마지막 줄에
                 사진 하나만 어중간하게 남는 걸 피함 */}
             {r.photoUrls?.filter((_, i) => !brokenPhotos[i]).length > 0 && (

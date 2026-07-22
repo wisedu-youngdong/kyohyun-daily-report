@@ -34,6 +34,7 @@ const StudentsView = React.lazy(() => import('./views/StudentsView.jsx'));
 const HistoryView = React.lazy(() => import('./views/HistoryView.jsx'));
 const GrowthDashboard = React.lazy(() => import('./views/GrowthDashboard.jsx'));
 const DirectorView = React.lazy(() => import('./views/DirectorView.jsx'));
+const WeeklyReviewView = React.lazy(() => import('./views/WeeklyReviewView.jsx'));
 
 function SkeletonBlock({ rows = 4, cardHeight = 64 }) {
   return (
@@ -83,6 +84,8 @@ export default function App() {
   const [academySkinColor, setAcademySkinColor] = useState(null);
   const [academyStatus, setAcademyStatus] = useState(null);
   const [academySubjects, setAcademySubjects] = useState(null);
+  // 'daily'(기본, 1:1 매일 리포트) | 'weekly'(그룹수업 학원용 — 세션별 메모를 원장이 모아 주 1회 발송)
+  const [academyReportMode, setAcademyReportMode] = useState('daily');
   const [academyCreatedAt, setAcademyCreatedAt] = useState(null);
   const [onboardingPromptShown, setOnboardingPromptShown] = useState(true); // 필드 없는(기존) 학원은 기본 true=이미 봄 취급
 
@@ -100,12 +103,13 @@ export default function App() {
         setAcademySkinColor(data.globalSkinColor || null);
         setAcademyStatus(data.status || 'active');
         setAcademySubjects(Array.isArray(data.subjects) && data.subjects.length > 0 ? data.subjects : null);
+        setAcademyReportMode(data.reportMode === 'weekly' ? 'weekly' : 'daily');
         setAcademyCreatedAt(data.createdAt?.seconds || null);
         // 필드가 아예 없으면(기존 학원) true로 취급해 시작 가이드가 안 뜨게 함 —
         // 새로 만든 학원만 handleCreateAcademy/handleApproveSignup에서 명시적으로 false를 심어둠
         setOnboardingPromptShown(data.onboardingPromptShown !== false);
       },
-      () => { setLogoUrl(null); setAcademyName(null); setAcademyPhone(null); setAcademySkinColor(null); setAcademyStatus(null); setAcademySubjects(null); setAcademyCreatedAt(null); setOnboardingPromptShown(true); }
+      () => { setLogoUrl(null); setAcademyName(null); setAcademyPhone(null); setAcademySkinColor(null); setAcademyStatus(null); setAcademySubjects(null); setAcademyReportMode('daily'); setAcademyCreatedAt(null); setOnboardingPromptShown(true); }
     );
     return () => unsub();
   }, [academyId]);
@@ -456,7 +460,11 @@ export default function App() {
       } catch (e) { console.warn('복습 일정 조회 실패:', e); }
     }
     if (weakTags.length > 0 && !d.isDraft && !alreadyHasReviews) {
-      const now = new Date();
+      // 주간형 리포트는 원장이 그 주 마지막 세션 며칠 뒤에 발송할 수도 있어서, "지금"이 아니라
+      // 실제 마지막 수업일(sessions[] 중 가장 늦은 날짜)을 복습 기산일로 삼음
+      const now = (d.reportType === 'weekly' && d.sessions?.length)
+        ? new Date(Math.max(...d.sessions.map(s => new Date(`${s.date}T00:00:00+09:00`).getTime())))
+        : new Date();
       const schedules = [7, 14, 30].map(days => {
         const dueDate = new Date(now);
         dueDate.setDate(dueDate.getDate() + days);
@@ -577,6 +585,10 @@ export default function App() {
   const visibleReports = isDirector
     ? reports
     : reports.filter(r => r.teacherId === userTeacherId);
+
+  // 학원 기본값이 주간형이거나, 반 하나라도 개별적으로 주간형으로 오버라이드돼 있으면
+  // "주간 리포트 검토" 탭을 노출 — 매일형만 쓰는 학원(대부분)은 탭 자체가 안 보임
+  const hasWeeklyMode = academyReportMode === 'weekly' || classes.some(c => c.reportMode === 'weekly');
 
   const mainTabs = [
     { key: 'dashboard', label: '대시보드', icon: <LayoutDashboard size={20} />, roles: ['director', 'teacher'] },
@@ -768,6 +780,7 @@ export default function App() {
                 academyName={academyName}
                 academySubjects={academySubjects}
                 academyPhone={academyPhone}
+                academyReportMode={academyReportMode}
               />
             </React.Suspense>
           </>
@@ -792,7 +805,8 @@ export default function App() {
             {renderSubTabBar('insight', [
               { key: 'director', label: '원장 보고서' },
               { key: 'analysis', label: '종합 분석' },
-            ], { director: 960, analysis: 600 })}
+              ...(hasWeeklyMode ? [{ key: 'weekly', label: '주간 리포트 검토' }] : []),
+            ], { director: 960, analysis: 600, weekly: 960 })}
             <div style={{ marginTop: '12px' }}>
               {activeSubTab.insight === 'director' && (dataReady
                 ? <React.Suspense fallback={<SkeletonBlock rows={4} cardHeight={70} />}>
@@ -804,6 +818,12 @@ export default function App() {
               {activeSubTab.insight === 'analysis' && (dataReady
                 ? <React.Suspense fallback={<SkeletonBlock rows={4} cardHeight={70} />}>
                     <AnalysisView students={visibleStudents} reports={visibleReports} />
+                  </React.Suspense>
+                : <SkeletonBlock rows={4} cardHeight={70} />
+              )}
+              {hasWeeklyMode && activeSubTab.insight === 'weekly' && (dataReady
+                ? <React.Suspense fallback={<SkeletonBlock rows={4} cardHeight={70} />}>
+                    <WeeklyReviewView reports={visibleReports} students={visibleStudents} classes={classes} academyId={academyId} academyReportMode={academyReportMode} onSave={handleSaveReport} onToast={showAppToast} />
                   </React.Suspense>
                 : <SkeletonBlock rows={4} cardHeight={70} />
               )}
@@ -825,7 +845,7 @@ export default function App() {
               )}
               {activeSubTab.manage === 'settings' && (dataReady
                 ? <React.Suspense fallback={<SkeletonBlock rows={4} cardHeight={70} />}>
-                    <SettingsView students={students} onSaveStudent={handleSaveStudent} teachers={teachers} onSaveTeacher={handleSaveTeacher} onDeleteTeacher={handleDeleteTeacher} classes={classes} onSaveClass={handleSaveClass} onDeleteClass={handleDeleteClass} logoUrl={logoUrl} onSaveLogo={handleSaveLogo} onDeleteLogo={handleDeleteLogo} academyId={academyId} academyPhone={academyPhone} academySkinColor={academySkinColor} academySubjects={academySubjects} isPlatformAdmin={isPlatformAdmin} onToast={showAppToast} onReopenGuide={() => setOnboardingReopenSignal(s => s + 1)} />
+                    <SettingsView students={students} onSaveStudent={handleSaveStudent} teachers={teachers} onSaveTeacher={handleSaveTeacher} onDeleteTeacher={handleDeleteTeacher} classes={classes} onSaveClass={handleSaveClass} onDeleteClass={handleDeleteClass} logoUrl={logoUrl} onSaveLogo={handleSaveLogo} onDeleteLogo={handleDeleteLogo} academyId={academyId} academyPhone={academyPhone} academySkinColor={academySkinColor} academySubjects={academySubjects} academyReportMode={academyReportMode} isPlatformAdmin={isPlatformAdmin} onToast={showAppToast} onReopenGuide={() => setOnboardingReopenSignal(s => s + 1)} />
                   </React.Suspense>
                 : <SkeletonBlock rows={4} cardHeight={70} />
               )}

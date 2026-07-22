@@ -126,8 +126,10 @@ export default function DirectorView({ reports, students, classes = [], reportVi
         });
 
         const weekStudentIds = [...new Set(weekReports.map(r => r.studentId))];
-        const attendRate = weekReports.length > 0
-          ? Math.round(weekReports.filter(r => r.attendance === '정시').length / weekReports.length * 100)
+        // 주간 리포트는 최상위 attendance가 없음(세션마다 다를 수 있어 대표값 없음) — 분모에서 제외
+        const weekAttendanceRated = weekReports.filter(r => r.attendance != null);
+        const attendRate = weekAttendanceRated.length > 0
+          ? Math.round(weekAttendanceRated.filter(r => r.attendance === '정시').length / weekAttendanceRated.length * 100)
           : 0;
 
         // 미제출 — 이번 주 리포트가 없는 학생 중, 스케줄 요일이 이번 주에 이미 한 번이라도
@@ -504,7 +506,7 @@ export default function DirectorView({ reports, students, classes = [], reportVi
                     <>
                       {r.textbook && <span style={{ fontWeight: 600 }}>{r.textbook}{r.unit ? ` · ${r.unit}` : ''}{r.pages ? ` ${r.pages}` : ''}</span>}
                       <span style={{ color: '#5A6472' }}>
-                        {r.textbook ? ' · ' : ''}과제 {toPct(r.homeworkRating)}% · 개념 {toPct(r.conceptRating)}%
+                        {r.textbook ? ' · ' : ''}과제 {r.homeworkRating != null ? `${toPct(r.homeworkRating)}%` : '미평가'} · 개념 {r.conceptRating != null ? `${toPct(r.conceptRating)}%` : '미평가'}
                         {r.hasTest && r.testScore ? ` · 시험 ${r.testScore}점` : ''}
                       </span>
                     </>
@@ -651,8 +653,8 @@ export default function DirectorView({ reports, students, classes = [], reportVi
                       <p style={{ fontSize: '11px', color: '#1A5CB8', fontWeight: 700, margin: '0 0 6px' }}>📋 {academyName || '데일리 리포트'} 수업 리포트</p>
                       <p style={{ fontSize: '13px', fontWeight: 800, color: '#0D2D6B', margin: '0 0 4px' }}>{r.studentName} 학생 · {dateStr}</p>
                       <div style={{ display: 'flex', gap: '10px', margin: '0 0 6px', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: '11px', color: '#5A6472' }}>과제 {toPct(r.homeworkRating)}%</span>
-                        <span style={{ fontSize: '11px', color: '#5A6472' }}>개념 {toPct(r.conceptRating)}%</span>
+                        {r.homeworkRating != null && <span style={{ fontSize: '11px', color: '#5A6472' }}>과제 {toPct(r.homeworkRating)}%</span>}
+                        {r.conceptRating != null && <span style={{ fontSize: '11px', color: '#5A6472' }}>개념 {toPct(r.conceptRating)}%</span>}
                         <span style={{ fontSize: '11px', color: r.attendance === '정시' ? '#0F6E56' : '#A32D2D' }}>{r.attendance}</span>
                         {r.hasTest && r.testScore && <span style={{ fontSize: '11px', color: '#5A6472' }}>시험 {r.testScore}점</span>}
                       </div>

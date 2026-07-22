@@ -91,7 +91,7 @@ function deriveColors(mainHex) {
   };
 }
 
-export default function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDeleteTeacher, classes = [], onSaveClass, onDeleteClass, logoUrl, onSaveLogo, onDeleteLogo, academyId, academyPhone, academySkinColor, academySubjects, isPlatformAdmin = false, onToast, onReopenGuide }) {
+export default function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDeleteTeacher, classes = [], onSaveClass, onDeleteClass, logoUrl, onSaveLogo, onDeleteLogo, academyId, academyPhone, academySkinColor, academySubjects, academyReportMode = 'daily', isPlatformAdmin = false, onToast, onReopenGuide }) {
   // 플랫폼 관리 섹션(가입신청/새학원/분양학원)이 늘어나면서 학원 설정과 한 페이지에 다 있으면
   // 스크롤이 너무 길어져 탭으로 분리 — 플랫폼 관리자가 아니면 애초에 두 번째 탭 내용이 없으니 탭 자체를 안 보여줌
   const [settingsTab, setSettingsTab] = React.useState('academy'); // 'academy' | 'platform'
@@ -134,6 +134,22 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
     }
     setSubjectsSaving(false);
   };
+  // 리포트 작성 방식 — 대규모 그룹수업 학원은 학생별 매일 리포트가 물리적으로 힘들어서,
+  // 강사가 수업마다 짧은 세션 메모만 남기고 원장이 모아서 주 1회 발송하는 방식을 선택할 수 있음.
+  // 반(class)별로 이 값을 오버라이드하면 이 학원 기본값보다 우선함(class 설정 UI 쪽에 있음).
+  const [reportModeSaving, setReportModeSaving] = React.useState(false);
+  const saveReportMode = async (mode) => {
+    if (mode === academyReportMode) return;
+    setReportModeSaving(true);
+    try {
+      await setDoc(doc(db, 'academies', academyId), { reportMode: mode }, { merge: true });
+    } catch (e) {
+      console.error('리포트 작성 방식 저장 실패:', e);
+      onToast?.('리포트 작성 방식 저장에 실패했습니다. 잠시 후 다시 시도해주세요.', 'error');
+    }
+    setReportModeSaving(false);
+  };
+
   const savePhone = async () => {
     setPhoneSaving(true);
     try {
@@ -707,6 +723,34 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
         </div>
       </div>
 
+      {/* 리포트 작성 방식 — 매일형(기본, 1:1 개인화 리포트) vs 주간형(그룹수업, 세션 메모 → 원장이
+          모아서 주 1회 발송). 반별로 다르게 쓰고 싶으면 반 관리 목록에서 개별 오버라이드 가능 */}
+      <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB', marginBottom: '14px' }}>
+        <p style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>리포트 작성 방식</p>
+        <p style={{ fontSize: '11px', color: '#6B7280', margin: '0 0 14px', lineHeight: 1.6 }}>
+          학원 기본값이에요. 반이 많고 인원이 큰 수업만 따로 "주간형"으로 바꾸고 싶다면 아래 반 관리에서 반별로 설정할 수 있어요.
+        </p>
+        <div style={{ display: 'flex', gap: '6px' }}>
+          {[
+            { key: 'daily', label: '매일형', desc: '학생별 매일 개인화 리포트' },
+            { key: 'weekly', label: '주간형', desc: '수업마다 메모 → 원장이 모아 주 1회 발송' },
+          ].map(opt => {
+            const active = academyReportMode === opt.key;
+            return (
+              <button key={opt.key} onClick={() => saveReportMode(opt.key)} disabled={reportModeSaving}
+                style={{
+                  flex: 1, textAlign: 'left', padding: '10px 12px', borderRadius: '10px',
+                  border: active ? `1.5px solid ${C.primary}` : '1px solid #E5E7EB',
+                  background: active ? '#EAF0F9' : '#fff', cursor: reportModeSaving ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+                }}>
+                <p style={{ fontSize: '12px', fontWeight: 700, color: active ? C.primary : '#374151', margin: '0 0 2px' }}>{opt.label}</p>
+                <p style={{ fontSize: '10px', color: '#9CA3AF', margin: 0, lineHeight: 1.5 }}>{opt.desc}</p>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* 로고 삭제 확인 모달 — 헤더 전체에 반영되는 변화라 인라인 재클릭보다 명확하게 */}
       {showLogoDeleteConfirm && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '20px', backdropFilter: 'blur(4px)' }}
@@ -938,6 +982,14 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                       <p style={{ fontSize: '13px', fontWeight: 600, color: '#1A1A1A', margin: 0 }}>{cls.name}</p>
                       <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '2px 0 0' }}>{classTeacher ? `담당 ${classTeacher.name}` : '담당 강사 미지정(삭제된 강사)'} · 학생 {classStudentCount}명</p>
                     </div>
+                    {/* 이 반만 학원 기본 리포트 방식과 다르게 쓰고 싶을 때 — 비워두면(학원 기본값) 위 설정을 그대로 따름 */}
+                    <select value={cls.reportMode || ''} onChange={e => onSaveClass({ ...cls, reportMode: e.target.value })}
+                      title="이 반의 리포트 작성 방식(비워두면 학원 기본값)"
+                      style={{ flexShrink: 0, padding: '5px 6px', fontSize: '10px', fontWeight: 600, border: '1px solid #E5E7EB', borderRadius: '8px', fontFamily: 'inherit', background: '#fff', color: '#6B7280' }}>
+                      <option value="">학원 기본값</option>
+                      <option value="daily">매일형</option>
+                      <option value="weekly">주간형</option>
+                    </select>
                     <button onClick={() => { setEditingClassId(cls.id); setEditingClassName(cls.name); }} style={{ background: C.primaryLight, color: C.primary, border: 'none', borderRadius: '8px', padding: '5px 10px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                       <Pencil size={11} /> 수정
                     </button>

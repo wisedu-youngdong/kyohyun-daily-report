@@ -63,7 +63,11 @@ export default function DashboardView({ students, reports, classes = [], reportV
   const todayKst = kstDay(Date.now() / 1000);
   const isHandledToday = (r) => isReportSent(r) || (r.attendance === '결석' && r.isDraft !== true);
   const todayReports = reports.filter(r => r.createdAt?.seconds && isHandledToday(r) && kstDay(r.createdAt.seconds) === todayKst);
-  const doneOf = (s) => todayReports.some(r => r.studentId === s.id);
+  // 주간형(reportType==='weekly') 리포트는 한 주 내내 isDraft:true라서(원장이 발송할 때만 false로
+  // 바뀜) 위 todayReports 기준으론 절대 안 걸림 — 오늘 세션을 실제로 저장했는지는 컨테이너의
+  // isDraft/createdAt이 아니라 sessions[]에 오늘 날짜가 있는지로 따로 판정해야 함
+  const hasWeeklySessionToday = (r) => r.reportType === 'weekly' && (r.sessions || []).some(s => s.date === todayKst);
+  const doneOf = (s) => todayReports.some(r => r.studentId === s.id) || reports.some(r => r.studentId === s.id && hasWeeklySessionToday(r));
 
   // 미열람 리마인더 — 발송된(초안 아닌) 리포트 중 reportViews에 기록이 없는 것.
   // 오늘 보낸 건 아직 확인 못 봤을 수 있어 제외하고, "하루 이상 지났는데도 안 읽음"만 모아서
@@ -119,7 +123,10 @@ export default function DashboardView({ students, reports, classes = [], reportV
   );
   // 상단 통계도 반 필터를 따라가야 함 — 목록은 필터링되는데 숫자만 학원 전체 기준이면 헷갈림
   const filteredTodayReports = classFilter ? todayReports.filter(r => filteredStudents.some(s => s.id === r.studentId)) : todayReports;
-  const pendingCount = filteredStudents.length - filteredTodayReports.length;
+  // "오늘 발송"(filteredTodayReports)은 실제 발송 여부 그대로 두고, "오늘 미작성"은 doneOf와
+  // 같은 기준(주간형은 세션 저장만 해도 완료로 인정)으로 별도 계산 — 안 그러면 목록의 "완료 ✓"
+  // 표시(doneOf 기준)와 상단 미작성 숫자가 서로 어긋나 보임
+  const pendingCount = filteredStudents.filter(s => !doneOf(s)).length;
 
   return (
     <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto', boxSizing: 'border-box' }}>

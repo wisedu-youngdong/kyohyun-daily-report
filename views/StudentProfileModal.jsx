@@ -42,7 +42,8 @@ export function StudentProfileModal({ student, reports, reviews = [], onClose, o
   const homeworkRated = sorted.filter(r => r.homeworkRating != null);
   const avgConcept = conceptRated.length ? Math.round(conceptRated.reduce((s, r) => s + r.conceptRating, 0) / conceptRated.length) : 0;
   const avgHomework = homeworkRated.length ? Math.round(homeworkRated.reduce((s, r) => s + r.homeworkRating, 0) / homeworkRated.length) : 0;
-  const attendanceRate = sorted.length ? Math.round(sorted.filter(r => r.attendance === '정시').length / sorted.length * 100) : 0;
+  const attendanceRated = sorted.filter(r => r.attendance != null);
+  const attendanceRate = attendanceRated.length ? Math.round(attendanceRated.filter(r => r.attendance === '정시').length / attendanceRated.length * 100) : 0;
 
   // 약점 집계
   const diagCount = {};
@@ -556,8 +557,30 @@ function WeeklySummaryCard({ student, reports, academyName }) {
   const weekNum = Math.ceil((now.getDate() + mondayOffset) / 7);
   const weekLabel = `${now.getMonth()+1}월 ${weekNum}주차`;
 
+  // 주간형 리포트(reportType==='weekly')는 리포트 문서 1개에 세션이 여러 개 들어있어서,
+  // "리포트 문서 1개 = 세션 1개"를 전제로 한 이 카드의 집계가 그대로는 안 맞음(수업 횟수/출석률이
+  // 실제보다 훨씬 낮게 나옴) — 주간 리포트만 sessions[]를 이번 주 범위로 골라 세션 단위 행으로
+  // 펼쳐서 나머지 집계 로직(avg/attendRate/단원/오답유형)이 평소 리포트처럼 그대로 처리하게 함
+  const weekStartStr = weekStart.toISOString().split('T')[0];
+  const weekEndStr = weekEnd.toISOString().split('T')[0];
   const weekReports = reports
-    .filter(r => r.studentId === student?.id && r.createdAt?.seconds * 1000 >= weekStart.getTime())
+    .filter(r => r.studentId === student?.id && (
+      r.reportType === 'weekly'
+        ? (r.sessions || []).some(s => s.date >= weekStartStr && s.date <= weekEndStr)
+        : r.createdAt?.seconds * 1000 >= weekStart.getTime()
+    ))
+    .flatMap(r => r.reportType === 'weekly'
+      ? (r.sessions || [])
+          .filter(s => s.date >= weekStartStr && s.date <= weekEndStr)
+          .map(s => ({
+            ...s,
+            studentId: r.studentId,
+            teacherName: r.teacherName,
+            createdAt: { seconds: Math.floor(new Date(`${s.date}T00:00:00+09:00`).getTime() / 1000) },
+            id: `${r.id}-${s.date}`,
+          }))
+      : [r]
+    )
     .sort((a, b) => (a.createdAt?.seconds||0) - (b.createdAt?.seconds||0));
 
   const avg = (key) => {

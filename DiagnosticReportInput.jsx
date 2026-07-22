@@ -17,7 +17,7 @@ import {
   UserPlus, GraduationCap, Info, Star, AlertTriangle, Palette
 } from 'lucide-react';
 import { C, RADIUS2, TYPE, SHADOW } from './tokens.jsx';
-import { calculateReportPoints, toPct, ratingLabel } from './growth.js';
+import { calculateReportPoints, toPct, ratingLabel, kstDay, getKstWeekRange } from './growth.js';
 import { DIAG_LABELS as diagLabels, DIAG_BADGE, WRONG_TAGS, WRONG_TAG_LABELS } from './diagnosis.js';
 import { findUnitKey, getUnits, getCourses } from './curriculum.js';
 import { storage, auth } from './firebase.js';
@@ -264,6 +264,7 @@ export default function DiagnosticReportInput({
   academyName = null,
   academyPhone = null,
   academySubjects = null,
+  academyReportMode = 'daily',
 }) {
   const isWide = useMediaQuery('(min-width: 901px)');
   const [showStudentModal, setShowStudentModal] = useState(false);
@@ -308,6 +309,12 @@ export default function DiagnosticReportInput({
   const [toast, setToast] = useState(null);
   // 자동저장이 만든 draft 문서 id — 30초마다 새 문서가 쌓이지 않도록 재사용
   const draftIdRef = React.useRef(null);
+  // 주간형(reportType==='weekly') 전용 — 이번 주 열린 리포트 문서 id + 이미 쌓인 세션들.
+  // weeklyDraftIdRef는 draftIdRef와 별개(주간형은 한 주 내내 같은 문서를 재사용해야 해서 학생
+  // 전환/재선택에도 안 지워지고, "이번 주" 범위 판정이 있어야 함 — 아래 select onChange 참고)
+  const weeklyDraftIdRef = React.useRef(null);
+  const [weeklySessions, setWeeklySessions] = useState([]);
+  const [staleWeeklyDraft, setStaleWeeklyDraft] = useState(null); // 지난주 이전에 발송 안 된 열린 draft(있으면 배너로 안내)
   // 학생 선택 변경 시 헤더에 알림
   React.useEffect(() => {
     if (!studentId) return;
@@ -324,9 +331,53 @@ export default function DiagnosticReportInput({
     teacherNote.trim() || homeworkRating != null || conceptRating != null || selectedTags.length > 0
     || hasTest || textbook.trim() || unit.trim() || nextPlan.trim() || nextPlanDetail.trim() || !!photoAnalysis;
 
+  // 주간형 세션 1건(오늘치) — photoUrls는 일부러 안 넣음(자동저장은 사진을 업로드하지 않으므로,
+  // 아래 upsertSessionEntry에서 기존에 저장돼 있던 photoUrls를 실수로 지우지 않게 하기 위함).
+  // 실제 사진 업로드는 handleSubmit에서만 일어나고, 그때 photoUrls를 명시적으로 얹어서 덮어씀.
+  const buildSessionEntry = () => ({
+    date: kstDay(Date.now() / 1000),
+    attendance, arrivalTime,
+    homeworkRating: homeworkRating ?? null,
+    conceptRating: conceptRating ?? null,
+    hasTest,
+    testName: hasTest ? testName : null,
+    testScore: hasTest ? testScore : null,
+    testRound: hasTest ? testRound : null,
+    textbook, subject, unit, pages,
+    unitKey: findUnitKey(subject, unit, curriculumCourseOverride || guessCourseKey(subject, student?.school)),
+    diagnosis: selectedTags,
+    teacherNote: teacherNote || '',
+    wrongItems: wrongItems.length > 0 ? wrongItems : null,
+  });
+  const upsertSessionEntry = (existingSessions, entry) => {
+    const idx = existingSessions.findIndex(s => s.date === entry.date);
+    if (idx === -1) return [...existingSessions, entry];
+    const merged = [...existingSessions];
+    merged[idx] = { ...existingSessions[idx], ...entry };
+    return merged;
+  };
+
   const handleAutoSave = async () => {
     if (!studentId || saving || !hasAutoSaveContent()) return;
     try {
+      if (effectiveReportMode === 'weekly' && !editingReport) {
+        const updatedSessions = upsertSessionEntry(weeklySessions, buildSessionEntry());
+        const reportPayload = {
+          ...(weeklyDraftIdRef.current ? { id: weeklyDraftIdRef.current } : {}),
+          studentId, studentName: student?.name,
+          teacherId: teacherId || '', teacherName: teacher?.name || '',
+          reportType: 'weekly',
+          sessions: updatedSessions,
+          isDraft: true, // 원장이 검토 화면에서 발송할 때만 false로 바뀜
+        };
+        const savedId = await onSave(reportPayload);
+        if (savedId && !weeklyDraftIdRef.current) weeklyDraftIdRef.current = savedId;
+        setWeeklySessions(updatedSessions);
+        setLastSaved(new Date());
+        setAutoSaveError(false);
+        return;
+      }
+
       const existingId = editingReport?.id || draftIdRef.current;
       const reportPayload = {
         ...(existingId ? { id: existingId } : {}),
@@ -454,6 +505,15 @@ export default function DiagnosticReportInput({
 
   const student = useMemo(() => students.find(s => s.id === studentId), [students, studentId]);
   const teacher = useMemo(() => teachers.find(t => t.id === teacherId), [teachers, teacherId]);
+  // 반이 개별적으로 설정돼 있으면 그걸 우선, 없으면 학원 기본값. 단, 기존 리포트를 수정 중일
+  // 때는(기록보관소 "수정" 등) 지금 설정이 아니라 그 리포트가 저장된 당시의 reportType을 그대로
+  // 따름(학원 설정이 나중에 바뀌어도 이미 만든 리포트의 성격은 안 바뀌어야 함) — 그리고 아래
+  // "이번 주 세션 찾기/upsert" 로직 자체는 editingReport가 있을 땐 관여하지 않고(주간 리포트를
+  // 기록보관소에서 직접 수정할 땐 세션 캡처가 아니라 최종본 필드를 그대로 고치는 기존 방식 사용),
+  // 오직 학생 선택으로 새로 들어오는 라이브 작성 흐름에서만 세션 upsert가 일어남
+  const effectiveReportMode = editingReport
+    ? (editingReport.reportType || 'daily')
+    : (classes.find(c => c.id === student?.classId)?.reportMode || academyReportMode || 'daily');
 
   // 이 학생의 최근 교재+단원 이력(최대 3개) — 단원 추천 칩과 "표준 단원표" 자동펼침 여부에 공용으로 사용
   const recentUnits = useMemo(() => {
@@ -713,6 +773,33 @@ export default function DiagnosticReportInput({
         setUploadProgress(null);
       }
 
+      if (effectiveReportMode === 'weekly' && !editingReport) {
+        const updatedSessions = upsertSessionEntry(weeklySessions, { ...buildSessionEntry(), photoUrls });
+        const reportPayload = {
+          ...(weeklyDraftIdRef.current ? { id: weeklyDraftIdRef.current } : {}),
+          studentId, studentName: student?.name,
+          teacherId, teacherName: teacher?.name,
+          reportType: 'weekly',
+          sessions: updatedSessions,
+          isDraft: true, // 원장이 검토 화면에서 발송할 때만 false로 바뀜 — 여기선 세션 저장만
+        };
+        await onSave(reportPayload);
+        weeklyDraftIdRef.current = null;
+        setWeeklySessions([]); setStaleWeeklyDraft(null);
+        setStudentId(''); setHomeworkRating(null); setConceptRating(null);
+        setHasTest(false); setTestName(''); setTestScore(''); setTestRound('');
+        setTextbook(''); setSubject('수학'); setUnit(''); setPages('');
+        setCurriculumCourseOverride(null); setShowAllCourses(false); setShowCoursePicker(null);
+        setSelectedTags([]); setTeacherNote(''); setAiPolishedNote('');
+        setAttendance('정시'); setArrivalTime('15:30');
+        removeAllPhotos();
+        setLastSaved(null);
+        showToast('오늘 수업 기록이 저장됐어요. 원장님이 이번 주 리포트를 모아서 발송해요.', 'success');
+        setSaving(false);
+        setUploadProgress(null);
+        return;
+      }
+
       const reportPayload = {
         // 자동저장이 만든 draft가 있으면 그 문서를 확정본으로 업데이트 (중복 문서 방지)
         ...(editingReport ? { id: editingReport.id } : draftIdRef.current ? { id: draftIdRef.current } : {}),
@@ -889,6 +976,8 @@ export default function DiagnosticReportInput({
               // 새 학생 전환 시 입력 초기화
               if (newId && !editingReport) {
                 draftIdRef.current = null; // 이전 학생 draft에 이어쓰지 않도록
+                weeklyDraftIdRef.current = null;
+                setWeeklySessions([]); setStaleWeeklyDraft(null);
                 setHomeworkRating(null); setConceptRating(null);
                 setHasTest(false); setTestScore(''); setTestName(''); setTestRound('');
                 setTextbook(''); setSubject('수학'); setUnit(''); setPages('');
@@ -900,6 +989,40 @@ export default function DiagnosticReportInput({
                 setWrongItems([]);
                 setLastSaved(null);
                 setAutoSaveError(false);
+
+                const newStudent = students.find(s => s.id === newId);
+                const newMode = classes.find(c => c.id === newStudent?.classId)?.reportMode || academyReportMode || 'daily';
+
+                if (newMode === 'weekly') {
+                  // 이번 주 범위에 세션 날짜가 걸리는, 아직 발송 안 된(draft) 주간 리포트를 찾음 —
+                  // 없으면 오늘이 이번 주 첫 세션이라는 뜻. 지난주 이전 열린 draft가 남아있으면
+                  // 이번 주 draft와 섞이지 않도록 별도로 골라내서 배너로만 안내
+                  const week = getKstWeekRange(0);
+                  const openDrafts = reports.filter(r => r.studentId === newId && r.reportType === 'weekly' && r.isDraft === true);
+                  const currentWeekDraft = openDrafts.find(r => (r.sessions || []).some(s => s.date >= week.startStr && s.date <= week.endStr));
+                  const stale = openDrafts.find(r => r.id !== currentWeekDraft?.id);
+                  weeklyDraftIdRef.current = currentWeekDraft?.id || null;
+                  setWeeklySessions(currentWeekDraft?.sessions || []);
+                  setStaleWeeklyDraft(stale || null);
+
+                  // 오늘 세션을 이미 저장해뒀으면(같은 날 다시 들어온 경우) 그 내용을 불러와 수정,
+                  // 없으면 방금 초기화한 빈 폼 그대로 새 세션 입력
+                  const todayStr = kstDay(Date.now() / 1000);
+                  const todaySession = currentWeekDraft?.sessions?.find(s => s.date === todayStr);
+                  if (todaySession) {
+                    setAttendance(todaySession.attendance || '정시');
+                    setArrivalTime(todaySession.arrivalTime || '15:30');
+                    setHomeworkRating(todaySession.homeworkRating ?? null);
+                    setConceptRating(todaySession.conceptRating ?? null);
+                    setHasTest(!!todaySession.hasTest);
+                    setTestName(todaySession.testName || ''); setTestScore(todaySession.testScore || ''); setTestRound(todaySession.testRound || '');
+                    setTextbook(todaySession.textbook || ''); setSubject(todaySession.subject || '수학'); setUnit(todaySession.unit || ''); setPages(todaySession.pages || '');
+                    setSelectedTags(todaySession.diagnosis || []);
+                    setTeacherNote(todaySession.teacherNote || '');
+                    setWrongItems(todaySession.wrongItems || []);
+                    return; // 최근 리포트 자동 불러오기(교재/단원)는 이미 세션 값으로 채워졌으니 건너뜀
+                  }
+                }
 
                 // 최근 리포트 자동 불러오기 — 초기화 이후에 덮어써야 실제로 반영됨
                 const lastReport = [...reports]
@@ -937,6 +1060,17 @@ export default function DiagnosticReportInput({
               <UserPlus size={13} /> 새 학생 추가
             </button>
           </FormSection>
+
+          {studentId && effectiveReportMode === 'weekly' && !editingReport && (
+            <div style={{ margin: '0 20px 12px', padding: '10px 14px', borderRadius: '10px', background: '#EAF0F9', border: '1px solid #C5D5F0', fontSize: '12px', color: '#0D2D6B', fontWeight: 600 }}>
+              📋 이번 주 세션 {weeklySessions.length}개 저장됨 — 오늘 작성한 내용은 원장님이 모아서 주 1회 발송해요.
+              {staleWeeklyDraft && (
+                <p style={{ margin: '6px 0 0', fontSize: '11px', color: '#8A5A00', fontWeight: 700 }}>
+                  ⚠ 지난주 이전 리포트가 아직 발송되지 않았어요 — 원장님께 "주간 리포트 검토" 화면 확인을 요청해주세요.
+                </p>
+              )}
+            </div>
+          )}
 
           {studentId && (
             <>
@@ -1793,7 +1927,7 @@ export default function DiagnosticReportInput({
               <button onClick={handleSubmit} disabled={saving || polishing} style={{ ...submitButtonStyle(isValid && !saving && !polishing), width: '100%', cursor: (saving || polishing) ? 'not-allowed' : 'pointer' }}>
                 {saving
                   ? <span style={{ display: 'inline-block', width: 15, height: 15, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                  : <Send size={15} />} {saving ? (uploadProgress ? `사진 업로드 중 ${uploadProgress.done}/${uploadProgress.total}...` : '저장 중...') : polishing ? 'AI 다듬는 중...' : '리포트 저장 및 발송 준비'}
+                  : <Send size={15} />} {saving ? (uploadProgress ? `사진 업로드 중 ${uploadProgress.done}/${uploadProgress.total}...` : '저장 중...') : polishing ? 'AI 다듬는 중...' : (effectiveReportMode === 'weekly' && !editingReport) ? '오늘 수업 기록 저장 (이번 주 리포트에 추가)' : '리포트 저장 및 발송 준비'}
               </button>
               {autoSaveError ? (
                 <p style={{ fontSize: '11px', color: TOKENS.danger, margin: '6px 0 0', textAlign: 'center', fontWeight: 600 }}>

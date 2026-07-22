@@ -2,32 +2,12 @@ import { useState } from 'react';
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend
 } from 'recharts';
-import { toPct, kstDay } from '../growth.js';
+import { toPct, kstDay, getKstWeekRange } from '../growth.js';
 import { findUnitKey } from '../curriculum.js';
 import { DIAG_LABELS as TAG_LABELS, DIAG_SOFT as DIAG_SOFT_COLORS, WRONG_TAGS } from '../diagnosis.js';
 import { T, C, RADIUS2 } from '../tokens.jsx';
 import { StatCard } from './shared.jsx';
 
-// 월요일 시작 기준 주간 범위 계산 — weekOffset 0=이번 주, 1=지난 주, 2=지지난 주...
-// kstWeekday/kstDay(growth.js)와 동일한 "UTC로 +9h 시프트해서 KST 벽시계로 취급" 방식 사용
-function getKstWeekRange(weekOffset) {
-  const shiftedNow = new Date(Date.now() + 9 * 3600 * 1000);
-  const dow = shiftedNow.getUTCDay(); // 0=일 ... 6=토
-  const mondayOffset = dow === 0 ? -6 : 1 - dow;
-  const monday = new Date(shiftedNow);
-  monday.setUTCDate(shiftedNow.getUTCDate() + mondayOffset - weekOffset * 7);
-  monday.setUTCHours(0, 0, 0, 0);
-  const sunday = new Date(monday);
-  sunday.setUTCDate(monday.getUTCDate() + 6);
-  const toStr = (d) => d.toISOString().split('T')[0];
-  const weekOfMonth = Math.ceil(monday.getUTCDate() / 7);
-  return {
-    startStr: toStr(monday),
-    endStr: toStr(sunday),
-    label: `${monday.getUTCMonth() + 1}월 ${weekOfMonth}주차`,
-    rangeLabel: `${monday.getUTCMonth() + 1}/${monday.getUTCDate()} ~ ${sunday.getUTCMonth() + 1}/${sunday.getUTCDate()}`,
-  };
-}
 
 // ── 과제/개념/시험 추이 차트 — AnalysisView 전용. 학생마다 등원 요일이 달라(월수금/화목토/방학
 // 특강 매일 등) 세션 개수로 자르면 시험처럼 어쩌다 있는 값 사이 간격이 몇 주씩 벌어져 보기 불편함 —
@@ -48,8 +28,10 @@ function HomeworkTestChart({ reports }) {
       date: r.createdAt?.seconds
         ? new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric', weekday: 'short' })
         : '',
-      과제: toPct(r.homeworkRating),
-      개념: toPct(r.conceptRating),
+      // 주간 리포트는 최상위 homeworkRating/conceptRating이 없음(세션마다 값이 달라 대표값이
+      // 없음) — toPct(null)이 0을 반환해 그대로 두면 차트에 "0%"로 찍히므로 null로 남겨 스킵
+      과제: r.homeworkRating != null ? toPct(r.homeworkRating) : null,
+      개념: r.conceptRating != null ? toPct(r.conceptRating) : null,
       시험: r.hasTest && r.testScore ? Number(r.testScore) : null, // 과제/개념도 100점 척도로 통일되어 별도 환산 불필요
     }));
 
@@ -272,7 +254,11 @@ export default function AnalysisView({ students, reports }) {
                 <StatCard label={`리포트 (${periodLabel})`} value={periodReports.length} unit="건" />
                 <StatCard label="과제 평균" value={periodAvg('homeworkRating')} unit="%" />
                 <StatCard label="개념 평균" value={periodAvg('conceptRating')} unit="%" />
-                <StatCard label="정시 출석" value={Math.round(periodReports.filter(r => r.attendance === '정시').length / periodReports.length * 100)} unit="%" />
+                <StatCard label="정시 출석" value={(() => {
+                  // 주간 리포트는 최상위 attendance가 없음(세션마다 다를 수 있어 대표값 없음) — 분모에서 제외
+                  const attendanceRated = periodReports.filter(r => r.attendance != null);
+                  return attendanceRated.length ? Math.round(attendanceRated.filter(r => r.attendance === '정시').length / attendanceRated.length * 100) : 0;
+                })()} unit="%" />
               </div>
               <HomeworkTestChart reports={periodReports} />
               <InsightCard reports={periodReports} />
