@@ -93,8 +93,10 @@ export default function DirectorView({ reports, students, classes = [], reportVi
     return d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' });
   };
 
+  // 중앙 1컬럼 880px — 시안 7a 기준. 위→아래로 요약 현황 → 처리할 일(질문) → 참여도 →
+  // 데일리 보고서 순으로 우선순위가 잡혀 있어, 폭을 너무 넓히면 한 줄이 길어져 읽기 불편함
   return (
-    <div style={{ maxWidth: '960px', margin: '0 auto', padding: '20px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif", boxSizing: 'border-box' }}>
+    <div style={{ maxWidth: '880px', margin: '0 auto', padding: '20px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif", boxSizing: 'border-box' }}>
 
       {/* 학생 종합 프로필 모달 */}
       {profileStudent && (

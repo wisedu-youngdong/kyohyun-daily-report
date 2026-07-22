@@ -927,7 +927,7 @@ export default function DiagnosticReportInput({
       <div style={{
         maxWidth: '1100px', margin: '0 auto',
         display: 'grid',
-        gridTemplateColumns: isWide ? '1fr 360px' : '1fr',
+        gridTemplateColumns: isWide ? '1.55fr 1fr' : '1fr',
         gap: '20px', alignItems: 'flex-start',
       }}>
         {/* 좌측 입력 폼 — 섹션 간 여백 20px(스펙 섹션 5 "섹션 상단 여백") */}
