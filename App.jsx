@@ -37,6 +37,83 @@ const GrowthDashboard = React.lazy(() => import('./views/GrowthDashboard.jsx'));
 const DirectorView = React.lazy(() => import('./views/DirectorView.jsx'));
 const WeeklyReviewView = React.lazy(() => import('./views/WeeklyReviewView.jsx'));
 
+// PC 상단 탭 전용 아이콘 — "세트 F" 디자인 시안(네이비→골드 글로시 3D 블롭) 그대로 이식.
+// 모바일 하단 탭은 계속 lucide 선 아이콘을 씀 — 둘을 섞지 않고 PC 상단 탭에서만 사용.
+const BLOB_PATH = 'M23 3.8C34 3.8 42.2 12 42.2 23C42.2 34 34 42.2 23 42.2C12 42.2 3.8 34 3.8 23C3.8 12 12 3.8 23 3.8Z';
+const BLOB_SHAPES = {
+  dashboard: (
+    <>
+      <rect x="-9" y="-9" width="7.5" height="7.5" rx="2" stroke="none" />
+      <rect x="1.5" y="-9" width="7.5" height="7.5" rx="2" fill="none" />
+      <rect x="-9" y="1.5" width="7.5" height="7.5" rx="2" fill="none" />
+      <rect x="1.5" y="1.5" width="7.5" height="7.5" rx="2" stroke="none" />
+    </>
+  ),
+  write: (
+    <>
+      <path d="M-6-9.5h7l5 5v13a1.6 1.6 0 0 1-1.6 1.6H-6A1.6 1.6 0 0 1-7.6 8.5V-8A1.6 1.6 0 0 1-6-9.5Z" fill="none" />
+      <path d="M1-9.5v5h5" fill="none" />
+      <path d="M-3-1h7M-3 3h5" fill="none" />
+    </>
+  ),
+  record: (
+    <>
+      <circle cx="0" cy="0" r="9.5" fill="none" />
+      <path d="M0-5.5V0l3.5 2.2" fill="none" />
+    </>
+  ),
+  insight: (
+    <>
+      <path d="M-9 9h18" fill="none" />
+      <rect x="-8" y="0" width="4" height="9" rx="1.3" stroke="none" />
+      <rect x="-2" y="-6" width="4" height="15" rx="1.3" stroke="none" />
+      <rect x="4" y="-3" width="4" height="12" rx="1.3" stroke="none" />
+    </>
+  ),
+  manage: (
+    <>
+      <circle cx="0" cy="-4" r="4" stroke="none" />
+      <path d="M-8 9a8 8 0 0 1 16 0Z" stroke="none" />
+    </>
+  ),
+};
+function TabBlobIcon({ tabKey, active, size = 30 }) {
+  const uid = `tabicon-${tabKey}`;
+  const sil = active ? '#FFFFFF' : '#FBF7EC';
+  const silOp = active ? 1 : 0.92;
+  return (
+    <svg width={size} height={size} viewBox="0 0 46 46" fill="none" style={{ filter: 'drop-shadow(0 3px 6px rgba(18,51,111,0.28))', flexShrink: 0 }}>
+      <defs>
+        <linearGradient id={`${uid}-b`} x1="8" y1="6" x2="40" y2="42" gradientUnits="userSpaceOnUse">
+          {active ? (
+            <>
+              <stop offset="0" stopColor="#0D2D6B" />
+              <stop offset="0.62" stopColor="#3A4E7E" />
+              <stop offset="1" stopColor="#C9A227" />
+            </>
+          ) : (
+            <>
+              <stop offset="0" stopColor="#3E4E74" stopOpacity="0.62" />
+              <stop offset="1" stopColor="#C9A227" stopOpacity="0.58" />
+            </>
+          )}
+        </linearGradient>
+        <radialGradient id={`${uid}-g`} cx="0" cy="0" r="1" gradientTransform="translate(15 11) rotate(58) scale(26)">
+          <stop offset="0" stopColor="#fff" stopOpacity={active ? 0.55 : 0.32} />
+          <stop offset="0.55" stopColor="#fff" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+      <path d={BLOB_PATH} fill={`url(#${uid}-b)`} />
+      <path d={BLOB_PATH} fill={`url(#${uid}-g)`} />
+      {active && <path d={BLOB_PATH} fill="none" stroke="#E8C34A" strokeWidth="1.6" strokeOpacity="0.95" />}
+      <g transform="translate(23 23)" stroke={sil} strokeOpacity={silOp} fill={sil} fillOpacity={silOp} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+        {BLOB_SHAPES[tabKey]}
+      </g>
+      {active && <circle cx="35.3" cy="10.7" r="3.2" fill="#E8C34A" stroke="#fff" strokeWidth="1.2" />}
+    </svg>
+  );
+}
+
 function SkeletonBlock({ rows = 4, cardHeight = 64 }) {
   return (
     <div style={{ padding: '20px' }}>
@@ -677,8 +754,8 @@ export default function App() {
               const active = activeTab === tab.key;
               return (
                 <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 14px', border: 'none', borderRadius: '10px', background: active ? '#EAF0F9' : 'transparent', cursor: 'pointer', color: active ? '#0D2D6B' : T.textMute, fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>
-                  {React.cloneElement(tab.icon, { strokeWidth: 1.8 })}
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 14px', border: 'none', borderRadius: '10px', background: active ? '#EAF0F9' : 'transparent', cursor: 'pointer', color: active ? '#0D2D6B' : T.textMute, fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>
+                  <TabBlobIcon tabKey={tab.key} active={active} />
                   <span style={{ fontSize: '13px', fontWeight: active ? 700 : 500 }}>{tab.label}</span>
                 </button>
               );

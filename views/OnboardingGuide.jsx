@@ -61,6 +61,14 @@ export default function OnboardingGuide({
     if (forceOpenSignal > 0) { userInteracted.current = true; setView('checklist'); }
   }, [forceOpenSignal]);
 
+  // 4단계를 전부 마치는 마지막 항목은 보통 위젯을 클릭하지 않고 수동적으로 완료됨(예: 학부모가
+  // 링크를 열람하면서 reportViews가 채워짐) — 그 순간엔 위젯을 다시 클릭할 계기가 없어서, 위
+  // useEffect(userInteracted 가드로 promptShown 변화는 무시하지만)와 별개로 doneCount가 바뀔
+  // 때마다 직접 체크해서 4/4 완료 시점에 자동으로 숨김
+  useEffect(() => {
+    if (view === 'widget' && shouldStayHidden) setView('hidden');
+  }, [shouldStayHidden, view]);
+
   if (!isDirector || view === 'hidden') return null;
 
   const dismissPromptTo = (next) => {
