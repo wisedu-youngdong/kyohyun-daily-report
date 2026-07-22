@@ -10,6 +10,11 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { ensureAdminApp } from './_lib/adminApp.js';
 import { escapeHtml, INK, INK_SOFT, INK_MUTE, emailShell, ctaButton, sendViaResend } from './_lib/email.js';
 
+// 학원마다 Firestore 조회 여러 번 + 이메일 발송을 순차로 반복하는 루프라, 학원 수가 늘면
+// Vercel 기본 타임아웃(짧음)에 걸려 남은 학원들이 조용히 누락될 수 있음 — Hobby 플랜 상한인
+// 60초까지 확보(polish.js 등 AI 호출 엔드포인트의 maxDuration=30과 같은 이유의 안전장치)
+export const maxDuration = 60;
+
 function getAdminDb() { ensureAdminApp(); return getFirestore(); }
 
 // growth.js의 kstDay/kstWeekday와 같은 shift-then-extract 방식 — growth.js는 클라이언트
