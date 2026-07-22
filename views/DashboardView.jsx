@@ -37,23 +37,27 @@ export default function DashboardView({ students, reports, classes = [], reportV
   const [confirmAbsenceStudent, setConfirmAbsenceStudent] = React.useState(null); // 결석 처리 확인 모달 대상
   // 복습 "완료" — 그냥 done 플래그만 남기면 나중에 "뭘 했었는지" 알 길이 없어서, 완료 처리 전에
   // 조치 메모(+선택적 재시험 점수)를 받는 인라인 폼으로 펼침. 학생 프로필의 "복습 이력"에서 다시 확인 가능.
-  const [expandedReviewId, setExpandedReviewId] = React.useState(null);
+  // 같은 리포트(reportId)에서 나온 1차/2차/3차 복습은 같은 약점을 다루는 하나의 묶음으로 보고,
+  // 그룹 단위(reportId)로 펼치고 완료 처리한다 — 라운드별로 따로 확인해야 하는 게 아니라
+  // "이 약점 복습했다"를 한 번에 기록하면 밀려있던 라운드가 전부 완료 처리됨.
+  const [expandedGroupKey, setExpandedGroupKey] = React.useState(null);
   const [reviewNote, setReviewNote] = React.useState('');
   const [reviewScore, setReviewScore] = React.useState('');
-  const [completingReview, setCompletingReview] = React.useState(null);
+  const [completingGroupKey, setCompletingGroupKey] = React.useState(null);
 
-  const toggleReviewExpand = (rv) => {
-    if (expandedReviewId === rv.id) { setExpandedReviewId(null); return; }
-    setExpandedReviewId(rv.id);
+  const toggleReviewGroup = (groupKey) => {
+    if (expandedGroupKey === groupKey) { setExpandedGroupKey(null); return; }
+    setExpandedGroupKey(groupKey);
     setReviewNote(''); setReviewScore('');
   };
-  const handleSubmitReview = async (rv) => {
-    setCompletingReview(rv.id);
+  const handleSubmitReviewGroup = async (group) => {
+    setCompletingGroupKey(group.key);
     try {
-      await onCompleteReview?.(rv.id, { note: reviewNote, testScore: reviewScore.trim() === '' ? null : Number(reviewScore) });
-      setExpandedReviewId(null);
+      const payload = { note: reviewNote, testScore: reviewScore.trim() === '' ? null : Number(reviewScore) };
+      await Promise.all(group.reviews.map(rv => onCompleteReview?.(rv.id, payload)));
+      setExpandedGroupKey(null);
     } finally {
-      setCompletingReview(null);
+      setCompletingGroupKey(null);
     }
   };
 
@@ -159,35 +163,68 @@ export default function DashboardView({ students, reports, classes = [], reportV
       </div>
       {/* 복습 알림 — 약점 태그가 있던 리포트는 7/14/30일 후 복습 일정이 자동 생성됨 */}
       {(() => {
-        const dueReviews = reviews
-          .filter(rv => rv.status !== 'done' && rv.dueDate && rv.dueDate <= todayKst)
-          .sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
+        const dueReviews = reviews.filter(rv => rv.status !== 'done' && rv.dueDate && rv.dueDate <= todayKst);
         if (dueReviews.length === 0) return null;
+
+        // 같은 리포트(reportId)에서 나온 1차/2차/3차 복습은 같은 약점을 다루는 하나의 카드로 묶음.
+        // reportId가 없는 예전 데이터는 학생+교재+단원 조합으로 폴백해서 그룹키를 만듦
+        const groupsMap = new Map();
+        dueReviews.forEach(rv => {
+          const key = rv.reportId || `${rv.studentId}-${rv.textbook}-${rv.unit}`;
+          if (!groupsMap.has(key)) groupsMap.set(key, []);
+          groupsMap.get(key).push(rv);
+        });
+        const groups = [...groupsMap.entries()].map(([key, list]) => {
+          const sorted = [...list].sort((a, b) => (a.round || 0) - (b.round || 0));
+          const first = sorted[0];
+          const minDueDate = sorted.reduce((min, rv) => (!min || rv.dueDate < min) ? rv.dueDate : min, null);
+          return {
+            key, reviews: sorted, minDueDate,
+            studentName: first.studentName, textbook: first.textbook, unit: first.unit,
+            weakTypes: first.weakTypes || [],
+            diagnosedAt: first.createdAt?.seconds || null,
+          };
+        }).sort((a, b) => (a.minDueDate || '').localeCompare(b.minDueDate || ''));
+
         return (
           <div style={{ background: '#FFF8E7', borderRadius: '16px', border: '1px solid #F5D76E', overflow: 'hidden', marginBottom: '20px' }}>
             <div style={{ padding: '12px 18px', borderBottom: '1px solid #F5D76E60' }}>
               <h3 style={{ fontSize: '13px', fontWeight: 700, color: '#7A5200', margin: 0 }}>
-                🔁 복습할 때가 됐어요 · {dueReviews.length}건
+                🔁 복습할 때가 됐어요 · {groups.length}건
               </h3>
               <p style={{ fontSize: '11px', color: '#9A6800', margin: '2px 0 0' }}>이전에 약점으로 진단된 내용이에요</p>
             </div>
-            {dueReviews.slice(0, 5).map(rv => {
-              const overdueDays = Math.floor((new Date(todayKst) - new Date(rv.dueDate)) / 86400000);
-              const expanded = expandedReviewId === rv.id;
+            {groups.slice(0, 5).map(group => {
+              const expanded = expandedGroupKey === group.key;
+              const diagLabel = group.diagnosedAt
+                ? (d => `${d.getMonth() + 1}/${d.getDate()}`)(new Date(group.diagnosedAt * 1000))
+                : null;
               return (
-                <div key={rv.id} style={{ padding: '10px 18px', borderBottom: '1px solid #F5D76E30' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>
-                        {rv.studentName} <span style={{ fontSize: '10px', fontWeight: 600, color: '#9A6800' }}>{rv.round}차 복습</span>
-                        {overdueDays > 0 && <span style={{ fontSize: '10px', fontWeight: 700, color: '#A32D2D', marginLeft: '5px' }}>{overdueDays}일 지남</span>}
-                      </p>
-                      <p style={{ fontSize: '11px', color: '#6B7280', margin: '1px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {[rv.textbook, rv.unit].filter(Boolean).join(' · ')}
-                        {rv.weakTypes?.length > 0 && ` — ${rv.weakTypes.map(w => w.label).join(', ')}`}
-                      </p>
+                <div key={group.key} style={{ padding: '12px 18px', borderBottom: '1px solid #F5D76E30' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A' }}>{group.studentName}</span>
+                    {diagLabel && <span style={{ fontSize: '10.5px', color: '#9A6800', fontWeight: 600 }}>{diagLabel} 진단</span>}
+                  </div>
+                  <p style={{ fontSize: '11px', color: '#6B7280', margin: '0 0 6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {[group.textbook, group.unit].filter(Boolean).join(' · ')}
+                    {group.weakTypes.length > 0 && ` — ${group.weakTypes.map(w => w.label).join(', ')}`}
+                  </p>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                    <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                      {group.reviews.map(rv => {
+                        const overdueDays = Math.floor((new Date(todayKst) - new Date(rv.dueDate)) / 86400000);
+                        const isOverdue = overdueDays > 0;
+                        return (
+                          <span key={rv.id} style={{
+                            fontSize: '9.5px', fontWeight: 700, padding: '2px 7px', borderRadius: '8px',
+                            background: isOverdue ? '#FDECEC' : '#FFF1CC', color: isOverdue ? '#A32D2D' : '#7A5200',
+                          }}>
+                            {rv.round}차{isOverdue ? ` · ${overdueDays}일 지남` : ' · 오늘 기한'}
+                          </span>
+                        );
+                      })}
                     </div>
-                    <button onClick={() => toggleReviewExpand(rv)}
+                    <button onClick={() => toggleReviewGroup(group.key)}
                       style={{ flexShrink: 0, padding: '6px 12px', fontSize: '11px', fontWeight: 700, borderRadius: '8px', border: '1px solid #C9A227', background: expanded ? '#C9A227' : '#fff', color: expanded ? '#fff' : '#7A5200', cursor: 'pointer', fontFamily: 'inherit' }}>
                       {expanded ? '닫기' : '확인하기'}
                     </button>
@@ -201,9 +238,9 @@ export default function DashboardView({ students, reports, classes = [], reportV
                       <div style={{ display: 'flex', gap: '6px' }}>
                         <input type="number" value={reviewScore} onChange={e => setReviewScore(e.target.value)} placeholder="재시험 점수 (선택)"
                           style={{ width: '140px', padding: '7px 9px', fontSize: '12px', border: '1px solid #F0D584', borderRadius: '8px', fontFamily: 'inherit', outline: 'none', background: '#fff' }} />
-                        <button onClick={() => handleSubmitReview(rv)} disabled={completingReview === rv.id}
-                          style={{ flex: 1, padding: '7px', fontSize: '12px', fontWeight: 700, borderRadius: '8px', border: 'none', background: completingReview === rv.id ? '#E5E7EB' : '#C9A227', color: '#fff', cursor: completingReview === rv.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
-                          {completingReview === rv.id ? '처리 중...' : '완료 처리'}
+                        <button onClick={() => handleSubmitReviewGroup(group)} disabled={completingGroupKey === group.key}
+                          style={{ flex: 1, padding: '7px', fontSize: '12px', fontWeight: 700, borderRadius: '8px', border: 'none', background: completingGroupKey === group.key ? '#E5E7EB' : '#C9A227', color: '#fff', cursor: completingGroupKey === group.key ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                          {completingGroupKey === group.key ? '처리 중...' : (group.reviews.length > 1 ? `완료 처리 (${group.reviews.length}건 함께)` : '완료 처리')}
                         </button>
                       </div>
                     </div>
@@ -211,9 +248,9 @@ export default function DashboardView({ students, reports, classes = [], reportV
                 </div>
               );
             })}
-            {dueReviews.length > 5 && (
+            {groups.length > 5 && (
               <p style={{ padding: '8px 18px', fontSize: '11px', color: '#9A6800', margin: 0, textAlign: 'center' }}>
-                외 {dueReviews.length - 5}건 더 있어요
+                외 {groups.length - 5}건 더 있어요
               </p>
             )}
           </div>
