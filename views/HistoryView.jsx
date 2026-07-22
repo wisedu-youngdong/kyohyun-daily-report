@@ -142,6 +142,9 @@ export default function HistoryView({ reports, students, classes = [], reportVie
 
   // PC: 스플릿 뷰 / 모바일: 카드 리스트
   const isMobile = !useMediaQuery('(min-width: 768px)');
+  // 3분할(목록·본문·분석) 기준 — 목록 392 + 분석 360이 고정으로 들어가서 이보다 좁으면
+  // 본문 읽을 폭이 안 나옴. 1280 미만에선 분석 패널이 본문 옆/아래로 wrap되는 기존 동작 유지.
+  const isUltraWide = useMediaQuery('(min-width: 1280px)');
 
   if (isMobile) {
     return (
@@ -300,7 +303,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
     {/* PC 상단 탭 도입(App.jsx) 이후 헤더+상단탭+서브탭 라벨 높이가 늘어나서 180px로 보정
         (기존 120px 기준이면 뷰포트 아래로 콘텐츠가 넘쳐 스크롤이 이중으로 생겼음 — 상단 탭
         아이콘을 F 세트로 교체하며 탭 바가 조금 더 높아져서 174→180으로 재조정) */}
-    <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', height: 'calc(100dvh - 180px)', overflow: 'hidden' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: (isUltraWide && selected) ? '392px 1fr 360px' : '392px 1fr', height: 'calc(100dvh - 180px)', overflow: 'hidden' }}>
 
       {/* 좌측 목록 */}
       <div style={{ borderRight: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -373,11 +376,17 @@ export default function HistoryView({ reports, students, classes = [], reportVie
         </div>
       </div>
 
-      {/* 우측 상세 — 본문(폭 제한) + 학생 맥락 사이드 패널 */}
+      {/* 우측 상세 — 본문(폭 제한) + 학생 맥락 사이드 패널.
+          ≥1280px에선 아래 두 겹(스크롤 컨테이너 · flex 행)을 display:contents로 걷어내서
+          본문과 분석 패널이 각각 바깥 그리드의 컬럼이 되게 한다 — 코드를 옮기지 않고도 3분할이
+          되고, 각 패널이 독립적으로 스크롤됨(긴 본문을 내려도 분석은 그대로 보임).
+          1280 미만에선 기존 "한 덩어리로 스크롤 + 사이드 패널 wrap" 동작이 그대로 유지된다. */}
       {selected ? (
-        <div style={{ overflowY: 'auto', padding: '24px 28px', background: '#FAFAFA' }}>
-          <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-          <div style={{ flex: '1 1 460px', maxWidth: '720px', minWidth: 0 }}>
+        <div style={isUltraWide ? { display: 'contents' } : { overflowY: 'auto', padding: '24px 28px', background: '#FAFAFA' }}>
+          <div style={isUltraWide ? { display: 'contents' } : { display: 'flex', gap: '20px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          <div style={isUltraWide
+            ? { overflowY: 'auto', padding: '24px 28px', background: '#FAFAFA', minWidth: 0 }
+            : { flex: '1 1 460px', maxWidth: '720px', minWidth: 0 }}>
 
           {/* 헤더 */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid #E5E7EB' }}>
@@ -553,7 +562,9 @@ export default function HistoryView({ reports, students, classes = [], reportVie
             const xOf = (i) => padX + (i / Math.max(1, recentAsc.length - 1)) * (chartW - padX * 2);
             const yOf = (v) => chartH - 4 - (v / 100) * (chartH - 10);
             return (
-              <aside style={{ flex: '0 1 340px', minWidth: '300px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <aside style={isUltraWide
+                ? { overflowY: 'auto', padding: '24px 20px', background: '#FAFAFA', borderLeft: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column', gap: '12px' }
+                : { flex: '0 1 340px', minWidth: '300px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {/* 최근 평가 추이 */}
                 {recentAsc.length >= 2 && (
                   <div style={cardStyle}>
