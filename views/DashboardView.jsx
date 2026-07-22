@@ -48,16 +48,18 @@ export default function DashboardView({ students, reports, classes = [], reportV
   //   "복습 지시" — 학생에게 복습하라고 알려줬다는 가벼운 표시(instructed 필드). 목록에서
   //     사라지진 않고 카드만 흐려짐 — 진짜 끝난 게 아니라 "지시는 했다"는 중간 상태이기 때문.
   //   "메모" — 인라인 텍스트 입력을 열고 닫음. 뭘 복습시킬지 미리 적어두는 용도, 완료 여부와 무관.
-  //   "확인하기" — 실제 완료 처리(같은 약점의 밀린 라운드 전부 status:'done'으로, 메모도 같이 저장).
+  //   "확인하기" — 실제 완료 처리(같은 약점의 밀린 라운드 전부 status:'done'으로, 메모+점수도 같이 저장).
+  // 메모/점수 입력값은 카드(group.key)별로 따로 들고 있어야 함 — 예전엔 입력창 하나를 모든 카드가
+  // 공유해서, A 카드 메모를 열고 타이핑만 한 채 B 카드에서 확인하기를 누르면 A에 쓰던 내용이
+  // B의 완료 기록으로 저장되는 버그가 있었음.
   const [memoOpenKey, setMemoOpenKey] = React.useState(null);
-  const [reviewNote, setReviewNote] = React.useState('');
+  const [noteDrafts, setNoteDrafts] = React.useState({}); // key -> 메모 텍스트
+  const [scoreDrafts, setScoreDrafts] = React.useState({}); // key -> 재시험 점수(문자열)
   const [completingGroupKey, setCompletingGroupKey] = React.useState(null);
   const [togglingInstructedKey, setTogglingInstructedKey] = React.useState(null);
 
   const toggleMemo = (group) => {
-    if (memoOpenKey === group.key) { setMemoOpenKey(null); return; }
-    setMemoOpenKey(group.key);
-    setReviewNote(group.reviews[0]?.note || '');
+    setMemoOpenKey(prev => prev === group.key ? null : group.key);
   };
   const handleToggleInstructed = async (group) => {
     setTogglingInstructedKey(group.key);
@@ -70,7 +72,10 @@ export default function DashboardView({ students, reports, classes = [], reportV
   const handleConfirmGroup = async (group) => {
     setCompletingGroupKey(group.key);
     try {
-      await Promise.all(group.reviews.map(rv => onCompleteReview?.(rv.id, { note: reviewNote, testScore: null })));
+      const note = noteDrafts[group.key] ?? group.reviews[0]?.note ?? '';
+      const scoreStr = scoreDrafts[group.key] ?? '';
+      const testScore = scoreStr.trim() === '' ? null : Number(scoreStr);
+      await Promise.all(group.reviews.map(rv => onCompleteReview?.(rv.id, { note, testScore })));
       setMemoOpenKey(null);
     } finally {
       setCompletingGroupKey(null);
@@ -292,10 +297,18 @@ export default function DashboardView({ students, reports, classes = [], reportV
                         </button>
                       </div>
                       {memoOpen && (
-                        <div style={{ marginTop: '8px' }}>
-                          <textarea value={reviewNote} onChange={e => setReviewNote(e.target.value)}
+                        <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <textarea
+                            value={noteDrafts[group.key] ?? group.reviews[0]?.note ?? ''}
+                            onChange={e => setNoteDrafts(prev => ({ ...prev, [group.key]: e.target.value }))}
                             placeholder="무엇을 복습시킬지 메모…" rows={2}
                             style={{ width: '100%', minHeight: '50px', resize: 'vertical', border: '1px solid #E7E0D0', borderRadius: '8px', padding: '8px 10px', fontFamily: 'inherit', fontSize: '12.5px', color: '#3A362F', background: '#FBFAF6', outline: 'none', boxSizing: 'border-box' }} />
+                          <input
+                            type="number"
+                            value={scoreDrafts[group.key] ?? ''}
+                            onChange={e => setScoreDrafts(prev => ({ ...prev, [group.key]: e.target.value }))}
+                            placeholder="재시험 점수 (선택)"
+                            style={{ width: '140px', padding: '7px 9px', fontSize: '12.5px', border: '1px solid #E7E0D0', borderRadius: '8px', fontFamily: 'inherit', outline: 'none', background: '#FBFAF6', color: '#3A362F' }} />
                         </div>
                       )}
                     </div>
@@ -509,7 +522,9 @@ export default function DashboardView({ students, reports, classes = [], reportV
 
       <div style={{ background: T.bg, borderRadius: '16px', border: `1px solid ${T.border}`, overflow: 'hidden' }}>
         <div style={{ padding: '14px 18px', borderBottom: '1px solid #F3F4F6' }}>{studentListHeader}</div>
-        {studentListBody}
+        {/* 학생 행 자체는 좌우 2px 패딩만 갖고 있음(PC 카드처럼 바깥 컨테이너가 18~20px를
+            대신 채워주는 걸 전제) — 모바일은 바깥 컨테이너에 그 여백이 없어서 여기서 보충 */}
+        <div style={{ padding: '0 16px' }}>{studentListBody}</div>
       </div>
     </div>
   );
