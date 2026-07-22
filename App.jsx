@@ -697,11 +697,15 @@ export default function App() {
       {/* PC는 [로고·학원명] [탭 가운데] [날짜·역할·로그아웃]을 한 줄에 담는다 — 탭을 별도
           두 번째 줄로 내렸더니 첫 줄에 채울 게 없어서, 넓은 모니터에서 로고와 우측 메타가
           1500px 넘게 벌어져 보였음. 가운데를 탭이 채우면서 그 문제가 사라지고 세로도 아낌.
-          모바일은 탭이 하단 <nav>에 따로 있으므로 기존 한 줄(로고+메타) 그대로. */}
+          모바일은 탭이 하단 <nav>에 따로 있으므로 기존 한 줄(로고+메타) 그대로.
+          내용부는 maxWidth로 한 번 더 감싼다 — 27인치급 이상 초광폭 모니터에서는
+          1fr 트랙이 끝까지 늘어나 로고/메타가 화면 양 끝에 따로 떨어져 보였는데,
+          폭을 제한하고 좌우 여백을 균등하게 남기면 로고·탭·메타가 하나의 그룹으로 모여 보인다. */}
       <div style={{ position: 'sticky', top: 0, zIndex: 100 }}>
-        <header style={isPc
-          ? { background: T.bg, borderBottom: `1px solid ${T.border}`, padding: '10px 24px', display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: '20px' }
-          : { background: T.bg, borderBottom: `1px solid ${T.border}`, padding: '14px 20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <header style={{ background: T.bg, borderBottom: `1px solid ${T.border}`, padding: isPc ? '10px 24px' : '14px 20px' }}>
+        <div style={isPc
+          ? { maxWidth: '1440px', margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: '20px' }
+          : { display: 'flex', alignItems: 'center', gap: '10px' }}>
 
           {/* 좌 — 로고 + 학원명 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, ...(isPc ? {} : { flex: 1 }) }}>
@@ -744,6 +748,7 @@ export default function App() {
               <LogOut size={16} />
             </button>
           </div>
+        </div>
         </header>
       </div>
 
