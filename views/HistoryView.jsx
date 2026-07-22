@@ -297,9 +297,9 @@ export default function HistoryView({ reports, students, classes = [], reportVie
   // PC: 스플릿 뷰
   return (
     <>
-    {/* PC 상단 탭 도입(App.jsx) 이후 헤더+상단탭+서브탭 라벨 높이가 늘어나서 162px로 보정
+    {/* PC 상단 탭 도입(App.jsx) 이후 헤더+상단탭+서브탭 라벨 높이가 늘어나서 174px로 보정
         (기존 120px 기준이면 뷰포트 아래로 콘텐츠가 넘쳐 스크롤이 이중으로 생겼음) */}
-    <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', height: 'calc(100dvh - 162px)', overflow: 'hidden' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', height: 'calc(100dvh - 174px)', overflow: 'hidden' }}>
 
       {/* 좌측 목록 */}
       <div style={{ borderRight: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>

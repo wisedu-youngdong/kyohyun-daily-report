@@ -668,15 +668,17 @@ export default function App() {
           </button>
         </header>
 
-        {/* PC 상단 탭 — 모바일은 기존 하단 탭(아래 <nav>)을 그대로 씀 */}
+        {/* PC 상단 탭 — 모바일은 기존 하단 탭(아래 <nav>)을 그대로 씀. 활성 탭만 네이비 톤
+            채움 배경(#EAF0F9/#0D2D6B — 원장 배지 등 앱 전반에 이미 쓰는 네이비 조합 재사용) +
+            굵게, 아이콘은 기존 lucide 20px 그대로 두되 획 굵기만 1.8로 통일 */}
         {isPc && (
-          <div style={{ background: T.bg, borderBottom: `1px solid ${T.border}`, display: 'flex', padding: '0 20px', gap: '4px' }}>
+          <div style={{ background: T.bg, borderBottom: `1px solid ${T.border}`, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '10px 20px', gap: '4px' }}>
             {tabs.map(tab => {
               const active = activeTab === tab.key;
               return (
                 <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '12px 16px', border: 'none', borderBottom: `2px solid ${active ? T.brand : 'transparent'}`, background: 'none', cursor: 'pointer', color: active ? T.brand : T.textMute, fontFamily: "'Pretendard Variable', Pretendard, sans-serif", marginBottom: '-1px' }}>
-                  {tab.icon}
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 14px', border: 'none', borderRadius: '10px', background: active ? '#EAF0F9' : 'transparent', cursor: 'pointer', color: active ? '#0D2D6B' : T.textMute, fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>
+                  {React.cloneElement(tab.icon, { strokeWidth: 1.8 })}
                   <span style={{ fontSize: '13px', fontWeight: active ? 700 : 500 }}>{tab.label}</span>
                 </button>
               );
