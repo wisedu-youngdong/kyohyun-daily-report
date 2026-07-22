@@ -6,9 +6,12 @@ import { DIAG_LABELS as diagLabels, DIAG_BADGE as DIAG_MAP, DIAG_SOFT } from '..
 import { C } from '../tokens.jsx';
 
 // ============================================================
-// 학생 종합 프로필 모달 — 상담용
+// 학생 종합 프로필 — 내용 본체(모달 크롬 없음)
+// PC 학생 관리의 마스터-디테일 오른쪽 패널에 그대로 인라인으로 꽂아 쓰기 위해 모달 오버레이/
+// 뒤로가기 히스토리 처리와 분리해둠. onClose가 있으면(모바일 모달) ×버튼을 보여주고,
+// 없으면(PC 인라인) 안 보여줌.
 // ============================================================
-export function StudentProfileModal({ student, reports, reviews = [], onClose, onToast, academyName }) {
+export function StudentProfileContent({ student, reports, reviews = [], onClose, onToast, academyName }) {
   const [showWeekly, setShowWeekly] = useState(false);
   // 캘린더가 기본으로 펼쳐져 있으면 그 아래 내용(수업 기록/약점 패턴 등) 보려고 매번 스크롤을 많이 해야 해서, 기본은 요약만 접어서 보여줌
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -17,20 +20,6 @@ export function StudentProfileModal({ student, reports, reviews = [], onClose, o
     const d = last?.createdAt?.seconds ? new Date(last.createdAt.seconds * 1000) : new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
-
-  // 모바일 뒤로가기 지원 — SPA history 보호
-  useEffect(() => {
-    // 현재 페이지를 history에 한 번 더 쌓아서 뒤로가기가 앱 밖으로 안 나가게
-    history.pushState(null, '', window.location.href);
-    history.pushState({ modal: 'profile' }, '', window.location.href);
-    const handlePop = (e) => {
-      // 모달 닫고 앱 내 페이지로 복귀
-      history.pushState(null, '', window.location.href);
-      onClose();
-    };
-    window.addEventListener('popstate', handlePop);
-    return () => window.removeEventListener('popstate', handlePop);
-  }, []);
 
   // 과제/개념 평가는 구 리포트(1~5)와 신규 리포트(0~100)가 섞여 있으므로 0~100(%) 기준으로 정규화
   // null(미입력)은 보존 — 평균 계산에서 제외해 미입력이 평균을 끌어내리지 않도록
@@ -90,12 +79,9 @@ export function StudentProfileModal({ student, reports, reviews = [], onClose, o
     : '';
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px', backdropFilter: 'blur(4px)' }}
-      onClick={onClose}>
-      <div style={{ background: '#fff', borderRadius: '12px', width: '100%', maxWidth: '620px', maxHeight: '88vh', overflow: 'auto', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}
-        onClick={e => e.stopPropagation()}>
+    <div style={{ fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>
 
-        {/* 모달 헤더 */}
+        {/* 헤더 — onClose가 있을 때만(모바일 모달) ×버튼 표시. PC 인라인 패널에선 안 보임 */}
         <div style={{ background: '#0D2D6B', padding: '18px 22px', position: 'relative' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
             <div style={{ width: '4px', height: '18px', background: '#C9A227', borderRadius: '0', flexShrink: 0 }} />
@@ -103,7 +89,9 @@ export function StudentProfileModal({ student, reports, reviews = [], onClose, o
           </div>
           <p style={{ fontSize: '22px', fontWeight: 700, color: '#fff', margin: '0 0 4px' }}>{student.name}</p>
           <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.55)', margin: 0 }}>총 {sorted.length}회 수업 누적</p>
-          <button onClick={onClose} style={{ position: 'absolute', top: '16px', right: '18px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: '22px', cursor: 'pointer', lineHeight: 1, width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>×</button>
+          {onClose && (
+            <button onClick={onClose} style={{ position: 'absolute', top: '16px', right: '18px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: '22px', cursor: 'pointer', lineHeight: 1, width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>×</button>
+          )}
         </div>
 
         <div style={{ padding: '20px 22px' }}>
@@ -116,7 +104,7 @@ export function StudentProfileModal({ student, reports, reviews = [], onClose, o
               { label: '정시 출석률', value: `${attendanceRate}%`, color: attendanceRate >= 90 ? '#0F6E56' : attendanceRate >= 70 ? '#8A5A00' : '#A32D2D' },
             ].map((item, i) => (
               <div key={i} style={{ border: '0.5px solid #E8E6E0', borderRadius: '10px', padding: '12px', textAlign: 'center' }}>
-                <p style={{ fontSize: '10px', color: '#98A1AC', margin: '0 0 4px', letterSpacing: '0.06em' }}>{item.label}</p>
+                <p style={{ fontSize: '10px', color: '#6B7785', margin: '0 0 4px', letterSpacing: '0.06em' }}>{item.label}</p>
                 <p style={{ fontSize: '22px', fontWeight: 800, color: item.color, margin: 0, fontVariantNumeric: 'tabular-nums' }}>{item.value}</p>
               </div>
             ))}
@@ -172,7 +160,7 @@ export function StudentProfileModal({ student, reports, reviews = [], onClose, o
 
                 {!calendarOpen ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', padding: '11px 13px', background: '#FAFAF8', border: '0.5px solid #E5E7EB', borderRadius: '10px' }}>
-                    <span style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: 700 }}>{calYear}년 {calMonthIdx + 1}월</span>
+                    <span style={{ fontSize: '11px', color: '#6C7586', fontWeight: 700 }}>{calYear}년 {calMonthIdx + 1}월</span>
                     {Object.entries(ATTEND_COLORS).map(([label, color]) => (
                       monthCounts[label] ? (
                         <span key={label} style={{ fontSize: '11px', color: '#374151', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -187,7 +175,7 @@ export function StudentProfileModal({ student, reports, reviews = [], onClose, o
                   <>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', marginBottom: '4px' }}>
                       {['일', '월', '화', '수', '목', '금', '토'].map(d => (
-                        <p key={d} style={{ textAlign: 'center', fontSize: '10px', color: '#9CA3AF', margin: 0, fontWeight: 600 }}>{d}</p>
+                        <p key={d} style={{ textAlign: 'center', fontSize: '10px', color: '#6C7586', margin: 0, fontWeight: 600 }}>{d}</p>
                       ))}
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
@@ -268,7 +256,7 @@ export function StudentProfileModal({ student, reports, reviews = [], onClose, o
 
                     {/* 교재 + 단원 */}
                     {(r.textbook || r.unit) && (
-                      <p style={{ fontSize: '10px', color: '#9CA3AF', margin: '0 0 5px' }}>
+                      <p style={{ fontSize: '10px', color: '#6C7586', margin: '0 0 5px' }}>
                         {[r.textbook, r.unit, r.pages && `${r.pages}쪽`].filter(Boolean).join(' · ')}
                       </p>
                     )}
@@ -301,7 +289,7 @@ export function StudentProfileModal({ student, reports, reviews = [], onClose, o
               })}
             </div>
             {sorted.length > 5 && (
-              <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '8px 0 0', textAlign: 'center' }}>
+              <p style={{ fontSize: '11px', color: '#6C7586', margin: '8px 0 0', textAlign: 'center' }}>
                 최근 5회 표시 · 전체 {sorted.length}회
               </p>
             )}
@@ -348,7 +336,7 @@ export function StudentProfileModal({ student, reports, reviews = [], onClose, o
                   );
                 })}
               </div>
-              <p style={{ fontSize: '10px', color: '#98A1AC', margin: '8px 0 0' }}>개념 이해 평가 평균 · 낮은 순 정렬 · 빨강/주황일수록 보강이 필요해요</p>
+              <p style={{ fontSize: '10px', color: '#6B7785', margin: '8px 0 0' }}>개념 이해 평가 평균 · 낮은 순 정렬 · 빨강/주황일수록 보강이 필요해요</p>
             </div>
           )}
 
@@ -366,12 +354,12 @@ export function StudentProfileModal({ student, reports, reviews = [], onClose, o
                         {rv.round}차 복습
                         {rv.weakTypes?.length > 0 && <span style={{ fontWeight: 500, color: '#6B7280' }}> · {rv.weakTypes.map(w => w.label).join(', ')}</span>}
                       </span>
-                      <span style={{ fontSize: '10px', color: '#9CA3AF' }}>
+                      <span style={{ fontSize: '10px', color: '#6C7586' }}>
                         {rv.completedAt?.seconds ? new Date(rv.completedAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' }) : ''}
                       </span>
                     </div>
                     {(rv.textbook || rv.unit) && (
-                      <p style={{ fontSize: '10px', color: '#9CA3AF', margin: '0 0 4px' }}>{[rv.textbook, rv.unit].filter(Boolean).join(' · ')}</p>
+                      <p style={{ fontSize: '10px', color: '#6C7586', margin: '0 0 4px' }}>{[rv.textbook, rv.unit].filter(Boolean).join(' · ')}</p>
                     )}
                     {rv.testScore != null && rv.testScore !== '' && (
                       <p style={{ fontSize: '10px', color: '#C9A227', fontWeight: 700, margin: '0 0 4px' }}>재시험 {rv.testScore}점</p>
@@ -383,7 +371,7 @@ export function StudentProfileModal({ student, reports, reviews = [], onClose, o
                 ))}
               </div>
               {completedReviews.length > 5 && (
-                <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '8px 0 0', textAlign: 'center' }}>
+                <p style={{ fontSize: '11px', color: '#6C7586', margin: '8px 0 0', textAlign: 'center' }}>
                   최근 5건 표시 · 전체 {completedReviews.length}건
                 </p>
               )}
@@ -415,7 +403,7 @@ export function StudentProfileModal({ student, reports, reviews = [], onClose, o
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {sorted.filter(r => r.teacherNote).slice(-3).reverse().map((r, i) => (
                   <div key={i} style={{ borderLeft: '2px solid #C9A227', paddingLeft: '12px' }}>
-                    <p style={{ fontSize: '10px', color: '#98A1AC', margin: '0 0 3px' }}>{fmtDate(r)}</p>
+                    <p style={{ fontSize: '10px', color: '#6B7785', margin: '0 0 3px' }}>{fmtDate(r)}</p>
                     <p style={{ fontSize: '12px', color: '#5A6472', margin: 0, lineHeight: 1.7, fontStyle: 'italic' }}>"{r.teacherNote}"</p>
                   </div>
                 ))}
@@ -435,7 +423,7 @@ export function StudentProfileModal({ student, reports, reviews = [], onClose, o
                 </div>
               ))}
               {sorted.filter(r => r.directorMemo).length === 0 && (
-                <p style={{ fontSize: '12px', color: '#98A1AC', margin: 0 }}>저장된 상담 메모가 없습니다.</p>
+                <p style={{ fontSize: '12px', color: '#6B7785', margin: 0 }}>저장된 상담 메모가 없습니다.</p>
               )}
             </div>
           </div>
@@ -534,6 +522,35 @@ export function StudentProfileModal({ student, reports, reviews = [], onClose, o
           </div>
 
         </div>
+    </div>
+  );
+}
+
+// ============================================================
+// 모바일 모달 크롬 — 오버레이/배경 클릭 닫기 + 뒤로가기 히스토리 처리.
+// 실제 내용은 StudentProfileContent를 그대로 씀(PC 인라인 패널과 동일 소스).
+// ============================================================
+export function StudentProfileModal({ student, reports, reviews = [], onClose, onToast, academyName }) {
+  // 모바일 뒤로가기 지원 — SPA history 보호
+  useEffect(() => {
+    // 현재 페이지를 history에 한 번 더 쌓아서 뒤로가기가 앱 밖으로 안 나가게
+    history.pushState(null, '', window.location.href);
+    history.pushState({ modal: 'profile' }, '', window.location.href);
+    const handlePop = () => {
+      // 모달 닫고 앱 내 페이지로 복귀
+      history.pushState(null, '', window.location.href);
+      onClose();
+    };
+    window.addEventListener('popstate', handlePop);
+    return () => window.removeEventListener('popstate', handlePop);
+  }, []);
+
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px', backdropFilter: 'blur(4px)' }}
+      onClick={onClose}>
+      <div style={{ background: '#fff', borderRadius: '12px', width: '100%', maxWidth: '620px', maxHeight: '88vh', overflow: 'auto' }}
+        onClick={e => e.stopPropagation()}>
+        <StudentProfileContent student={student} reports={reports} reviews={reviews} onClose={onClose} onToast={onToast} academyName={academyName} />
       </div>
     </div>
   );
@@ -646,7 +663,7 @@ function WeeklySummaryCard({ student, reports, academyName }) {
       </div>
 
       {weekReports.length === 0 ? (
-        <div style={{ padding: '40px 22px', textAlign: 'center', color: '#9CA3AF', fontSize: '13px' }}>
+        <div style={{ padding: '40px 22px', textAlign: 'center', color: '#6C7586', fontSize: '13px' }}>
           이번 주 수업 기록이 없습니다
         </div>
       ) : (
@@ -659,7 +676,7 @@ function WeeklySummaryCard({ student, reports, academyName }) {
               { label: '출석률', value: `${attendRate}%`, color: attendRate === 100 ? '#0F6E56' : '#7A4F00' },
             ].map((s, i) => (
               <div key={i} style={{ padding: '14px 12px', textAlign: 'center', borderRight: i < 2 ? '0.5px solid #E5E7EB' : 'none' }}>
-                <p style={{ fontSize: '10px', color: '#9CA3AF', margin: '0 0 4px', fontWeight: 500 }}>{s.label}</p>
+                <p style={{ fontSize: '10px', color: '#6C7586', margin: '0 0 4px', fontWeight: 500 }}>{s.label}</p>
                 <p style={{ fontSize: '20px', fontWeight: 700, color: s.color, margin: 0 }}>{s.value}</p>
               </div>
             ))}
@@ -668,7 +685,7 @@ function WeeklySummaryCard({ student, reports, academyName }) {
           {/* 이번 주 학습 단원 */}
           {units.length > 0 && (
             <div style={{ padding: '16px 22px', borderBottom: '0.5px solid #E5E7EB' }}>
-              <p style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: 600, letterSpacing: '0.1em', margin: '0 0 10px' }}>이번 주 학습 단원</p>
+              <p style={{ fontSize: '10px', color: '#6C7586', fontWeight: 600, letterSpacing: '0.1em', margin: '0 0 10px' }}>이번 주 학습 단원</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {units.map((u, i) => {
                   const avgScore = u.scores.length ? Math.round(u.scores.reduce((a,b)=>a+b,0)/u.scores.length) : null;
@@ -679,7 +696,7 @@ function WeeklySummaryCard({ student, reports, academyName }) {
                       <div style={{ width: '3px', height: '34px', background: barColor, borderRadius: '2px', flexShrink: 0 }} />
                       <div style={{ flex: 1 }}>
                         <p style={{ fontSize: '12px', fontWeight: 600, color: '#1A1A1A', margin: '0 0 1px' }}>{u.name}</p>
-                        {avgScore && <p style={{ fontSize: '11px', color: '#9CA3AF', margin: 0 }}>{avgScore}점</p>}
+                        {avgScore && <p style={{ fontSize: '11px', color: '#6C7586', margin: 0 }}>{avgScore}점</p>}
                       </div>
                       {avgScore && (
                         <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '8px', background: achieved ? '#F0FAF5' : '#FFF8EC', color: achieved ? '#0F6E56' : '#7A4F00', flexShrink: 0 }}>
@@ -696,7 +713,7 @@ function WeeklySummaryCard({ student, reports, academyName }) {
           {/* 집중 포인트 */}
           {diagList.length > 0 && (
             <div style={{ padding: '14px 22px', borderBottom: '0.5px solid #E5E7EB' }}>
-              <p style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: 600, letterSpacing: '0.1em', margin: '0 0 8px' }}>이번 주 집중 포인트</p>
+              <p style={{ fontSize: '10px', color: '#6C7586', fontWeight: 600, letterSpacing: '0.1em', margin: '0 0 8px' }}>이번 주 집중 포인트</p>
               <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                 {diagList.map(d => {
                   const info = DIAG[d.key] || { label: d.key, color: '#4A4A4A', bg: '#F3F4F6' };
@@ -713,18 +730,18 @@ function WeeklySummaryCard({ student, reports, academyName }) {
           {/* 선생님 한마디 */}
           {lastNote && (
             <div style={{ padding: '16px 22px', borderBottom: '0.5px solid #E5E7EB', background: '#FAFAF8' }}>
-              <p style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: 600, letterSpacing: '0.1em', margin: '0 0 8px' }}>선생님 한마디</p>
+              <p style={{ fontSize: '10px', color: '#6C7586', fontWeight: 600, letterSpacing: '0.1em', margin: '0 0 8px' }}>선생님 한마디</p>
               <p style={{ fontSize: '12px', color: '#1A1A1A', lineHeight: 1.8, margin: 0 }}>
                 {lastNote}
               </p>
-              {teacherName && <p style={{ fontSize: '10px', color: '#9CA3AF', margin: '8px 0 0', textAlign: 'right' }}>— {teacherName}</p>}
+              {teacherName && <p style={{ fontSize: '10px', color: '#6C7586', margin: '8px 0 0', textAlign: 'right' }}>— {teacherName}</p>}
             </div>
           )}
 
           {/* 다음 주 예고 */}
           {nextPlan && (
             <div style={{ padding: '12px 22px', borderBottom: '0.5px solid #E5E7EB' }}>
-              <p style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: 600, letterSpacing: '0.1em', margin: '0 0 4px' }}>다음 주 학습 예정</p>
+              <p style={{ fontSize: '10px', color: '#6C7586', fontWeight: 600, letterSpacing: '0.1em', margin: '0 0 4px' }}>다음 주 학습 예정</p>
               <p style={{ fontSize: '12px', color: '#1A1A1A', margin: 0 }}>{nextPlan}</p>
             </div>
           )}

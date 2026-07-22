@@ -45,7 +45,7 @@ export default function GrowthDashboard({ reports, students }) {
 
   const getStatus = React.useCallback((sid) => {
     const rs = getStudentReports(sid);
-    if (!rs.length) return { label: '데이터없음', color: '#98A1AC', bg: '#F3F4F6', border: '#E5E7EB' };
+    if (!rs.length) return { label: '데이터없음', color: '#6B7785', bg: '#F3F4F6', border: '#E5E7EB' };
     const a = avg(rs.map(r => r.conceptRating));
     const trend3 = rs.length >= 3 ? rs[rs.length - 1].conceptRating - rs[rs.length - 3].conceptRating
       : rs.length >= 2 ? rs[rs.length - 1].conceptRating - rs[rs.length - 2].conceptRating : 0;
@@ -124,12 +124,12 @@ export default function GrowthDashboard({ reports, students }) {
             { label: '🚨 관심 필요', value: `${atRisk}명`, sub: `주의 ${caution}명 포함`, c: '#A32D2D', bg: '#FCEBEB', bd: '#A32D2D' },
             { label: '전체 평균', value: `${overallAvg}%`, sub: periodLabel, c: '#0D2D6B', bg: '#fff', bd: '#E8E6E0' },
             { label: '총 학생', value: `${students.length}명`, sub: '등록', c: '#1A1A1A', bg: '#fff', bd: '#E8E6E0' },
-            { label: '최고 성취', value: bestStudent?.name || '-', sub: `${bestStudent ? getAvg(bestStudent.id) : 0}%`, c: bestStudent ? getStatus(bestStudent.id).color : '#98A1AC', bg: '#fff', bd: '#E8E6E0' },
+            { label: '최고 성취', value: bestStudent?.name || '-', sub: `${bestStudent ? getAvg(bestStudent.id) : 0}%`, c: bestStudent ? getStatus(bestStudent.id).color : '#6B7785', bg: '#fff', bd: '#E8E6E0' },
           ].map((w, i) => (
             <div key={i} style={{ background: w.bg, border: `1px solid ${w.bd}`, borderRadius: '10px', padding: '10px 12px' }}>
               <p style={{ fontSize: '10px', color: w.c, margin: '0 0 3px', fontWeight: 700 }}>{w.label}</p>
               <p style={{ fontSize: '18px', fontWeight: 800, color: w.c, margin: 0, fontVariantNumeric: 'tabular-nums' }}>{w.value}</p>
-              <p style={{ fontSize: '10px', color: '#98A1AC', margin: '3px 0 0' }}>{w.sub}</p>
+              <p style={{ fontSize: '10px', color: '#6B7785', margin: '3px 0 0' }}>{w.sub}</p>
             </div>
           ))}
         </div>
@@ -151,15 +151,15 @@ export default function GrowthDashboard({ reports, students }) {
           <p style={{ fontSize: '12px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>학급 평균 추이</p>
           <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
             <div style={{ width: '18px', height: '2.5px', background: '#0D2D6B', borderRadius: '2px' }} />
-            <span style={{ fontSize: '10px', color: '#98A1AC' }}>전체 평균</span>
+            <span style={{ fontSize: '10px', color: '#6B7785' }}>전체 평균</span>
           </div>
           {selId && selStatus && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
               <svg width="18" height="6"><line x1="0" y1="3" x2="18" y2="3" stroke={selStatus.color} strokeWidth="2" strokeDasharray="4,2" /></svg>
-              <span style={{ fontSize: '10px', color: '#98A1AC' }}>{students.find(s => s.id === selId)?.name}</span>
+              <span style={{ fontSize: '10px', color: '#6B7785' }}>{students.find(s => s.id === selId)?.name}</span>
             </div>
           )}
-          {!selId && <p style={{ fontSize: '10px', color: '#98A1AC', margin: 0 }}>학생 클릭 시 비교선 추가</p>}
+          {!selId && <p style={{ fontSize: '10px', color: '#6B7785', margin: 0 }}>학생 클릭 시 비교선 추가</p>}
         </div>
         <div style={{ position: 'relative' }}>
           <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ overflow: 'visible' }}>
@@ -168,7 +168,7 @@ export default function GrowthDashboard({ reports, students }) {
               return (
                 <g key={v}>
                   <line x1={PL} y1={y} x2={W-PR} y2={y} stroke="#E8E6E0" strokeWidth="0.5" strokeDasharray="3,4" />
-                  <text x={PL-4} y={y+4} fontSize="9" fill="#98A1AC" textAnchor="end">{v}</text>
+                  <text x={PL-4} y={y+4} fontSize="9" fill="#6B7785" textAnchor="end">{v}</text>
                 </g>
               );
             })}
@@ -216,14 +216,14 @@ export default function GrowthDashboard({ reports, students }) {
             })()}
           </svg>
           {globalPoints.length === 0 && (
-            <p style={{ textAlign: 'center', color: '#98A1AC', fontSize: '12px', padding: '20px 0' }}>이 기간에 기록된 수업이 없습니다</p>
+            <p style={{ textAlign: 'center', color: '#6B7785', fontSize: '12px', padding: '20px 0' }}>이 기간에 기록된 수업이 없습니다</p>
           )}
         </div>
       </div>
 
       {/* 정렬 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-        <p style={{ fontSize: '11px', color: '#98A1AC', margin: 0 }}>정렬:</p>
+        <p style={{ fontSize: '11px', color: '#6B7785', margin: 0 }}>정렬:</p>
         {[['decline','하락 폭 큰 순'],['score','점수 높은 순'],['name','이름순']].map(([m, l]) => (
           <button key={m} onClick={() => setSortMode(m)} style={{
             padding: '4px 10px', fontSize: '11px', borderRadius: '20px', cursor: 'pointer', fontFamily: 'inherit',
@@ -238,7 +238,7 @@ export default function GrowthDashboard({ reports, students }) {
       <div style={{ background: '#fff', border: '0.5px solid #E8E6E0', borderRadius: '12px', overflow: 'hidden' }}>
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 50px 60px 55px' : '1fr 65px 80px 70px 55px', padding: '8px 14px', borderBottom: '0.5px solid #E8E6E0', background: '#FAFAFA' }}>
           {(isMobile ? ['학생', '현재', '변화량', '상태'] : ['학생', '현재', '변화량', '추이', '상태']).map((h, i) => (
-            <p key={i} style={{ fontSize: '10px', color: '#98A1AC', margin: 0, textAlign: i === 0 ? 'left' : 'center', letterSpacing: '0.06em' }}>{h}</p>
+            <p key={i} style={{ fontSize: '10px', color: '#6B7785', margin: 0, textAlign: i === 0 ? 'left' : 'center', letterSpacing: '0.06em' }}>{h}</p>
           ))}
         </div>
         {sortedStudents.map(s => {
@@ -250,7 +250,7 @@ export default function GrowthDashboard({ reports, students }) {
           const isSel = selId === s.id;
 
           const trendStr = trend === null ? '―' : trend > 0 ? `▲${Math.abs(trend)}` : trend < 0 ? `▼${Math.abs(trend)}` : '―';
-          const trendColor = trend === null ? '#98A1AC' : trend > 0 ? '#0F6E56' : trend < 0 ? '#A32D2D' : '#98A1AC';
+          const trendColor = trend === null ? '#6B7785' : trend > 0 ? '#0F6E56' : trend < 0 ? '#A32D2D' : '#6B7785';
 
           // 스파크라인 — 상태 컬러 사용
           const sparkW = 56, sparkH = 22;
@@ -301,7 +301,7 @@ export default function GrowthDashboard({ reports, students }) {
                       )}
                     </svg>
                   ) : (
-                    <span style={{ fontSize: '10px', color: '#98A1AC' }}>데이터 없음</span>
+                    <span style={{ fontSize: '10px', color: '#6B7785' }}>데이터 없음</span>
                   )}
                 </div>
               )}
@@ -314,7 +314,7 @@ export default function GrowthDashboard({ reports, students }) {
           );
         })}
         {sortedStudents.length === 0 && (
-          <p style={{ textAlign: 'center', color: '#98A1AC', fontSize: '12px', padding: '32px 0' }}>등록된 학생이 없습니다</p>
+          <p style={{ textAlign: 'center', color: '#6B7785', fontSize: '12px', padding: '32px 0' }}>등록된 학생이 없습니다</p>
         )}
       </div>
 
@@ -327,7 +327,7 @@ export default function GrowthDashboard({ reports, students }) {
         const a = getAvg(selId);
         const trend = getTrend(selId);
         const trendStr = trend === null ? '―' : trend > 0 ? `▲${Math.abs(trend)}` : trend < 0 ? `▼${Math.abs(trend)}` : '―';
-        const trendColor = trend === null ? '#98A1AC' : trend > 0 ? '#0F6E56' : trend < 0 ? '#A32D2D' : '#98A1AC';
+        const trendColor = trend === null ? '#6B7785' : trend > 0 ? '#0F6E56' : trend < 0 ? '#A32D2D' : '#6B7785';
 
         const openGrowthStory = () => {
           const query = storyPeriod === '3m' ? '?period=3m' : '';
@@ -364,7 +364,7 @@ export default function GrowthDashboard({ reports, students }) {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
               <p style={{ fontSize: '15px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>{s?.name}</p>
               <button onClick={closeDrawer}
-                style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#98A1AC', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>×</button>
+                style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#6B7785', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>×</button>
             </div>
 
             {/* 상태 배지 */}
@@ -403,7 +403,7 @@ export default function GrowthDashboard({ reports, students }) {
                         </div>
                       </div>
                       {(r.textbook || r.unit) && (
-                        <p style={{ fontSize: '10px', color: '#9CA3AF', margin: '0 0 4px' }}>
+                        <p style={{ fontSize: '10px', color: '#6C7586', margin: '0 0 4px' }}>
                           {[r.textbook, r.unit].filter(Boolean).join(' · ')}
                         </p>
                       )}

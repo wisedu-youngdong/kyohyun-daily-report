@@ -23,14 +23,14 @@ export const C = {
 // 관리자 화면(App.jsx) 팔레트
 export const T = {
   brand: '#185FA5', brandLight: '#E6F1FB', brandBg: '#F0F7FC',
-  text: '#1A1A1A', textSub: '#6B7280', textMute: '#9CA3AF',
+  text: '#1A1A1A', textSub: '#6B7280', textMute: '#6C7586',
   border: '#E5E7EB', bg: '#FFFFFF', bgSoft: '#F9FAFB',
 };
 
 // 학부모 리포트 화면(PublicReport/GrowthStory) 팔레트
 export const R = {
   navy: '#0D2D6B', gold: '#C9A227', rule: '#E8E6E0',
-  inkMute: '#98A1AC', inkSub: '#5A6472', ink: '#1A1A1A', positive: '#1E6B4E',
+  inkMute: '#6B7785', inkSub: '#5A6472', ink: '#1A1A1A', positive: '#1E6B4E',
   serif: "'Noto Serif KR', serif",
   body: "'Pretendard Variable', Pretendard, sans-serif",
 };

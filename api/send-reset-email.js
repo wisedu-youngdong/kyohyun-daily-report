@@ -34,7 +34,7 @@ function buildResetEmailHtml({ resetLink }) {
   const navy = '#0D2D6B';
   const ink = '#1A1A1A';
   const inkSoft = '#4B5563';
-  const inkMute = '#9CA3AF';
+  const inkMute = '#6C7586';
   const line = '#E9EAEE';
   const amber = '#8A5A00';
   const amberBg = '#FFF8E7';

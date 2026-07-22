@@ -189,7 +189,7 @@ export function StudentModal({ student, onClose, onSubmit, teachers = [], classe
               <FieldLabel>담당 강사</FieldLabel>
               <div style={{ ...inputStyle, background: '#F3F4F6', color: '#6B7280', cursor: 'default' }}>
                 {teachers.find(t => t.id === selectedClass?.teacherId)?.name || '담당 강사 미지정'}
-                <span style={{ marginLeft: '6px', fontSize: '11px', color: '#9CA3AF' }}>(반 설정에 따라 자동 배정)</span>
+                <span style={{ marginLeft: '6px', fontSize: '11px', color: '#6C7586' }}>(반 설정에 따라 자동 배정)</span>
               </div>
             </div>
           ) : showTeacherPicker && (
@@ -225,7 +225,7 @@ export function StudentModal({ student, onClose, onSubmit, teachers = [], classe
                 </button>
               ))}
             </div>
-            <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '5px 0 0' }}>설정 안 하면 매일 대상에 포함돼요</p>
+            <p style={{ fontSize: '11px', color: '#6C7586', margin: '5px 0 0' }}>설정 안 하면 매일 대상에 포함돼요</p>
           </div>
 
           <div style={{ marginBottom: '12px' }}>
@@ -239,7 +239,7 @@ export function StudentModal({ student, onClose, onSubmit, teachers = [], classe
                   <div style={{ background: C.primaryLight, color: C.primary, width: '22px', height: '22px', borderRadius: `${RADIUS2.iconBg}px`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>{idx + 1}</div>
                   <input value={t.name} onChange={(e) => updateTextbook(t.id, e.target.value)} placeholder="예: 초등 수학 5-2" style={inputStyle} />
                   {textbooks.length > 1 && (
-                    <button onClick={() => removeTextbook(t.id)} title="교재 삭제" style={{ background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer', padding: '3px', flexShrink: 0 }}><X size={14} /></button>
+                    <button onClick={() => removeTextbook(t.id)} title="교재 삭제" style={{ background: 'none', border: 'none', color: '#6C7586', cursor: 'pointer', padding: '3px', flexShrink: 0 }}><X size={14} /></button>
                   )}
                 </div>
               ))}
@@ -303,7 +303,7 @@ export function StudentModal({ student, onClose, onSubmit, teachers = [], classe
                 </div>
 
                 {!useCustomSkin && (
-                  <div style={{ background: '#F9FAFB', borderRadius: '10px', padding: '10px 12px', fontSize: '11px', color: '#9CA3AF', fontWeight: 500 }}>
+                  <div style={{ background: '#F9FAFB', borderRadius: '10px', padding: '10px 12px', fontSize: '11px', color: '#6C7586', fontWeight: 500 }}>
                     학원 기본 스킨을 사용합니다
                   </div>
                 )}
@@ -330,7 +330,7 @@ export function StudentModal({ student, onClose, onSubmit, teachers = [], classe
                       </div>
                       <div>
                         <p style={{ fontSize: '11px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>직접 색상 선택</p>
-                        <p style={{ fontSize: '10px', color: '#9CA3AF', margin: '1px 0 0', fontFamily: 'monospace' }}>{skinColor || C.primary}</p>
+                        <p style={{ fontSize: '10px', color: '#6C7586', margin: '1px 0 0', fontFamily: 'monospace' }}>{skinColor || C.primary}</p>
                       </div>
                     </div>
                   </div>
@@ -343,7 +343,7 @@ export function StudentModal({ student, onClose, onSubmit, teachers = [], classe
         <div style={{ padding: '12px 22px', borderTop: '1px solid #E5E7EB', display: 'flex', gap: '8px', justifyContent: isEdit ? 'center' : 'flex-end', background: '#F9FAFB', borderRadius: '0 0 18px 18px' }}>
           <button onClick={onClose} style={{ padding: '9px 18px', fontSize: '13px', fontWeight: 600, borderRadius: '9px', border: '1px solid #E5E7EB', background: '#fff', color: '#6B7280', cursor: 'pointer', fontFamily: 'inherit' }}>취소</button>
           <button onClick={handleSubmit} disabled={!isValid || saving}
-            style={{ padding: '9px 18px', fontSize: '13px', fontWeight: 700, borderRadius: '9px', border: 'none', background: isValid ? C.primary : '#E5E7EB', color: isValid ? '#fff' : '#9CA3AF', cursor: isValid ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: '5px', fontFamily: 'inherit' }}>
+            style={{ padding: '9px 18px', fontSize: '13px', fontWeight: 700, borderRadius: '9px', border: 'none', background: isValid ? C.primary : '#E5E7EB', color: isValid ? '#fff' : '#6C7586', cursor: isValid ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: '5px', fontFamily: 'inherit' }}>
             <Check size={14} /> {saving ? (isEdit ? '저장 중...' : '등록 중...') : (isEdit ? '저장' : '등록 완료')}
           </button>
         </div>

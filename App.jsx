@@ -239,10 +239,17 @@ export default function App() {
       setReportsReady(true);
     }, (e) => { console.error('리포트 목록 구독 실패:', e); showAppToast('리포트 목록을 불러오지 못했습니다. 새로고침해주세요.', 'error'); });
 
-    // 열람 기록 실시간 구독
-    const unsubViews = onSnapshot(collection(db, 'academies', academyId, 'reportViews'), (snap) => {
-      setReportViews(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    }, (e) => { console.error('열람 기록 구독 실패:', e); });
+    // 열람 기록 실시간 구독 — 학부모가 리포트 링크를 열 때마다(비로그인, 제한 없음) 새 문서가
+    // 쌓이는 컬렉션이라 전체를 무기한 구독하면 학원이 오래될수록 매 로그인마다 읽는 문서 수가
+    // 끝없이 늘어남(Firestore 읽기 비용 직결). 최근 6개월로만 창을 잡아도 미열람 리마인더(14일)·
+    // 학부모 참여도 지표 실사용 범위는 충분히 덮음 — 6개월 전보다 오래된 리포트의 열람 배지만
+    // 부정확해질 수 있음(과거엔 봤어도 "안 읽음"으로 표시될 수 있음, 그 반대는 없음).
+    const reportViewsCutoff = new Date(Date.now() - 180 * 24 * 3600 * 1000);
+    const unsubViews = onSnapshot(
+      query(collection(db, 'academies', academyId, 'reportViews'), where('viewedAt', '>=', reportViewsCutoff)),
+      (snap) => {
+        setReportViews(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      }, (e) => { console.error('열람 기록 구독 실패:', e); });
 
     // 학부모 질문 실시간 구독 — reportViews와 동일 패턴(플랫 컬렉션 + reportId로 클라이언트 필터링)
     const unsubQuestions = onSnapshot(collection(db, 'academies', academyId, 'reportQuestions'), (snap) => {
@@ -273,6 +280,15 @@ export default function App() {
     } catch (e) {
       console.error('복습 완료 처리 실패:', e);
       showAppToast('복습 완료 처리에 실패했습니다.', 'error');
+    }
+  };
+  // "복습 지시" — 학생에게 복습하라고 알려줬다는 가벼운 표시. status는 그대로 pending으로 남아
+  // 목록에서 사라지지 않고(진짜 끝난 건 아니니까) 카드만 흐려짐 — 실제 완료 처리는 handleCompleteReview.
+  const handleToggleReviewInstructed = async (ids, instructed) => {
+    try {
+      await Promise.all(ids.map(id => updateDoc(doc(db, 'academies', academyId, 'reviews', id), { instructed })));
+    } catch (e) {
+      console.error('복습 지시 표시 실패:', e);
     }
   };
 
@@ -702,6 +718,7 @@ export default function App() {
               students={visibleStudents} classes={classes} reports={visibleReports} reportViews={reportViews} onTabChange={setActiveTab}
               reviews={isDirector ? reviews : reviews.filter(rv => visibleStudents.some(s => s.id === rv.studentId))}
               onCompleteReview={handleCompleteReview}
+              onToggleReviewInstructed={handleToggleReviewInstructed}
               onQuickAbsence={handleQuickAbsence}
               onDismissUnreadReminder={handleDismissUnreadReminder}
               onWriteFor={(student, done) => {

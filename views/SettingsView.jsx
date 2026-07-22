@@ -670,13 +670,13 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
           <div style={{ width: '56px', height: '56px', borderRadius: '14px', background: logoUrl ? 'transparent' : '#F9FAFB', border: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
             {logoUrl
               ? <img src={logoUrl} alt="현재 로고" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              : <span style={{ fontSize: '10px', color: '#9CA3AF' }}>미설정</span>}
+              : <span style={{ fontSize: '10px', color: '#6C7586' }}>미설정</span>}
           </div>
           <div style={{ flex: 1, display: 'flex', gap: '6px' }}>
             <input ref={logoInputRef} type="file" accept="image/*" style={{ display: 'none' }}
               onChange={(e) => { const f = e.target.files?.[0]; if (f) handleLogoFile(f); e.target.value = ''; }} />
             <button onClick={() => logoInputRef.current?.click()} disabled={logoUploading}
-              style={{ padding: '9px 16px', fontSize: '12px', fontWeight: 700, borderRadius: '9px', border: `1px solid ${C.primary}`, background: logoUploading ? '#F9FAFB' : C.primaryLight, color: logoUploading ? '#9CA3AF' : C.primary, cursor: logoUploading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+              style={{ padding: '9px 16px', fontSize: '12px', fontWeight: 700, borderRadius: '9px', border: `1px solid ${C.primary}`, background: logoUploading ? '#F9FAFB' : C.primaryLight, color: logoUploading ? '#6C7586' : C.primary, cursor: logoUploading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
               {logoUploading ? '업로드 중...' : logoUrl ? '로고 변경' : '로고 업로드'}
             </button>
             {logoUrl && (
@@ -700,7 +700,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
           <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="예: 031-000-0000"
             style={{ flex: '1 1 160px', minWidth: 0, padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
           <button onClick={savePhone} disabled={phoneSaving}
-            style={{ flexShrink: 0, padding: '9px 16px', fontSize: '12px', fontWeight: 700, borderRadius: '9px', border: 'none', background: phoneSaving ? '#E5E7EB' : (phoneSaved ? C.success : C.primary), color: phoneSaving ? '#9CA3AF' : '#fff', cursor: phoneSaving ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+            style={{ flexShrink: 0, padding: '9px 16px', fontSize: '12px', fontWeight: 700, borderRadius: '9px', border: 'none', background: phoneSaving ? '#E5E7EB' : (phoneSaved ? C.success : C.primary), color: phoneSaving ? '#6C7586' : '#fff', cursor: phoneSaving ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
             {phoneSaving ? '저장 중...' : phoneSaved ? '✓ 저장됨' : '저장'}
           </button>
         </div>
@@ -717,7 +717,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
           <input value={subjectsInput} onChange={(e) => setSubjectsInput(e.target.value)} placeholder="예: 수학, 영어, 국어, 기타"
             style={{ flex: '1 1 160px', minWidth: 0, padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
           <button onClick={saveSubjects} disabled={subjectsSaving}
-            style={{ flexShrink: 0, padding: '9px 16px', fontSize: '12px', fontWeight: 700, borderRadius: '9px', border: 'none', background: subjectsSaving ? '#E5E7EB' : (subjectsSaved ? C.success : C.primary), color: subjectsSaving ? '#9CA3AF' : '#fff', cursor: subjectsSaving ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+            style={{ flexShrink: 0, padding: '9px 16px', fontSize: '12px', fontWeight: 700, borderRadius: '9px', border: 'none', background: subjectsSaving ? '#E5E7EB' : (subjectsSaved ? C.success : C.primary), color: subjectsSaving ? '#6C7586' : '#fff', cursor: subjectsSaving ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
             {subjectsSaving ? '저장 중...' : subjectsSaved ? '✓ 저장됨' : '저장'}
           </button>
         </div>
@@ -744,7 +744,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                   background: active ? '#EAF0F9' : '#fff', cursor: reportModeSaving ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
                 }}>
                 <p style={{ fontSize: '12px', fontWeight: 700, color: active ? C.primary : '#374151', margin: '0 0 2px' }}>{opt.label}</p>
-                <p style={{ fontSize: '10px', color: '#9CA3AF', margin: 0, lineHeight: 1.5 }}>{opt.desc}</p>
+                <p style={{ fontSize: '10px', color: '#6C7586', margin: 0, lineHeight: 1.5 }}>{opt.desc}</p>
               </button>
             );
           })}
@@ -926,7 +926,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
           <p style={{ fontSize: '13px', fontWeight: 700, margin: 0 }}>반 관리</p>
           <button type="button" onClick={() => setShowClassGuide(v => !v)}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'none', border: 'none', color: showClassGuide ? C.primary : '#9CA3AF', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', padding: '2px 4px' }}>
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'none', border: 'none', color: showClassGuide ? C.primary : '#6C7586', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', padding: '2px 4px' }}>
             <HelpCircle size={13} /> 사용법
           </button>
         </div>
@@ -954,7 +954,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
           {classes.length === 0 && (
-            <p style={{ fontSize: '12px', color: '#9CA3AF', margin: 0 }}>등록된 반이 없습니다.</p>
+            <p style={{ fontSize: '12px', color: '#6C7586', margin: 0 }}>등록된 반이 없습니다.</p>
           )}
           {classes.map(cls => {
             const classTeacher = teachers.find(t => t.id === cls.teacherId);
@@ -980,7 +980,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                   <>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ fontSize: '13px', fontWeight: 600, color: '#1A1A1A', margin: 0 }}>{cls.name}</p>
-                      <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '2px 0 0' }}>{classTeacher ? `담당 ${classTeacher.name}` : '담당 강사 미지정(삭제된 강사)'} · 학생 {classStudentCount}명</p>
+                      <p style={{ fontSize: '11px', color: '#6C7586', margin: '2px 0 0' }}>{classTeacher ? `담당 ${classTeacher.name}` : '담당 강사 미지정(삭제된 강사)'} · 학생 {classStudentCount}명</p>
                     </div>
                     {/* 이 반만 학원 기본 리포트 방식과 다르게 쓰고 싶을 때 — 비워두면(학원 기본값) 위 설정을 그대로 따름 */}
                     <select value={cls.reportMode || ''} onChange={e => onSaveClass({ ...cls, reportMode: e.target.value })}
@@ -1056,7 +1056,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: gradeBumpPreview.skipped.length > 0 ? '14px' : '18px' }}>
               {gradeBumpPreview.changes.length === 0 && (
-                <p style={{ fontSize: '12px', color: '#9CA3AF', margin: 0 }}>학년을 올릴 학생이 없어요.</p>
+                <p style={{ fontSize: '12px', color: '#6C7586', margin: 0 }}>학년을 올릴 학생이 없어요.</p>
               )}
               {gradeBumpPreview.changes.map(c => (
                 <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F9FAFB', borderRadius: '8px', padding: '8px 10px' }}>
@@ -1080,7 +1080,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                 style={{
                   flex: 1, padding: '11px', fontSize: '13px', fontWeight: 700, borderRadius: '10px', border: 'none',
                   background: (gradeBumping || gradeBumpPreview.changes.length === 0) ? '#E5E7EB' : C.primary,
-                  color: (gradeBumping || gradeBumpPreview.changes.length === 0) ? '#9CA3AF' : '#fff',
+                  color: (gradeBumping || gradeBumpPreview.changes.length === 0) ? '#6C7586' : '#fff',
                   cursor: (gradeBumping || gradeBumpPreview.changes.length === 0) ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
                 }}>
                 {gradeBumping ? '적용 중...' : `${gradeBumpPreview.changes.length}명 학년 올리기`}
@@ -1127,7 +1127,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {visibleRequests.length === 0 && (
-                <p style={{ fontSize: '12px', color: '#9CA3AF', margin: 0, textAlign: 'center', padding: '12px 0' }}>해당하는 신청이 없습니다</p>
+                <p style={{ fontSize: '12px', color: '#6C7586', margin: 0, textAlign: 'center', padding: '12px 0' }}>해당하는 신청이 없습니다</p>
               )}
               {visibleRequests.map(req => {
                 const expanded = expandedRequestId === req.id;
@@ -1174,7 +1174,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                           </>
                         )}
                         {req.status !== 'pending' && (
-                          <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '4px 0 0' }}>
+                          <p style={{ fontSize: '11px', color: '#6C7586', margin: '4px 0 0' }}>
                             {req.status === 'approved' ? `학원 ID: ${req.academyId}` : '거절됨'}
                             {req.reviewedBy ? ` · ${req.reviewedBy}` : ''}
                             {req.reviewedAt?.seconds ? ` · ${new Date(req.reviewedAt.seconds * 1000).toLocaleDateString('ko-KR')}` : ''}
@@ -1186,7 +1186,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                             style={{
                               alignSelf: 'flex-start', marginTop: '4px', padding: '5px 10px', fontSize: '11px', fontWeight: 700, borderRadius: '7px',
                               border: 'none', background: confirmingDeleteId === req.id ? '#DC2626' : 'transparent',
-                              color: confirmingDeleteId === req.id ? '#fff' : '#9CA3AF',
+                              color: confirmingDeleteId === req.id ? '#fff' : '#6C7586',
                               cursor: deletingRequestId === req.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
                             }}>
                             {deletingRequestId === req.id ? '삭제 중...' : confirmingDeleteId === req.id ? '삭제 확인 (재클릭)' : '신청 삭제'}
@@ -1256,7 +1256,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                         {suspended ? '정지됨' : '이용 중'}
                       </span>
                     </p>
-                    <p style={{ fontSize: '10px', color: '#9CA3AF', margin: '2px 0 0', fontFamily: 'monospace' }}>{a.id}</p>
+                    <p style={{ fontSize: '10px', color: '#6C7586', margin: '2px 0 0', fontFamily: 'monospace' }}>{a.id}</p>
                     <p style={{ fontSize: '11px', color: '#6B7280', margin: '5px 0 0', fontWeight: 600 }}>
                       {stat
                         ? (stat.students === null
@@ -1286,7 +1286,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                 {formOpen && (
                   <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #E5E7EB' }}>
                     {billingLoading === a.id ? (
-                      <p style={{ fontSize: '11px', color: '#9CA3AF', margin: 0 }}>불러오는 중...</p>
+                      <p style={{ fontSize: '11px', color: '#6C7586', margin: 0 }}>불러오는 중...</p>
                     ) : (
                       <>
                         <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
@@ -1306,7 +1306,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                         {billing?.history.length > 0 && (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                             {billing.history.map(h => (
-                              <p key={h.id} style={{ fontSize: '10px', color: '#9CA3AF', margin: 0 }}>
+                              <p key={h.id} style={{ fontSize: '10px', color: '#6C7586', margin: 0 }}>
                                 {h.grantedAt?.seconds ? new Date(h.grantedAt.seconds * 1000).toLocaleDateString('ko-KR') : ''} · {h.packageSize}건 · {h.amount?.toLocaleString()}원{h.memo ? ` · ${h.memo}` : ''}
                               </p>
                             ))}

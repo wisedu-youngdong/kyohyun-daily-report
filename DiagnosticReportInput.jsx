@@ -109,7 +109,7 @@ const TOKENS = {
   success: C.success, successBg: C.successBg, successDark: C.successDark,
   danger: C.errorDark, dangerBg: C.errorBg, dangerBorder: C.error,
   midGray: C.midGray,
-  text: '#1A1A1A', textSub: '#6B7280', textMute: '#9CA3AF',
+  text: '#1A1A1A', textSub: '#6B7280', textMute: '#6C7586',
   border: '#E5E7EB', borderLight: '#F3F4F6', bg: '#FFFFFF', bgSoft: '#F9FAFB',
 };
 
@@ -1261,7 +1261,7 @@ export default function DiagnosticReportInput({
                           <button type="button" onClick={() => setShowAllCourses(v => !v)}
                             style={{
                               padding: '3px 9px', borderRadius: `${RADIUS2.chip}px`, border: '1px dashed #C9C9C9',
-                              background: '#fff', color: '#9CA3AF', fontSize: '10px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                              background: '#fff', color: '#6C7586', fontSize: '10px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
                             }}>{showAllCourses ? '접기' : '전체 학년 보기'}</button>
                         )}
                       </div>
@@ -1784,7 +1784,7 @@ export default function DiagnosticReportInput({
                   const tags = QUICK_TAGS[subject] || QUICK_TAGS['기타'];
                   return (
                     <div style={{ marginBottom: '10px' }}>
-                      <p style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: 600, margin: '0 0 6px', letterSpacing: '0.06em' }}>
+                      <p style={{ fontSize: '10px', color: '#6C7586', fontWeight: 600, margin: '0 0 6px', letterSpacing: '0.06em' }}>
                         {subject} 퀵 태그 — 클릭하면 코멘트에 추가돼요
                       </p>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
@@ -1821,7 +1821,7 @@ export default function DiagnosticReportInput({
                     <button type="button" onClick={() => {
                       if (!window.confirm('강사 메모와 AI 다듬기 결과를 모두 지우고 새로 시작할까요?')) return;
                       setTeacherNote(''); setAiPolishedNote('');
-                    }} style={{ background: 'none', border: 'none', color: '#9CA3AF', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', padding: '2px 4px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                    }} style={{ background: 'none', border: 'none', color: '#6C7586', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', padding: '2px 4px', display: 'flex', alignItems: 'center', gap: '3px' }}>
                       <X size={11} /> 새로 시작
                     </button>
                   )}
@@ -1854,7 +1854,7 @@ export default function DiagnosticReportInput({
                               {recommended && '👍 '}{t.label}
                             </button>
                             <button type="button" onClick={() => { if (window.confirm(`"${t.label}" 즐겨찾기를 삭제할까요?`)) onDeleteCommentTemplate(t.id); }}
-                              style={{ background: 'none', border: 'none', color: '#B08900', cursor: 'pointer', padding: '2px', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                              style={{ background: 'none', border: 'none', color: '#B08900', cursor: 'pointer', padding: '2px', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                               <X size={11} />
                             </button>
                           </span>
@@ -1874,7 +1874,7 @@ export default function DiagnosticReportInput({
                 }} disabled={!teacherNote.trim()} style={{
                   marginTop: '6px', width: '100%', padding: '7px', fontSize: '11px', fontWeight: 700, borderRadius: '8px',
                   border: `1px solid ${teacherNote.trim() ? '#C9A227' : '#E5E7EB'}`, background: '#fff',
-                  color: teacherNote.trim() ? '#8A5A00' : '#9CA3AF', cursor: teacherNote.trim() ? 'pointer' : 'not-allowed', fontFamily: 'inherit',
+                  color: teacherNote.trim() ? '#8A5A00' : '#6C7586', cursor: teacherNote.trim() ? 'pointer' : 'not-allowed', fontFamily: 'inherit',
                 }}>
                   <Star size={11} style={{ verticalAlign: '-2px', marginRight: '3px' }} />현재 메모 즐겨찾기에 저장
                 </button>
@@ -2058,7 +2058,7 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
   if (!student) return (
     <div style={{ background: '#fff', border: `1px dashed #E5E7EB`, borderRadius: '18px', padding: '50px 20px', textAlign: 'center' }}>
       <User size={28} style={{ color: '#D1D5DB', marginBottom: '10px' }} />
-      <p style={{ fontSize: '12px', color: '#9CA3AF', fontWeight: 500, margin: 0 }}>학생을 선택하면<br />학부모 카드가 여기에 만들어집니다</p>
+      <p style={{ fontSize: '12px', color: '#6C7586', fontWeight: 500, margin: 0 }}>학생을 선택하면<br />학부모 카드가 여기에 만들어집니다</p>
     </div>
   );
 
