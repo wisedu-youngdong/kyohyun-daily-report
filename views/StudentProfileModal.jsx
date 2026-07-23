@@ -428,9 +428,9 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
             </div>
           </div>
 
-          {/* 성장 스토리 공유 */}
+          {/* 성장 포트폴리오 공유 */}
           <div style={{ marginTop: '24px', paddingTop: '20px', borderTop: '1px solid #EEECEA' }}>
-            <p style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 6px', color: '#1A1A1A' }}>성장 스토리 공유</p>
+            <p style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 6px', color: '#1A1A1A' }}>성장 포트폴리오 공유</p>
             <div style={{ width: '32px', height: '2px', background: '#C9A227', marginBottom: '14px' }} />
 
             {/* 링크 생성 */}
@@ -478,14 +478,14 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
                     </svg>
                   </button>
 
-                  {/* 성장 스토리 열기 — "보기(공개페이지)"/"편집" 2개 링크로 나뉘어 있던 걸 통합.
+                  {/* 성장 포트폴리오 열기 — "보기(공개페이지)"/"편집" 2개 링크로 나뉘어 있던 걸 통합.
                       같은 페이지에 ?edit=1 하나 차이고, 편집 모드가 보기 모드를 포함(학부모에게는
                       원래도 이 파라미터가 안 보임), 학부모용 링크는 위 "링크 복사"가 항상 순수
                       URL을 주므로 굳이 나눌 이유가 없었음. */}
                   <a href={`/story/${student.id}?edit=1`} target="_blank" rel="noopener noreferrer"
                     style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px', background: '#FFF9EC', border: '1px solid #C9A227', borderRadius: '8px', textDecoration: 'none', marginTop: '4px' }}>
                     <Pencil size={12} style={{ color: '#8A6500' }} />
-                    <span style={{ fontSize: '12px', color: '#8A6500', fontWeight: 700 }}>성장 스토리 보기·편집</span>
+                    <span style={{ fontSize: '12px', color: '#8A6500', fontWeight: 700 }}>성장 포트폴리오 보기·편집</span>
                   </a>
 
                   {/* 주간 요약 카드 */}

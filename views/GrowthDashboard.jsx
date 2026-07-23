@@ -10,7 +10,7 @@ export default function GrowthDashboard({ reports, students }) {
   const [selId, setSelId] = React.useState(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [tooltip, setTooltip] = React.useState(null);
-  const [storyPeriod, setStoryPeriod] = React.useState('all'); // 성장 스토리 열기 전 선택하는 기간
+  const [storyPeriod, setStoryPeriod] = React.useState('all'); // 성장 포트폴리오 열기 전 선택하는 기간
   const svgRef = React.useRef(null);
 
   const PERIODS = { week: 7, '2week': 14, month: 30, '3month': 90 };
@@ -429,7 +429,7 @@ export default function GrowthDashboard({ reports, students }) {
               </div>
             </div>
 
-            {/* 성장 스토리 진입 — 기간 선택 후 학부모 공개 페이지로 이동 */}
+            {/* 성장 포트폴리오 진입 — 기간 선택 후 학부모 공개 페이지로 이동 */}
             <div>
               <div style={{ display: 'flex', gap: '5px', marginBottom: '6px' }}>
                 {[['all', '전체'], ['3m', '최근 3개월']].map(([key, label]) => (
@@ -446,7 +446,7 @@ export default function GrowthDashboard({ reports, students }) {
                 width: '100%', padding: '10px 12px', fontSize: '12px', fontWeight: 700, borderRadius: '8px',
                 border: 'none', background: 'linear-gradient(135deg, #185FA5, #0C447C)', color: '#fff',
                 cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-              }}>📈 성장 스토리 보기·편집</button>
+              }}>📈 성장 포트폴리오 보기·편집</button>
             </div>
           </div>
           </>

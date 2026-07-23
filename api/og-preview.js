@@ -60,11 +60,11 @@ async function loadStudentNamePreview(id, { title, ogTitleSuffix, ogSub, redirec
 const KIND_LOADERS = {
   report: (id) => loadReportPreview(id),
   story: (id) => loadStudentNamePreview(id, {
-    title: (name) => `${name}의 성장 이야기`,
-    ogTitleSuffix: ' 성장 이야기',
-    ogSub: 'GROWTH STORY',
+    title: (name) => `${name}의 성장 포트폴리오`,
+    ogTitleSuffix: ' 성장 포트폴리오',
+    ogSub: 'GROWTH PORTFOLIO',
     redirectPrefix: '/story',
-    loadingText: '성장 스토리로 이동 중...',
+    loadingText: '성장 포트폴리오로 이동 중...',
   }),
   award: (id) => loadStudentNamePreview(id, {
     title: (name) => `${name} 학생 성장 시상장`,
