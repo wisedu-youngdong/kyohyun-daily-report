@@ -976,8 +976,16 @@ export default function GrowthStory() {
 
         return (
           <>
+            {/* 페이지마다 콘텐츠 양이 달라(마일스톤 4개 vs 핵심지표 4칸 등) 그냥 이어붙이면
+                책장 넘길 때마다 카드 높이가 들쭉날쭉해 보임 — 프레임 높이를 고정해 짧은
+                페이지는 안에서 세로 중앙정렬, 긴 페이지(주로 마일스톤)는 프레임 안에서만
+                스크롤되게 함(카드 자체 높이는 항상 일정) */}
             <div key={pages[curPage].key} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}
-              style={{ animation: `${slideDir > 0 ? 'pageSlideNext' : 'pageSlidePrev'} 0.25s ease` }}>
+              style={{
+                animation: `${slideDir > 0 ? 'pageSlideNext' : 'pageSlidePrev'} 0.25s ease`,
+                minHeight: '480px', maxHeight: '65vh', overflowY: 'auto',
+                display: 'flex', flexDirection: 'column', justifyContent: 'center',
+              }}>
               {pages[curPage].content}
             </div>
 
