@@ -759,6 +759,12 @@ function WeeklySummaryCard({ student, reports, academyName }) {
                   );
                 })}
               </div>
+              {/* 배지만 봐서는 "뭘 점검하라는 건지" 알 수 없다는 피드백 — 기준(80점)을
+                  한 줄로 밝혀줌. 이 카드는 카카오톡/링크로 학부모에게도 공유되므로 문구를
+                  쉽게 풀어씀. */}
+              <p style={{ fontSize: '10px', color: '#B0B0B0', margin: '10px 0 0', lineHeight: 1.5 }}>
+                이번 주 평균 80점을 기준으로 그 이상이면 "목표달성", 미만이면 "점검 필요"로 표시돼요
+              </p>
             </div>
           )}
 
