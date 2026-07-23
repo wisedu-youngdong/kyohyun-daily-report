@@ -13,6 +13,7 @@ import { C } from '../tokens.jsx';
 // ============================================================
 export function StudentProfileContent({ student, reports, reviews = [], onClose, onToast, academyName }) {
   const [showWeekly, setShowWeekly] = useState(false);
+  const [expandedWeak, setExpandedWeak] = useState(null); // 반복 약점 패턴 중 "자세히 보기"로 펼친 key
   // 캘린더가 기본으로 펼쳐져 있으면 그 아래 내용(수업 기록/약점 패턴 등) 보려고 매번 스크롤을 많이 해야 해서, 기본은 요약만 접어서 보여줌
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [calMonth, setCalMonth] = useState(() => {
@@ -34,10 +35,16 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
   const attendanceRated = sorted.filter(r => r.attendance != null);
   const attendanceRate = attendanceRated.length ? Math.round(attendanceRated.filter(r => r.attendance === '정시').length / attendanceRated.length * 100) : 0;
 
-  // 약점 집계
+  // 약점 집계 — 어느 단원에서 반복됐는지도 함께 모아둠("자세히 보기"에서 펼쳐 보여줌).
+  // 태그 저장 시 단원을 안 적었으면(과거 리포트 등) '단원 미기재'로 묶임.
   const diagCount = {};
+  const diagUnitCount = {}; // { [key]: { [unitLabel]: count } }
   sorted.forEach(r => (r.diagnosis || []).forEach(d => {
-    if (d.key !== 'perfect') diagCount[d.key] = (diagCount[d.key] || 0) + 1;
+    if (d.key === 'perfect') return;
+    diagCount[d.key] = (diagCount[d.key] || 0) + 1;
+    const unitLabel = d.unit?.trim() ? `${d.unit.trim()}단원` : '단원 미기재';
+    if (!diagUnitCount[d.key]) diagUnitCount[d.key] = {};
+    diagUnitCount[d.key][unitLabel] = (diagUnitCount[d.key][unitLabel] || 0) + 1;
   }));
   const weakTop3 = Object.entries(diagCount).sort((a, b) => b[1] - a[1]).slice(0, 3);
 
@@ -304,14 +311,31 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
                 {weakTop3.map(([key, count], i) => {
                   const tag = DIAG_MAP[key];
                   if (!tag) return null;
+                  const isOpen = expandedWeak === key;
+                  const unitBreakdown = Object.entries(diagUnitCount[key] || {}).sort((a, b) => b[1] - a[1]);
                   return (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div style={{ background: tag.bg, color: '#fff', fontSize: '11px', fontWeight: 800, width: '20px', height: '20px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{i + 1}</div>
-                      <span style={{ background: tag.bg, color: '#fff', fontSize: '12px', fontWeight: 700, padding: '3px 10px', borderRadius: '20px', flexShrink: 0 }}>{tag.prefix} {tag.label}</span>
-                      <div style={{ flex: 1, height: '5px', background: '#F3F4F6', borderRadius: '4px', overflow: 'hidden' }}>
-                        <div style={{ width: `${(count / (weakTop3[0][1])) * 100}%`, height: '100%', background: tag.bg, borderRadius: '4px' }} />
+                    <div key={i}>
+                      <div onClick={() => setExpandedWeak(isOpen ? null : key)}
+                        style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                        <div style={{ background: tag.bg, color: '#fff', fontSize: '11px', fontWeight: 800, width: '20px', height: '20px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{i + 1}</div>
+                        <span style={{ background: tag.bg, color: '#fff', fontSize: '12px', fontWeight: 700, padding: '3px 10px', borderRadius: '20px', flexShrink: 0 }}>{tag.prefix} {tag.label}</span>
+                        <div style={{ flex: 1, height: '5px', background: '#F3F4F6', borderRadius: '4px', overflow: 'hidden' }}>
+                          <div style={{ width: `${(count / (weakTop3[0][1])) * 100}%`, height: '100%', background: tag.bg, borderRadius: '4px' }} />
+                        </div>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: tag.bg, flexShrink: 0 }}>{count}회</span>
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" style={{ flexShrink: 0, transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
+                          <path d="M3 4.5L6 7.5L9 4.5" stroke="#8A8A8A" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
                       </div>
-                      <span style={{ fontSize: '12px', fontWeight: 700, color: tag.bg, flexShrink: 0 }}>{count}회</span>
+                      {isOpen && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginTop: '6px', paddingLeft: '30px' }}>
+                          {unitBreakdown.map(([unitLabel, unitCount]) => (
+                            <span key={unitLabel} style={{ fontSize: '11px', fontWeight: 600, color: '#374151', background: '#F3F4F6', padding: '3px 9px', borderRadius: '12px' }}>
+                              {unitLabel} {unitCount}회
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
