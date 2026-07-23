@@ -35,14 +35,29 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
   const attendanceRated = sorted.filter(r => r.attendance != null);
   const attendanceRate = attendanceRated.length ? Math.round(attendanceRated.filter(r => r.attendance === '정시').length / attendanceRated.length * 100) : 0;
 
-  // 약점 집계 — 어느 단원에서 반복됐는지도 함께 모아둠("자세히 보기"에서 펼쳐 보여줌).
-  // 태그 저장 시 단원을 안 적었으면(과거 리포트 등) '단원 미기재'로 묶임.
+  // 진단 태그의 단원 입력칸(DiagnosticReportInput.jsx)은 "4"만 적어도 되고 "4단원"까지
+  // 다 적어도 되는데, 기존 표시 관례(`${d.unit}단원`)가 무조건 "단원"을 덧붙이다 보니
+  // 이미 "단원"까지 적은 태그는 "4단원단원"으로 겹쳐 보이던 버그. 순수 숫자만 "N단원"으로
+  // 통일하고, 숫자가 아닌 서술형 입력("소수의 나눗셈" 등)은 원문 그대로 둔다.
+  const normalizeTagUnit = (raw) => {
+    const trimmed = (raw || '').trim();
+    if (!trimmed) return null;
+    const stripped = trimmed.replace(/단원$/, '').trim();
+    return /^\d+$/.test(stripped) ? `${stripped}단원` : trimmed;
+  };
+
+  // 약점 집계 — 어느 교재/단원에서 반복됐는지도 함께 모아둠("자세히 보기"에서 펼쳐 보여줌).
+  // 교재 언급이 없으면 "몇 학년 몇 학기"인지 알 수 없어 정보가 부족하다는 피드백으로
+  // 리포트의 textbook을 라벨에 함께 붙임. 단원을 안 적었으면(과거 리포트 등) '단원 미기재'로 묶임.
   const diagCount = {};
   const diagUnitCount = {}; // { [key]: { [unitLabel]: count } }
   sorted.forEach(r => (r.diagnosis || []).forEach(d => {
     if (d.key === 'perfect') return;
     diagCount[d.key] = (diagCount[d.key] || 0) + 1;
-    const unitLabel = d.unit?.trim() ? `${d.unit.trim()}단원` : '단원 미기재';
+    const normalizedUnit = normalizeTagUnit(d.unit);
+    const unitLabel = normalizedUnit
+      ? (r.textbook?.trim() ? `${r.textbook.trim()} · ${normalizedUnit}` : normalizedUnit)
+      : '단원 미기재';
     if (!diagUnitCount[d.key]) diagUnitCount[d.key] = {};
     diagUnitCount[d.key][unitLabel] = (diagUnitCount[d.key][unitLabel] || 0) + 1;
   }));
