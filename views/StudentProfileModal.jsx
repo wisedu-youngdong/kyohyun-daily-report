@@ -478,18 +478,14 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
                     </svg>
                   </button>
 
-                  {/* 퀵 링크 */}
-                  <a href={`/story/${student.id}?src=direct`} target="_blank" rel="noopener noreferrer"
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px', background: '#fff', border: '0.5px solid #E5E5E5', borderRadius: '8px', textDecoration: 'none', marginTop: '4px' }}>
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 8h12M8 2v12" stroke="#0D2D6B" strokeWidth="1.5" strokeLinecap="round"/><rect x="2" y="2" width="12" height="12" rx="2" stroke="#0D2D6B" strokeWidth="1.2"/></svg>
-                    <span style={{ fontSize: '12px', color: '#0D2D6B', fontWeight: 600 }}>성장 스토리 보기</span>
-                  </a>
-
-                  {/* AI 서사 편집 모드 */}
+                  {/* 성장 스토리 열기 — "보기(공개페이지)"/"편집" 2개 링크로 나뉘어 있던 걸 통합.
+                      같은 페이지에 ?edit=1 하나 차이고, 편집 모드가 보기 모드를 포함(학부모에게는
+                      원래도 이 파라미터가 안 보임), 학부모용 링크는 위 "링크 복사"가 항상 순수
+                      URL을 주므로 굳이 나눌 이유가 없었음. */}
                   <a href={`/story/${student.id}?edit=1`} target="_blank" rel="noopener noreferrer"
                     style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px', background: '#FFF9EC', border: '1px solid #C9A227', borderRadius: '8px', textDecoration: 'none', marginTop: '4px' }}>
                     <Pencil size={12} style={{ color: '#8A6500' }} />
-                    <span style={{ fontSize: '12px', color: '#8A6500', fontWeight: 700 }}>AI 서사 편집 모드로 열기</span>
+                    <span style={{ fontSize: '12px', color: '#8A6500', fontWeight: 700 }}>성장 스토리 보기·편집</span>
                   </a>
 
                   {/* 주간 요약 카드 */}

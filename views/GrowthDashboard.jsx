@@ -329,11 +329,12 @@ export default function GrowthDashboard({ reports, students }) {
         const trendStr = trend === null ? '―' : trend > 0 ? `▲${Math.abs(trend)}` : trend < 0 ? `▼${Math.abs(trend)}` : '―';
         const trendColor = trend === null ? '#6B7785' : trend > 0 ? '#0F6E56' : trend < 0 ? '#A32D2D' : '#6B7785';
 
+        // 예전엔 "보기(공개 페이지)"/"편집" 버튼 2개로 나뉘어 있었는데, 사실 같은 페이지에
+        // ?edit=1 하나 차이 — 편집 모드가 보기 모드를 완전히 포함하고(학부모에게는 원래도
+        // ?edit=1이 안 보임), 학부모용 링크는 페이지 안 "링크 복사" 버튼이 항상 순수 URL을
+        // 주기 때문에 굳이 나눌 이유가 없었음. 분양학원처럼 맥락 모르는 사용자에게 헷갈리는
+        // 원인이라 하나로 통합.
         const openGrowthStory = () => {
-          const query = storyPeriod === '3m' ? '?period=3m' : '';
-          window.open(`/story/${s?.id}${query}`, '_blank');
-        };
-        const openGrowthStoryEdit = () => {
           const query = storyPeriod === '3m' ? '&period=3m' : '';
           window.open(`/story/${s?.id}?edit=1${query}`, '_blank');
         };
@@ -445,12 +446,7 @@ export default function GrowthDashboard({ reports, students }) {
                 width: '100%', padding: '10px 12px', fontSize: '12px', fontWeight: 700, borderRadius: '8px',
                 border: 'none', background: 'linear-gradient(135deg, #185FA5, #0C447C)', color: '#fff',
                 cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-              }}>📈 성장 스토리 보기 (학부모 공개 페이지)</button>
-              <button onClick={openGrowthStoryEdit} style={{
-                width: '100%', padding: '9px 12px', fontSize: '11px', fontWeight: 700, borderRadius: '8px', marginTop: '6px',
-                border: '1px solid #C9A227', background: '#FFF9EC', color: '#8A6500',
-                cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-              }}>✏️ AI 서사 편집 모드로 열기</button>
+              }}>📈 성장 스토리 보기·편집</button>
             </div>
           </div>
           </>
