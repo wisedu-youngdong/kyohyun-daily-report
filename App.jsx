@@ -168,7 +168,8 @@ export default function App() {
   const showAppToast = (msg, type = 'success') => {
     if (appToastTimerRef.current) clearTimeout(appToastTimerRef.current);
     setAppToast({ msg, type });
-    appToastTimerRef.current = setTimeout(() => setAppToast(null), 2500);
+    // 에러는 읽고 대처할 시간이 필요하므로 더 오래 노출
+    appToastTimerRef.current = setTimeout(() => setAppToast(null), type === 'error' ? 5000 : 2500);
   };
 
   // 시작 가이드 — 첫 화면(프롬프트) 닫으면 다시는 안 뜨게 기록만 남김(체크리스트 진행 상태
@@ -581,7 +582,7 @@ export default function App() {
     } catch (e) {
       console.error('리포트 삭제 실패:', e);
       showAppToast('리포트 삭제에 실패했습니다.', 'error');
-      return;
+      return false;
     }
     // 연결된 복습 일정 삭제 (reportId 기준)
     try {
@@ -593,11 +594,17 @@ export default function App() {
     } catch (e) {
       console.warn('복습 일정 삭제 중 오류 (무시 가능):', e);
     }
+    return true;
   };
   const handleBulkDeleteReports = async (ids) => {
     if (!ids || ids.length === 0) return;
-    await Promise.all(ids.map(id => handleDeleteReport(id)));
-    showAppToast(`방치된 초안 ${ids.length}건을 삭제했습니다.`);
+    // handleDeleteReport가 실패를 삼키므로(개별 에러 토스트 후 false 반환) 성공 건수를 세서
+    // 전부 실패했는데 "N건 삭제했습니다"가 뜨던 문제를 막는다
+    const results = await Promise.all(ids.map(id => handleDeleteReport(id)));
+    const okCount = results.filter(Boolean).length;
+    const failCount = ids.length - okCount;
+    if (okCount === 0) return; // 개별 에러 토스트가 이미 떠 있음
+    showAppToast(failCount > 0 ? `초안 ${okCount}건 삭제 (${failCount}건 실패)` : `방치된 초안 ${okCount}건을 삭제했습니다.`);
   };
 
   if (authLoading) return (
@@ -756,7 +763,8 @@ export default function App() {
       {appToast && (
         <div style={{
           position: 'fixed', bottom: isPc ? '24px' : 'calc(80px + env(safe-area-inset-bottom))', left: '50%', transform: 'translateX(-50%)',
-          background: appToast.type === 'success' ? '#0F6E56' : '#0D2D6B',
+          // 에러가 브랜드 네이비로 떠서 성공과 구분이 안 가던 문제 — 에러는 빨간 계열로
+          background: appToast.type === 'success' ? '#0F6E56' : appToast.type === 'error' ? '#B3261E' : '#0D2D6B',
           color: '#fff', padding: '10px 20px', borderRadius: '20px',
           fontSize: '13px', fontWeight: 600, zIndex: 9999,
           boxShadow: '0 4px 12px rgba(0,0,0,0.15)',

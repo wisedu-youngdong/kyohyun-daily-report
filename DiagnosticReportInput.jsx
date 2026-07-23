@@ -646,6 +646,8 @@ export default function DiagnosticReportInput({
     );
     showToast(`사진 ${bufferedFiles.length}장 압축 중...`, 'info');
 
+    let okCount = 0;
+    let failCount = 0;
     for (const file of bufferedFiles) {
       try {
         if (file.size > 50 * 1024 * 1024) {
@@ -661,14 +663,19 @@ export default function DiagnosticReportInput({
         };
         photosRef.current = [...photosRef.current, newPhoto];
         setPhotos(prev => [...prev, newPhoto]);
+        okCount++;
       } catch (e) {
         const msg = e?.message || e?.toString() || '알 수 없는 오류';
         console.error('사진 처리 오류:', msg, e);
         setPhotoError(`사진 처리 실패: ${msg}`);
         showToast(`사진 처리 실패: ${msg}`, 'error');
+        failCount++;
       }
     }
-    showToast(`사진 준비 완료!`, 'success');
+    // 전부 실패했는데도 성공 토스트가 에러 토스트를 덮어쓰던 문제 — 실제 성공 건수로 분기
+    if (okCount > 0) {
+      showToast(failCount > 0 ? `사진 ${okCount}장 준비 완료 (${failCount}장 실패)` : '사진 준비 완료!', failCount > 0 ? 'info' : 'success');
+    }
   };
 
   const removeOnePhoto = (idx) => {
@@ -717,12 +724,21 @@ export default function DiagnosticReportInput({
       } else {
         setPhotoAnalysis(data);
         if (data.wrongItems?.length > 0) {
-          // data.wrongItems는 섹션 구분 없는 전체 요약이라, 어느 concept 섹션의 항목인지
-          // 찾아서 sectionIdx를 붙여둬야 이후 섹션별 토글/태그 UI가 올바른 섹션과 매칭됨
+          // data.wrongItems는 섹션 구분 없는 전체 요약이라, 어느 섹션의 항목인지 찾아서
+          // sectionIdx를 붙여둬야 이후 섹션별 토글/태그 UI가 올바른 섹션과 매칭됨.
+          // concept 섹션을 먼저 찾고(체크리스트 행 인라인 표시와 연결), 없으면 모의고사 등
+          // 나머지 섹션에서도 찾는다 — leftover 카드도 사진 2장에 같은 번호가 있을 때
+          // number만으로는 서로 구분이 안 돼 sectionIdx가 꼭 필요함
           setWrongItems(data.wrongItems.map(item => {
-            const sectionIdx = (data.sections || []).findIndex(s =>
+            let sectionIdx = (data.sections || []).findIndex(s =>
               s.sectionType === 'concept' && (s.problemTypes || []).some(pt => pt.number === item.number && pt.result === '약점')
             );
+            if (sectionIdx < 0) {
+              sectionIdx = (data.sections || []).findIndex(s =>
+                (s.problemTypes || []).some(pt => pt.number === item.number && pt.result === '약점')
+                || (s.weakDetail || []).some(pt => pt.number === item.number)
+              );
+            }
             return { ...item, sectionIdx: sectionIdx >= 0 ? sectionIdx : undefined, tags: [], memo: '' };
           }));
         } else {
@@ -1622,8 +1638,12 @@ export default function DiagnosticReportInput({
                             {[...leftoverWrongItems]
                               .sort(sortByItemNumber)
                               .map((item, idx) => {
+                              // number만으로 매칭하면 사진 2장에 같은 번호 오답이 있을 때 한 카드의
+                              // 태그/메모 입력이 다른 카드까지 같이 바뀜 — concept 섹션과 동일하게
+                              // sectionIdx까지 함께 매칭 (CLAUDE.md 인덱스 매칭 버그 패턴)
+                              const matches = (w) => w.number === item.number && w.sectionIdx === item.sectionIdx;
                               return (
-                                <div key={item.number || idx} style={{ border: '1px solid #DC262630', borderRadius: `${RADIUS2.thumbnail}px`, padding: '14px', background: '#FFF5F5' }}>
+                                <div key={`${item.sectionIdx ?? 'x'}-${item.number ?? idx}`} style={{ border: '1px solid #DC262630', borderRadius: `${RADIUS2.thumbnail}px`, padding: '14px', background: '#FFF5F5' }}>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
                                     <span style={{ background: TOKENS.dangerBorder, color: '#fff', fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px' }}>
                                       {item.number}번 오답
@@ -1640,7 +1660,7 @@ export default function DiagnosticReportInput({
                                       const active = item.tags.includes(tag.key);
                                       return (
                                         <button type="button" key={tag.key}
-                                          onClick={() => setWrongItems(prev => prev.map((w) => w.number === item.number ? {
+                                          onClick={() => setWrongItems(prev => prev.map((w) => matches(w) ? {
                                             ...w,
                                             tags: active ? w.tags.filter(t => t !== tag.key) : [...w.tags, tag.key]
                                           } : w))}
@@ -1660,7 +1680,7 @@ export default function DiagnosticReportInput({
                                   </div>
                                   <input
                                     value={item.memo}
-                                    onChange={e => setWrongItems(prev => prev.map((w) => w.number === item.number ? { ...w, memo: e.target.value } : w))}
+                                    onChange={e => setWrongItems(prev => prev.map((w) => matches(w) ? { ...w, memo: e.target.value } : w))}
                                     placeholder="직접 입력 (선택) — 답 잘못 씀, 문제 안 읽음 등"
                                     style={{ width: '100%', padding: '6px 10px', fontSize: '16px', border: `1px solid ${TOKENS.border}`, borderRadius: '8px', fontFamily: 'inherit', outline: 'none', background: '#fff', boxSizing: 'border-box', color: TOKENS.text }}
                                   />

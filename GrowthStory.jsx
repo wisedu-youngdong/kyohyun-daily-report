@@ -3,7 +3,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { db, auth } from './firebase';
 import { collection, getDoc, getDocs, query, where, doc, setDoc, limit } from 'firebase/firestore';
 import { ReportCard } from './tokens.jsx';
-import { toPct, isNewStudent as computeIsNewStudent, fetchAcademyBranding } from './growth.js';
+import { toPct, isNewStudent as computeIsNewStudent, fetchAcademyBranding, fmtPages } from './growth.js';
 import { findUnitKey, extractUnitNumbers } from './curriculum.js';
 import { DIAG_LABELS as diagLabels, DIAG_SOFT as DIAG_COLORS } from './diagnosis.js';
 
@@ -585,7 +585,7 @@ export default function GrowthStory() {
                   {/* 교재/단원 */}
                   {(m.realData.textbook || m.realData.unit) && (
                     <p style={{ fontSize: '12px', color: '#6B7280', margin: '0 0 5px', fontWeight: 500 }}>
-                      📚 {[m.realData.textbook, m.realData.unit, m.realData.pages && `${m.realData.pages}쪽`].filter(Boolean).join(' · ')}
+                      📚 {[m.realData.textbook, m.realData.unit, m.realData.pages && fmtPages(m.realData.pages)].filter(Boolean).join(' · ')}
                     </p>
                   )}
                   {/* 평점 */}
@@ -1000,14 +1000,19 @@ export default function GrowthStory() {
             {/* 페이지마다 콘텐츠 양이 달라(마일스톤 4개 vs 핵심지표 4칸 등) 그냥 이어붙이면
                 책장 넘길 때마다 카드 높이가 들쭉날쭉해 보임 — 프레임 높이를 고정해 짧은
                 페이지는 안에서 세로 중앙정렬, 긴 페이지(주로 마일스톤)는 프레임 안에서만
-                스크롤되게 함(카드 자체 높이는 항상 일정) */}
+                스크롤되게 함(카드 자체 높이는 항상 일정).
+                중앙정렬은 justifyContent가 아니라 내부 래퍼의 margin:auto로 — flex 컨테이너에
+                justifyContent:'center'를 주면 콘텐츠가 프레임보다 길 때 위쪽이 scrollTop 0 밖으로
+                밀려나 스크롤로도 도달 불가(짧은 폰에서 마일스톤 페이지 상단 잘림 버그) */}
             <div key={pages[curPage].key} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}
               style={{
                 animation: `${slideDir > 0 ? 'pageSlideNext' : 'pageSlidePrev'} 0.25s ease`,
                 minHeight: '480px', maxHeight: '65vh', overflowY: 'auto',
-                display: 'flex', flexDirection: 'column', justifyContent: 'center',
+                display: 'flex', flexDirection: 'column',
               }}>
-              {pages[curPage].content}
+              <div style={{ margin: 'auto 0' }}>
+                {pages[curPage].content}
+              </div>
             </div>
 
             {/* 페이지 내비게이션 */}

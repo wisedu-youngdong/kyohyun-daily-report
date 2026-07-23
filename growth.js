@@ -68,6 +68,15 @@ export function toPct(rating) {
   return n <= 5 ? n * 20 : n;
 }
 
+// 학습 범위(pages)에 "쪽" 단위 붙이기 — 입력 필드 placeholder가 "24~32쪽"처럼 쪽까지
+// 치라고 안내하고 있어서, 표시할 때 무조건 `${pages}쪽`을 붙이면 "24~32쪽쪽"이 됨.
+// 이미 쪽/페이지/p 등으로 끝나면 그대로 두고, 순수 숫자 표기일 때만 붙인다.
+export function fmtPages(pages) {
+  if (!pages) return pages;
+  const s = String(pages).trim();
+  return /[쪽pP]\s*$|페이지\s*$/.test(s) ? s : `${s}쪽`;
+}
+
 // 과제 수행 평가(0~100%) → 포인트 (최대 5P, 1:1 비례 — 구 척도 1~5점과 동일 비율)
 function homeworkPoints(pct) {
   return Math.round((pct / 100) * 5);

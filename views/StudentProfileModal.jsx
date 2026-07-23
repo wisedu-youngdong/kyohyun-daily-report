@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Pencil } from 'lucide-react';
-import { toPct } from '../growth.js';
+import { toPct, fmtPages } from '../growth.js';
 import { findUnitKey, extractUnitNumbers } from '../curriculum.js';
 import { DIAG_LABELS as diagLabels, DIAG_BADGE as DIAG_MAP, DIAG_SOFT } from '../diagnosis.js';
 import { C } from '../tokens.jsx';
@@ -296,7 +296,7 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
                     {/* 교재 + 단원 */}
                     {(r.textbook || r.unit) && (
                       <p style={{ fontSize: '10px', color: '#6C7586', margin: '0 0 5px' }}>
-                        {[r.textbook, r.unit, r.pages && `${r.pages}쪽`].filter(Boolean).join(' · ')}
+                        {[r.textbook, r.unit, r.pages && fmtPages(r.pages)].filter(Boolean).join(' · ')}
                       </p>
                     )}
 

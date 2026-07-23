@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Pencil, Trash2, AlertTriangle, Link as LinkIcon } from 'lucide-react';
-import { toPct } from '../growth.js';
+import { toPct, fmtPages } from '../growth.js';
 import { DIAG_LABELS, DIAG_SOFT as DIAG_COLORS } from '../diagnosis.js';
 import { useMediaQuery } from '../hooks.js';
 import { C } from '../tokens.jsx';
@@ -211,7 +211,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
 
               {(selected.textbook || selected.unit) && (
                 <p style={{ fontSize: '13px', color: '#374151', marginBottom: '10px', fontWeight: 500 }}>
-                  {[selected.textbook, selected.unit, selected.pages && `${selected.pages}쪽`].filter(Boolean).join(' · ')}
+                  {[selected.textbook, selected.unit, selected.pages && fmtPages(selected.pages)].filter(Boolean).join(' · ')}
                 </p>
               )}
 
@@ -403,10 +403,13 @@ export default function HistoryView({ reports, students, classes = [], reportVie
                 style={{ padding: '7px 14px', fontSize: '12px', fontWeight: 600, border: '1px solid #E5E7EB', borderRadius: '8px', background: '#fff', cursor: 'pointer', color: '#374151', fontFamily: 'inherit' }}>
                 수정
               </button>
-              <button onClick={() => handleCopyLink(selected.id)}
-                style={{ padding: '7px 14px', fontSize: '12px', fontWeight: 600, border: `1px solid ${C.primary}`, borderRadius: '8px', background: copied ? C.primary : '#fff', cursor: 'pointer', color: copied ? '#fff' : C.primary, fontFamily: 'inherit' }}>
-                {copied ? '✓ 복사됨' : '링크 복사'}
-              </button>
+              {/* 작성 중(draft) 리포트는 링크 복사 차단 — 모바일 바텀시트·DirectorView와 동일 기준 */}
+              {!selected.isDraft && (
+                <button onClick={() => handleCopyLink(selected.id)}
+                  style={{ padding: '7px 14px', fontSize: '12px', fontWeight: 600, border: `1px solid ${C.primary}`, borderRadius: '8px', background: copied ? C.primary : '#fff', cursor: 'pointer', color: copied ? '#fff' : C.primary, fontFamily: 'inherit' }}>
+                  {copied ? '✓ 복사됨' : '링크 복사'}
+                </button>
+              )}
               {deleteConfirmReport === selected.id ? null : (
                 <button onClick={() => setDeleteConfirmReport(selected.id)}
                   style={{ padding: '7px 14px', fontSize: '12px', fontWeight: 600, border: '1px solid #FECACA', borderRadius: '8px', background: '#FFF5F5', cursor: 'pointer', color: '#DC2626', fontFamily: 'inherit' }}>
@@ -515,7 +518,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
             <div style={{ marginBottom: '18px' }}>
               <p style={{ fontSize: '11px', color: '#6C7586', margin: '0 0 8px', fontWeight: 600, letterSpacing: '0.06em' }}>학습 범위</p>
               <p style={{ fontSize: '13px', color: '#374151', margin: 0 }}>
-                {[selected.textbook, selected.unit, selected.pages && `${selected.pages}쪽`].filter(Boolean).join(' · ')}
+                {[selected.textbook, selected.unit, selected.pages && fmtPages(selected.pages)].filter(Boolean).join(' · ')}
               </p>
             </div>
           )}
