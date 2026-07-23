@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { db, auth } from './firebase';
 import { collection, getDoc, getDocs, query, where, doc, setDoc, limit } from 'firebase/firestore';
@@ -22,10 +22,12 @@ function EditCharCount({ text, dark }) {
 
 const FONT_STYLE = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { 
-    font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, sans-serif; 
+  body {
+    font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, sans-serif;
   }
   * { word-break: keep-all; }
+  @keyframes pageSlideNext { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+  @keyframes pageSlidePrev { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
 `;
 
 export default function GrowthStory() {
@@ -48,6 +50,14 @@ export default function GrowthStory() {
   const [completedReviews, setCompletedReviews] = useState([]); // 복습 효과 증명 그래프용
   const [editText, setEditText] = useState('');
 
+  // 책장 넘기듯 좌우 탐색 — 예전엔 한 화면에 전부 이어붙여서 스크롤이 너무 길었음.
+  // 페이지 목록(pages)은 실데이터 유무에 따라 페이지 자체가 없을 수도 있어(예: 시험 점수도
+  // 약점 태그도 없는 신규생은 "평가 추이" 페이지가 통째로 비어 아래에서 필터링됨) 아래
+  // return 문 안에서 실데이터 계산이 끝난 뒤 동적으로 구성함.
+  const [page, setPage] = useState(0);
+  const [slideDir, setSlideDir] = useState(1); // 1: 다음(→에서 옴), -1: 이전(←에서 옴)
+  const touchStartXRef = useRef(null);
+
   // 기간 토글 — URL 파라미터 연동
   const periodParam = searchParams.get('period');
   const [period, setPeriod] = useState(periodParam === '3m' ? '3m' : 'all');
@@ -58,6 +68,7 @@ export default function GrowthStory() {
   const handlePeriodChange = (val) => {
     setPeriod(val);
     setShowAllUnits(false);
+    setPage(0); // 기간 바꾸면 페이지 구성(빈 페이지 여부 등)이 달라질 수 있어 처음 페이지로
     if (val === '3m') setSearchParams({ period: '3m' });
     else setSearchParams({});
   };
@@ -499,17 +510,19 @@ export default function GrowthStory() {
         </div>
       </div>
 
-      {/* AI 서사 생성 버튼 — 상단 배치 (강사 전용, ?edit=1) */}
-      {isEditor && (
-        <div style={{ padding: '12px 22px 0' }}>
-          <button onClick={handleGenNarrative} disabled={narLoading}
-            style={{ width: '100%', padding: '11px', background: narLoading ? '#E5E7EB' : narrative ? '#F0FAF5' : '#0D2D6B', color: narLoading ? '#6C7586' : narrative ? '#0F6E56' : '#fff', border: narrative ? '1px solid #0F6E5640' : 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: narLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
-            {narLoading ? '⏳ AI 서사 생성 중...' : narrative ? '🔄 서사 재생성' : '✨ AI 서사 자동 생성'}
-          </button>
-        </div>
-      )}
+      {(() => {
+        // AI 서사 생성 버튼 (강사 전용, ?edit=1) — 1페이지(마일스톤) 맨 위에 포함
+        const aiGenButtonContent = !isEditor ? null : (
+      <div style={{ padding: '12px 22px 0' }}>
+        <button onClick={handleGenNarrative} disabled={narLoading}
+          style={{ width: '100%', padding: '11px', background: narLoading ? '#E5E7EB' : narrative ? '#F0FAF5' : '#0D2D6B', color: narLoading ? '#6C7586' : narrative ? '#0F6E56' : '#fff', border: narrative ? '1px solid #0F6E5640' : 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: narLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+          {narLoading ? '⏳ AI 서사 생성 중...' : narrative ? '🔄 서사 재생성' : '✨ AI 서사 자동 생성'}
+        </button>
+      </div>
+        );
 
-      {/* GROWTH MILESTONE */}
+        // 1페이지 — GROWTH MILESTONE (항상 존재, 데이터 없을 때 안내 문구)
+        const milestoneContent = (
       <div style={S.section}>
         <p style={S.label}>GROWTH MILESTONE</p>
         {milestones.length > 0 && sorted.length > milestones.length && (
@@ -663,9 +676,10 @@ export default function GrowthStory() {
         </>
         )}
       </div>
+        );
 
-      {/* 단원별 평가 추이 */}
-      {unitScores.length > 0 && (() => {
+        // 2페이지 — 단원별 평가 추이 + 자주 나온 약점 유형 (둘 다 없으면 페이지 자체가 생략됨)
+        const unitTrendContent = unitScores.length === 0 ? null : (() => {
         const UNIT_CAP = 6;
         const visibleUnits = showAllUnits ? unitScores : unitScores.slice(0, UNIT_CAP);
         const hiddenCount = unitScores.length - visibleUnits.length;
@@ -731,12 +745,12 @@ export default function GrowthStory() {
           )}
         </div>
         );
-      })()}
+        })();
 
-      {/* 자주 나온 약점 유형 — 이미 로드된 sorted(이 학생 전체 리포트)로 집계, 새 조회 없음.
-          recharts는 여기선 안 씀 — 공개 페이지 번들에 375KB 차트 라이브러리가 딸려오는 걸 피하려고
-          단원별 평가 추이와 같은 hand-rolled div 막대 방식 유지 */}
-      {(() => {
+        // 자주 나온 약점 유형 — 이미 로드된 sorted(이 학생 전체 리포트)로 집계, 새 조회 없음.
+        // recharts는 여기선 안 씀 — 공개 페이지 번들에 375KB 차트 라이브러리가 딸려오는 걸 피하려고
+        // 단원별 평가 추이와 같은 hand-rolled div 막대 방식 유지
+        const weakTypeContent = (() => {
         const diagCount = {};
         sorted.forEach(r => (r.diagnosis || []).forEach(d => {
           if (d.key === 'perfect') return; // 잘한 건 말고 약점만 집계
@@ -766,12 +780,11 @@ export default function GrowthStory() {
             </div>
           </div>
         );
-      })()}
+        })();
 
-      {/* 복습 효과 — 약점 진단 당시 원본 리포트 점수 대비, 복습을 거친 뒤 재시험 점수가
-          어떻게 바뀌었는지 보여줌. 시험 점수가 없던 진단은 비교 대상이 없어 자연히 빠짐 */}
-      {reviewProof.length > 0 && (
-        <div style={S.section}>
+        // 3페이지 — 복습 효과(있을 때만) + 핵심 지표(항상 존재)
+        const reviewEffectContent = reviewProof.length === 0 ? null : (
+      <div style={S.section}>
           <p style={S.label}>복습 효과</p>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', background: '#F7F5F1', borderRadius: '4px', borderLeft: '2px solid #C9A227', marginBottom: '14px' }}>
             <span style={{ fontSize: '11px', color: '#8A8A8A', fontWeight: 600 }}>복습 완료</span>
@@ -831,9 +844,9 @@ export default function GrowthStory() {
             <p style={{ fontSize: '10px', color: '#8A8A8A', marginTop: '10px', textAlign: 'center' }}>외 {reviewProof.length - 5}건 더</p>
           )}
         </div>
-      )}
+        );
 
-      {/* 핵심 지표 */}
+        const keyMetricsContent = (
       <div style={S.section}>
         <p style={S.label}>KEY METRICS</p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
@@ -865,8 +878,10 @@ export default function GrowthStory() {
           )}
         </div>
       </div>
+        );
 
-      {/* 선생님 한마디 */}
+        // 4페이지 — 선생님 한마디 + 다음 목표 (둘 다 항상 존재, fallback 문구 있음)
+        const teacherWordContent = (
       <div style={{ background: '#0D2D6B', padding: '24px 22px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
           <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.14em', fontWeight: 600 }}>TEACHER'S WORD</p>
@@ -898,8 +913,9 @@ export default function GrowthStory() {
           {teacherDisplay}
         </p>
       </div>
+        );
 
-      {/* 다음 목표 */}
+        const nextChapterContent = (
       <div style={S.section}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
           <p style={S.label}>NEXT CHAPTER</p>
@@ -930,6 +946,64 @@ export default function GrowthStory() {
           <p style={{ fontSize: '13px', fontWeight: 700, color: '#0D2D6B' }}>PHASE 5 · 전략 고도화</p>
         </div>
       </div>
+        );
+
+        // 4개 페이지 구성 — 2페이지(평가 추이)는 시험 점수도 약점 태그도 없는 학생이면
+        // 통째로 비어(unitTrendContent/weakTypeContent 둘 다 null) 아래 filter(Boolean)로 걸러짐
+        const pages = [
+          { key: 'milestone', label: '성장 마일스톤', content: (<>{aiGenButtonContent}{milestoneContent}</>) },
+          (unitTrendContent || weakTypeContent) && { key: 'trend', label: '평가 추이', content: (<>{unitTrendContent}{weakTypeContent}</>) },
+          { key: 'metrics', label: '핵심 지표', content: (<>{reviewEffectContent}{keyMetricsContent}</>) },
+          { key: 'closing', label: '선생님 한마디', content: (<>{teacherWordContent}{nextChapterContent}</>) },
+        ].filter(Boolean);
+        // 기간 토글 등으로 페이지 수가 줄어든 사이 이전 페이지 인덱스가 범위를 벗어날 수 있어 방어
+        const curPage = Math.min(page, pages.length - 1);
+
+        const goPage = (next) => {
+          if (next < 0 || next >= pages.length) return;
+          setSlideDir(next > curPage ? 1 : -1);
+          setPage(next);
+        };
+        const onTouchStart = (e) => { touchStartXRef.current = e.touches[0].clientX; };
+        const onTouchEnd = (e) => {
+          if (touchStartXRef.current == null) return;
+          const dx = e.changedTouches[0].clientX - touchStartXRef.current;
+          touchStartXRef.current = null;
+          if (Math.abs(dx) < 40) return; // 너무 짧은 터치는 무시
+          if (dx < 0) goPage(curPage + 1); // 왼쪽으로 스와이프 → 다음 페이지
+          else goPage(curPage - 1);
+        };
+
+        return (
+          <>
+            <div key={pages[curPage].key} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}
+              style={{ animation: `${slideDir > 0 ? 'pageSlideNext' : 'pageSlidePrev'} 0.25s ease` }}>
+              {pages[curPage].content}
+            </div>
+
+            {/* 페이지 내비게이션 */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', padding: '14px 22px', background: '#fff', borderTop: '1px solid #EEECEA' }}>
+              <button onClick={() => goPage(curPage - 1)} disabled={curPage === 0} aria-label="이전 페이지"
+                style={{ width: '36px', height: '36px', borderRadius: '50%', border: '1px solid #E5E7EB', background: curPage === 0 ? '#F7F5F1' : '#fff', color: curPage === 0 ? '#D0D0D0' : '#0D2D6B', fontSize: '18px', lineHeight: 1, cursor: curPage === 0 ? 'default' : 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
+                ‹
+              </button>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  {pages.map((p, i) => (
+                    <button key={p.key} onClick={() => goPage(i)} title={p.label} aria-label={p.label}
+                      style={{ width: i === curPage ? '18px' : '6px', height: '6px', borderRadius: '3px', border: 'none', padding: 0, background: i === curPage ? '#0D2D6B' : '#E5E7EB', cursor: 'pointer', transition: 'width 0.2s, background 0.2s' }} />
+                  ))}
+                </div>
+                <span style={{ fontSize: '10px', color: '#8A8A8A', fontWeight: 600, whiteSpace: 'nowrap' }}>{curPage + 1} / {pages.length} · {pages[curPage].label}</span>
+              </div>
+              <button onClick={() => goPage(curPage + 1)} disabled={curPage === pages.length - 1} aria-label="다음 페이지"
+                style={{ width: '36px', height: '36px', borderRadius: '50%', border: '1px solid #E5E7EB', background: curPage === pages.length - 1 ? '#F7F5F1' : '#fff', color: curPage === pages.length - 1 ? '#D0D0D0' : '#0D2D6B', fontSize: '18px', lineHeight: 1, cursor: curPage === pages.length - 1 ? 'default' : 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
+                ›
+              </button>
+            </div>
+          </>
+        );
+      })()}
 
       {/* 푸터 */}
       <div style={{ padding: '16px 22px', background: '#F7F5F1', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
