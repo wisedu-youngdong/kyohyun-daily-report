@@ -80,6 +80,18 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
     const map = {};
     sorted.forEach(r => {
       if (r.conceptRating == null) return;
+      const label = [r.textbook, r.unit].filter(Boolean).join(' · ');
+      // 이름 매칭을 먼저 시도 — "3단원 소수의 나눗셈"처럼 번호+이름이 같이 있어도 이름으로
+      // 정상 매칭되는 케이스가 숫자 경로에 가로채여 별도 카드로 갈라지는 것을 방지
+      // (extractUnitNumbers 주석이 원래 의도한 순서: 이름 매칭 실패할 때만 번호 경로)
+      const nameKey = r.unitKey || findUnitKey(r.subject || '수학', r.unit || '');
+      if (nameKey) {
+        if (!label) return;
+        if (!map[nameKey]) map[nameKey] = { name: label, sum: 0, count: 0 };
+        map[nameKey].sum += r.conceptRating;
+        map[nameKey].count += 1;
+        return;
+      }
       const unitNumbers = extractUnitNumbers(r.unit || '');
       if (unitNumbers.length > 0) {
         unitNumbers.forEach(num => {
@@ -91,12 +103,10 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
         });
         return;
       }
-      const label = [r.textbook, r.unit].filter(Boolean).join(' · ');
       if (!label) return;
-      const key = r.unitKey || findUnitKey(r.subject || '수학', r.unit || '') || label;
-      if (!map[key]) map[key] = { name: label, sum: 0, count: 0 };
-      map[key].sum += r.conceptRating;
-      map[key].count += 1;
+      if (!map[label]) map[label] = { name: label, sum: 0, count: 0 };
+      map[label].sum += r.conceptRating;
+      map[label].count += 1;
     });
     return Object.values(map)
       .map(u => ({ ...u, pct: Math.round(u.sum / u.count) }))

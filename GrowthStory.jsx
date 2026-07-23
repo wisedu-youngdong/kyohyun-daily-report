@@ -179,6 +179,15 @@ export default function GrowthStory() {
     const dateStr = fmtDate(r);
     const seconds = r.createdAt?.seconds || 0;
 
+    // 이름 매칭(unitKey/findUnitKey)을 먼저 시도 — extractUnitNumbers 주석이 원래 의도한 순서대로,
+    // 이름 매칭이 이미 성공하는 케이스("3단원 소수의 나눗셈"처럼 작성 화면 placeholder가
+    // 권장하는 형식도 포함)는 숫자 경로가 가로채지 않게 한다. 번호만 있고 이름 매칭이 실패할
+    // 때만("2~3단원", "4단원,5단원") 번호 단위로 쪼개 여러 단원 통계에 반영
+    const nameKey = r.unitKey || findUnitKey(r.subject || '수학', r.unit || '');
+    if (nameKey) {
+      pushUnitScore(nameKey, unitLabel, round, score, dateStr, seconds);
+      return;
+    }
     const unitNumbers = extractUnitNumbers(r.unit || '');
     if (unitNumbers.length > 0) {
       unitNumbers.forEach(num => {
@@ -188,10 +197,7 @@ export default function GrowthStory() {
       });
       return;
     }
-    // 그룹 키는 unitKey(표준 단원 정규화)를 우선 사용해, 강사마다 표기가 달라도(예: "3단원"/"소수의 나눗셈") 같은 단원으로 묶임
-    // unitKey가 없는 과거 리포트도 읽기 시점에 정규화 시도 — 구/신 데이터가 두 그룹으로 갈라지는 것 방지
-    const groupKey = r.unitKey || findUnitKey(r.subject || '수학', r.unit || '') || unitLabel;
-    pushUnitScore(groupKey, unitLabel, round, score, dateStr, seconds);
+    pushUnitScore(unitLabel, unitLabel, round, score, dateStr, seconds);
   });
   // 최근에 다룬 단원이 먼저 보이도록 정렬 — "전체" 기간처럼 단원이 많을 때 최신순으로 우선 노출
   const unitScores = Object.values(unitScoreMap)

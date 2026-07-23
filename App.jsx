@@ -954,7 +954,7 @@ export default function App() {
             <div style={{ marginTop: '12px' }}>
               {activeSubTab.manage === 'students' && (dataReady
                 ? <React.Suspense fallback={<SkeletonBlock rows={5} cardHeight={56} />}>
-                    <StudentsView students={studentsWithContact} reports={reports} reviews={reviews} onSave={handleSaveStudent} onDelete={handleDeleteStudent} onRestore={handleRestoreStudent} teachers={teachers} classes={classes} currentTeacherId={userTeacherId} isDirector={isDirector} onToast={showAppToast} />
+                    <StudentsView students={studentsWithContact} reports={reports} reviews={reviews} onSave={handleSaveStudent} onDelete={handleDeleteStudent} onRestore={handleRestoreStudent} teachers={teachers} classes={classes} currentTeacherId={userTeacherId} isDirector={isDirector} onToast={showAppToast} academyName={academyName} />
                   </React.Suspense>
                 : <SkeletonBlock rows={5} cardHeight={56} />
               )}

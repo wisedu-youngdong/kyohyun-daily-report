@@ -685,6 +685,9 @@ export default function DiagnosticReportInput({
   };
 
   const removeOnePhoto = (idx) => {
+    // 사진 분석 결과가 이미 있으면(오답 태그/메모까지 입력했을 수 있음) 확인 없이 지우면
+    // 그 작업이 통째로 날아감 — 재분석 버튼과 동일하게 한 번 확인
+    if (photoAnalysis && !window.confirm('이 사진을 지우면 지금까지의 사진 분석 결과와 오답 태그/메모가 모두 초기화됩니다. 지울까요?')) return;
     setPhotos(prev => {
       const removed = prev[idx];
       if (removed?.preview?.startsWith('blob:')) {
@@ -2178,10 +2181,12 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
                 <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: s.cardSub, flexShrink: 0 }} />
                 <p style={{ fontSize: '12px', fontWeight: 700, color: s.cardText, margin: 0 }}>{attendance}</p>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: s.cardSub, flexShrink: 0 }} />
-                <p style={{ fontSize: '12px', fontWeight: 700, color: s.cardText, margin: 0 }}>{arrivalTime} 등원</p>
-              </div>
+              {attendance !== '결석' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: s.cardSub, flexShrink: 0 }} />
+                  <p style={{ fontSize: '12px', fontWeight: 700, color: s.cardText, margin: 0 }}>{arrivalTime} 등원</p>
+                </div>
+              )}
             </div>
 
             {/* 학습 범위 — 다크 */}

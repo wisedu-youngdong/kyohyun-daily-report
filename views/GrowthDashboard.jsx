@@ -4,7 +4,9 @@ import { DIAG_BADGE as DIAG_MAP, DIAG_LABELS as diagLabels } from '../diagnosis.
 import { useMediaQuery } from '../hooks.js';
 
 export default function GrowthDashboard({ reports, students }) {
-  const isMobile = !useMediaQuery('(min-width: 768px)');
+  // App.jsx의 isPc(900px)와 기준 통일 — 앱 전체에서 PC/모바일 판정 기준이 화면마다
+  // 제각각(768 vs 900)이면 중간 폭에서 레이아웃이 서로 어긋나는 문제가 생기기 쉬움
+  const isMobile = !useMediaQuery('(min-width: 900px)');
   const [period, setPeriod] = React.useState('week');
   const [sortMode, setSortMode] = React.useState('decline');
   const [selId, setSelId] = React.useState(null);
@@ -20,7 +22,8 @@ export default function GrowthDashboard({ reports, students }) {
   const getStudentReports = React.useCallback((studentId) => {
     const cutoff = Date.now() - PERIODS[period] * 24 * 60 * 60 * 1000;
     return reports
-      .filter(r => r.studentId === studentId && r.createdAt?.seconds * 1000 >= cutoff && r.conceptRating != null)
+      // 초안(isDraft)은 아직 발송 전 미완성 리포트라 성장 추이/평균에서 제외(AnalysisView와 동일 기준)
+      .filter(r => r.studentId === studentId && !r.isDraft && r.createdAt?.seconds * 1000 >= cutoff && r.conceptRating != null)
       .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0))
       // homeworkRating은 null(미입력)일 수 있는데 toPct(null)이 0을 돌려줘서 그대로 쓰면
       // "과제 0%"로 확정 표시되던 문제 — null은 그대로 보존

@@ -140,8 +140,10 @@ export default function HistoryView({ reports, students, classes = [], reportVie
     </div>
   );
 
-  // PC: 스플릿 뷰 / 모바일: 카드 리스트
-  const isMobile = !useMediaQuery('(min-width: 768px)');
+  // PC: 스플릿 뷰 / 모바일: 카드 리스트. App.jsx의 isPc(900px)와 기준을 맞춘다 — 예전엔 768px을
+  // 썼는데, 768~899px 구간에서 App은 여전히 모바일 헤더+하단 탭을 그리면서 여기는 PC 스플릿뷰를
+  // 그려서 하단 탭 위에 겹치고 108px 오프셋도 안 맞아 이중 스크롤이 생기던 버그가 있었음
+  const isMobile = !useMediaQuery('(min-width: 900px)');
   // 3분할(목록·본문·분석) 기준 — 목록 392 + 분석 360이 고정으로 들어가서 이보다 좁으면
   // 본문 읽을 폭이 안 나옴. 1280 미만에선 분석 패널이 본문 옆/아래로 wrap되는 기존 동작 유지.
   const isUltraWide = useMediaQuery('(min-width: 1280px)');

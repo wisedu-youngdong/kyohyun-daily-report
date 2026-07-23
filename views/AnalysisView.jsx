@@ -169,7 +169,9 @@ function InsightCard({ reports }) {
 
 export default function AnalysisView({ students, reports }) {
   const [selectedId, setSelectedId] = useState('');
-  const studentReports = reports.filter(r => r.studentId === selectedId);
+  // 초안(isDraft)은 아직 학부모에게 발송되지 않은 미완성 리포트라 통계에서 제외 —
+  // 안 하면 발송 80% + 초안 60% 같은 값이 섞여 평균이 실제보다 낮게 나옴(DirectorView와 동일 기준)
+  const studentReports = reports.filter(r => r.studentId === selectedId && !r.isDraft);
 
   // ── 기간 설정 (월간 고정 버튼 + 커스텀 기간) ──
   const [periodMode, setPeriodMode] = useState('all'); // all | thisMonth | lastMonth | custom

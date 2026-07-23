@@ -170,8 +170,12 @@ export default function PublicReport() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: 'question', academyId, questionId: questionRef.id }),
       }).catch(() => {});
+      // 새 질문을 목록에 바로 반영 — 안 하면 등록했는데도 화면엔 안 보여서 사라진 것처럼 느껴짐.
+      // 폼도 계속 보이게 해서(아래 JSX) 새로고침 없이 두 번째 질문도 바로 이어서 등록 가능
+      setQuestions(prev => [...prev, { id: questionRef.id, questionText: text, answerText: null }]);
       setQuestionText('');
       setQuestionSubmitted(true);
+      setTimeout(() => setQuestionSubmitted(false), 3000);
     } catch (e) {
       console.error('질문 등록 실패:', e);
       setQuestionError('질문 전송에 실패했어요. 잠시 후 다시 시도해주세요.');
@@ -276,7 +280,8 @@ export default function PublicReport() {
               <div style={{ padding: '0 8px', textAlign: 'center' }}>
                 <p style={{ fontSize: '10px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 4px' }}>출결</p>
                 <p style={{ fontSize: '16px', fontWeight: 800, color: r.attendance === '정시' ? positive : navy, margin: 0, lineHeight: '24px' }}>{r.attendance}</p>
-                <p style={{ fontSize: '12px', fontWeight: 600, color: inkSub, margin: '3px 0 0' }}>{r.arrivalTime} 등원</p>
+                {/* 결석은 등원 자체가 없었으니 등원 시각을 보여주면 "결석 / 15:30 등원"처럼 모순돼 보임 */}
+                {r.attendance !== '결석' && <p style={{ fontSize: '12px', fontWeight: 600, color: inkSub, margin: '3px 0 0' }}>{r.arrivalTime} 등원</p>}
               </div>
             </div>
 
@@ -447,25 +452,22 @@ export default function PublicReport() {
                   ))}
                 </div>
               )}
-              {questionSubmitted ? (
-                <p style={{ fontSize: '12px', color: positive, margin: 0 }}>질문이 전달됐어요. 선생님이 확인 후 답변드릴게요.</p>
-              ) : (
-                <>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <textarea
-                      value={questionText} onChange={e => setQuestionText(e.target.value)}
-                      placeholder="선생님께 궁금한 점을 남겨주세요" rows={2}
-                      style={{ flex: 1, padding: '8px 10px', fontSize: '16px', border: `1px solid ${rule}`, borderRadius: '8px', fontFamily: 'inherit', resize: 'vertical', lineHeight: 1.6, boxSizing: 'border-box' }}
-                    />
-                    <button onClick={handleAskQuestion} disabled={questionSubmitting || !questionText.trim()}
-                      style={{ padding: '12px 16px', minHeight: '44px', fontSize: '13px', fontWeight: 700, background: questionSubmitting || !questionText.trim() ? '#D1D5DB' : navy, color: '#fff', border: 'none', borderRadius: '8px', cursor: questionSubmitting || !questionText.trim() ? 'not-allowed' : 'pointer', fontFamily: 'inherit', alignSelf: 'flex-start', whiteSpace: 'nowrap' }}>
-                      {questionSubmitting ? '전송 중...' : '질문하기'}
-                    </button>
-                  </div>
-                  {questionError && (
-                    <p style={{ fontSize: '11px', color: '#B92C2C', margin: '6px 0 0' }}>{questionError}</p>
-                  )}
-                </>
+              {questionSubmitted && (
+                <p style={{ fontSize: '12px', color: positive, margin: '0 0 8px' }}>질문이 전달됐어요. 선생님이 확인 후 답변드릴게요.</p>
+              )}
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <textarea
+                  value={questionText} onChange={e => setQuestionText(e.target.value)}
+                  placeholder="선생님께 궁금한 점을 남겨주세요" rows={2}
+                  style={{ flex: 1, padding: '8px 10px', fontSize: '16px', border: `1px solid ${rule}`, borderRadius: '8px', fontFamily: 'inherit', resize: 'vertical', lineHeight: 1.6, boxSizing: 'border-box' }}
+                />
+                <button onClick={handleAskQuestion} disabled={questionSubmitting || !questionText.trim()}
+                  style={{ padding: '12px 16px', minHeight: '44px', fontSize: '13px', fontWeight: 700, background: questionSubmitting || !questionText.trim() ? '#D1D5DB' : navy, color: '#fff', border: 'none', borderRadius: '8px', cursor: questionSubmitting || !questionText.trim() ? 'not-allowed' : 'pointer', fontFamily: 'inherit', alignSelf: 'flex-start', whiteSpace: 'nowrap' }}>
+                  {questionSubmitting ? '전송 중...' : '질문하기'}
+                </button>
+              </div>
+              {questionError && (
+                <p style={{ fontSize: '11px', color: '#B92C2C', margin: '6px 0 0' }}>{questionError}</p>
               )}
             </div>
           </div>
