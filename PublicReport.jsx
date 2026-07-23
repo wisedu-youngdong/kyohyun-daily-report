@@ -212,8 +212,11 @@ export default function PublicReport() {
   const conceptTrend = (r.conceptRating != null && prevReport?.conceptRating != null)
     ? conceptPct - toPct(prevReport.conceptRating) : null;
 
-  // DS 토큰
-  const { navy, gold, rule, inkMute, inkSub, ink, positive, serif, body } = R;
+  // DS 토큰 — 주조색(navy)/포인트색(gold)은 리포트에 저장된 스킨이 있으면 그 색으로 교체.
+  // 스킨 없는 기존 리포트는 그대로 기본 네이비+골드 (작성 화면 픽커에서 저장한 skin.main/accent)
+  const { rule, inkMute, inkSub, ink, positive, serif, body } = R;
+  const navy = r.skin?.main || R.navy;
+  const gold = r.skin?.accent || R.gold;
 
   // 추세 배지 — 지난 리포트 대비 ▲/▼N%p, 변화 없으면 "동일"
   const TrendBadge = ({ trend }) => {
@@ -234,7 +237,7 @@ export default function PublicReport() {
               <div style={{ width: '4px', height: '20px', background: gold, borderRadius: '1px', flexShrink: 0 }} />
               <span style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.15em' }}>{academyName || '데일리 리포트 시스템'}</span>
             </div>
-            <div style={{ height: '1px', background: `rgba(201,162,39,0.3)`, marginBottom: '14px' }} />
+            <div style={{ height: '1px', background: `${gold}4D`, marginBottom: '14px' }} />
             {/* 학생 정보 */}
             <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
               <div>

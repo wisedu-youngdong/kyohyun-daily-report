@@ -159,6 +159,9 @@ function buildSkin(key, name, mainHex, accentHex) {
   const accent = accentHex || pale;
   return {
     key, name,
+    // 원본 색 2개 — 리포트 문서에 스킨을 저장할 때 이 값만 저장하고,
+    // PublicReport가 레터헤드 주조색(main)/포인트색(accent)으로 사용
+    main: mainHex, accent,
     headerBg:      `linear-gradient(155deg, ${dark}, ${mainHex}, ${toHex(r+20,g+20,b+20)})`,
     headerText:    '#ffffff',
     headerSub:     'rgba(255,255,255,0.85)',
@@ -271,7 +274,7 @@ export default function DiagnosticReportInput({
   // 스킨 기본값 — 관리>설정의 "학원 기본 스킨" 색상을 따름 (없으면 navy)
   const globalSkin = React.useMemo(() => {
     const c = localStorage.getItem('globalSkinColor');
-    return c ? { ...deriveColorsToSkin(c), key: 'global', name: '학원 기본', dots: [c] } : null;
+    return c ? { ...deriveColorsToSkin(c), key: 'global', name: '학원 기본', main: c, accent: null, dots: [c] } : null;
   }, []);
   const [selectedSkin, setSelectedSkin] = useState(globalSkin ? 'global' : 'navy');
   const autoSaveTimer = React.useRef(null);
@@ -466,6 +469,9 @@ export default function DiagnosticReportInput({
     setNextPlanDetail(editingReport.nextPlanDetail || '');
     setPhotoAnalysis(editingReport.photoAnalysis || null);
     setWrongItems(editingReport.wrongItems || []);
+    // 저장돼 있던 스킨 복원 — 안 하면 수정 후 재저장 때 픽커 기본값(navy)으로 덮여 스킨이 날아감
+    setSelectedSkin(editingReport.skin?.key && SKINS[editingReport.skin.key] ? editingReport.skin.key
+      : editingReport.skin?.key === 'global' && globalSkin ? 'global' : 'navy');
 
     // 기존 사진 유지 — photoUrls → photos 변환
     // photosRef도 함께 동기화해야 함 — MAX_PHOTOS 체크가 ref 기준이라, 안 하면
@@ -835,6 +841,15 @@ export default function DiagnosticReportInput({
         photoUrls,
         photoAnalysis: photoAnalysis || null,
         wrongItems: wrongItems.length > 0 ? wrongItems : null,
+        // 선택한 스킨을 문서에 저장 — PublicReport가 읽어서 레터헤드 색으로 반영.
+        // 우선순위는 미리보기(ParentCard)와 동일: 학생 개별 색 > 픽커 선택.
+        // 기본값(navy)은 저장 안 함 → 기존 리포트와 똑같이 PublicReport 기본색 사용
+        skin: (() => {
+          if (student?.skinColor) return { key: 'custom', main: student.skinColor, accent: null };
+          const sk = selectedSkin === 'global' && globalSkin ? globalSkin : SKINS[selectedSkin];
+          if (!sk || sk.key === 'navy') return null;
+          return { key: sk.key, main: sk.main || null, accent: sk.accent || null };
+        })(),
         isDraft: false, // 최종 저장 — 이 시점에 복습 일정 생성
       };
       reportPayload.points = calculateReportPoints(reportPayload);
