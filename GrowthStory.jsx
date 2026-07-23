@@ -4,7 +4,7 @@ import { db, auth } from './firebase';
 import { collection, getDoc, getDocs, query, where, doc, setDoc, limit } from 'firebase/firestore';
 import { ReportCard } from './tokens.jsx';
 import { toPct, isNewStudent as computeIsNewStudent, fetchAcademyBranding } from './growth.js';
-import { findUnitKey } from './curriculum.js';
+import { findUnitKey, extractUnitNumbers } from './curriculum.js';
 import { DIAG_LABELS as diagLabels, DIAG_SOFT as DIAG_COLORS } from './diagnosis.js';
 
 // 학부모에게 저장 즉시 노출되는 서사 문구 — 강사가 너무 길게/짧게 써서 카드 UI가
@@ -158,19 +158,40 @@ export default function GrowthStory() {
   };
 
   // 단원별 차수 점수 집계
+  //
+  // "2~3단원", "4단원,5단원"처럼 이름 없이 번호만 적은 리포트는 findUnitKey가 이름 기준
+  // 매칭이라 전혀 못 잡아서, 원문 그대로 따로 쪼개진 카드가 생기던 문제(views/StudentProfileModal.jsx
+  // "단원별 이해도"에서 41da598로 먼저 고친 것과 동일한 원인). 번호가 뽑히면 언급된 단원
+  // 전부에 이 시험 점수를 반영 — 그 시간에 실제로 다 다뤘을 테니 하나만 대표로 고르기보다
+  // 전부 반영하는 쪽을 택함. 번호가 없는 순수 단원명 텍스트는 기존 findUnitKey 경로 유지.
   const unitScoreMap = {};
+  const pushUnitScore = (groupKey, label, round, score, dateStr, seconds) => {
+    if (!unitScoreMap[groupKey]) unitScoreMap[groupKey] = { label, scores: [], lastSeconds: 0 };
+    unitScoreMap[groupKey].scores.push({ round, score, date: dateStr });
+    unitScoreMap[groupKey].lastSeconds = seconds || unitScoreMap[groupKey].lastSeconds;
+  };
   sorted.forEach(r => {
     if (!r.hasTest || !r.testScore) return;
     // unit → testName → textbook → '단원평가' 순으로 표시용 라벨 결정
-    // 그룹 키는 unitKey(표준 단원 정규화)를 우선 사용해, 강사마다 표기가 달라도(예: "3단원"/"소수의 나눗셈") 같은 단원으로 묶임
-    // unitKey가 없는 과거 리포트도 읽기 시점에 정규화 시도 — 구/신 데이터가 두 그룹으로 갈라지는 것 방지
     const unitLabel = (r.unit && r.unit.trim()) || (r.testName && r.testName.trim()) || (r.textbook && r.textbook.trim()) || '단원평가';
-    const groupKey = r.unitKey || findUnitKey(r.subject || '수학', r.unit || '') || unitLabel;
     const round = r.testRound || '';
     const score = Number(r.testScore);
-    if (!unitScoreMap[groupKey]) unitScoreMap[groupKey] = { label: unitLabel, scores: [], lastSeconds: 0 };
-    unitScoreMap[groupKey].scores.push({ round, score, date: fmtDate(r) });
-    unitScoreMap[groupKey].lastSeconds = r.createdAt?.seconds || unitScoreMap[groupKey].lastSeconds;
+    const dateStr = fmtDate(r);
+    const seconds = r.createdAt?.seconds || 0;
+
+    const unitNumbers = extractUnitNumbers(r.unit || '');
+    if (unitNumbers.length > 0) {
+      unitNumbers.forEach(num => {
+        const groupKey = `num|${r.subject || '수학'}|${r.textbook || ''}|${num}`;
+        const label = `${r.textbook ? r.textbook + ' · ' : ''}${num}단원`;
+        pushUnitScore(groupKey, label, round, score, dateStr, seconds);
+      });
+      return;
+    }
+    // 그룹 키는 unitKey(표준 단원 정규화)를 우선 사용해, 강사마다 표기가 달라도(예: "3단원"/"소수의 나눗셈") 같은 단원으로 묶임
+    // unitKey가 없는 과거 리포트도 읽기 시점에 정규화 시도 — 구/신 데이터가 두 그룹으로 갈라지는 것 방지
+    const groupKey = r.unitKey || findUnitKey(r.subject || '수학', r.unit || '') || unitLabel;
+    pushUnitScore(groupKey, unitLabel, round, score, dateStr, seconds);
   });
   // 최근에 다룬 단원이 먼저 보이도록 정렬 — "전체" 기간처럼 단원이 많을 때 최신순으로 우선 노출
   const unitScores = Object.values(unitScoreMap)
