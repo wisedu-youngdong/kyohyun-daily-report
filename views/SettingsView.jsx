@@ -294,6 +294,9 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
       await setDoc(doc(db, 'academies', trimmedId), {
         academyName: req.academyName, globalSkinColor: DEFAULT_SKIN_COLOR, createdAt: serverTimestamp(),
         onboardingPromptShown: false,
+        // 가입 신청서에서 고른 초기값 — 이후엔 설정 화면에서 언제든 변경 가능(위 "리포트 작성 방식" 카드).
+        // 구 신청 문서(이 필드 추가 전)는 undefined일 수 있어 매일형으로 방어
+        ...(req.reportMode === 'weekly' ? { reportMode: 'weekly' } : {}),
       });
       // 3. 원장 본인의 teachers 레코드
       const teacherRef = await addDoc(collection(db, 'academies', trimmedId, 'teachers'), {
@@ -1154,6 +1157,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                         <p style={{ fontSize: '11px', color: '#374151', margin: 0 }}><strong>사업자등록번호</strong> {req.businessNumber}</p>
                         <p style={{ fontSize: '11px', color: '#374151', margin: 0 }}><strong>주소</strong> {req.address} {req.addressDetail}</p>
                         <p style={{ fontSize: '11px', color: '#374151', margin: 0 }}><strong>대표전화</strong> {req.academyPhone} · <strong>이메일</strong> {req.email}</p>
+                        <p style={{ fontSize: '11px', color: '#374151', margin: 0 }}><strong>희망 리포트 방식</strong> {req.reportMode === 'weekly' ? '주간형' : '매일형'}</p>
 
                         {req.status === 'pending' && (
                           <>

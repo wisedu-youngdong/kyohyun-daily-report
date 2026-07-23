@@ -26,6 +26,7 @@ export default function SignupRequestScreen() {
   const [addressDetail, setAddressDetail] = useState('');
   const [academyPhone, setAcademyPhone] = useState('');
   const [directorName, setDirectorName] = useState('');
+  const [reportMode, setReportMode] = useState('daily');
   const [agreed, setAgreed] = useState(false);
 
   const isValid = email.trim() && password.length >= 6 && password === confirmPassword
@@ -77,6 +78,7 @@ export default function SignupRequestScreen() {
         academyName: academyName.trim(), businessNumber: businessNumber.trim(),
         address: address.trim(), addressDetail: addressDetail.trim(),
         academyPhone: academyPhone.trim(), directorName: directorName.trim(),
+        reportMode, // 승인 시 academies/{id}.reportMode 초기값으로 그대로 반영 — 설정에서 언제든 변경 가능
         status: 'pending', createdAt: serverTimestamp(),
       });
       await signOut(auth);
@@ -217,6 +219,31 @@ export default function SignupRequestScreen() {
                 <label style={labelStyle}>*원장명</label>
                 <input value={directorName} onChange={e => setDirectorName(e.target.value)}
                   onFocus={focusInput} onBlur={blurInput} placeholder="홍길동" style={inputStyle} />
+              </div>
+              <div style={fieldWrap}>
+                <label style={labelStyle}>*리포트 작성 방식</label>
+                <p style={{ fontSize: '11px', color: R.inkMute, margin: '0 0 8px', lineHeight: 1.6 }}>
+                  나중에 설정에서 언제든 바꿀 수 있어요. 잘 모르겠으면 매일형으로 시작하세요.
+                </p>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {[
+                    { key: 'daily', label: '매일형', desc: '학생별 매일 개인화 리포트' },
+                    { key: 'weekly', label: '주간형', desc: '수업마다 메모 → 원장이 모아 주 1회 발송' },
+                  ].map(opt => {
+                    const active = reportMode === opt.key;
+                    return (
+                      <button key={opt.key} type="button" onClick={() => setReportMode(opt.key)}
+                        style={{
+                          flex: 1, textAlign: 'left', padding: '10px 12px', borderRadius: '6px',
+                          border: active ? `1.5px solid ${R.navy}` : `1px solid ${R.rule}`,
+                          background: active ? `${R.navy}0D` : '#fff', cursor: 'pointer', fontFamily: R.body,
+                        }}>
+                        <p style={{ fontSize: '12px', fontWeight: 700, color: active ? R.navy : R.ink, margin: '0 0 2px' }}>{opt.label}</p>
+                        <p style={{ fontSize: '10px', color: R.inkMute, margin: 0, lineHeight: 1.5 }}>{opt.desc}</p>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '12px', color: R.inkSub, margin: '18px 0 16px', cursor: 'pointer', lineHeight: 1.6 }}>
