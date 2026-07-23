@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Pencil } from 'lucide-react';
 import { toPct } from '../growth.js';
-import { findUnitKey } from '../curriculum.js';
+import { findUnitKey, extractUnitNumbers } from '../curriculum.js';
 import { DIAG_LABELS as diagLabels, DIAG_BADGE as DIAG_MAP, DIAG_SOFT } from '../diagnosis.js';
 import { C } from '../tokens.jsx';
 
@@ -55,10 +55,27 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
   // AnalysisView.jsx의 "단원별 정답률"은 시험 점수(hasTest)만 쓰지만, 시험이 매번 있는 게
   // 아니라 데이터가 성겨서(sparse) — 상담용 히트맵은 거의 매 리포트에 있는 conceptRating으로
   // 계산해 단원 커버리지를 넓힘.
+  //
+  // "2~3단원", "4단원,5단원"처럼 번호만 적고 이름은 안 적은 리포트는 findUnitKey가 이름
+  // 기준이라 전혀 못 잡아서 원문 그대로 따로 쪼개지는 카드가 생겼음(예: "4단원,5단원" 카드가
+  // "4단원"/"5단원" 카드와 별개로 존재). 번호가 뽑히면 언급된 단원 전부에 각각 반영 —
+  // 그 시간에 실제로 다 다뤘을 테니 하나만 대표로 고르기보다 전부 반영하는 쪽을 택함.
+  // 번호가 없는 순수 단원명 텍스트("소수의 나눗셈" 등)는 기존처럼 이름 기준 정규화 유지.
   const unitAccuracy = (() => {
     const map = {};
     sorted.forEach(r => {
       if (r.conceptRating == null) return;
+      const unitNumbers = extractUnitNumbers(r.unit || '');
+      if (unitNumbers.length > 0) {
+        unitNumbers.forEach(num => {
+          const key = `num|${r.subject || '수학'}|${r.textbook || ''}|${num}`;
+          const name = `${r.textbook ? r.textbook + ' · ' : ''}${num}단원`;
+          if (!map[key]) map[key] = { name, sum: 0, count: 0 };
+          map[key].sum += r.conceptRating;
+          map[key].count += 1;
+        });
+        return;
+      }
       const label = [r.textbook, r.unit].filter(Boolean).join(' · ');
       if (!label) return;
       const key = r.unitKey || findUnitKey(r.subject || '수학', r.unit || '') || label;

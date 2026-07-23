@@ -113,6 +113,33 @@ export function findUnitKey(subject, freeText, preferredCourse = null) {
   return best ? best.key : null;
 }
 
+// 단원 "번호"만 뽑아내는 헬퍼 — findUnitKey는 이름 기준 매칭이라 강사가 이름 없이
+// 번호만 적은 경우("2~3단원", "4단원,5단원")는 전혀 못 잡아서, 그런 리포트가 통계에서
+// 원문 그대로 따로따로 쪼개지는 문제가 있었음(단원별 이해도 카드가 "4단원,5단원" 식으로
+// 원문째 하나의 그룹이 되어버림). 번호 단위로 잘게 쪼개 여러 단원 통계에 각각 반영할 수
+// 있도록 숫자만 뽑아 배열로 돌려준다. 이름 매칭(findUnitKey)이 이미 성공하는 케이스는
+// 건드리지 않고, 번호가 있는 텍스트만 이 경로를 탄다 — 호출부에서 분기해서 사용.
+//
+// "2~3단원"/"2-3단원" 같은 범위 표기는 그 사이 번호를 전부 펼침(최대 10개 — 오타로
+// 너무 큰 범위가 들어와 폭주하는 것 방지). "4단원,5단원"처럼 쉼표/공백으로 나열된 건
+// 전역 정규식이 각각 매치하므로 별도 분리 로직 없이 다 잡힘.
+export function extractUnitNumbers(freeText) {
+  if (!freeText) return [];
+  const numbers = new Set();
+  const withoutRanges = freeText.replace(/(\d+)\s*[~-]\s*(\d+)\s*단원/g, (_, a, b) => {
+    const start = parseInt(a, 10);
+    const end = parseInt(b, 10);
+    if (!Number.isNaN(start) && !Number.isNaN(end) && end >= start && end - start <= 10) {
+      for (let n = start; n <= end; n++) numbers.add(String(n));
+    }
+    return ''; // 범위로 이미 처리한 부분은 지워서 아래 단일 패턴이 중복으로 다시 못 잡게
+  });
+  let match;
+  const singleRe = /(\d+)\s*단원/g;
+  while ((match = singleRe.exec(withoutRanges))) numbers.add(match[1]);
+  return Array.from(numbers).sort((a, b) => Number(a) - Number(b));
+}
+
 // 자동완성 제안: 특정 코스의 단원 목록 반환 (칩 UI용)
 export function getUnits(subject, course) {
   return CURRICULUM[subject]?.[course] || [];
