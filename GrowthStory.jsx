@@ -244,9 +244,12 @@ export default function GrowthStory() {
   const hwAvg = hwRated.length > 0
     ? Math.round(hwRated.reduce((s, r) => s + r.homeworkRating, 0) / hwRated.length)
     : null;
-  // 지각 횟수 — KEY METRICS "총 수업 횟수" 카드에 지각 몇 회인지, 0회면 칭찬 문구로 보여주려고.
+  // 출석 요약 — KEY METRICS 맨 아래 카드가 결석 유무/지각 유무에 따라 3가지로 갈림
   // (기존 allAttended는 attendance값이 '정시'/'지각'/'결석'/... 인데 '출석'과 비교해서 항상 false였던 죽은 코드였음)
+  const onTimeCount = sorted.filter(r => r.attendance === '정시').length;
   const lateCount = sorted.filter(r => r.attendance === '지각').length;
+  const absentCount = sorted.filter(r => r.attendance === '결석').length;
+  const attendanceRate = sorted.length > 0 ? Math.round(onTimeCount / sorted.length * 100) : 0;
 
   // 공통 변수
   const firstPerfect = sorted.find(r => r.conceptRating >= 100);
@@ -897,41 +900,106 @@ export default function GrowthStory() {
         </div>
         );
 
-        const keyMetricsContent = (
+        const keyMetricsContent = (() => {
+        // 세로 리스트 — 예전엔 2x2 타일이었는데, 프레임 높이가 마일스톤 페이지 기준으로
+        // 고정돼 있어서 짧은 통계 4개만으로는 위아래에 빈 여백이 크게 남았음. 한 줄짜리
+        // 카드 4개로 바꾸면 그 높이를 자연스럽게 채우고, 맨 아래 출석 카드도 더 크게 보여줄 수 있음.
+        const tileStyle = { background: '#F7F5F1', borderRadius: '8px', padding: '13px 14px', borderLeft: '2px solid #C9A227' };
+        const rowStyle = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' };
+        const labelStyle = { fontSize: '12px', fontWeight: 600, color: '#2C2C2C', margin: '0 0 3px' };
+        const captionStyle = { fontSize: '12px', color: '#2C2C2C', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' };
+        const numStyle = { fontSize: '22px', fontWeight: 800, color: '#0D2D6B', flexShrink: 0, lineHeight: 1 };
+        const unitStyle = { fontSize: '11px', color: '#5C5C5C', fontWeight: 600 };
+
+        return (
       <div style={S.section}>
         <p style={S.label}>KEY METRICS</p>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {maxScore && (
-            <div style={{ background: '#F7F5F1', borderRadius: '6px', padding: '14px', borderLeft: '2px solid #C9A227' }}>
-              <p style={{ fontSize: '12px', color: '#8A8A8A', fontWeight: 600, marginBottom: '6px' }}>최고 단원평가</p>
-              <p style={{ fontSize: '22px', fontWeight: 800, color: '#0D2D6B' }}>{maxScore}<span style={{ fontSize: '11px', color: '#8A8A8A' }}>점</span></p>
-              <p style={{ fontSize: '11px', color: '#B0B0B0', marginTop: '2px' }}>
-                {maxScoreReport ? [maxScoreReport.unit || maxScoreReport.textbook, fmtDate(maxScoreReport)].filter(Boolean).join(' · ') : '100점 만점'}
-              </p>
+            <div style={tileStyle}>
+              <div style={rowStyle}>
+                <div style={{ minWidth: 0 }}>
+                  <p style={labelStyle}>최고 단원평가</p>
+                  <p style={captionStyle}>
+                    {maxScoreReport && <span style={{ color: '#8A6412', fontWeight: 700 }}>{fmtDate(maxScoreReport)}</span>}
+                    {maxScoreReport && (maxScoreReport.unit || maxScoreReport.textbook) ? ' · ' : ''}
+                    {maxScoreReport?.unit || maxScoreReport?.textbook || '100점 만점'}
+                  </p>
+                </div>
+                <span style={numStyle}>{maxScore}<span style={unitStyle}>점</span></span>
+              </div>
             </div>
           )}
           {hwAvg && (
-            <div style={{ background: '#F7F5F1', borderRadius: '6px', padding: '14px', borderLeft: '2px solid #C9A227' }}>
-              <p style={{ fontSize: '12px', color: '#8A8A8A', fontWeight: 600, marginBottom: '6px' }}>과제 수행 평균</p>
-              <p style={{ fontSize: '22px', fontWeight: 800, color: '#0D2D6B' }}>{hwAvg}<span style={{ fontSize: '11px', color: '#8A8A8A' }}>%</span></p>
-              <p style={{ fontSize: '11px', color: '#B0B0B0', marginTop: '2px' }}>{hwRated.length}회 평균 · 담당교사 관찰</p>
+            <div style={tileStyle}>
+              <div style={rowStyle}>
+                <div style={{ minWidth: 0 }}>
+                  <p style={labelStyle}>과제 수행 평균</p>
+                  <p style={captionStyle}>{hwRated.length}회 평균 · 담당교사 관찰</p>
+                </div>
+                <span style={numStyle}>{hwAvg}<span style={unitStyle}>%</span></span>
+              </div>
             </div>
           )}
-          <div style={{ background: '#F7F5F1', borderRadius: '6px', padding: '14px', borderLeft: '2px solid #C9A227' }}>
-            <p style={{ fontSize: '12px', color: '#8A8A8A', fontWeight: 600, marginBottom: '6px' }}>총 수업 횟수</p>
-            <p style={{ fontSize: '22px', fontWeight: 800, color: '#0D2D6B' }}>{sorted.length}<span style={{ fontSize: '11px', color: '#8A8A8A' }}>회</span></p>
-            <p style={{ fontSize: '11px', color: '#B0B0B0', marginTop: '2px' }}>{lateCount === 0 ? '지각 한 번도 없어요!' : `지각 ${lateCount}회`}</p>
-          </div>
           {avgScore && (
-            <div style={{ background: '#F7F5F1', borderRadius: '6px', padding: '14px', borderLeft: '2px solid #C9A227' }}>
-              <p style={{ fontSize: '12px', color: '#8A8A8A', fontWeight: 600, marginBottom: '6px' }}>전체 시험 평균</p>
-              <p style={{ fontSize: '22px', fontWeight: 800, color: '#0D2D6B' }}>{avgScore}<span style={{ fontSize: '11px', color: '#8A8A8A' }}>점</span></p>
-              <p style={{ fontSize: '11px', color: '#B0B0B0', marginTop: '2px' }}>{allScores.length}회 시험 평균</p>
+            <div style={tileStyle}>
+              <div style={rowStyle}>
+                <div style={{ minWidth: 0 }}>
+                  <p style={labelStyle}>전체 시험 평균</p>
+                  <p style={captionStyle}>{allScores.length}회 시험 평균</p>
+                </div>
+                <span style={numStyle}>{avgScore}<span style={unitStyle}>점</span></span>
+              </div>
             </div>
           )}
+
+          {/* 출석 카드 — 결석 있으면 3색 비율 막대, 지각만 있으면 출석/지각 필, 개근이면 칭찬 문구 */}
+          <div style={tileStyle}>
+            {absentCount > 0 ? (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: '#0D2D6B', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#fff', fontSize: '16px', fontWeight: 800 }}>{sorted.length}</div>
+                  <div style={{ minWidth: 0 }}>
+                    <p style={labelStyle}>총 {sorted.length}회 수업 · 출석률 {attendanceRate}%</p>
+                    <p style={captionStyle}>{fmtDate(sorted[0])} – {fmtDate(sorted[sorted.length - 1])} 기준</p>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', height: '6px', borderRadius: '5px', overflow: 'hidden', gap: '2px', marginTop: '10px' }}>
+                  <div style={{ flex: onTimeCount || 0.0001, background: '#0D2D6B' }} />
+                  <div style={{ flex: lateCount || 0.0001, background: '#C9A227' }} />
+                  <div style={{ flex: absentCount, background: '#A32D2D' }} />
+                </div>
+                <div style={{ display: 'flex', gap: '12px', marginTop: '7px', fontSize: '10px', fontWeight: 600 }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '3px', color: '#0D2D6B' }}><i style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#0D2D6B', display: 'inline-block' }} />출석 {onTimeCount}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '3px', color: '#8A6412' }}><i style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#C9A227', display: 'inline-block' }} />지각 {lateCount}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '3px', color: '#A32D2D' }}><i style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#A32D2D', display: 'inline-block' }} />결석 {absentCount}</span>
+                </div>
+              </>
+            ) : lateCount > 0 ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: '#0D2D6B', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#fff', fontSize: '16px', fontWeight: 800 }}>{sorted.length}</div>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <p style={labelStyle}>총 {sorted.length}회 수업 · 출석 {onTimeCount}</p>
+                  <div style={{ display: 'flex', gap: '6px', marginTop: '6px' }}>
+                    <span style={{ fontSize: '10px', fontWeight: 700, color: '#0D2D6B', background: '#E8EEFA', padding: '2px 8px', borderRadius: '20px' }}>출석 {onTimeCount}</span>
+                    <span style={{ fontSize: '10px', fontWeight: 700, color: '#8A6412', background: '#FBF1DE', padding: '2px 8px', borderRadius: '20px' }}>지각 {lateCount}</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: '#C9A227', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#fff', fontSize: '16px', fontWeight: 800 }}>{sorted.length}</div>
+                <div style={{ minWidth: 0 }}>
+                  <p style={labelStyle}>총 {sorted.length}회 수업 · 개근</p>
+                  <p style={{ fontSize: '11px', color: '#8A6412', fontWeight: 700, margin: 0 }}>지각 한 번도 없어요!</p>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
         );
+        })();
 
         // 4페이지 — 선생님 한마디 + 다음 목표 (둘 다 항상 존재, fallback 문구 있음)
         const teacherWordContent = (
