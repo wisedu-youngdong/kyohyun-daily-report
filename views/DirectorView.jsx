@@ -523,11 +523,20 @@ export default function DirectorView({ reports, students, classes = [], reportVi
                     </span>
                   ) : <span />}
 
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setProfileStudent({ id: r.studentId, name: r.studentName }); }}
-                    style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 700, background: '#EAF0F9', color: '#1A5CB8', border: '1px solid #1A5CB8', borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                    종합 프로필
-                  </button>
+                  <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setProfileStudent({ id: r.studentId, name: r.studentName }); }}
+                      style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 700, background: '#EAF0F9', color: '#1A5CB8', border: '1px solid #1A5CB8', borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                      종합 프로필
+                    </button>
+                    {/* 원장분석에서 성장 포트폴리오로 갈 방법이 없었음 — 성장 대시보드/학생관리
+                        탭까지 넘어가야 했던 걸 여기서 바로 열게 함 */}
+                    <a href={`/story/${r.studentId}?edit=1`} target="_blank" rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 700, background: '#FBF1DE', color: '#8A6412', border: '1px solid #8A6412', borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0, textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>
+                      성장 포트폴리오
+                    </a>
+                  </div>
                 </div>
               </div>
 
