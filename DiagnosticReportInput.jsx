@@ -10,7 +10,7 @@ const getHeic2any = async () => {
   return heic2anyLib;
 };
 import React, { useState, useMemo, useEffect } from 'react';
-import { useMediaQuery } from './hooks.js';
+import { useMediaQuery, useEscapeClose } from './hooks.js';
 import {
   User, Clock,
   FileText, Sparkles, Send, Plus, X, Check,
@@ -200,9 +200,10 @@ export const SKINS = {
 
 // 공통 중앙 알림 모달
 function AlertModal({ message, onClose }) {
+  useEscapeClose(onClose, !!message);
   if (!message) return null;
   return (
-    <div style={{
+    <div role="dialog" aria-modal="true" style={{
       position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
       background: 'rgba(0,0,0,0.45)', zIndex: 99999,
       display: 'flex', alignItems: 'center', justifyContent: 'center',

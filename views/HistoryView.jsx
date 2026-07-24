@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Pencil, Trash2, AlertTriangle, Link as LinkIcon } from 'lucide-react';
 import { toPct, fmtPages } from '../growth.js';
 import { DIAG_LABELS, DIAG_SOFT as DIAG_COLORS } from '../diagnosis.js';
-import { useMediaQuery } from '../hooks.js';
+import { useMediaQuery, useEscapeClose } from '../hooks.js';
 import { C } from '../tokens.jsx';
 
 export default function HistoryView({ reports, students, classes = [], reportViews = [], onDelete, onEdit, onBulkDelete }) {
@@ -17,6 +17,11 @@ export default function HistoryView({ reports, students, classes = [], reportVie
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
   const [copied, setCopied] = useState(false);
   const [trendTooltip, setTrendTooltip] = useState(null); // { x, y, text }
+
+  // 모달 Escape 닫기 — 3개 오버레이(일괄삭제 확인/모바일 바텀시트/삭제 확인, PC·모바일 공용)
+  useEscapeClose(() => setBulkDeleteConfirm(false), bulkDeleteConfirm);
+  useEscapeClose(() => setSelectedId(null), !!selectedId);
+  useEscapeClose(() => setDeleteConfirmReport(null), !!deleteConfirmReport);
 
   const draftCount = reports.filter(r => r.isDraft).length;
 
@@ -117,7 +122,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
 
   // 일괄 삭제 확인 모달 — 데스크톱/모바일 공용
   const renderBulkDeleteConfirm = () => bulkDeleteConfirm && (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 10002, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+    <div role="dialog" aria-modal="true" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 10002, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
       <div style={{ background: '#fff', borderRadius: '16px', padding: '28px 24px', width: '100%', maxWidth: '340px' }}>
         <div style={{ width: '44px', height: '44px', background: C.warningBg, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
           <AlertTriangle size={20} color={C.warningText} />
@@ -197,7 +202,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
 
         {/* 모바일 바텀시트 */}
         {selectedId && selected && (
-          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999 }} onClick={() => setSelectedId(null)}>
+          <div role="dialog" aria-modal="true" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999 }} onClick={() => setSelectedId(null)}>
             <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: '#fff', borderRadius: '20px 20px 0 0', maxHeight: '85vh', overflowY: 'auto', padding: '20px' }} onClick={e => e.stopPropagation()}>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px' }}>
@@ -274,7 +279,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
 
         {/* 삭제 확인 모달 */}
         {deleteConfirmReport && deleteTarget && (
-          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div role="dialog" aria-modal="true" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
             <div style={{ background: '#fff', borderRadius: '16px', padding: '28px 24px', width: '100%', maxWidth: '320px' }}>
               <div style={{ width: '44px', height: '44px', background: '#FEE2E2', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
                 <Trash2 size={20} color={C.danger} />
@@ -663,7 +668,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
 
       {/* PC 삭제 확인 모달 */}
       {deleteConfirmReport && deleteTarget && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+        <div role="dialog" aria-modal="true" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
           <div style={{ background: '#fff', borderRadius: '16px', padding: '28px 24px', width: '100%', maxWidth: '320px', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
             <div style={{ width: '44px', height: '44px', background: '#FEE2E2', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
               <Trash2 size={20} color={C.danger} />

@@ -3,6 +3,7 @@ import { UserPlus, Pencil, X, Plus, Check } from 'lucide-react';
 import { formatPhone, isValidPhone } from '../phone.js';
 import { C, RADIUS2, SHADOW } from '../tokens.jsx';
 import { AVATARS, PRESET_SKINS } from './shared.jsx';
+import { useEscapeClose } from '../hooks.js';
 
 function FieldLabel({ children }) {
   return <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 700, margin: '0 0 5px' }}>{children}</p>;
@@ -46,6 +47,7 @@ const miniAddButtonStyle = {
 // 등록은 빠른 입력을 위해 필수 정보만, 수정은 아바타/스킨 커스터마이징까지 노출.
 // (예전엔 StudentModal(등록)과 StudentEditModal(수정) 두 벌로 거의 같은 폼이 중복돼 있었음)
 export function StudentModal({ student, onClose, onSubmit, teachers = [], classes = [], isDirector = false }) {
+  useEscapeClose(onClose);
   const isEdit = !!student;
   const [name, setName] = useState(student?.name || '');
   const [school, setSchool] = useState(student?.school || '');
@@ -117,7 +119,7 @@ export function StudentModal({ student, onClose, onSubmit, teachers = [], classe
   const showTeacherPicker = teachers.length > 0 && isDirector && !classId;
 
   return (
-    <div style={overlayStyle} onClick={onClose}>
+    <div role="dialog" aria-modal="true" style={overlayStyle} onClick={onClose}>
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
         <div style={modalHeaderStyle}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

@@ -4,6 +4,7 @@ import { collection, addDoc, doc, getDoc, getDocs, setDoc, serverTimestamp, getC
 import { Pencil, AlertTriangle, Check, HelpCircle, X } from 'lucide-react';
 import { T, C } from '../tokens.jsx';
 import { PRESET_SKINS } from './shared.jsx';
+import { useEscapeClose } from '../hooks.js';
 
 const DEFAULT_SKIN_COLOR = '#1A2540';
 
@@ -209,6 +210,9 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
   const [gradeBumpPreview, setGradeBumpPreview] = React.useState(null); // null 또는 { changes, skipped }
   const [gradeBumping, setGradeBumping] = React.useState(false);
   const [gradeBumpResult, setGradeBumpResult] = React.useState('');
+  // 모달 Escape 닫기 — 학년 올리기는 처리 중(gradeBumping)엔 오버레이 클릭과 동일하게 닫기 차단
+  useEscapeClose(() => setShowLogoDeleteConfirm(false), showLogoDeleteConfirm);
+  useEscapeClose(() => setGradeBumpPreview(null), !!gradeBumpPreview && !gradeBumping);
 
   const handlePreviewGradeBump = () => {
     setGradeBumpResult('');
@@ -786,7 +790,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
 
       {/* 로고 삭제 확인 모달 — 헤더 전체에 반영되는 변화라 인라인 재클릭보다 명확하게 */}
       {showLogoDeleteConfirm && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '20px', backdropFilter: 'blur(4px)' }}
+        <div role="dialog" aria-modal="true" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '20px', backdropFilter: 'blur(4px)' }}
           onClick={() => setShowLogoDeleteConfirm(false)}>
           <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: '16px', padding: '28px 24px', width: '100%', maxWidth: '320px', textAlign: 'center', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
             <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: C.dangerBg, border: `2px solid ${C.danger}`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px', fontSize: '22px', color: C.danger, fontWeight: 700 }}>!</div>
@@ -1080,7 +1084,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
 
       {/* 학년 올리기 미리보기 모달 */}
       {gradeBumpPreview && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '20px', backdropFilter: 'blur(4px)' }}
+        <div role="dialog" aria-modal="true" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '20px', backdropFilter: 'blur(4px)' }}
           onClick={() => !gradeBumping && setGradeBumpPreview(null)}>
           <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '420px', maxHeight: '80vh', overflow: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
             <p style={{ fontSize: '15px', fontWeight: 700, margin: '0 0 4px' }}>학년을 올릴까요?</p>
