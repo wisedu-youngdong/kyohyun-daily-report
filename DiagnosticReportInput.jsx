@@ -284,9 +284,11 @@ export default function DiagnosticReportInput({
   const [studentId, setStudentId] = useState('');
   const [teacherId, setTeacherId] = useState('');
   const [curriculumCourseOverride, setCurriculumCourseOverride] = useState(null);
-  const [showAllCourses, setShowAllCourses] = useState(false);
-  // null = 자동(최근 이력 없을 때만 펼침), true/false = 사용자가 직접 토글한 값
-  const [showCoursePicker, setShowCoursePicker] = useState(null);
+  // 표준 단원표 오버레이 — 예전 인라인 칩 벽(24개 과정 펼침) 방식이 리포트 작성 중에
+  // 너무 불편하다는 피드백으로 교체: 폼엔 "찾기" 버튼 한 줄만, 누르면 검색+탐색 오버레이
+  const [unitPickerOpen, setUnitPickerOpen] = useState(false);
+  const [unitPickerSearch, setUnitPickerSearch] = useState('');
+  const [unitPickerCourse, setUnitPickerCourse] = useState(null); // 오버레이 안에서 보고 있는 과정
 
   const [attendance, setAttendance] = useState('정시');
   const [arrivalTime, setArrivalTime] = useState('15:30');
@@ -464,7 +466,7 @@ export default function DiagnosticReportInput({
     setTestRound(editingReport.testRound || '');
     setTextbook(editingReport.textbook || '');
     setSubject(editingReport.subject || '수학');
-    setCurriculumCourseOverride(null); setShowAllCourses(false); setShowCoursePicker(null);
+    setCurriculumCourseOverride(null); setUnitPickerOpen(false); setUnitPickerCourse(null);
     setUnit(editingReport.unit || '');
     setPages(editingReport.pages || '');
     setSelectedTags(editingReport.diagnosis || []);
@@ -841,7 +843,7 @@ export default function DiagnosticReportInput({
         setStudentId(''); setHomeworkRating(null); setConceptRating(null);
         setHasTest(false); setTestName(''); setTestScore(''); setTestRound('');
         setTextbook(''); setSubject('수학'); setUnit(''); setPages('');
-        setCurriculumCourseOverride(null); setShowAllCourses(false); setShowCoursePicker(null);
+        setCurriculumCourseOverride(null); setUnitPickerOpen(false); setUnitPickerCourse(null);
         setSelectedTags([]); setTeacherNote(''); setAiPolishedNote('');
         setAttendance('정시'); setArrivalTime('15:30');
         removeAllPhotos();
@@ -888,7 +890,7 @@ export default function DiagnosticReportInput({
       setStudentId(''); setHomeworkRating(null); setConceptRating(null);
       setHasTest(false); setTestName(''); setTestScore(''); setTestRound('');
       setTextbook(''); setSubject('수학'); setUnit(''); setPages('');
-      setCurriculumCourseOverride(null); setShowAllCourses(false); setShowCoursePicker(null);
+      setCurriculumCourseOverride(null); setUnitPickerOpen(false); setUnitPickerCourse(null);
       setSelectedTags([]); setTeacherNote(''); setAiPolishedNote('');
       setNextPlan(''); setNextPlanDetail('');
       removeAllPhotos();
@@ -1043,7 +1045,7 @@ export default function DiagnosticReportInput({
                 setHomeworkRating(null); setConceptRating(null);
                 setHasTest(false); setTestScore(''); setTestName(''); setTestRound('');
                 setTextbook(''); setSubject('수학'); setUnit(''); setPages('');
-                setCurriculumCourseOverride(null); setShowAllCourses(false); setShowCoursePicker(null);
+                setCurriculumCourseOverride(null); setUnitPickerOpen(false); setUnitPickerCourse(null);
                 setTeacherNote(''); setSelectedTags([]);
                 setAiPolishedNote('');
                 setNextPlan(''); setNextPlanDetail('');
@@ -1208,7 +1210,7 @@ export default function DiagnosticReportInput({
                     const subjects = academySubjects && academySubjects.length ? academySubjects : ['수학', '영어', '기타'];
                     return subjects.map((label, i) => ({ label, color: SUBJECT_COLOR_MAP[label] || SUBJECT_FALLBACK_COLORS[i % SUBJECT_FALLBACK_COLORS.length] }));
                   })().map(({ label, color }) => (
-                    <button key={label} onClick={() => { setSubject(label); setCurriculumCourseOverride(null); setShowAllCourses(false); setShowCoursePicker(null); }}
+                    <button key={label} onClick={() => { setSubject(label); setCurriculumCourseOverride(null); setUnitPickerOpen(false); setUnitPickerCourse(null); }}
                       style={{
                         display: 'flex', alignItems: 'center', gap: 0,
                         padding: 0, border: `1px solid ${subject === label ? color : '#E5E7EB'}`,
@@ -1261,93 +1263,120 @@ export default function DiagnosticReportInput({
                     </div>
                   );
                 })()}
-                {/* 표준 단원표 제안 — 최근 이력이 있으면 기본적으로 접어둠(중복 정보라 화면만 차지),
-                    이력이 없는 신규 학생은 추천할 게 이것뿐이라 자동으로 펼침 */}
-                {(() => {
+                {/* 표준 단원표 — 예전엔 인라인 칩 벽(펼치기→전체 학년 보기→24개 과정)이었는데
+                    리포트 작성 중 불편이 커서 오버레이(검색+탐색)로 교체. 폼엔 이 버튼 한 줄만 */}
+                {getCourses(subject).length > 0 && (
+                  <button type="button"
+                    onClick={() => { setUnitPickerSearch(''); setUnitPickerCourse(curriculumCourseOverride || guessCourseKey(subject, student?.school)); setUnitPickerOpen(true); }}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '5px', marginBottom: '8px',
+                      padding: '6px 13px', borderRadius: '8px', border: `1px solid ${TOKENS.brand}`,
+                      background: '#E6F1FB', color: TOKENS.brand, fontSize: '12px', fontWeight: 700,
+                      cursor: 'pointer', fontFamily: 'inherit',
+                    }}>
+                    🔍 표준 단원표에서 찾기
+                  </button>
+                )}
+                <input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="예: 3단원 소수의 나눗셈" style={inputStyle} />
+
+                {/* 단원 선택 오버레이 — 상단 검색(전 과정 즉시 필터) + 초/중/고 탭 → 과정 칩 → 단원 목록 */}
+                {unitPickerOpen && (() => {
                   const courses = getCourses(subject);
-                  if (courses.length === 0) return null;
-                  const isOpen = showCoursePicker != null ? showCoursePicker : recentUnits.length === 0;
-                  if (!isOpen) {
-                    return (
-                      <button type="button" onClick={() => setShowCoursePicker(true)}
-                        style={{ background: 'none', border: 'none', color: TOKENS.brand, fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', padding: '2px 0', marginBottom: '4px' }}>
-                        표준 단원표에서 찾기 ›
-                      </button>
-                    );
-                  }
+                  const groupOf = (c) => c.startsWith('고등') ? '고등' : c.startsWith('중') ? '중등' : c.startsWith('초') ? '초등' : '';
+                  const levels = [...new Set(courses.map(groupOf).filter(Boolean))];
                   const guessedCourse = guessCourseKey(subject, student?.school);
-                  const activeCourse = curriculumCourseOverride || guessedCourse;
-                  const units = activeCourse ? getUnits(subject, activeCourse) : [];
-                  // 코스가 많을 때(수학 24개) 기본으로는 추정 학년 앞뒤 학기만 보여주고, 필요하면 전체 펼치기
-                  const activeIdx = activeCourse ? courses.indexOf(activeCourse) : -1;
-                  const canNarrow = courses.length > 6 && activeIdx >= 0;
-                  const visibleCourses = (showAllCourses || !canNarrow)
-                    ? courses
-                    : courses.slice(Math.max(0, activeIdx - 1), activeIdx + 2);
+                  const activeCourse = (unitPickerCourse && courses.includes(unitPickerCourse)) ? unitPickerCourse : (courses.includes(guessedCourse) ? guessedCourse : courses[0]);
+                  const activeLevel = groupOf(activeCourse);
+                  const q = unitPickerSearch.trim();
+                  const hits = q
+                    ? courses.flatMap(c => getUnits(subject, c).filter(u => u.includes(q)).map(u => [c, u]))
+                    : null;
+                  const pickUnit = (c, u) => {
+                    setUnit(u);
+                    // 추정 과정과 다른 과정에서 골랐으면 override로 기억해야 unitKey 매칭이 정확해짐
+                    setCurriculumCourseOverride(c === guessedCourse ? null : c);
+                    setUnitPickerOpen(false);
+                  };
+                  const unitBtnStyle = (on) => ({
+                    textAlign: 'left', padding: '11px 13px', borderRadius: '9px',
+                    border: `1px solid ${on ? TOKENS.info : TOKENS.border}`,
+                    background: on ? TOKENS.info : '#fff', color: on ? '#fff' : TOKENS.text,
+                    fontSize: '13.5px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                  });
                   return (
-                    <div style={{ marginBottom: '8px' }}>
-                      <button type="button" onClick={() => setShowCoursePicker(false)}
-                        style={{ background: 'none', border: 'none', color: TOKENS.textMute, fontSize: '10px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', padding: 0, marginBottom: '6px' }}>
-                        ‹ 표준 단원표 접기
-                      </button>
-                      {/* 코스 칩 — 항상 노출해 추정이 틀렸을 때(복습, 학기 경계 등) 직접 바꿀 수 있게 */}
-                      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '5px', marginBottom: units.length > 0 ? '5px' : 0 }}>
-                        {(() => {
-                          let lastGroup = null;
-                          const groupOf = (c) => c.startsWith('고등') ? '고등' : c.startsWith('중') ? '중등' : c.startsWith('초') ? '초등' : '';
-                          return visibleCourses.map(c => {
-                            const group = groupOf(c);
-                            // "전체 학년 보기"로 펼쳤을 때만 학교급 사이에 얇은 구분선 표시 — 평시엔 그대로 pill만
-                            const showDivider = showAllCourses && group && group !== lastGroup;
-                            lastGroup = group;
-                            return (
-                              <React.Fragment key={c}>
-                                {showDivider && (
-                                  <div style={{ flexBasis: '100%', display: 'flex', alignItems: 'center', gap: '6px', margin: '4px 0 1px' }}>
-                                    <span style={{ fontSize: '9px', fontWeight: 700, color: TOKENS.textMute, letterSpacing: '0.05em' }}>{group}</span>
-                                    <div style={{ flex: 1, height: '1px', background: TOKENS.border }} />
-                                  </div>
-                                )}
-                                <button type="button" onClick={() => setCurriculumCourseOverride(prev => prev === c ? null : c)}
-                                  style={{
-                                    padding: '3px 9px', borderRadius: `${RADIUS2.chip}px`, border: `1px solid ${TOKENS.border}`,
-                                    background: activeCourse === c ? TOKENS.info : TOKENS.bg,
-                                    color: activeCourse === c ? '#fff' : TOKENS.textSub,
-                                    fontSize: '10px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-                                  }}>{c}</button>
-                              </React.Fragment>
-                            );
-                          });
-                        })()}
-                        {canNarrow && (
-                          <button type="button" onClick={() => setShowAllCourses(v => !v)}
-                            style={{
-                              padding: '3px 9px', borderRadius: `${RADIUS2.chip}px`, border: '1px dashed #C9C9C9',
-                              background: '#fff', color: '#6C7586', fontSize: '10px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-                            }}>{showAllCourses ? '접기' : '전체 학년 보기'}</button>
-                        )}
-                      </div>
-                      {units.length > 0 && (
-                        <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: `1px solid ${TOKENS.border}` }}>
-                          {/* 단원이 어느 코스 소속인지 캡션으로 명시 — 목록이 길 때 바로 위 항목 소속처럼 보이는 착시 방지 */}
-                          <p style={{ fontSize: '10px', fontWeight: 700, color: TOKENS.brand, margin: '0 0 6px' }}>▸ {activeCourse} 단원</p>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
-                          {units.map(u => (
-                            <button key={u} type="button" onClick={() => setUnit(u)}
-                              style={{
-                                padding: '4px 10px', borderRadius: `${RADIUS2.chip}px`, border: `1px solid ${unit === u ? TOKENS.info : TOKENS.border}`,
-                                background: unit === u ? TOKENS.info : TOKENS.bgSoft,
-                                color: unit === u ? '#fff' : TOKENS.textSub,
-                                fontSize: '11px', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
-                              }}>{u}</button>
-                          ))}
+                    <div onClick={(e) => { if (e.target === e.currentTarget) setUnitPickerOpen(false); }}
+                      style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', zIndex: 1000, display: 'flex', alignItems: isWide ? 'center' : 'flex-end', justifyContent: 'center', padding: isWide ? '24px' : 0 }}>
+                      <div style={{ background: '#fff', width: '100%', maxWidth: '520px', borderRadius: isWide ? '16px' : '18px 18px 0 0', maxHeight: isWide ? '80vh' : '86dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                        <div style={{ padding: '16px 18px 0' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                            <p style={{ fontSize: '14px', fontWeight: 800, margin: 0 }}>표준 단원표에서 찾기</p>
+                            <button type="button" onClick={() => setUnitPickerOpen(false)}
+                              style={{ width: '36px', height: '36px', border: 'none', background: 'none', color: '#9AA0AA', fontSize: '20px', cursor: 'pointer', borderRadius: '8px' }}>✕</button>
                           </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', border: `1.5px solid ${TOKENS.brand}`, borderRadius: '10px', padding: '9px 12px', marginBottom: '12px' }}>
+                            <span style={{ color: TOKENS.brand, flexShrink: 0, fontSize: '14px' }}>🔍</span>
+                            <input autoFocus value={unitPickerSearch} onChange={(e) => setUnitPickerSearch(e.target.value)}
+                              placeholder="단원 이름 검색 (예: 나눗셈, 닮음)"
+                              style={{ flex: 1, border: 'none', outline: 'none', fontSize: '16px', fontFamily: 'inherit', minWidth: 0, background: 'transparent' }} />
+                          </div>
+                          {!q && levels.length >= 2 && (
+                            <div style={{ display: 'flex', background: TOKENS.bgSoft, border: `1px solid ${TOKENS.border}`, borderRadius: '10px', padding: '3px', marginBottom: '10px' }}>
+                              {levels.map(l => (
+                                <button key={l} type="button"
+                                  onClick={() => { const first = courses.find(c => groupOf(c) === l); if (first) setUnitPickerCourse(groupOf(activeCourse) === l ? activeCourse : first); }}
+                                  style={{ flex: 1, padding: '8px 0', border: 'none', borderRadius: '8px', background: activeLevel === l ? TOKENS.brand : 'transparent', fontSize: '12.5px', fontWeight: 700, color: activeLevel === l ? '#fff' : TOKENS.textSub, cursor: 'pointer', fontFamily: 'inherit' }}>
+                                  {l}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          {!q && (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: '4px' }}>
+                              {courses.filter(c => levels.length < 2 || groupOf(c) === activeLevel).map(c => (
+                                <button key={c} type="button" onClick={() => setUnitPickerCourse(c)}
+                                  style={{
+                                    padding: '5px 11px', borderRadius: '14px', border: `1px solid ${c === activeCourse ? TOKENS.info : TOKENS.border}`,
+                                    background: c === activeCourse ? TOKENS.info : '#fff', color: c === activeCourse ? '#fff' : TOKENS.textSub,
+                                    fontSize: '11.5px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                                  }}>
+                                  {c.replace('고등-', '')}{c === guessedCourse ? ' ★' : ''}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      )}
+                        <div style={{ padding: '4px 18px 18px', overflowY: 'auto', flex: 1 }}>
+                          {q ? (
+                            hits.length === 0 ? (
+                              <p style={{ fontSize: '12px', color: TOKENS.textMute, textAlign: 'center', padding: '24px 0' }}>"{q}" 단원을 못 찾았어요 — 철자를 바꿔보거나 검색어를 지우고 직접 찾아보세요</p>
+                            ) : (
+                              <>
+                                <p style={{ fontSize: '11px', fontWeight: 700, color: TOKENS.brand, margin: '10px 0 7px' }}>검색 결과 {hits.length}건 (전체 과정)</p>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                  {hits.map(([c, u]) => (
+                                    <button key={`${c}|${u}`} type="button" onClick={() => pickUnit(c, u)} style={unitBtnStyle(unit === u && activeCourse === c)}>
+                                      {u}
+                                      <span style={{ display: 'block', fontSize: '10.5px', color: unit === u && activeCourse === c ? 'rgba(255,255,255,0.75)' : TOKENS.textMute, fontWeight: 500, marginTop: '2px' }}>{c}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              </>
+                            )
+                          ) : (
+                            <>
+                              <p style={{ fontSize: '11px', fontWeight: 700, color: TOKENS.brand, margin: '10px 0 7px' }}>▸ {activeCourse} 단원{activeCourse === guessedCourse ? ' (학생 학년 기준 추천)' : ''}</p>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                {getUnits(subject, activeCourse).map(u => (
+                                  <button key={u} type="button" onClick={() => pickUnit(activeCourse, u)} style={unitBtnStyle(unit === u)}>{u}</button>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   );
                 })()}
-                <input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="예: 3단원 소수의 나눗셈" style={inputStyle} />
                 <div style={{ height: '8px' }} />
                 <FieldLabel>학습 범위</FieldLabel>
                 <input value={pages} onChange={(e) => setPages(e.target.value)} placeholder="예: 111, 114, 124쪽 / 24~32쪽" style={inputStyle} />
