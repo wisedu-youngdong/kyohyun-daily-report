@@ -220,7 +220,7 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
                         </span>
                       ) : null
                     ))}
-                    {Object.keys(monthCounts).length === 0 && <span style={{ fontSize: '11px', color: '#B0B0B0' }}>이번 달 출결 기록이 없어요</span>}
+                    {Object.keys(monthCounts).length === 0 && <span style={{ fontSize: '11px', color: '#757575' }}>이번 달 출결 기록이 없어요</span>}
                   </div>
                 ) : (
                   <>
@@ -242,7 +242,7 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
                             borderRadius: '8px', background: att ? `${ATTEND_COLORS[att] || C.warningText}12` : 'transparent',
                             border: isToday ? `1.5px solid ${C.info}` : '1px solid transparent',
                           }}>
-                            <span style={{ fontSize: '11px', fontWeight: att ? 700 : 400, color: att ? (ATTEND_COLORS[att] || '#374151') : '#C0C0C0' }}>{day}</span>
+                            <span style={{ fontSize: '11px', fontWeight: att ? 700 : 400, color: att ? (ATTEND_COLORS[att] || '#374151') : '#757575' }}>{day}</span>
                             {att && <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: ATTEND_COLORS[att] || C.warningText, marginTop: '2px' }} />}
                           </div>
                         );
@@ -368,7 +368,7 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
                         </div>
                         <span style={{ fontSize: '12px', fontWeight: 700, color: tag.bg, flexShrink: 0 }}>{count}회</span>
                         <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" style={{ flexShrink: 0, transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
-                          <path d="M3 4.5L6 7.5L9 4.5" stroke="#8A8A8A" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                          <path d="M3 4.5L6 7.5L9 4.5" stroke="#757575" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       </div>
                       {isOpen && (
@@ -538,11 +538,11 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
                     </svg>
                     <div style={{ flex: 1 }}>
                       <p style={{ fontSize: '13px', fontWeight: 600, color: '#2C2C2C', margin: '0 0 2px' }}>링크 복사</p>
-                      <p style={{ fontSize: '11px', color: '#8A8A8A', margin: 0 }}>/story/{student.id.slice(0, 8)}...</p>
+                      <p style={{ fontSize: '11px', color: '#757575', margin: 0 }}>/story/{student.id.slice(0, 8)}...</p>
                     </div>
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
-                      <rect x="5" y="5" width="8" height="8" rx="1" stroke="#8A8A8A" strokeWidth="1.2"/>
-                      <path d="M3 11V3h8" stroke="#8A8A8A" strokeWidth="1.2" strokeLinecap="round"/>
+                      <rect x="5" y="5" width="8" height="8" rx="1" stroke="#757575" strokeWidth="1.2"/>
+                      <path d="M3 11V3h8" stroke="#757575" strokeWidth="1.2" strokeLinecap="round"/>
                     </svg>
                   </button>
 
@@ -577,7 +577,7 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
                     </div>
                   )}
 
-                  <p style={{ fontSize: '10px', color: '#B0B0B0', margin: '4px 0 0', textAlign: 'center' }}>
+                  <p style={{ fontSize: '10px', color: '#757575', margin: '4px 0 0', textAlign: 'center' }}>
                     링크 열람 시 ?src 파라미터로 유입 경로 추적 가능
                   </p>
                 </div>

@@ -230,7 +230,7 @@ export default function DirectorView({ reports, students, classes = [], reportVi
                         style={{
                           background: confirmDeleteQuestionId === q.id ? C.danger : 'none', border: 'none', borderRadius: '6px',
                           padding: confirmDeleteQuestionId === q.id ? '2px 8px' : 0,
-                          color: confirmDeleteQuestionId === q.id ? '#fff' : '#B0B5BD', fontSize: '11px', fontWeight: 700,
+                          color: confirmDeleteQuestionId === q.id ? '#fff' : '#6B7280', fontSize: '11px', fontWeight: 700,
                           cursor: deletingQuestionId === q.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
                         }}>
                         {deletingQuestionId === q.id ? '삭제 중' : confirmDeleteQuestionId === q.id ? '확인' : '삭제'}
@@ -289,7 +289,7 @@ export default function DirectorView({ reports, students, classes = [], reportVi
                           style={{
                             background: confirmDeleteQuestionId === q.id ? C.danger : 'none', border: 'none', borderRadius: '6px',
                             padding: confirmDeleteQuestionId === q.id ? '2px 8px' : 0, flexShrink: 0,
-                            color: confirmDeleteQuestionId === q.id ? '#fff' : '#B0B5BD', fontSize: '11px', fontWeight: 700,
+                            color: confirmDeleteQuestionId === q.id ? '#fff' : '#6B7280', fontSize: '11px', fontWeight: 700,
                             cursor: deletingQuestionId === q.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
                           }}>
                           {deletingQuestionId === q.id ? '삭제 중' : confirmDeleteQuestionId === q.id ? '확인' : '삭제'}
@@ -369,7 +369,7 @@ export default function DirectorView({ reports, students, classes = [], reportVi
       {/* 헤더 */}
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', marginBottom: '20px' }}>
         <div>
-          <p style={{ fontSize: '11px', color: '#B0B5BD', letterSpacing: '0.06em', textTransform: 'uppercase', margin: '0 0 4px' }}>학부모 공유</p>
+          <p style={{ fontSize: '11px', color: '#6B7280', letterSpacing: '0.06em', textTransform: 'uppercase', margin: '0 0 4px' }}>학부모 공유</p>
           <p style={{ fontFamily: R.serif, fontSize: '22px', fontWeight: 800, color: '#1A1A1A', letterSpacing: '-0.01em', margin: 0 }}>원장님 데일리 보고서</p>
         </div>
         <div>

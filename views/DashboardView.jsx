@@ -389,7 +389,7 @@ export default function DashboardView({ students, reports, classes = [], reportV
             </button>
           )}
           {/* 대기가 유일한 '할 일' 신호 — 완료보다 눈에 띄어야 함 */}
-          <span style={{ fontSize: '12.5px', fontWeight: 800, flexShrink: 0, color: done ? '#3F6B49' : '#B08A3A' }}>{done ? '완료 ✓' : '대기'}</span>
+          <span style={{ fontSize: '12.5px', fontWeight: 800, flexShrink: 0, color: done ? '#3F6B49' : '#8A6412' }}>{done ? '완료 ✓' : '대기'}</span>
         </div>
       );
     });

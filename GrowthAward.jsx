@@ -94,14 +94,14 @@ export default function GrowthAward() {
   );
 
   if (loadError) return (
-    <div style={{ height: '100dvh', background: '#060E1F', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '10px', color: '#8A8A8A', fontSize: '14px', fontFamily: R.body }}>
+    <div style={{ height: '100dvh', background: '#060E1F', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '10px', color: '#757575', fontSize: '14px', fontFamily: R.body }}>
       <p style={{ margin: 0 }}>정보를 불러오지 못했습니다.</p>
       <button onClick={() => setRetryKey(k => k + 1)} style={{ padding: '9px 20px', background: R.gold, color: '#1A1A1A', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>다시 시도</button>
     </div>
   );
 
   if (!student) return (
-    <div style={{ height: '100dvh', background: '#060E1F', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8A8A8A', fontSize: '14px' }}>
+    <div style={{ height: '100dvh', background: '#060E1F', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#757575', fontSize: '14px' }}>
       학생 정보를 찾을 수 없습니다.
     </div>
   );

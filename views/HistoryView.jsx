@@ -621,7 +621,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
                         </div>
                       );
                     })}
-                    <p style={{ fontSize: '9px', color: '#B0B0B0', margin: 0 }}>금색 = 현재 보는 리포트 · 점에 마우스를 올리면 상세가 보여요</p>
+                    <p style={{ fontSize: '9px', color: '#757575', margin: 0 }}>금색 = 현재 보는 리포트 · 점에 마우스를 올리면 상세가 보여요</p>
                   </div>
                 )}
 
