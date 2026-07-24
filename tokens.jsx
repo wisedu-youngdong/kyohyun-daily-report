@@ -34,8 +34,10 @@ export const T = {
 };
 
 // 학부모 리포트 화면(PublicReport/GrowthStory) 팔레트
+// goldText — gold(#C9A227)를 흰 배경 위 작은 글씨 색으로 쓰면 대비 2.4:1로 낙제라서
+// (WCAG 4.5:1 기준) 텍스트 전용으로 어둡게 낮춘 값. gold 자체는 테두리/배경/장식용으로 유지.
 export const R = {
-  navy: '#0D2D6B', gold: '#C9A227', rule: '#E8E6E0',
+  navy: '#0D2D6B', gold: '#C9A227', goldText: '#8A6500', rule: '#E8E6E0',
   inkMute: '#6B7785', inkSub: '#5A6472', ink: '#1A1A1A', positive: '#1E6B4E',
   serif: "'Noto Serif KR', serif",
   body: "'Pretendard Variable', Pretendard, sans-serif",
@@ -76,6 +78,32 @@ export const FONT = {
   body: "'Pretendard Variable', Pretendard, sans-serif",
   serif: R.serif,
 };
+
+// 학생이 직접 고른 스킨의 accent 색(skin.accent)은 배경/테두리용 옅은 톤도 섞여있어
+// (예: '#EDEBE6', '#F0E8FF') 그대로 텍스트 색으로 쓰면 흰 배경 위에서 거의 안 보일 수 있다.
+// WCAG 4.5:1을 만족할 때까지 채널을 어둡게 낮춰서 "그 스킨의 포인트색 느낌은 유지하되
+// 읽을 수는 있는" 텍스트 색을 돌려준다. R.gold처럼 고정값은 R.goldText로 미리 계산해뒀지만,
+// 학생별 커스텀 accent처럼 런타임에만 알 수 있는 색은 이 함수로 즉석 계산해야 한다.
+function relLuminance(hex) {
+  const n = hex.replace('#', '');
+  const chan = (v) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+  return 0.2126 * chan(parseInt(n.slice(0, 2), 16)) + 0.7152 * chan(parseInt(n.slice(2, 4), 16)) + 0.0722 * chan(parseInt(n.slice(4, 6), 16));
+}
+function contrastRatio(hexA, hexB) {
+  const [l1, l2] = [relLuminance(hexA), relLuminance(hexB)].sort((a, b) => b - a);
+  return (l1 + 0.05) / (l2 + 0.05);
+}
+export function textSafeColor(hex, bg = '#ffffff', target = 4.5) {
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return hex;
+  if (contrastRatio(hex, bg) >= target) return hex;
+  let [r, g, b] = [hex.slice(1, 3), hex.slice(3, 5), hex.slice(5, 7)].map((h) => parseInt(h, 16));
+  for (let i = 0; i < 20; i++) {
+    r = Math.max(0, r - 12); g = Math.max(0, g - 12); b = Math.max(0, b - 12);
+    const candidate = '#' + [r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('');
+    if (contrastRatio(candidate, bg) >= target) return candidate;
+  }
+  return '#000000';
+}
 
 // 학부모 리포트 공용 카드 래퍼 — 연한 배경 위 중앙 정렬된 흰 카드
 export function ReportCard({ children, maxWidth = '390px', fontFamily = R.body }) {

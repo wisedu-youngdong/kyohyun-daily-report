@@ -151,7 +151,7 @@ export function StudentModal({ student, onClose, onSubmit, teachers = [], classe
                 <button key={key} onClick={() => setStudentType(key)}
                   style={{
                     flex: 1, padding: '10px 12px', border: 'none', cursor: 'pointer',
-                    background: studentType === key ? C.info : '#fff',
+                    background: studentType === key ? C.infoDark : '#fff',
                     color: studentType === key ? '#fff' : '#6B7280',
                     fontFamily: 'inherit', transition: 'all 0.15s',
                     borderRight: key === 'new' ? '1px solid #E5E7EB' : 'none',
@@ -221,7 +221,7 @@ export function StudentModal({ student, onClose, onSubmit, teachers = [], classe
                   style={{
                     flex: 1, padding: '8px 0', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit',
                     border: scheduleDays.includes(d) ? 'none' : '1px solid #E5E7EB',
-                    background: scheduleDays.includes(d) ? C.info : '#fff',
+                    background: scheduleDays.includes(d) ? C.infoDark : '#fff',
                     color: scheduleDays.includes(d) ? '#fff' : '#6B7280',
                     fontSize: '12px', fontWeight: 700, transition: 'all 0.15s',
                   }}>

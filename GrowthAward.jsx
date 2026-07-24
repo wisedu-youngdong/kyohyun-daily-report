@@ -149,8 +149,8 @@ export default function GrowthAward() {
                   borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: 'clamp(10px, 1.4vw, 13px)', fontWeight: 700,
                   background: m.active ? 'linear-gradient(135deg, #C9A227, #E8C547)' : m.done ? 'rgba(13,45,107,0.6)' : 'transparent',
-                  border: `2px solid ${m.active ? R.gold : m.done ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)'}`,
-                  color: m.active ? '#fff' : m.done ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.2)',
+                  border: `2px solid ${m.active ? R.gold : m.done ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.2)'}`,
+                  color: m.active ? '#fff' : m.done ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.5)',
                   boxShadow: m.active ? '0 0 0 6px rgba(201,162,39,0.2), 0 0 30px rgba(201,162,39,0.4)' : 'none',
                 }}>
                   {m.active

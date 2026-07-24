@@ -244,7 +244,7 @@ export default function DashboardView({ students, reports, classes = [], reportV
             <div key={section.studentName + si}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 2px 8px' }}>
                 <span style={{ fontSize: '15px', fontWeight: 800, color: '#2A2724' }}>{section.studentName}</span>
-                <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#fff', background: '#B7AE9C', padding: '1px 7px', borderRadius: '20px' }}>{section.groups.length}건</span>
+                <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#fff', background: '#777165', padding: '1px 7px', borderRadius: '20px' }}>{section.groups.length}건</span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '9px' }}>
                 {section.groups.map(group => {

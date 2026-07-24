@@ -865,7 +865,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
 
         {/* 파생 색상 미리보기 */}
         <div style={{ background: '#F8F6FC', borderRadius: '12px', padding: '12px', marginBottom: '14px' }}>
-          <p style={{ fontSize: '9px', fontWeight: 700, color: '#B0A0C8', letterSpacing: '0.1em', marginBottom: '8px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>자동 파생 색상</p>
+          <p style={{ fontSize: '9px', fontWeight: 700, color: '#7A6B99', letterSpacing: '0.1em', marginBottom: '8px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>자동 파생 색상</p>
           {[
             { label: '헤더 배경', color: globalColor },
             { label: '다크 카드', color: globalColor },
@@ -877,7 +877,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
               <span style={{ fontSize: '11px', fontWeight: 600, color: '#6B7280', flex: 1 }}>{item.label}</span>
               {item.text
                 ? <span style={{ fontSize: '9px', fontWeight: 700, color: '#6B3FA0', background: '#F0E8FF', padding: '2px 7px', borderRadius: '6px' }}>{item.text}</span>
-                : <span style={{ fontSize: '10px', fontWeight: 600, color: '#B0A0C8', fontFamily: 'monospace' }}>{item.color}</span>
+                : <span style={{ fontSize: '10px', fontWeight: 600, color: '#7A6B99', fontFamily: 'monospace' }}>{item.color}</span>
               }
             </div>
           ))}

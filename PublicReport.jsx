@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { db } from './firebase';
 import { doc, getDoc, collection, addDoc, serverTimestamp, getDocs, query, where, limit } from 'firebase/firestore';
-import { R, ReportCard } from './tokens.jsx';
+import { R, ReportCard, textSafeColor } from './tokens.jsx';
 import { toPct, ratingLabel, fetchAcademyBranding } from './growth.js';
 import { DIAG_BADGE } from './diagnosis.js';
 
@@ -221,6 +221,9 @@ export default function PublicReport() {
   const { rule, inkMute, inkSub, ink, positive, serif, body } = R;
   const navy = r.skin?.main || R.navy;
   const gold = r.skin?.accent || R.gold;
+  // 텍스트 색으로 쓸 땐 gold를 그대로 쓰지 않는다 — 학생이 고른 스킨의 accent가
+  // 배경/테두리용 옅은 톤(예: '#EDEBE6')일 수도 있어서, 그대로 쓰면 흰 배경 위에서 안 보임
+  const goldText = r.skin?.accent ? textSafeColor(gold) : R.goldText;
 
   // 추세 배지 — 지난 리포트 대비 ▲/▼N%p, 변화 없으면 "동일"
   const TrendBadge = ({ trend }) => {
@@ -352,7 +355,7 @@ export default function PublicReport() {
             {r.teacherNote && (
               <>
                 <div style={{ borderLeft: `3px solid ${gold}`, paddingLeft: '13px', marginBottom: '18px' }}>
-                  <p style={{ fontSize: '9px', fontWeight: 700, color: gold, letterSpacing: '0.12em', margin: '0 0 7px' }}>TEACHER'S NOTE</p>
+                  <p style={{ fontSize: '9px', fontWeight: 700, color: goldText, letterSpacing: '0.12em', margin: '0 0 7px' }}>TEACHER'S NOTE</p>
                   {r.teacherNote.split('\n').filter(Boolean).map((para, i) => (
                     <p key={i} style={{ fontSize: '13px', color: ink, margin: i === 0 ? '0 0 10px' : '0', lineHeight: 1.9, fontWeight: 500 }}>{para}</p>
                   ))}

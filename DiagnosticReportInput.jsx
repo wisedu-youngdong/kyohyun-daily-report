@@ -1255,7 +1255,7 @@ export default function DiagnosticReportInput({
                         <button key={i} onClick={() => { setTextbook(item.textbook); setUnit(item.unit); }}
                           style={{
                             padding: '4px 10px', borderRadius: `${RADIUS2.chip}px`, border: '1px solid #E5E7EB',
-                            background: (textbook === item.textbook && unit === item.unit) ? TOKENS.info : '#F9FAFB',
+                            background: (textbook === item.textbook && unit === item.unit) ? TOKENS.infoDark : '#F9FAFB',
                             color: (textbook === item.textbook && unit === item.unit) ? '#fff' : '#374151',
                             fontSize: '11px', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
                             maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
@@ -1303,7 +1303,7 @@ export default function DiagnosticReportInput({
                   const unitBtnStyle = (on) => ({
                     textAlign: 'left', padding: '11px 13px', borderRadius: '9px',
                     border: `1px solid ${on ? TOKENS.info : TOKENS.border}`,
-                    background: on ? TOKENS.info : '#fff', color: on ? '#fff' : TOKENS.text,
+                    background: on ? TOKENS.infoDark : '#fff', color: on ? '#fff' : TOKENS.text,
                     fontSize: '13.5px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
                   });
                   return (
@@ -1339,7 +1339,7 @@ export default function DiagnosticReportInput({
                                 <button key={c} type="button" onClick={() => setUnitPickerCourse(c)}
                                   style={{
                                     padding: '5px 11px', borderRadius: '14px', border: `1px solid ${c === activeCourse ? TOKENS.info : TOKENS.border}`,
-                                    background: c === activeCourse ? TOKENS.info : '#fff', color: c === activeCourse ? '#fff' : TOKENS.textSub,
+                                    background: c === activeCourse ? TOKENS.infoDark : '#fff', color: c === activeCourse ? '#fff' : TOKENS.textSub,
                                     fontSize: '11.5px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
                                   }}>
                                   {c.replace('고등-', '')}{c === guessedCourse ? ' ★' : ''}
@@ -2077,7 +2077,7 @@ export default function DiagnosticReportInput({
                     }}
                   >
                     <div style={{ width: '100%', height: '18px', borderRadius: '5px', background: sk.dots[0], marginBottom: '2px' }}></div>
-                    <span style={{ fontSize: '8px', fontWeight: 700, color: selectedSkin === sk.key ? TOKENS.infoDark : TOKENS.textSub, textAlign: 'center', lineHeight: 1.3 }}>{sk.name}</span>
+                    <span style={{ fontSize: '10px', fontWeight: 700, color: selectedSkin === sk.key ? TOKENS.infoDark : TOKENS.textSub, textAlign: 'center', lineHeight: 1.3 }}>{sk.name}</span>
                   </button>
                 ))}
               </div>

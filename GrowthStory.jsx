@@ -570,7 +570,7 @@ export default function GrowthStory() {
           <span style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.16em' }}>{academyName || '데일리 리포트 시스템'}</span>
         </div>
         <div style={{ height: '1px', background: 'rgba(201,162,39,0.2)', marginBottom: '20px' }} />
-        <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.18em', fontWeight: 600, marginBottom: '6px' }}>GROWTH PORTFOLIO</p>
+        <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.6)', letterSpacing: '0.18em', fontWeight: 600, marginBottom: '6px' }}>GROWTH PORTFOLIO</p>
         <p style={{ fontSize: '26px', fontWeight: 700, color: '#fff', letterSpacing: '-0.5px', marginBottom: '4px' }}>{student.name}의 성장 포트폴리오</p>
         <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginBottom: '16px' }}>{periodLabel}</p>
 
@@ -650,7 +650,7 @@ export default function GrowthStory() {
                   : <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><circle cx="4" cy="4" r="2" fill={R.navy}/></svg>
                 }
               </div>
-              <p style={{ fontSize: '10px', fontWeight: 700, color: R.gold, letterSpacing: '0.14em', marginBottom: '3px' }}>{m.phase}</p>
+              <p style={{ fontSize: '10px', fontWeight: 700, color: R.goldText, letterSpacing: '0.14em', marginBottom: '3px' }}>{m.phase}</p>
               <span style={{ fontSize: '11px', color: '#757575', fontWeight: 500, marginBottom: '4px', display: 'block' }}>{m.date}</span>
               <p style={{ fontSize: '13px', fontWeight: 700, color: R.navy, margin: '0 0 4px' }}>{m.title}</p>
 
@@ -682,7 +682,7 @@ export default function GrowthStory() {
                     )}
                     {m.realData.testScore && (
                       <span style={{ fontSize: '12px', color: '#374151' }}>
-                        시험 <strong style={{ color: R.gold }}>{m.realData.testScore}점</strong>
+                        시험 <strong style={{ color: R.goldText }}>{m.realData.testScore}점</strong>
                       </span>
                     )}
                   </div>
@@ -1073,7 +1073,7 @@ export default function GrowthStory() {
         const teacherWordContent = (
       <div style={{ background: R.navy, padding: '24px 22px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-          <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.14em', fontWeight: 600 }}>TEACHER'S WORD</p>
+          <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.6)', letterSpacing: '0.14em', fontWeight: 600 }}>TEACHER'S WORD</p>
           {isEditor && narrative && (
             <div style={{ display: 'flex', gap: '6px' }}>
               <button onClick={() => startEdit('teacherWord')}
@@ -1105,7 +1105,7 @@ export default function GrowthStory() {
               : `${student.name}이(가) 바뀐 건 점수가 아닙니다. 문제를 스스로 바라보는 시선이 바뀌었습니다.`)}
           </p>
         )}
-        <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', textAlign: 'right' }}>
+        <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.65)', textAlign: 'right' }}>
           {teacherDisplay}
         </p>
       </div>
