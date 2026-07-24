@@ -6,7 +6,7 @@ import { kstDay, toPct, ratingLabel } from '../growth.js';
 import { DIAG_BADGE as DIAG_MAP } from '../diagnosis.js';
 import { C, R } from '../tokens.jsx';
 import { StudentProfileModal } from './StudentProfileModal.jsx';
-import { groupByClassId } from './shared.jsx';
+import { groupByClassId, onKeyActivate } from './shared.jsx';
 
 // 두 Firestore Timestamp(초 단위) 사이 경과 시간을 "N분/N시간/N일" 중 가장 자연스러운 단위로 표시
 function formatElapsed(fromSeconds, toSeconds) {
@@ -462,9 +462,11 @@ export default function DirectorView({ reports, students, classes = [], reportVi
           return (
             <div key={r.id} style={{ background: '#fff', border: `0.5px solid ${borderColor}`, borderRadius: '10px', overflow: 'hidden', gridColumn: isOpen ? '1 / -1' : 'auto' }}>
 
-              {/* 요약 행 */}
-              <div style={{ padding: '12px 14px', cursor: 'pointer' }}
-                onClick={() => setExpandedId(expandedId === r.id ? null : r.id)}>
+              {/* 요약 행 — 안에 종합 프로필 버튼·성장 포트폴리오 링크가 따로 있어 role="button"은
+                  안 씀(중첩 시맨틱 충돌). tabIndex+onKeyDown으로 키보드 포커스·Enter/Space만 추가 */}
+              <div tabIndex={0} style={{ padding: '12px 14px', cursor: 'pointer' }}
+                onClick={() => setExpandedId(expandedId === r.id ? null : r.id)}
+                onKeyDown={onKeyActivate(() => setExpandedId(expandedId === r.id ? null : r.id))}>
 
                 {/* 상단: 학생명 + 열람배지 */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>

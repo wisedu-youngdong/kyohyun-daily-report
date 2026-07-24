@@ -3,6 +3,7 @@ import { toPct } from '../growth.js';
 import { DIAG_BADGE as DIAG_MAP, DIAG_LABELS as diagLabels } from '../diagnosis.js';
 import { useMediaQuery } from '../hooks.js';
 import { C } from '../tokens.jsx';
+import { onKeyActivate } from './shared.jsx';
 
 export default function GrowthDashboard({ reports, students }) {
   // App.jsx의 isPc(900px)와 기준 통일 — 앱 전체에서 PC/모바일 판정 기준이 화면마다
@@ -275,8 +276,9 @@ export default function GrowthDashboard({ reports, students }) {
           const topWeak = Object.entries(diagCount).sort((a, b) => b[1] - a[1])[0];
 
           return (
-            <div key={s.id}
+            <div key={s.id} role="button" tabIndex={0} aria-pressed={isSel}
               onClick={() => { setSelId(isSel ? null : s.id); setDrawerOpen(!isSel); }}
+              onKeyDown={onKeyActivate(() => { setSelId(isSel ? null : s.id); setDrawerOpen(!isSel); })}
               style={{
                 display: 'grid', gridTemplateColumns: isMobile ? '1fr 50px 60px 55px' : '1fr 65px 80px 70px 55px',
                 padding: '10px 14px', borderBottom: '0.5px solid #F3F4F6', cursor: 'pointer',

@@ -2,7 +2,7 @@ import React from 'react';
 import { X, Check } from 'lucide-react';
 import { kstDay, kstWeekday, isReportSent } from '../growth.js';
 import { T, C, RADIUS2 } from '../tokens.jsx';
-import { AVATARS, StatCard } from './shared.jsx';
+import { AVATARS, StatCard, onKeyActivate } from './shared.jsx';
 import { useMediaQuery, useEscapeClose } from '../hooks.js';
 
 // 학생 아바타(사진 없을 때 이니셜 배경) 색 순환 — 실제 유형과 무관하게 그냥 시각적 다양성용
@@ -365,8 +365,10 @@ export default function DashboardView({ students, reports, classes = [], reportV
       const done = doneOf(s);
       const avatarUrl = AVATARS.find(a => a.key === s.avatar)?.url;
       const palette = AVATAR_PALETTE[idx % AVATAR_PALETTE.length];
+      // 안에 결석 처리 버튼이 따로 있어 role="button"은 안 씀(중첩 시맨틱 충돌) —
+      // tabIndex+onKeyDown으로 키보드 포커스·Enter/Space 조작만 추가
       return (
-        <div key={s.id} onClick={() => onWriteFor?.(s, done)}
+        <div key={s.id} onClick={() => onWriteFor?.(s, done)} tabIndex={0} onKeyDown={onKeyActivate(() => onWriteFor?.(s, done))}
           style={{ padding: '13px 2px', display: 'flex', alignItems: 'center', gap: '12px', borderBottom: `1px solid ${T.bgSoft}`, cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
           <div style={{ width: '34px', height: '34px', borderRadius: '9px', overflow: 'hidden', background: done ? T.brand : palette.bg, color: done ? '#fff' : palette.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 800, flexShrink: 0 }}>
             {avatarUrl ? <img src={avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : s.name?.[0]}

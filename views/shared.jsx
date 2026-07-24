@@ -1,5 +1,11 @@
 import { T, C, RADIUS2 } from '../tokens.jsx';
 
+// 클릭만 되던 div 행(role="button")을 키보드로도 조작 가능하게 만드는 공용 onKeyDown 핸들러.
+// Enter/Space를 클릭과 동일하게 취급 — 앱 전체에서 div-onClick 리스트 행에 일관되게 적용
+export const onKeyActivate = (handler) => (e) => {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handler(e); }
+};
+
 // ── 캐릭터 아바타 목록 — DashboardView/StudentsView 공용
 export const AVATARS = [
   { key: 'student',       label: '교복 남학생', url: '/avatars/student.png' },

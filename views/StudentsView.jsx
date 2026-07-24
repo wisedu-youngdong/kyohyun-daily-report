@@ -3,7 +3,7 @@ import { Pencil, AlertTriangle } from 'lucide-react';
 import { isNewStudent } from '../growth.js';
 import { T, C } from '../tokens.jsx';
 import { StudentModal } from './StudentModal.jsx';
-import { AVATARS } from './shared.jsx';
+import { AVATARS, onKeyActivate } from './shared.jsx';
 import { StudentProfileModal, StudentProfileContent } from './StudentProfileModal.jsx';
 import { useMediaQuery } from '../hooks.js';
 
@@ -97,15 +97,18 @@ export default function StudentsView({ students, reports, reviews = [], onSave, 
           const isStale = !s.archived && (daysSince === null ? false : daysSince >= 14);
           const isNew = isNewStudent(s, sReports.length);
           const isSelected = isWide && !s.archived && selectedStudent?.id === s.id;
+          const activateRow = () => isWide && !s.archived ? setSelectedId(s.id) : setProfileStudent(s);
           return (
-            <div key={s.id}
+            // 카드 안에 수정/삭제/복원 버튼이 따로 있어 role="button"은 안 씀 —
+            // tabIndex+onKeyDown으로 키보드 포커스·Enter/Space 조작만 추가
+            <div key={s.id} tabIndex={0} onKeyDown={onKeyActivate(activateRow)}
               style={{
                 background: s.archived ? T.bgSoft : '#fff', borderRadius: '16px', padding: '16px 18px',
                 border: isSelected ? `1.5px solid ${C.primary}` : isStale ? '1px solid #EF9F27' : `1px solid ${T.border}`,
                 boxShadow: isSelected ? `0 2px 8px ${C.primary}20` : 'none',
                 cursor: 'pointer', opacity: s.archived ? 0.85 : 1,
               }}
-              onClick={() => isWide && !s.archived ? setSelectedId(s.id) : setProfileStudent(s)}>
+              onClick={activateRow}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: C.primaryLight, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   {s.avatar

@@ -3,7 +3,7 @@ import { db, auth, createUserWithoutSignIn } from '../firebase';
 import { collection, addDoc, doc, getDoc, getDocs, setDoc, serverTimestamp, getCountFromServer, increment, query, orderBy, limit } from 'firebase/firestore';
 import { Pencil, AlertTriangle, Check, HelpCircle, X } from 'lucide-react';
 import { T, C } from '../tokens.jsx';
-import { PRESET_SKINS } from './shared.jsx';
+import { PRESET_SKINS, onKeyActivate } from './shared.jsx';
 import { useEscapeClose } from '../hooks.js';
 
 const DEFAULT_SKIN_COLOR = '#1A2540';
@@ -824,7 +824,9 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
           {PRESET_SKINS.map(sk => (
             <div
               key={sk.key}
+              role="button" tabIndex={0} aria-pressed={globalColor === sk.main}
               onClick={() => setGlobalColor(sk.main)}
+              onKeyDown={onKeyActivate(() => setGlobalColor(sk.main))}
               style={{
                 borderRadius: '10px', overflow: 'hidden', cursor: 'pointer',
                 border: globalColor === sk.main ? `2.5px solid ${C.info}` : '2px solid #E5E7EB',
@@ -1175,7 +1177,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                   : { label: '거절됨', bg: C.errorBg, color: C.errorDark };
                 return (
                   <div key={req.id} style={{ background: '#F9FAFB', borderRadius: '10px', padding: '10px 12px' }}>
-                    <div onClick={() => toggleSignupRequest(req)} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                    <div role="button" tabIndex={0} aria-expanded={expanded} onClick={() => toggleSignupRequest(req)} onKeyDown={onKeyActivate(() => toggleSignupRequest(req))} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p style={{ fontSize: '13px', fontWeight: 600, color: '#1A1A1A', margin: 0 }}>{req.academyName}</p>
                         <p style={{ fontSize: '11px', color: '#6B7280', margin: '2px 0 0' }}>

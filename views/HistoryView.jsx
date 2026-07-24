@@ -4,6 +4,7 @@ import { toPct, fmtPages } from '../growth.js';
 import { DIAG_LABELS, DIAG_SOFT as DIAG_COLORS } from '../diagnosis.js';
 import { useMediaQuery, useEscapeClose } from '../hooks.js';
 import { C } from '../tokens.jsx';
+import { onKeyActivate } from './shared.jsx';
 
 export default function HistoryView({ reports, students, classes = [], reportViews = [], onDelete, onEdit, onBulkDelete }) {
   const [selectedId, setSelectedId] = useState(null);
@@ -187,7 +188,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
           {filtered.map(r => {
             const badge = statusBadge(r);
             return (
-              <div key={r.id} onClick={() => setSelectedId(r.id)}
+              <div key={r.id} role="button" tabIndex={0} onClick={() => setSelectedId(r.id)} onKeyDown={onKeyActivate(() => setSelectedId(r.id))}
                 style={{ background: '#fff', borderRadius: '12px', padding: '14px 16px', border: '1px solid #E5E7EB', cursor: 'pointer' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                   <span style={{ fontSize: '14px', fontWeight: 700 }}>{r.studentName}</span>
@@ -358,7 +359,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
             const isSelected = (selected?.id === r.id);
             const badge = statusBadge(r);
             return (
-              <div key={r.id} onClick={() => setSelectedId(r.id)}
+              <div key={r.id} role="button" tabIndex={0} aria-current={isSelected ? 'true' : undefined} onClick={() => setSelectedId(r.id)} onKeyDown={onKeyActivate(() => setSelectedId(r.id))}
                 style={{
                   padding: '11px 14px', borderBottom: '1px solid #F3F4F6', cursor: 'pointer', transition: 'background 0.1s',
                   background: isSelected ? C.infoBg : 'transparent',

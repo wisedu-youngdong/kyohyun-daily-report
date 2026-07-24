@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { UserPlus, Pencil, X, Plus, Check } from 'lucide-react';
 import { formatPhone, isValidPhone } from '../phone.js';
 import { C, RADIUS2, SHADOW } from '../tokens.jsx';
-import { AVATARS, PRESET_SKINS } from './shared.jsx';
+import { AVATARS, PRESET_SKINS, onKeyActivate } from './shared.jsx';
 import { useEscapeClose } from '../hooks.js';
 
 function FieldLabel({ children }) {
@@ -269,7 +269,9 @@ export function StudentModal({ student, onClose, onSubmit, teachers = [], classe
                   {AVATARS.map(av => (
                     <div
                       key={av.key}
+                      role="button" tabIndex={0} aria-pressed={avatar === av.key}
                       onClick={() => setAvatar(av.key)}
+                      onKeyDown={onKeyActivate(() => setAvatar(av.key))}
                       style={{
                         border: avatar === av.key ? `2.5px solid ${C.info}` : '2px solid #E5E7EB',
                         borderRadius: '12px', padding: '8px 6px',
@@ -296,7 +298,9 @@ export function StudentModal({ student, onClose, onSubmit, teachers = [], classe
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span style={{ fontSize: '11px', color: '#6B7280', fontWeight: 500 }}>개별 설정</span>
                     <div
+                      role="switch" tabIndex={0} aria-checked={useCustomSkin} aria-label="개별 설정"
                       onClick={() => setUseCustomSkin(!useCustomSkin)}
+                      onKeyDown={onKeyActivate(() => setUseCustomSkin(!useCustomSkin))}
                       style={{ width: '36px', height: '20px', borderRadius: '20px', background: useCustomSkin ? C.info : '#D1D5DB', cursor: 'pointer', position: 'relative', transition: 'background 0.2s' }}
                     >
                       <div style={{ position: 'absolute', top: '2px', left: useCustomSkin ? '18px' : '2px', width: '16px', height: '16px', borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }}></div>
@@ -315,7 +319,7 @@ export function StudentModal({ student, onClose, onSubmit, teachers = [], classe
                     {/* 프리셋 */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', marginBottom: '10px' }}>
                       {PRESET_SKINS.map(sk => (
-                        <div key={sk.key} onClick={() => setSkinColor(sk.main)}
+                        <div key={sk.key} role="button" tabIndex={0} aria-pressed={skinColor === sk.main} onClick={() => setSkinColor(sk.main)} onKeyDown={onKeyActivate(() => setSkinColor(sk.main))}
                           style={{ borderRadius: '8px', overflow: 'hidden', cursor: 'pointer', border: skinColor === sk.main ? `2.5px solid ${C.info}` : '2px solid #E5E7EB' }}>
                           <div style={{ height: '24px', background: sk.main }}></div>
                           <div style={{ padding: '3px', background: '#F9FAFB', textAlign: 'center' }}>

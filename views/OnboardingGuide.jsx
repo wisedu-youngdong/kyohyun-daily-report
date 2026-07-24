@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useMediaQuery } from '../hooks.js';
+import { onKeyActivate } from './shared.jsx';
 
 // 신규 학원 시작 가이드 — 가입 승인 직후 첫 로그인에서 한 번 뜨고, 건너뛰어도 완전히 사라지지
 // 않고 화면 구석 위젯으로 남아있다가(재오픈 가능) 7일 경과 또는 4단계 모두 완료 시 위젯도
@@ -130,7 +131,7 @@ export default function OnboardingGuide({
 
           <div>
             {items.map((it, i) => (
-              <div key={it.key} onClick={() => goToItem(it)}
+              <div key={it.key} role="button" tabIndex={0} onClick={() => goToItem(it)} onKeyDown={onKeyActivate(() => goToItem(it))}
                 style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 4px', borderBottom: i < items.length - 1 ? `1px solid ${BORDER_SOFT}` : 'none', cursor: 'pointer' }}>
                 <div style={{
                   width: '22px', height: '22px', borderRadius: '50%', flexShrink: 0,
@@ -164,7 +165,7 @@ export default function OnboardingGuide({
 
   // view === 'widget'
   return (
-    <div onClick={() => setView('checklist')}
+    <div role="button" tabIndex={0} aria-label="시작 가이드 다시 열기" onClick={() => setView('checklist')} onKeyDown={onKeyActivate(() => setView('checklist'))}
       style={{
         position: 'fixed', right: '16px', bottom: isPc ? '20px' : 'calc(80px + env(safe-area-inset-bottom))', zIndex: 500,
         display: 'flex', alignItems: 'center', gap: '10px', background: CARD_BG, border: `1px solid ${BORDER}`,
