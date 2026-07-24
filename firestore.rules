@@ -92,6 +92,12 @@ service cloud.firestore {
       allow read: if isStaffOfAcademy(academyId);
       allow write: if isPlatformAdmin();
     }
+    // 크레딧 사용 내역 — api/analyze-photo.js가 Admin SDK로만 기록(규칙 우회, 클라이언트 직접 쓰기는 없음).
+    // 여기 write 허용은 향후 관리자 수동 정정 여지만 남겨둔 것 — paymentHistory와 동일 패턴.
+    match /academies/{academyId}/creditUsage/{entryId} {
+      allow read: if isStaffOfAcademy(academyId);
+      allow write: if isPlatformAdmin();
+    }
 
     // ── students: 직원 전체 접근 + 공개 단건 조회/narrative만 비로그인 수정 ──
     match /academies/{academyId}/students/{studentId} {

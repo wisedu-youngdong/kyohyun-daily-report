@@ -1,4 +1,6 @@
 import { verifyIdTokenHeader } from './_lib/verifyAuth.js';
+import { ensureAdminApp } from './_lib/adminApp.js';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 
 function buildPrompt(mode, hintTextbook, hintUnit, pageCount = 1, hintSubject = '') {
   const modeInstruction = {
@@ -146,7 +148,8 @@ export const config = {
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
-  if (!(await verifyIdTokenHeader(req))) return res.status(401).json({ error: '로그인이 필요합니다.' });
+  const decoded = await verifyIdTokenHeader(req);
+  if (!decoded) return res.status(401).json({ error: '로그인이 필요합니다.' });
 
   try {
     const { images, imageBase64, mimeType, hintTextbook, hintUnit, hintSubject, mode } = req.body;
@@ -155,6 +158,21 @@ export default async function handler(req, res) {
       ? images
       : (imageBase64 ? [{ imageBase64, mimeType }] : []);
     if (imageList.length === 0) return res.status(400).json({ error: '이미지가 없습니다.' });
+
+    // 사진 분석은 건당 크레딧이 나가는 유료 호출 — Gemini를 부르기 전에 먼저 크레딧을 확인.
+    // academyId는 클라이언트가 아니라 로그인 토큰(uid)으로 서버에서 직접 조회 — 클라이언트가
+    // 다른 학원 ID를 보내 크레딧을 대신 소진시키는 걸 막기 위함.
+    ensureAdminApp();
+    const db = getFirestore();
+    const userSnap = await db.collection('users').doc(decoded.uid).get();
+    const academyId = userSnap.exists ? userSnap.data().academyId : null;
+    if (!academyId) return res.status(403).json({ error: '학원 정보를 확인할 수 없습니다.' });
+    const billingRef = db.collection('academies').doc(academyId).collection('private').doc('billing');
+    const billingSnap = await billingRef.get();
+    const creditBalance = billingSnap.exists ? (billingSnap.data().creditBalance || 0) : 0;
+    if (creditBalance <= 0) {
+      return res.status(200).json({ error: '크레딧이 부족합니다. 원장님께 문의해 충전 후 다시 시도해주세요.' });
+    }
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${process.env.GEMINI_API_KEY}`;
 
@@ -242,6 +260,19 @@ export default async function handler(req, res) {
       }
     }
 
+    // 실제로 쓸 수 있는 결과를 돌려줄 때만 차감 — 위의 에러 반환 경로들(쿼터초과/안전필터/
+    // 파싱실패 등)은 여기 도달하지 않으므로 실패한 호출에는 크레딧이 나가지 않음
+    await billingRef.update({ creditBalance: FieldValue.increment(-1) });
+    // 사용 내역 — 원장/플랫폼 관리자가 "이 학원이 언제 얼마나 썼는지" 조회할 수 있게 기록.
+    // teacherEmail은 토큰 클레임에 이미 있어 추가 조회 없이 무료로 붙일 수 있음
+    db.collection('academies').doc(academyId).collection('creditUsage').add({
+      teacherUid: decoded.uid,
+      teacherEmail: decoded.email || null,
+      hintTextbook: hintTextbook || null,
+      hintUnit: hintUnit || null,
+      balanceAfter: creditBalance - 1,
+      usedAt: FieldValue.serverTimestamp(),
+    }).catch(e => console.error('크레딧 사용 로그 기록 실패(과금엔 영향 없음):', e.message));
     res.status(200).json(parsed);
   } catch (e) {
     console.error('사진분석 에러:', e.message);

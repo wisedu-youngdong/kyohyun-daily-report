@@ -1,6 +1,6 @@
 import React from 'react';
 import { db, auth, createUserWithoutSignIn } from '../firebase';
-import { collection, addDoc, doc, getDoc, getDocs, setDoc, serverTimestamp, getCountFromServer, increment } from 'firebase/firestore';
+import { collection, addDoc, doc, getDoc, getDocs, setDoc, serverTimestamp, getCountFromServer, increment, query, orderBy, limit } from 'firebase/firestore';
 import { Pencil, AlertTriangle, Check, HelpCircle, X } from 'lucide-react';
 import { T, C } from '../tokens.jsx';
 import { PRESET_SKINS } from './shared.jsx';
@@ -393,13 +393,18 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
   const loadBilling = async (targetAcademyId) => {
     setBillingLoading(targetAcademyId);
     try {
-      const [billingSnap, historySnap] = await Promise.all([
+      const [billingSnap, historySnap, usageSnap, usageCountSnap] = await Promise.all([
         getDoc(doc(db, 'academies', targetAcademyId, 'private', 'billing')),
         getDocs(collection(db, 'academies', targetAcademyId, 'paymentHistory')),
+        // 최근 사용 내역 30건만 — 매일 쌓이는 로그라 전체를 다 불러오면 학원이 오래될수록 느려짐
+        getDocs(query(collection(db, 'academies', targetAcademyId, 'creditUsage'), orderBy('usedAt', 'desc'), limit(30))),
+        // 누적 사용 건수는 목록을 다 안 읽고 집계 쿼리로만 — 오래된 학원도 가볍게 조회됨
+        getCountFromServer(collection(db, 'academies', targetAcademyId, 'creditUsage')),
       ]);
       const history = historySnap.docs.map(d => ({ id: d.id, ...d.data() }))
         .sort((a, b) => (b.grantedAt?.seconds || 0) - (a.grantedAt?.seconds || 0));
-      setAcademyBilling(prev => ({ ...prev, [targetAcademyId]: { balance: billingSnap.exists() ? (billingSnap.data().creditBalance || 0) : 0, history } }));
+      const usage = usageSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setAcademyBilling(prev => ({ ...prev, [targetAcademyId]: { balance: billingSnap.exists() ? (billingSnap.data().creditBalance || 0) : 0, history, usage, usageCount: usageCountSnap.data().count } }));
     } catch (e) {
       console.error('크레딧 정보 조회 실패:', e);
     }
@@ -1314,6 +1319,26 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                                 {h.grantedAt?.seconds ? new Date(h.grantedAt.seconds * 1000).toLocaleDateString('ko-KR') : ''} · {h.packageSize}건 · {h.amount?.toLocaleString()}원{h.memo ? ` · ${h.memo}` : ''}
                               </p>
                             ))}
+                          </div>
+                        )}
+
+                        {/* 사용 내역 — 사진 분석으로 크레딧이 빠져나간 기록. 누적 건수는 집계 쿼리,
+                            상세 목록은 최근 30건만(loadBilling 참고) */}
+                        {billing?.usageCount > 0 && (
+                          <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #E5E7EB' }}>
+                            <p style={{ fontSize: '11px', fontWeight: 700, color: '#374151', margin: '0 0 6px' }}>
+                              사용 내역 — 누적 {billing.usageCount}건
+                              {billing.usage.length < billing.usageCount ? ` (최근 ${billing.usage.length}건 표시)` : ''}
+                            </p>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              {billing.usage.map(u => (
+                                <p key={u.id} style={{ fontSize: '10px', color: '#6C7586', margin: 0 }}>
+                                  {u.usedAt?.seconds ? new Date(u.usedAt.seconds * 1000).toLocaleString('ko-KR') : ''} · {u.teacherEmail || u.teacherUid}
+                                  {(u.hintTextbook || u.hintUnit) ? ` · ${[u.hintTextbook, u.hintUnit].filter(Boolean).join(' ')}` : ''}
+                                  {' · 잔액 '}{u.balanceAfter}건
+                                </p>
+                              ))}
+                            </div>
                           </div>
                         )}
                       </>

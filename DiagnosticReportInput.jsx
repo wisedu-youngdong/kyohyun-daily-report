@@ -427,6 +427,11 @@ export default function DiagnosticReportInput({
   const [photos, setPhotos] = useState([]); // [{ preview, blob }]
   const [analyzingPhoto, setAnalyzingPhoto] = useState(false);
   const [photoAnalysis, setPhotoAnalysis] = useState(null);
+  // 사진 분석은 건당 크레딧이 나가는 유료 호출이라, 이번 리포트(같은 학생/세션)에서 이미
+  // 한 번 성공적으로 차감됐는지 추적 — 사진을 지우고 새로 올려도(photoAnalysis는 초기화되지만)
+  // 이 플래그는 유지해서 재분석 시 "크레딧 또 나간다" 경고를 띄울 수 있게 함. 학생 전환/새
+  // 리포트 시작(편집 대상이 바뀔 때)에만 리셋됨.
+  const [hasChargedAnalysis, setHasChargedAnalysis] = useState(false);
   const [photoContentType, setPhotoContentType] = useState(''); // '숙제' | '테스트' | '기타' — AI 코멘트 문장 시작을 이 사진이 뭔지에 맞춰 자연스럽게 만들기 위함
   const [wrongItems, setWrongItems] = useState([]);
   const [alertMessage, setAlertMessage] = useState('');
@@ -445,7 +450,7 @@ export default function DiagnosticReportInput({
 
   // ── 수정 모드: editingReport가 들어오면 폼 pre-fill ──
   useEffect(() => {
-    if (!editingReport) return;
+    if (!editingReport) { setHasChargedAnalysis(false); return; }
     setStudentId(editingReport.studentId || '');
     setTeacherId(editingReport.teacherId || '');
     setAttendance(editingReport.attendance || '정시');
@@ -469,6 +474,7 @@ export default function DiagnosticReportInput({
     setNextPlanDetail(editingReport.nextPlanDetail || '');
     setPhotoAnalysis(editingReport.photoAnalysis || null);
     setWrongItems(editingReport.wrongItems || []);
+    setHasChargedAnalysis(false);
     // 저장돼 있던 스킨 복원 — 안 하면 수정 후 재저장 때 픽커 기본값(navy)으로 덮여 스킨이 날아감
     setSelectedSkin(editingReport.skin?.key && SKINS[editingReport.skin.key] ? editingReport.skin.key
       : editingReport.skin?.key === 'global' && globalSkin ? 'global' : 'navy');
@@ -686,8 +692,13 @@ export default function DiagnosticReportInput({
 
   const removeOnePhoto = (idx) => {
     // 사진 분석 결과가 이미 있으면(오답 태그/메모까지 입력했을 수 있음) 확인 없이 지우면
-    // 그 작업이 통째로 날아감 — 재분석 버튼과 동일하게 한 번 확인
-    if (photoAnalysis && !window.confirm('이 사진을 지우면 지금까지의 사진 분석 결과와 오답 태그/메모가 모두 초기화됩니다. 지울까요?')) return;
+    // 그 작업이 통째로 날아감 — 재분석 버튼과 동일하게 한 번 확인. 이미 크레딧이 나간 분석이면
+    // (사진 지우고 다시 올려서 재분석하면 또 차감된다는 걸) 여기서 미리 크게 알려줌
+    if (photoAnalysis && !window.confirm(
+      hasChargedAnalysis
+        ? '이 사진을 지우면 지금까지의 사진 분석 결과와 오답 태그/메모가 모두 초기화돼요.\n\n⚠️ 새 사진으로 다시 분석하면 크레딧이 1건 더 차감돼요. 지울까요?'
+        : '이 사진을 지우면 지금까지의 사진 분석 결과와 오답 태그/메모가 모두 초기화됩니다. 지울까요?'
+    )) return;
     setPhotos(prev => {
       const removed = prev[idx];
       if (removed?.preview?.startsWith('blob:')) {
@@ -712,6 +723,12 @@ export default function DiagnosticReportInput({
       setPhotoError('기존에 저장된 사진은 재분석할 수 없어요. 새 사진을 추가한 뒤 분석해주세요.');
       return;
     }
+    // 사진 분석은 건당 크레딧이 나가는 호출 — 이 리포트에서 이미 한 번 성공해서 차감됐다면
+    // (사진을 지우고 새로 올렸어도 이 세션에서 재분석하는 거라면) 한 번 더 크레딧이 나간다는 걸
+    // 분명히 알려주고 확인받음. 다듬기(코멘트 생성/학부모 톤)는 여기 안 걸림 — 무제한 무료.
+    if (hasChargedAnalysis && !window.confirm('사진을 다시 분석하면 크레딧이 1건 더 차감돼요. 계속할까요?')) {
+      return;
+    }
     setAnalyzingPhoto(true);
     setPhotoError('');
     try {
@@ -731,6 +748,7 @@ export default function DiagnosticReportInput({
       if (data.error) {
         setPhotoError(data.error);
       } else {
+        setHasChargedAnalysis(true);
         setPhotoAnalysis(data);
         if (data.wrongItems?.length > 0) {
           // data.wrongItems는 섹션 구분 없는 전체 요약이라, 어느 섹션의 항목인지 찾아서
@@ -766,6 +784,15 @@ export default function DiagnosticReportInput({
     photosRef.current = [];
     setPhotoAnalysis(null); setPhotoError('');
     setWrongItems([]);
+    setHasChargedAnalysis(false);
+  };
+
+  // "전체 지우기" 버튼 전용 — 이미 크레딧이 나간 분석이 있으면 지우기 전에 한 번 더 크게 확인
+  const confirmRemoveAllPhotos = () => {
+    if (hasChargedAnalysis && !window.confirm(
+      '지금까지의 사진 분석 결과와 오답 태그/메모가 모두 초기화돼요.\n\n⚠️ 새 사진으로 다시 분석하면 크레딧이 1건 더 차감돼요. 전체 지울까요?'
+    )) return;
+    removeAllPhotos();
   };
 
   const handleSubmit = async () => {
@@ -1022,6 +1049,7 @@ export default function DiagnosticReportInput({
                 setNextPlan(''); setNextPlanDetail('');
                 setPhotos([]); setPhotoAnalysis(null);
                 setWrongItems([]);
+                setHasChargedAnalysis(false);
                 setLastSaved(null);
                 setAutoSaveError(false);
 
@@ -1395,7 +1423,7 @@ export default function DiagnosticReportInput({
                       )}
                     </div>
                     {!analyzingPhoto && (
-                      <button onClick={removeAllPhotos} style={{ ...suggestionStyle, marginBottom: '10px' }}>전체 지우기</button>
+                      <button onClick={confirmRemoveAllPhotos} style={{ ...suggestionStyle, marginBottom: '10px' }}>전체 지우기</button>
                     )}
                     {/* 디버그 로그 — 모바일 확인용 */}
                     {photos[0]?.debugLogs?.length > 0 && (
