@@ -209,6 +209,10 @@ export default function GrowthStory() {
   const avgScore = allScores.length > 0 ? Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length) : null;
   const maxScore = allScores.length > 0 ? Math.max(...allScores) : null;
   const minScore = allScores.length > 0 ? Math.min(...allScores) : null;
+  // 최고점을 받은 실제 리포트 — KEY METRICS "최고 단원평가"에 어느 단원·언제인지 같이 보여주려고
+  const maxScoreReport = sorted
+    .filter(r => r.hasTest && r.testScore)
+    .reduce((best, r) => (!best || Number(r.testScore) > Number(best.testScore)) ? r : best, null);
 
   // 복습 효과 증명 — 완료된 복습마다 "진단 당시 원본 리포트 점수 → 복습 후 재시험 점수" 비교.
   // 원본 리포트에 시험 점수 자체가 없던 진단(개념 이해도 기반 등)은 비교 대상이 없어 자연히 제외됨.
@@ -240,8 +244,9 @@ export default function GrowthStory() {
   const hwAvg = hwRated.length > 0
     ? Math.round(hwRated.reduce((s, r) => s + r.homeworkRating, 0) / hwRated.length)
     : null;
-  // 개근 여부
-  const allAttended = sorted.length > 0 && sorted.every(r => r.attendance === '출석');
+  // 지각 횟수 — KEY METRICS "총 수업 횟수" 카드에 지각 몇 회인지, 0회면 칭찬 문구로 보여주려고.
+  // (기존 allAttended는 attendance값이 '정시'/'지각'/'결석'/... 인데 '출석'과 비교해서 항상 false였던 죽은 코드였음)
+  const lateCount = sorted.filter(r => r.attendance === '지각').length;
 
   // 공통 변수
   const firstPerfect = sorted.find(r => r.conceptRating >= 100);
@@ -751,16 +756,20 @@ export default function GrowthStory() {
               + {hiddenCount}개 단원 더보기
             </button>
           )}
-          {/* 전체 요약 — 2회 이상 평가 시만 표시 */}
+          {/* 전체 요약 — 2회 이상 평가 시만 표시. 서로 다른 단원 시험 점수를 모은 범위라
+              "→"로 이으면 마치 같은 시험이 오른 것처럼 보여 오해를 살 수 있어 "~"로 표기 */}
           {allScores.length >= 2 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', background: '#F7F5F1', borderRadius: '4px', borderLeft: '2px solid #C9A227', marginTop: '12px' }}>
-              <span style={{ fontSize: '11px', color: '#8A8A8A', fontWeight: 600, flexShrink: 0 }}>전체 범위</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1 }}>
-                <span style={{ fontSize: '13px', fontWeight: 700, color: '#2C2C2C' }}>{minScore}점</span>
-                <span style={{ fontSize: '12px', color: '#C9A227' }}>→</span>
-                <span style={{ fontSize: '16px', fontWeight: 800, color: '#0D2D6B' }}>{maxScore}점</span>
+            <div style={{ padding: '10px 12px', background: '#F7F5F1', borderRadius: '4px', borderLeft: '2px solid #C9A227', marginTop: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '11px', color: '#8A8A8A', fontWeight: 600, flexShrink: 0 }}>전체 점수 범위</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1 }}>
+                  <span style={{ fontSize: '14px', fontWeight: 700, color: '#2C2C2C' }}>{minScore}점</span>
+                  <span style={{ fontSize: '12px', color: '#B0B0B0' }}>~</span>
+                  <span style={{ fontSize: '14px', fontWeight: 700, color: '#2C2C2C' }}>{maxScore}점</span>
+                </div>
+                <span style={{ fontSize: '11px', color: '#8A8A8A' }}>100점 만점</span>
               </div>
-              <span style={{ fontSize: '11px', color: '#8A8A8A' }}>100점 만점</span>
+              <p style={{ fontSize: '10px', color: '#B0B0B0', margin: '4px 0 0' }}>서로 다른 단원 시험 점수를 모은 범위예요</p>
             </div>
           )}
           {allScores.length === 1 && (
@@ -776,14 +785,23 @@ export default function GrowthStory() {
 
         // 자주 나온 약점 유형 — 이미 로드된 sorted(이 학생 전체 리포트)로 집계, 새 조회 없음.
         // recharts는 여기선 안 씀 — 공개 페이지 번들에 375KB 차트 라이브러리가 딸려오는 걸 피하려고
-        // 단원별 평가 추이와 같은 hand-rolled div 막대 방식 유지
-        const weakTypeContent = (() => {
+        // 단원별 평가 추이와 같은 hand-rolled div 막대 방식 유지.
+        // 어느 단원에서 나온 건지도 같이 집계 — nextChapterContent의 "다음 목표"에도 재사용
         const diagCount = {};
+        const diagUnitMap = {}; // key -> { 단원명: 횟수 }
         sorted.forEach(r => (r.diagnosis || []).forEach(d => {
           if (d.key === 'perfect') return; // 잘한 건 말고 약점만 집계
           diagCount[d.key] = (diagCount[d.key] || 0) + 1;
+          const u = (r.unit && r.unit.trim()) || (r.textbook && r.textbook.trim()) || '';
+          if (u) {
+            if (!diagUnitMap[d.key]) diagUnitMap[d.key] = {};
+            diagUnitMap[d.key][u] = (diagUnitMap[d.key][u] || 0) + 1;
+          }
         }));
         const diagList = Object.entries(diagCount).sort((a, b) => b[1] - a[1]);
+        const topWeakLabel = diagList.length > 0 ? (DIAG_COLORS[diagList[0][0]]?.label || diagList[0][0]) : null;
+
+        const weakTypeContent = (() => {
         if (diagList.length === 0) return null;
         const maxCount = diagList[0][1];
         return (
@@ -792,6 +810,9 @@ export default function GrowthStory() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {diagList.map(([key, count]) => {
                 const info = DIAG_COLORS[key] || { label: key, color: '#8A8A8A' };
+                const topUnits = diagUnitMap[key]
+                  ? Object.entries(diagUnitMap[key]).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([u]) => u)
+                  : [];
                 return (
                   <div key={key}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
@@ -801,6 +822,9 @@ export default function GrowthStory() {
                     <div style={{ height: '6px', background: '#F3F4F6', borderRadius: '6px', overflow: 'hidden' }}>
                       <div style={{ width: `${Math.round(count / maxCount * 100)}%`, height: '100%', background: info.color, borderRadius: '6px' }} />
                     </div>
+                    {topUnits.length > 0 && (
+                      <p style={{ fontSize: '10px', color: '#B0B0B0', margin: '4px 0 0' }}>주로 {topUnits.join(', ')}에서 나왔어요</p>
+                    )}
                   </div>
                 );
               })}
@@ -881,26 +905,28 @@ export default function GrowthStory() {
             <div style={{ background: '#F7F5F1', borderRadius: '6px', padding: '14px', borderLeft: '2px solid #C9A227' }}>
               <p style={{ fontSize: '12px', color: '#8A8A8A', fontWeight: 600, marginBottom: '6px' }}>최고 단원평가</p>
               <p style={{ fontSize: '22px', fontWeight: 800, color: '#0D2D6B' }}>{maxScore}<span style={{ fontSize: '11px', color: '#8A8A8A' }}>점</span></p>
-              <p style={{ fontSize: '11px', color: '#B0B0B0', marginTop: '2px' }}>100점 만점</p>
+              <p style={{ fontSize: '11px', color: '#B0B0B0', marginTop: '2px' }}>
+                {maxScoreReport ? [maxScoreReport.unit || maxScoreReport.textbook, fmtDate(maxScoreReport)].filter(Boolean).join(' · ') : '100점 만점'}
+              </p>
             </div>
           )}
           {hwAvg && (
             <div style={{ background: '#F7F5F1', borderRadius: '6px', padding: '14px', borderLeft: '2px solid #C9A227' }}>
               <p style={{ fontSize: '12px', color: '#8A8A8A', fontWeight: 600, marginBottom: '6px' }}>과제 수행 평균</p>
               <p style={{ fontSize: '22px', fontWeight: 800, color: '#0D2D6B' }}>{hwAvg}<span style={{ fontSize: '11px', color: '#8A8A8A' }}>%</span></p>
-              <p style={{ fontSize: '11px', color: '#B0B0B0', marginTop: '2px' }}>100% 만점 · 담당교사 관찰</p>
+              <p style={{ fontSize: '11px', color: '#B0B0B0', marginTop: '2px' }}>{hwRated.length}회 평균 · 담당교사 관찰</p>
             </div>
           )}
           <div style={{ background: '#F7F5F1', borderRadius: '6px', padding: '14px', borderLeft: '2px solid #C9A227' }}>
             <p style={{ fontSize: '12px', color: '#8A8A8A', fontWeight: 600, marginBottom: '6px' }}>총 수업 횟수</p>
             <p style={{ fontSize: '22px', fontWeight: 800, color: '#0D2D6B' }}>{sorted.length}<span style={{ fontSize: '11px', color: '#8A8A8A' }}>회</span></p>
-            <p style={{ fontSize: '11px', color: '#B0B0B0', marginTop: '2px' }}>{allAttended ? '전 회 출석' : '출석 기록'}</p>
+            <p style={{ fontSize: '11px', color: '#B0B0B0', marginTop: '2px' }}>{lateCount === 0 ? '지각 한 번도 없어요!' : `지각 ${lateCount}회`}</p>
           </div>
           {avgScore && (
             <div style={{ background: '#F7F5F1', borderRadius: '6px', padding: '14px', borderLeft: '2px solid #C9A227' }}>
-              <p style={{ fontSize: '12px', color: '#8A8A8A', fontWeight: 600, marginBottom: '6px' }}>평균 점수</p>
+              <p style={{ fontSize: '12px', color: '#8A8A8A', fontWeight: 600, marginBottom: '6px' }}>전체 시험 평균</p>
               <p style={{ fontSize: '22px', fontWeight: 800, color: '#0D2D6B' }}>{avgScore}<span style={{ fontSize: '11px', color: '#8A8A8A' }}>점</span></p>
-              <p style={{ fontSize: '11px', color: '#B0B0B0', marginTop: '2px' }}>100점 만점</p>
+              <p style={{ fontSize: '11px', color: '#B0B0B0', marginTop: '2px' }}>{allScores.length}회 시험 평균</p>
             </div>
           )}
         </div>
@@ -969,8 +995,8 @@ export default function GrowthStory() {
           </p>
         )}
         <div style={{ padding: '14px 16px', background: '#F7F5F1', borderRadius: '6px', borderLeft: '2px solid #C9A227' }}>
-          <p style={{ fontSize: '11px', color: '#8A8A8A', fontWeight: 600, marginBottom: '3px' }}>다음 목표 단계</p>
-          <p style={{ fontSize: '13px', fontWeight: 700, color: '#0D2D6B' }}>PHASE 5 · 전략 고도화</p>
+          <p style={{ fontSize: '11px', color: '#8A8A8A', fontWeight: 600, marginBottom: '3px' }}>다음 목표</p>
+          <p style={{ fontSize: '13px', fontWeight: 700, color: '#0D2D6B' }}>{topWeakLabel ? `${topWeakLabel} 집중 보완` : '다음 단원 준비'}</p>
         </div>
       </div>
         );
