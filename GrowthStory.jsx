@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { db, auth } from './firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 import { collection, getDoc, getDocs, query, where, doc, setDoc, limit } from 'firebase/firestore';
 import { ReportCard } from './tokens.jsx';
 import { toPct, isNewStudent as computeIsNewStudent, fetchAcademyBranding, fmtPages } from './growth.js';
@@ -18,6 +19,17 @@ function EditCharCount({ text, dark }) {
       {len}/{NARRATIVE_MAX_LEN}자
     </p>
   );
+}
+
+// 원장분석 등에서 새 탭으로 이 페이지를 처음 열면, Firebase가 저장된 로그인 세션을
+// 로컬 저장소에서 복원하는 데 살짝 시간이 걸려서 auth.currentUser가 아직 비어있을 수
+// 있음 — "AI 서사 생성" 클릭이 그 찰나에 걸리면 "로그인이 필요합니다"가 잘못 뜨던 버그.
+// 이미 로그인 상태가 확정됐으면 즉시, 아직이면 onAuthStateChanged가 처음 알려줄 때까지 기다림
+function waitForAuthUser() {
+  return new Promise((resolve) => {
+    if (auth.currentUser) { resolve(auth.currentUser); return; }
+    const unsub = onAuthStateChanged(auth, (user) => { unsub(); resolve(user); });
+  });
 }
 
 const FONT_STYLE = `
@@ -44,6 +56,7 @@ export default function GrowthStory() {
   const [loadError, setLoadError] = useState(null); // 'network' | null
   const [retryKey, setRetryKey] = useState(0);
   const [narLoading, setNarLoading] = useState(false);
+  const [regenField, setRegenField] = useState(null); // 항목별 재생성 진행 중인 필드 키
   const [editing, setEditing] = useState(null);
   const [showAllUnits, setShowAllUnits] = useState(false);
   const [showAllSessions, setShowAllSessions] = useState(false);
@@ -416,14 +429,17 @@ export default function GrowthStory() {
     ? `${fmtDate(sorted[0])} – ${fmtDate(sorted[sorted.length - 1])} · ${sorted.length}회 수업`
     : '';
 
-  // AI 서사 생성
+  // AI 서사 생성 — 전체(4개 항목 한 번에). 이미 서사가 있으면 직접 편집한 내용까지
+  // 통째로 덮어써지므로 반드시 한 번 확인받음
   const handleGenNarrative = async () => {
+    if (narrative && !window.confirm('4개 항목(성장 마일스톤 2개 + 선생님 한마디 + 다음 이야기)이 전부 새로 생성되고, 직접 편집한 내용도 덮어써져요. 계속할까요?')) return;
     setNarLoading(true);
     const teacherNotes = sorted
       .filter(r => r.teacherNote)
       .map(r => r.teacherNote);
     try {
-      const idToken = await auth.currentUser?.getIdToken();
+      const user = await waitForAuthUser();
+      const idToken = await user?.getIdToken();
       const response = await fetch('/api/narrative', {
         method: 'POST',
         headers: {
@@ -455,6 +471,51 @@ export default function GrowthStory() {
       alert(`오류: ${e.message}`);
     }
     setNarLoading(false);
+  };
+
+  // 항목별 재생성 — 그 항목 하나만 새로 만들고 나머지는 그대로 둠. 다른 항목들에
+  // 선생님이 직접 다듬어 둔 글이 있으면 서버가 그 문체를 참고해서 생성함
+  const handleRegenField = async (fieldKey) => {
+    if (regenField) return; // 이미 다른 항목 재생성 중
+    setRegenField(fieldKey);
+    const teacherNotes = sorted.filter(r => r.teacherNote).map(r => r.teacherNote);
+    try {
+      const user = await waitForAuthUser();
+      const idToken = await user?.getIdToken();
+      const response = await fetch('/api/narrative', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+        },
+        body: JSON.stringify({
+          field: fieldKey,
+          currentNarrative: narrative,
+          studentName: student?.name || '학생',
+          milestones,
+          unitScores,
+          teacherNotes,
+          isNewStudent,
+          totalReports: sorted.length,
+        })
+      });
+      const data = await response.json();
+      if (!response.ok || !data.text) {
+        alert(data?.error === '로그인이 필요합니다.' ? '로그인 후 이용해주세요.' : `오류: ${data?.error || '재생성에 실패했습니다.'}`);
+      } else {
+        const updated = { ...narrative, [fieldKey]: data.text };
+        setNarrative(updated);
+        try {
+          await setDoc(doc(db, 'academies', academyId, 'students', studentId), { narrative: updated }, { merge: true });
+        } catch (e) {
+          console.error('서사 저장 실패:', e);
+          alert('새 문구가 생성됐지만 저장에는 실패했습니다. 네트워크를 확인하고 다시 시도해주세요.');
+        }
+      }
+    } catch (e) {
+      alert(`오류: ${e.message}`);
+    }
+    setRegenField(null);
   };
 
   if (loading) return (
@@ -551,7 +612,7 @@ export default function GrowthStory() {
       <div style={{ padding: '12px 22px 0' }}>
         <button onClick={handleGenNarrative} disabled={narLoading}
           style={{ width: '100%', padding: '11px', background: narLoading ? '#E5E7EB' : narrative ? '#F0FAF5' : '#0D2D6B', color: narLoading ? '#6C7586' : narrative ? '#0F6E56' : '#fff', border: narrative ? '1px solid #0F6E5640' : 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: narLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
-          {narLoading ? '⏳ AI 서사 생성 중...' : narrative ? '🔄 서사 재생성' : '✨ AI 서사 자동 생성'}
+          {narLoading ? '⏳ AI 서사 생성 중...' : narrative ? '🔄 전체 서사 다시 만들기 (4개 항목 모두)' : '✨ AI 서사 자동 생성'}
         </button>
       </div>
         );
@@ -663,10 +724,17 @@ export default function GrowthStory() {
                 <p style={{ fontSize: '12px', color: '#4A4A4A', lineHeight: 1.8, wordBreak: 'keep-all', marginBottom: '6px' }}>
                   {chapterText}
                   {isEditor && narrative && chapterField && (
-                    <button onClick={() => startEdit(chapterField)}
-                      style={{ marginLeft: '6px', background: '#F0EDE8', border: 'none', color: '#8A8A8A', fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '6px', cursor: 'pointer', verticalAlign: 'middle' }}>
-                      ✏️ 편집
-                    </button>
+                    <>
+                      <button onClick={() => startEdit(chapterField)}
+                        style={{ marginLeft: '6px', background: '#F0EDE8', border: 'none', color: '#8A8A8A', fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '6px', cursor: 'pointer', verticalAlign: 'middle' }}>
+                        ✏️ 편집
+                      </button>
+                      <button onClick={() => handleRegenField(chapterField)} disabled={!!regenField}
+                        title="이 항목만 AI로 다시 생성 (다른 항목은 그대로)"
+                        style={{ marginLeft: '4px', background: '#EAF0F9', border: 'none', color: '#0D2D6B', fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '6px', cursor: regenField ? 'wait' : 'pointer', verticalAlign: 'middle', opacity: regenField && regenField !== chapterField ? 0.5 : 1 }}>
+                        {regenField === chapterField ? '⏳ 생성 중' : '🔄 이 항목만'}
+                      </button>
+                    </>
                   )}
                 </p>
               )}
@@ -1007,10 +1075,17 @@ export default function GrowthStory() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
           <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.14em', fontWeight: 600 }}>TEACHER'S WORD</p>
           {isEditor && narrative && (
-            <button onClick={() => startEdit('teacherWord')}
-              style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '6px', cursor: 'pointer' }}>
-              ✏️ 편집
-            </button>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button onClick={() => startEdit('teacherWord')}
+                style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '6px', cursor: 'pointer' }}>
+                ✏️ 편집
+              </button>
+              <button onClick={() => handleRegenField('teacherWord')} disabled={!!regenField}
+                title="이 항목만 AI로 다시 생성 (다른 항목은 그대로)"
+                style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '6px', cursor: regenField ? 'wait' : 'pointer', opacity: regenField && regenField !== 'teacherWord' ? 0.5 : 1 }}>
+                {regenField === 'teacherWord' ? '⏳ 생성 중' : '🔄 이 항목만'}
+              </button>
+            </div>
           )}
         </div>
         {editing === 'teacherWord' ? (
@@ -1041,10 +1116,17 @@ export default function GrowthStory() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
           <p style={S.label}>NEXT CHAPTER</p>
           {isEditor && narrative && (
-            <button onClick={() => startEdit('nextChapter')}
-              style={{ background: '#F0EDE8', border: 'none', color: '#8A8A8A', fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '6px', cursor: 'pointer' }}>
-              ✏️ 편집
-            </button>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button onClick={() => startEdit('nextChapter')}
+                style={{ background: '#F0EDE8', border: 'none', color: '#8A8A8A', fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '6px', cursor: 'pointer' }}>
+                ✏️ 편집
+              </button>
+              <button onClick={() => handleRegenField('nextChapter')} disabled={!!regenField}
+                title="이 항목만 AI로 다시 생성 (다른 항목은 그대로)"
+                style={{ background: '#EAF0F9', border: 'none', color: '#0D2D6B', fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '6px', cursor: regenField ? 'wait' : 'pointer', opacity: regenField && regenField !== 'nextChapter' ? 0.5 : 1 }}>
+                {regenField === 'nextChapter' ? '⏳ 생성 중' : '🔄 이 항목만'}
+              </button>
+            </div>
           )}
         </div>
         {editing === 'nextChapter' ? (
