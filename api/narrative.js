@@ -92,13 +92,27 @@ JSON만 반환 (코드블록 없이, 순수 JSON만): {"text":"..."}`;
       const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
       let text = null;
       if (jsonMatch) {
-        try { text = JSON.parse(jsonMatch[0]).text; } catch { /* 아래 정규식 폴백 */ }
+        try {
+          const parsed = JSON.parse(jsonMatch[0]);
+          // 프롬프트에 현재 서사를 필드명과 함께 보여주다 보니, 모델이 {"text":...} 대신
+          // {"teacherWord":...}처럼 필드명을 키로 쓰는 경우가 있음 — 어느 쪽이든 수용하고,
+          // 그래도 없으면 문자열 값이 딱 하나뿐인 응답은 그 값을 답으로 간주
+          text = parsed.text || parsed[field] || null;
+          if (!text) {
+            const vals = Object.values(parsed).filter(v => typeof v === 'string' && v.trim());
+            if (vals.length === 1) text = vals[0];
+          }
+        } catch { /* 아래 정규식 폴백 */ }
       }
       if (!text) {
-        const m = cleaned.match(/"text"\s*:\s*"([^"]*)"/s);
+        const m = cleaned.match(new RegExp(`"(?:text|${field})"\\s*:\\s*"([^"]*)"`, 's'));
         text = m?.[1] || null;
       }
-      if (!text) return res.status(500).json({ error: '응답이 잘렸거나 형식이 맞지 않습니다. 다시 시도해주세요.' });
+      if (!text) {
+        // Vercel 로그에서 원인을 볼 수 있게 실제 응답 앞부분을 남김
+        console.error(`항목별 재생성(${field}) 파싱 실패. 응답 앞 300자:`, cleaned.slice(0, 300));
+        return res.status(500).json({ error: '응답이 잘렸거나 형식이 맞지 않습니다. 다시 시도해주세요.' });
+      }
       return res.status(200).json({ text });
     } catch (e) {
       return res.status(500).json({ error: e.message });
