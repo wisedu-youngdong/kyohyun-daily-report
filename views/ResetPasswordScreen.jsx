@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { auth } from '../firebase';
 import { verifyPasswordResetCode, confirmPasswordReset } from 'firebase/auth';
-import { R } from '../tokens.jsx';
+import { R, C } from '../tokens.jsx';
 
 // 비밀번호 재설정 메일 링크의 착지 화면 — Firebase 기본 무브랜딩 페이지 대신
 // LoginScreen.jsx와 동일한 레터헤드 톤으로 구성. api/send-reset-email.js의
@@ -137,7 +137,7 @@ export default function ResetPasswordScreen() {
 
           {status === 'done' && (
             <>
-              <p style={{ fontSize: '13px', fontWeight: 600, color: '#0F6E56', background: '#E1F5EE', padding: '10px 12px', borderRadius: '6px', margin: '0 0 16px', textAlign: 'center' }}>
+              <p style={{ fontSize: '13px', fontWeight: 600, color: C.successDark, background: C.successBg, padding: '10px 12px', borderRadius: '6px', margin: '0 0 16px', textAlign: 'center' }}>
                 비밀번호가 변경됐습니다.
               </p>
               <a href="/" style={{

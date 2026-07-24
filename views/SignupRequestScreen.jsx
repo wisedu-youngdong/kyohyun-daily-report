@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { auth, db } from '../firebase';
 import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { R } from '../tokens.jsx';
+import { R, C } from '../tokens.jsx';
 import { formatPhone, isValidPhone } from '../phone.js';
 
 // 학원 가입 신청 화면(/signup) — 공개, 비로그인 접근.
@@ -133,7 +133,7 @@ export default function SignupRequestScreen() {
         <div style={{ padding: '26px 36px 30px' }}>
           {status === 'done' ? (
             <>
-              <p style={{ fontSize: '13px', fontWeight: 600, color: '#0F6E56', background: '#E1F5EE', padding: '12px 14px', borderRadius: '6px', margin: '0 0 16px', lineHeight: 1.7 }}>
+              <p style={{ fontSize: '13px', fontWeight: 600, color: C.successDark, background: C.successBg, padding: '12px 14px', borderRadius: '6px', margin: '0 0 16px', lineHeight: 1.7 }}>
                 신청이 접수됐습니다.<br />검토 후 승인 안내를 드려요.
               </p>
               <a href="/" style={{

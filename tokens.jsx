@@ -13,9 +13,15 @@
 export const C = {
   primary: '#0D2D6B', primaryDark: '#081D47', primaryLight: '#E7EBF4',
   accent: '#C9A227',
-  success: '#009652', successBg: '#E3F4EC', successDark: '#00714B',
-  warning: '#D97706', warningBg: '#FCF0E1', warningText: '#8A4B04',
+  // successDark/warningText/warningBg 값은 실제 화면 전반에서 이미 쓰이고 있던 값(예: 성공
+  // 메시지의 짙은 초록 #0F6E56)에 맞춰 조정 — 화면들이 이 토큰을 안 쓰고 직접 하드코딩한 값이
+  // 사실상 표준이 됐던 상태라, 토큰 쪽을 실제 표준에 맞춰 통일(반대로 하면 다수 화면 색이 바뀜)
+  success: '#009652', successBg: '#E3F4EC', successDark: '#0F6E56',
+  warning: '#D97706', warningBg: '#FFF8EC', warningText: '#8A5A00',
   error: '#E53E3E', errorBg: '#FDEAEA', errorDark: '#B92C2C',
+  // danger — 삭제/거절 같은 "파괴적 액션" 버튼 전용 색. error(상태 배지: 결석/실패 메시지)와
+  // 의미가 달라 분리 — 실제로 앱 전체에서 파괴적 버튼에만 일관되게 쓰이던 값을 토큰화
+  danger: '#DC2626', dangerBg: '#FEF2F2', dangerBorder: '#FECACA',
   info: '#0066FF', infoBg: '#E9F1FF', infoDark: '#0050C8',
   midGray: '#707B7C',
 };

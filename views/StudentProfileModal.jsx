@@ -113,9 +113,9 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
       .sort((a, b) => a.pct - b.pct);
   })();
   const heatTier = (pct) => pct >= 80
-    ? { bg: '#F0FAF5', color: '#0F6E56', border: '#0F6E5630' }
+    ? { bg: C.successBg, color: C.successDark, border: `${C.successDark}30` }
     : pct >= 60
-      ? { bg: '#FFF8EC', color: '#8A5A00', border: '#C9A22730' }
+      ? { bg: C.warningBg, color: C.warningText, border: `${C.accent}30` }
       : { bg: '#FDF0F0', color: '#A32D2D', border: '#A32D2D30' };
 
   // 완료된 복습 이력 — 최신순. "완료" 자체보다 그때 실제로 뭘 했는지(note/testScore)를 보여주는 게 목적
@@ -148,9 +148,9 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
           {/* 핵심 지표 */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px', marginBottom: '20px' }}>
             {[
-              { label: '개념 이해 평균', value: `${avgConcept}%`, color: avgConcept >= 80 ? '#0F6E56' : avgConcept >= 60 ? '#8A5A00' : '#A32D2D' },
-              { label: '과제 수행 평균', value: `${avgHomework}%`, color: avgHomework >= 80 ? '#0F6E56' : '#8A5A00' },
-              { label: '정시 출석률', value: `${attendanceRate}%`, color: attendanceRate >= 90 ? '#0F6E56' : attendanceRate >= 70 ? '#8A5A00' : '#A32D2D' },
+              { label: '개념 이해 평균', value: `${avgConcept}%`, color: avgConcept >= 80 ? C.successDark : avgConcept >= 60 ? C.warningText : '#A32D2D' },
+              { label: '과제 수행 평균', value: `${avgHomework}%`, color: avgHomework >= 80 ? C.successDark : C.warningText },
+              { label: '정시 출석률', value: `${attendanceRate}%`, color: attendanceRate >= 90 ? C.successDark : attendanceRate >= 70 ? C.warningText : '#A32D2D' },
             ].map((item, i) => (
               <div key={i} style={{ border: '0.5px solid #E8E6E0', borderRadius: '10px', padding: '12px', textAlign: 'center' }}>
                 <p style={{ fontSize: '10px', color: '#6B7785', margin: '0 0 4px', letterSpacing: '0.06em' }}>{item.label}</p>
@@ -161,7 +161,7 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
 
           {/* 출결 캘린더 */}
           {(() => {
-            const ATTEND_COLORS = { '정시': '#0F6E56', '지각': '#C9A227', '결석': '#A32D2D', '조퇴': '#8A5A00' };
+            const ATTEND_COLORS = { '정시': C.successDark, '지각': '#C9A227', '결석': '#A32D2D', '조퇴': C.warningText };
             const attendanceByDate = {};
             sorted.forEach(r => {
               if (!r.createdAt?.seconds) return;
@@ -237,11 +237,11 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
                         return (
                           <div key={day} style={{
                             aspectRatio: '1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                            borderRadius: '8px', background: att ? `${ATTEND_COLORS[att] || '#8A5A00'}12` : 'transparent',
+                            borderRadius: '8px', background: att ? `${ATTEND_COLORS[att] || C.warningText}12` : 'transparent',
                             border: isToday ? `1.5px solid ${C.info}` : '1px solid transparent',
                           }}>
                             <span style={{ fontSize: '11px', fontWeight: att ? 700 : 400, color: att ? (ATTEND_COLORS[att] || '#374151') : '#C0C0C0' }}>{day}</span>
-                            {att && <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: ATTEND_COLORS[att] || '#8A5A00', marginTop: '2px' }} />}
+                            {att && <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: ATTEND_COLORS[att] || C.warningText, marginTop: '2px' }} />}
                           </div>
                         );
                       })}
@@ -279,7 +279,7 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
                     border: '0.5px solid #E5E7EB',
                     borderRadius: '8px',
                     padding: '9px 10px',
-                    borderLeft: isWarning ? '2px solid #DC2626' : hasPerfect ? '2px solid #0F6E56' : '2px solid #E5E7EB',
+                    borderLeft: isWarning ? `2px solid ${C.danger}` : hasPerfect ? `2px solid ${C.successDark}` : '2px solid #E5E7EB',
                   }}>
                     {/* 날짜 + 평점 */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
@@ -314,7 +314,7 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
                     {(tags.length > 0 || hasPerfect) && (
                       <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: cleanNote ? '5px' : 0 }}>
                         {hasPerfect && (
-                          <span style={{ fontSize: '10px', background: '#F0FAF5', color: '#0F6E56', padding: '1px 7px', borderRadius: '8px', fontWeight: 600 }}>개념 완벽</span>
+                          <span style={{ fontSize: '10px', background: C.successBg, color: C.successDark, padding: '1px 7px', borderRadius: '8px', fontWeight: 600 }}>개념 완벽</span>
                         )}
                         {tags.map((d, ti) => {
                           const c = diagColors[d.key] || { bg: '#F3F4F6', color: '#374151' };
@@ -484,7 +484,7 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {sorted.filter(r => r.directorMemo).slice(-3).reverse().map((r, i) => (
                 <div key={i} style={{ background: '#FFFDF0', border: '0.5px solid #F5D76E', borderRadius: '8px', padding: '10px 12px' }}>
-                  <p style={{ fontSize: '10px', color: '#8A5A00', margin: '0 0 3px' }}>{fmtDate(r)}</p>
+                  <p style={{ fontSize: '10px', color: C.warningText, margin: '0 0 3px' }}>{fmtDate(r)}</p>
                   <p style={{ fontSize: '12px', color: '#1A1A1A', margin: 0, lineHeight: 1.6 }}>{r.directorMemo}</p>
                 </div>
               ))}
@@ -735,7 +735,7 @@ function WeeklySummaryCard({ student, reports, academyName }) {
             {[
               { label: '수업 횟수', value: `${weekReports.length}회`, color: '#0D2D6B' },
               { label: '과제 평균', value: `${avg('homeworkRating')}%`, color: '#0D2D6B' },
-              { label: '출석률', value: `${attendRate}%`, color: attendRate === 100 ? '#0F6E56' : '#7A4F00' },
+              { label: '출석률', value: `${attendRate}%`, color: attendRate === 100 ? C.successDark : C.warningText },
             ].map((s, i) => (
               <div key={i} style={{ padding: '14px 12px', textAlign: 'center', borderRight: i < 2 ? '0.5px solid #E5E7EB' : 'none' }}>
                 <p style={{ fontSize: '10px', color: '#6C7586', margin: '0 0 4px', fontWeight: 500 }}>{s.label}</p>
@@ -752,7 +752,7 @@ function WeeklySummaryCard({ student, reports, academyName }) {
                 {units.map((u, i) => {
                   const avgScore = u.scores.length ? Math.round(u.scores.reduce((a,b)=>a+b,0)/u.scores.length) : null;
                   const achieved = avgScore && avgScore >= 80;
-                  const barColor = achieved ? '#0F6E56' : avgScore ? '#7A4F00' : '#0D2D6B';
+                  const barColor = achieved ? C.successDark : avgScore ? C.warningText : '#0D2D6B';
                   return (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <div style={{ width: '3px', height: '34px', background: barColor, borderRadius: '2px', flexShrink: 0 }} />
@@ -761,7 +761,7 @@ function WeeklySummaryCard({ student, reports, academyName }) {
                         {avgScore && <p style={{ fontSize: '11px', color: '#6C7586', margin: 0 }}>{avgScore}점</p>}
                       </div>
                       {avgScore && (
-                        <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '8px', background: achieved ? '#F0FAF5' : '#FFF8EC', color: achieved ? '#0F6E56' : '#7A4F00', flexShrink: 0 }}>
+                        <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '8px', background: achieved ? C.successBg : C.warningBg, color: achieved ? C.successDark : C.warningText, flexShrink: 0 }}>
                           {achieved ? '✓ 목표달성' : '점검 필요'}
                         </span>
                       )}

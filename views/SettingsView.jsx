@@ -715,7 +715,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
             {logoUrl && (
               <button
                 onClick={() => setShowLogoDeleteConfirm(true)}
-                style={{ padding: '9px 14px', fontSize: '12px', fontWeight: 700, borderRadius: '9px', border: 'none', background: '#FEF2F2', color: '#DC2626', cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ padding: '9px 14px', fontSize: '12px', fontWeight: 700, borderRadius: '9px', border: 'none', background: C.dangerBg, color: C.danger, cursor: 'pointer', fontFamily: 'inherit' }}>
                 삭제
               </button>
             )}
@@ -789,7 +789,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '20px', backdropFilter: 'blur(4px)' }}
           onClick={() => setShowLogoDeleteConfirm(false)}>
           <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: '16px', padding: '28px 24px', width: '100%', maxWidth: '320px', textAlign: 'center', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
-            <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#FEF2F2', border: '2px solid #DC2626', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px', fontSize: '22px', color: '#DC2626', fontWeight: 700 }}>!</div>
+            <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: C.dangerBg, border: `2px solid ${C.danger}`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px', fontSize: '22px', color: C.danger, fontWeight: 700 }}>!</div>
             <p style={{ fontSize: '15px', fontWeight: 700, color: '#1A1A1A', margin: '0 0 6px' }}>학원 로고를 삭제할까요?</p>
             <p style={{ fontSize: '12px', color: '#6B7280', margin: '0 0 20px', lineHeight: 1.6 }}>삭제하면 앱 상단 헤더가 기본 아이콘으로 바뀝니다.</p>
             <div style={{ display: 'flex', gap: '8px' }}>
@@ -798,7 +798,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                 취소
               </button>
               <button onClick={() => { onDeleteLogo(); setShowLogoDeleteConfirm(false); }}
-                style={{ flex: 1, padding: '11px', fontSize: '13px', fontWeight: 700, borderRadius: '10px', border: 'none', background: '#DC2626', color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ flex: 1, padding: '11px', fontSize: '13px', fontWeight: 700, borderRadius: '10px', border: 'none', background: C.danger, color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
                 삭제
               </button>
             </div>
@@ -889,8 +889,8 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
           {teachers.map(t => (
             <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#F9FAFB', borderRadius: '10px', padding: '10px 12px' }}>
-              <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#E1F5EE', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <span style={{ fontSize: '13px', fontWeight: 700, color: '#0F6E56' }}>{t.name?.[0]}</span>
+              <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: C.successBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: C.successDark }}>{t.name?.[0]}</span>
               </div>
               {editingTeacherId === t.id ? (
                 <>
@@ -922,7 +922,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                           setConfirmingTeacherDelete(t.id);
                           setTimeout(() => setConfirmingTeacherDelete(prev => prev === t.id ? null : prev), 3000);
                         }
-                      }} style={{ background: confirmingTeacherDelete === t.id ? '#DC2626' : '#FEF2F2', color: confirmingTeacherDelete === t.id ? '#fff' : '#DC2626', border: 'none', borderRadius: '8px', padding: '5px 10px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                      }} style={{ background: confirmingTeacherDelete === t.id ? C.danger : C.dangerBg, color: confirmingTeacherDelete === t.id ? '#fff' : C.danger, border: 'none', borderRadius: '8px', padding: '5px 10px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
                         {confirmingTeacherDelete === t.id
                           ? (assignedCount > 0 ? `확인 (담당 학생 ${assignedCount}명 남음)` : '확인 (재클릭)')
                           : (assignedCount > 0 ? `삭제 (담당 ${assignedCount}명)` : '삭제')}
@@ -942,7 +942,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
             <input value={newTeacherName} onChange={e => setNewTeacherName(e.target.value)} placeholder="강사 이름 (예: 영동 선생님)" style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
             <input value={newTeacherEmail} onChange={e => setNewTeacherEmail(e.target.value)} placeholder="이메일" type="email" style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
             <input value={newTeacherPassword} onChange={e => setNewTeacherPassword(e.target.value)} placeholder="비밀번호 (6자 이상)" type="password" style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
-            <button onClick={handleCreateTeacherAccount} disabled={accountCreating} style={{ background: accountCreating ? '#E5E7EB' : '#0F6E56', color: '#fff', border: 'none', borderRadius: '10px', padding: '11px', fontSize: '13px', fontWeight: 700, cursor: accountCreating ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+            <button onClick={handleCreateTeacherAccount} disabled={accountCreating} style={{ background: accountCreating ? '#E5E7EB' : C.successDark, color: '#fff', border: 'none', borderRadius: '10px', padding: '11px', fontSize: '13px', fontWeight: 700, cursor: accountCreating ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
               {accountCreating ? '생성 중...' : '강사 계정 생성'}
             </button>
             {accountResult && (
@@ -1033,7 +1033,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                         setConfirmingClassDelete(cls.id);
                         setTimeout(() => setConfirmingClassDelete(prev => prev === cls.id ? null : prev), 3000);
                       }
-                    }} style={{ background: confirmingClassDelete === cls.id ? '#DC2626' : '#FEF2F2', color: confirmingClassDelete === cls.id ? '#fff' : '#DC2626', border: 'none', borderRadius: '8px', padding: '5px 10px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    }} style={{ background: confirmingClassDelete === cls.id ? C.danger : C.dangerBg, color: confirmingClassDelete === cls.id ? '#fff' : C.danger, border: 'none', borderRadius: '8px', padding: '5px 10px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
                       {confirmingClassDelete === cls.id
                         ? '확인 (재클릭)'
                         : (classStudentCount > 0 ? `삭제 (학생 ${classStudentCount}명 미배정 전환)` : '삭제')}
@@ -1054,7 +1054,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
               {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
             <button onClick={handleCreateClass} disabled={!newClassName.trim() || !newClassTeacherId}
-              style={{ background: (!newClassName.trim() || !newClassTeacherId) ? '#E5E7EB' : '#0F6E56', color: '#fff', border: 'none', borderRadius: '10px', padding: '11px', fontSize: '13px', fontWeight: 700, cursor: (!newClassName.trim() || !newClassTeacherId) ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+              style={{ background: (!newClassName.trim() || !newClassTeacherId) ? '#E5E7EB' : C.successDark, color: '#fff', border: 'none', borderRadius: '10px', padding: '11px', fontSize: '13px', fontWeight: 700, cursor: (!newClassName.trim() || !newClassTeacherId) ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
               반 만들기
             </button>
           </div>
@@ -1100,8 +1100,8 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
             </div>
             {gradeBumpPreview.skipped.length > 0 && (
               <div style={{ background: '#FFF8E7', border: '1px solid #F0D584', borderRadius: '10px', padding: '10px 12px', marginBottom: '18px' }}>
-                <p style={{ fontSize: '11px', fontWeight: 700, color: '#8A5A00', margin: '0 0 4px' }}>건너뜀(최고학년이거나 학년 정보 없음) · {gradeBumpPreview.skipped.length}명</p>
-                <p style={{ fontSize: '11px', color: '#8A5A00', margin: 0, lineHeight: 1.6 }}>{gradeBumpPreview.skipped.map(s => s.name).join(', ')} — 학교명을 직접 확인해주세요.</p>
+                <p style={{ fontSize: '11px', fontWeight: 700, color: C.warningText, margin: '0 0 4px' }}>건너뜀(최고학년이거나 학년 정보 없음) · {gradeBumpPreview.skipped.length}명</p>
+                <p style={{ fontSize: '11px', color: C.warningText, margin: 0, lineHeight: 1.6 }}>{gradeBumpPreview.skipped.map(s => s.name).join(', ')} — 학교명을 직접 확인해주세요.</p>
               </div>
             )}
             <div style={{ display: 'flex', gap: '8px' }}>
@@ -1165,7 +1165,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
               {visibleRequests.map(req => {
                 const expanded = expandedRequestId === req.id;
                 const badge = req.status === 'pending'
-                  ? { label: '신청', bg: '#FFF8EC', color: '#8A5A00' }
+                  ? { label: '신청', bg: C.warningBg, color: C.warningText }
                   : req.status === 'approved'
                   ? { label: '승인됨', bg: C.successBg, color: C.successDark }
                   : { label: '거절됨', bg: C.errorBg, color: C.errorDark };
@@ -1201,7 +1201,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                                 {approving ? '승인 중...' : '승인'}
                               </button>
                               <button onClick={() => handleRejectSignup(req)} disabled={approving || rejecting}
-                                style={{ flex: 1, padding: '8px', fontSize: '12px', fontWeight: 700, borderRadius: '8px', border: 'none', background: '#FEF2F2', color: '#DC2626', cursor: rejecting ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                                style={{ flex: 1, padding: '8px', fontSize: '12px', fontWeight: 700, borderRadius: '8px', border: 'none', background: C.dangerBg, color: C.danger, cursor: rejecting ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
                                 {rejecting ? '거절 중...' : '거절'}
                               </button>
                             </div>
@@ -1219,7 +1219,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                           <button onClick={() => handleDeleteSignupRequest(req)} disabled={deletingRequestId === req.id}
                             style={{
                               alignSelf: 'flex-start', marginTop: '4px', padding: '5px 10px', fontSize: '11px', fontWeight: 700, borderRadius: '7px',
-                              border: 'none', background: confirmingDeleteId === req.id ? '#DC2626' : 'transparent',
+                              border: 'none', background: confirmingDeleteId === req.id ? C.danger : 'transparent',
                               color: confirmingDeleteId === req.id ? '#fff' : '#6C7586',
                               cursor: deletingRequestId === req.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
                             }}>
@@ -1286,7 +1286,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                     <p style={{ fontSize: '13px', fontWeight: 600, color: '#1A1A1A', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
                       {a.academyName || a.id}
                       {isMine && <span style={{ fontSize: '9px', fontWeight: 700, color: '#6B7280', background: '#E5E7EB', padding: '2px 6px', borderRadius: '5px' }}>내 학원</span>}
-                      <span style={{ fontSize: '9px', fontWeight: 700, padding: '2px 6px', borderRadius: '5px', background: suspended ? '#FEF2F2' : '#E1F5EE', color: suspended ? '#DC2626' : '#0F6E56' }}>
+                      <span style={{ fontSize: '9px', fontWeight: 700, padding: '2px 6px', borderRadius: '5px', background: suspended ? C.dangerBg : C.successBg, color: suspended ? C.danger : C.successDark }}>
                         {suspended ? '정지됨' : '이용 중'}
                       </span>
                     </p>
@@ -1306,8 +1306,8 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                   {!isMine && (
                     <button onClick={() => handleToggleSuspend(a)} disabled={togglingAcademy === a.id}
                       style={{
-                        background: suspended ? '#E1F5EE' : (confirmingSuspend === a.id ? '#DC2626' : '#FEF2F2'),
-                        color: suspended ? '#0F6E56' : (confirmingSuspend === a.id ? '#fff' : '#DC2626'),
+                        background: suspended ? C.successBg : (confirmingSuspend === a.id ? C.danger : C.dangerBg),
+                        color: suspended ? C.successDark : (confirmingSuspend === a.id ? '#fff' : C.danger),
                         border: 'none', borderRadius: '8px', padding: '6px 12px', fontSize: '11px', fontWeight: 700,
                         cursor: togglingAcademy === a.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit', flexShrink: 0,
                       }}>
@@ -1343,7 +1343,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                           <input value={creditMemo} onChange={e => setCreditMemo(e.target.value)} placeholder="메모(입금자명 등)"
                             style={{ flex: 1, padding: '7px 8px', fontSize: '12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontFamily: 'inherit' }} />
                           <button onClick={() => handleGrantCredit(a.id)} disabled={creditGranting}
-                            style={{ padding: '7px 12px', fontSize: '11px', fontWeight: 700, borderRadius: '8px', border: 'none', background: creditGranting ? '#E5E7EB' : '#0F6E56', color: '#fff', cursor: creditGranting ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                            style={{ padding: '7px 12px', fontSize: '11px', fontWeight: 700, borderRadius: '8px', border: 'none', background: creditGranting ? '#E5E7EB' : C.successDark, color: '#fff', cursor: creditGranting ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
                             {creditGranting ? '지급 중...' : '지급'}
                           </button>
                         </div>

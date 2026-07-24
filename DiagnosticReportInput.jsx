@@ -929,7 +929,7 @@ export default function DiagnosticReportInput({
         <div style={{
           // PC(≥900px)는 상단 탭으로 바뀌면서 하단 탭 바가 없어짐 — 그 자리를 비울 필요가 없어짐
           position: 'fixed', bottom: isWide ? '20px' : '80px', left: '50%', transform: 'translateX(-50%)',
-          background: toastColors[toast.type]?.bg || '#0F6E56',
+          background: toastColors[toast.type]?.bg || C.successDark,
           color: '#fff', padding: '12px 20px', borderRadius: '10px',
           fontSize: '13px', fontWeight: 600, zIndex: 9999,
           display: 'flex', alignItems: 'center', gap: '10px',
@@ -1130,7 +1130,7 @@ export default function DiagnosticReportInput({
             <div style={{ margin: '0 20px 12px', padding: '10px 14px', borderRadius: '10px', background: '#EAF0F9', border: '1px solid #C5D5F0', fontSize: '12px', color: '#0D2D6B', fontWeight: 600 }}>
               📋 이번 주 세션 {weeklySessions.length}개 저장됨 — 오늘 작성한 내용은 원장님이 모아서 주 1회 발송해요.
               {staleWeeklyDraft && (
-                <p style={{ margin: '6px 0 0', fontSize: '11px', color: '#8A5A00', fontWeight: 700 }}>
+                <p style={{ margin: '6px 0 0', fontSize: '11px', color: C.warningText, fontWeight: 700 }}>
                   ⚠ 지난주 이전 리포트가 아직 발송되지 않았어요 — 원장님께 "주간 리포트 검토" 화면 확인을 요청해주세요.
                 </p>
               )}
@@ -1718,14 +1718,14 @@ export default function DiagnosticReportInput({
                               // sectionIdx까지 함께 매칭 (CLAUDE.md 인덱스 매칭 버그 패턴)
                               const matches = (w) => w.number === item.number && w.sectionIdx === item.sectionIdx;
                               return (
-                                <div key={`${item.sectionIdx ?? 'x'}-${item.number ?? idx}`} style={{ border: '1px solid #DC262630', borderRadius: `${RADIUS2.thumbnail}px`, padding: '14px', background: '#FFF5F5' }}>
+                                <div key={`${item.sectionIdx ?? 'x'}-${item.number ?? idx}`} style={{ border: `1px solid ${C.danger}30`, borderRadius: `${RADIUS2.thumbnail}px`, padding: '14px', background: C.dangerBg }}>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
                                     <span style={{ background: TOKENS.dangerBorder, color: '#fff', fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px' }}>
                                       {item.number}번 오답
                                     </span>
                                     <span style={{ fontSize: '11px', color: TOKENS.textSub, flex: '1 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.type}</span>
                                     {item.correctRate && (
-                                      <span style={{ fontSize: '10px', color: '#DC2626', fontWeight: 600, marginLeft: 'auto' }}>
+                                      <span style={{ fontSize: '10px', color: C.danger, fontWeight: 600, marginLeft: 'auto' }}>
                                         정답률 {item.correctRate}
                                       </span>
                                     )}
@@ -1941,11 +1941,11 @@ export default function DiagnosticReportInput({
                           <span key={t.id} style={{
                             display: 'inline-flex', alignItems: 'center', gap: '4px',
                             background: recommended ? '#FFF0D6' : '#FFF8E7', border: `1px solid ${recommended ? C.accent : '#F5D76E'}`, borderRadius: '20px',
-                            padding: '4px 6px 4px 12px', fontSize: '11px', color: '#7A5200', fontWeight: 500,
+                            padding: '4px 6px 4px 12px', fontSize: '11px', color: C.warningText, fontWeight: 500,
                           }}>
                             <Star size={10} fill={C.accent} color={C.accent} style={{ flexShrink: 0 }} />
                             <button type="button" onClick={() => setTeacherNote(prev => prev ? `${prev}\n${t.text}` : t.text)}
-                              style={{ background: 'none', border: 'none', color: '#7A5200', fontWeight: recommended ? 800 : 700, cursor: 'pointer', fontFamily: 'inherit', padding: 0, maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              style={{ background: 'none', border: 'none', color: C.warningText, fontWeight: recommended ? 800 : 700, cursor: 'pointer', fontFamily: 'inherit', padding: 0, maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {recommended && '👍 '}{t.label}
                             </button>
                             <button type="button" onClick={() => { if (window.confirm(`"${t.label}" 즐겨찾기를 삭제할까요?`)) onDeleteCommentTemplate(t.id); }}
@@ -1969,7 +1969,7 @@ export default function DiagnosticReportInput({
                 }} disabled={!teacherNote.trim()} style={{
                   marginTop: '6px', width: '100%', padding: '7px', fontSize: '11px', fontWeight: 700, borderRadius: '8px',
                   border: `1px solid ${teacherNote.trim() ? '#C9A227' : '#E5E7EB'}`, background: '#fff',
-                  color: teacherNote.trim() ? '#8A5A00' : '#6C7586', cursor: teacherNote.trim() ? 'pointer' : 'not-allowed', fontFamily: 'inherit',
+                  color: teacherNote.trim() ? C.warningText : '#6C7586', cursor: teacherNote.trim() ? 'pointer' : 'not-allowed', fontFamily: 'inherit',
                 }}>
                   <Star size={11} style={{ verticalAlign: '-2px', marginRight: '3px' }} />현재 메모 즐겨찾기에 저장
                 </button>
@@ -2293,7 +2293,7 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
             <p style={{ fontSize: '12px', fontWeight: 700, color: s.cardText, margin: '0 0 8px' }}>진단</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
               {diagnosis.map((d, idx) => {
-                const tagDef = DIAG_PREVIEW_BADGE[d.key] || { label: d.key, bg: '#8A5A00' };
+                const tagDef = DIAG_PREVIEW_BADGE[d.key] || { label: d.key, bg: C.warningText };
                 return (
                   <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', background: tagDef.bg, color: '#fff', fontSize: '13px', fontWeight: 700, padding: '5px 13px', borderRadius: '20px' }}>

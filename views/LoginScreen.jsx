@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { auth } from '../firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { R } from '../tokens.jsx';
+import { R, C } from '../tokens.jsx';
 
 // 로그인 화면 — "공식 문서·성적표 톤" 컨셉(레터헤드 + 네이비 상단 라인).
 // 학부모 리포트 화면(R 팔레트: 네이비/골드/세리프)과 같은 브랜드 언어를 써서
@@ -114,7 +114,7 @@ export default function LoginScreen() {
             </p>
           )}
           {resetMessage && (
-            <p style={{ fontSize: '12px', fontWeight: 600, color: '#0F6E56', margin: '0 0 16px', background: '#E1F5EE', padding: '8px 12px', borderRadius: '6px' }}>
+            <p style={{ fontSize: '12px', fontWeight: 600, color: C.successDark, margin: '0 0 16px', background: C.successBg, padding: '8px 12px', borderRadius: '6px' }}>
               {resetMessage}
             </p>
           )}

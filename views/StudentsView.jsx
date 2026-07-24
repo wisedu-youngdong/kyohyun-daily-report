@@ -118,11 +118,11 @@ export default function StudentsView({ students, reports, reviews = [], onSave, 
                   <p style={{ fontSize: '11px', color: '#6B7280', margin: '2px 0 0', fontWeight: 500 }}>{s.school} · 리포트 {sReports.length}건</p>
                 </div>
                 {assignedTeacher ? (
-                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#0F6E56', background: '#E1F5EE', padding: '3px 8px', borderRadius: '6px', flexShrink: 0 }}>
+                  <span style={{ fontSize: '10px', fontWeight: 700, color: C.successDark, background: C.successBg, padding: '3px 8px', borderRadius: '6px', flexShrink: 0 }}>
                     {assignedTeacher.name}
                   </span>
                 ) : !s.archived && (
-                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#8A5A00', background: '#FFF8EC', padding: '3px 8px', borderRadius: '6px', flexShrink: 0 }}>
+                  <span style={{ fontSize: '10px', fontWeight: 700, color: C.warningText, background: C.warningBg, padding: '3px 8px', borderRadius: '6px', flexShrink: 0 }}>
                     미배정
                   </span>
                 )}
@@ -141,7 +141,7 @@ export default function StudentsView({ students, reports, reviews = [], onSave, 
                 {deleteConfirm === s.id ? (
                   <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
                     <button onClick={() => { onDelete(s.id); setDeleteConfirm(null); }}
-                      style={{ background: '#8A5A00', border: 'none', color: '#fff', fontSize: '11px', fontWeight: 700, padding: '10px 12px', borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                      style={{ background: C.warningText, border: 'none', color: '#fff', fontSize: '11px', fontWeight: 700, padding: '10px 12px', borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit' }}>
                       보관 확인
                     </button>
                     <button onClick={() => setDeleteConfirm(null)}

@@ -107,7 +107,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
         </button>
         {draftOnly && draftIdsInView.length > 0 && (
           <button onClick={() => setBulkDeleteConfirm(true)}
-            style={{ padding: '6px 12px', fontSize: '11px', fontWeight: 700, borderRadius: '20px', border: '1px solid #FECACA', background: '#FFF5F5', color: '#DC2626', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            style={{ padding: '6px 12px', fontSize: '11px', fontWeight: 700, borderRadius: '20px', border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, color: C.danger, cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
             <Trash2 size={11} /> 방치된 초안 {draftIdsInView.length}건 삭제
           </button>
         )}
@@ -132,7 +132,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
           <button onClick={() => setBulkDeleteConfirm(false)} disabled={bulkDeleting}
             style={{ flex: 1, padding: '11px', fontSize: '13px', fontWeight: 600, border: '1px solid #E5E7EB', borderRadius: '8px', background: '#fff', cursor: 'pointer', fontFamily: 'inherit', color: '#374151' }}>취소</button>
           <button onClick={handleBulkDeleteDrafts} disabled={bulkDeleting}
-            style={{ flex: 1, padding: '11px', fontSize: '13px', fontWeight: 700, border: 'none', borderRadius: '8px', background: bulkDeleting ? '#E5E7EB' : '#DC2626', color: bulkDeleting ? '#6C7586' : '#fff', cursor: bulkDeleting ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+            style={{ flex: 1, padding: '11px', fontSize: '13px', fontWeight: 700, border: 'none', borderRadius: '8px', background: bulkDeleting ? '#E5E7EB' : C.danger, color: bulkDeleting ? '#6C7586' : '#fff', cursor: bulkDeleting ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
             {bulkDeleting ? '삭제 중...' : '삭제'}
           </button>
         </div>
@@ -221,14 +221,14 @@ export default function HistoryView({ reports, students, classes = [], reportVie
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
                   {selected.homeworkRating != null && <span style={{ fontSize: '12px', background: C.primaryLight, color: C.primary, padding: '4px 10px', borderRadius: '8px', fontWeight: 600 }}>과제 {toPct(selected.homeworkRating)}%</span>}
                   {selected.conceptRating != null && <span style={{ fontSize: '12px', background: C.primaryLight, color: C.primary, padding: '4px 10px', borderRadius: '8px', fontWeight: 600 }}>개념 {toPct(selected.conceptRating)}%</span>}
-                  {selected.hasTest && selected.testScore && <span style={{ fontSize: '12px', background: '#FFF8EC', color: '#7A4F00', padding: '4px 10px', borderRadius: '8px', fontWeight: 600 }}>시험 {selected.testScore}점</span>}
+                  {selected.hasTest && selected.testScore && <span style={{ fontSize: '12px', background: C.warningBg, color: C.warningText, padding: '4px 10px', borderRadius: '8px', fontWeight: 600 }}>시험 {selected.testScore}점</span>}
                 </div>
               )}
 
               {selected.diagnosis?.length > 0 && (
                 <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginBottom: '10px' }}>
                   {selected.diagnosis.map((d, i) => (
-                    <span key={i} style={{ fontSize: '11px', background: d.key === 'perfect' ? '#F0FAF5' : '#FDF0F0', color: d.key === 'perfect' ? '#0F6E56' : '#8A2020', padding: '3px 9px', borderRadius: '8px', fontWeight: 600 }}>{DIAG_LABELS[d.key] || d.key}</span>
+                    <span key={i} style={{ fontSize: '11px', background: d.key === 'perfect' ? C.successBg : '#FDF0F0', color: d.key === 'perfect' ? C.successDark : '#8A2020', padding: '3px 9px', borderRadius: '8px', fontWeight: 600 }}>{DIAG_LABELS[d.key] || d.key}</span>
                   ))}
                 </div>
               )}
@@ -264,7 +264,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
                   </button>
                 )}
                 <button onClick={() => setDeleteConfirmReport(selected.id)}
-                  style={{ padding: '11px', border: '1px solid #FECACA', borderRadius: '8px', background: '#FFF5F5', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', color: '#DC2626', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
+                  style={{ padding: '11px', border: `1px solid ${C.dangerBorder}`, borderRadius: '8px', background: C.dangerBg, fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', color: C.danger, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
                   <Trash2 size={12} /> 삭제
                 </button>
               </div>
@@ -277,19 +277,19 @@ export default function HistoryView({ reports, students, classes = [], reportVie
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
             <div style={{ background: '#fff', borderRadius: '16px', padding: '28px 24px', width: '100%', maxWidth: '320px' }}>
               <div style={{ width: '44px', height: '44px', background: '#FEE2E2', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-                <Trash2 size={20} color="#DC2626" />
+                <Trash2 size={20} color={C.danger} />
               </div>
               <p style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', margin: '0 0 8px', textAlign: 'center' }}>리포트를 삭제할까요?</p>
-              <div style={{ background: '#FFF5F5', border: '1px solid #FECACA', borderRadius: '8px', padding: '12px', margin: '0 0 16px' }}>
+              <div style={{ background: C.dangerBg, border: `1px solid ${C.dangerBorder}`, borderRadius: '8px', padding: '12px', margin: '0 0 16px' }}>
                 <p style={{ fontSize: '13px', color: '#374151', margin: '0 0 4px', textAlign: 'center' }}><strong>{fmtDate(deleteTarget)}</strong></p>
-                <p style={{ fontSize: '14px', fontWeight: 700, color: '#DC2626', margin: 0, textAlign: 'center' }}>{deleteTarget.studentName} 학생 리포트</p>
+                <p style={{ fontSize: '14px', fontWeight: 700, color: C.danger, margin: 0, textAlign: 'center' }}>{deleteTarget.studentName} 학생 리포트</p>
               </div>
               <p style={{ fontSize: '12px', color: '#6C7586', textAlign: 'center', margin: '0 0 20px' }}>삭제 후 복구가 불가능합니다.</p>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button onClick={() => setDeleteConfirmReport(null)}
                   style={{ flex: 1, padding: '11px', fontSize: '13px', fontWeight: 600, border: '1px solid #E5E7EB', borderRadius: '8px', background: '#fff', cursor: 'pointer', fontFamily: 'inherit', color: '#374151' }}>취소</button>
                 <button onClick={() => { setDeleteConfirmReport(null); setSelectedId(null); onDelete(deleteConfirmReport); }}
-                  style={{ flex: 1, padding: '11px', fontSize: '13px', fontWeight: 700, border: 'none', borderRadius: '8px', background: '#DC2626', color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>삭제</button>
+                  style={{ flex: 1, padding: '11px', fontSize: '13px', fontWeight: 700, border: 'none', borderRadius: '8px', background: C.danger, color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>삭제</button>
               </div>
             </div>
           </div>
@@ -414,7 +414,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
               )}
               {deleteConfirmReport === selected.id ? null : (
                 <button onClick={() => setDeleteConfirmReport(selected.id)}
-                  style={{ padding: '7px 14px', fontSize: '12px', fontWeight: 600, border: '1px solid #FECACA', borderRadius: '8px', background: '#FFF5F5', cursor: 'pointer', color: '#DC2626', fontFamily: 'inherit' }}>
+                  style={{ padding: '7px 14px', fontSize: '12px', fontWeight: 600, border: `1px solid ${C.dangerBorder}`, borderRadius: '8px', background: C.dangerBg, cursor: 'pointer', color: C.danger, fontFamily: 'inherit' }}>
                   삭제
                 </button>
               )}
@@ -475,11 +475,11 @@ export default function HistoryView({ reports, students, classes = [], reportVie
             const cleanNote = raw.replace(/\[([^\]]+)\]\s*/g, '').trim();
 
             const TAG_COLORS = {
-              '연산 실수 주의': { bg: '#FFF8EC', color: '#8A5A00' },
+              '연산 실수 주의': { bg: C.warningBg, color: C.warningText },
               '응용 연습 필요': { bg: '#FDF0F0', color: '#8A2020' },
-              '개념 완성':      { bg: '#F0FAF5', color: '#0F6E56' },
+              '개념 완성':      { bg: C.successBg, color: C.successDark },
               '집중력 우수':    { bg: '#EAF1FB', color: '#0D2D6B' },
-              '과제 완성도 높음':{ bg: '#F0FAF5', color: '#0F6E56' },
+              '과제 완성도 높음':{ bg: C.successBg, color: C.successDark },
               '복습 권장':      { bg: '#F3F0FA', color: '#4A3080' },
             };
 
@@ -574,7 +574,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
                 {recentAsc.length >= 2 && (
                   <div style={cardStyle}>
                     <p style={cardTitle}>최근 평가 추이 (최근 {recentAsc.length}회)</p>
-                    {[['과제', 'homeworkRating', '#0D2D6B'], ['개념', 'conceptRating', '#0F6E56']].map(([label, key, color]) => {
+                    {[['과제', 'homeworkRating', '#0D2D6B'], ['개념', 'conceptRating', C.successDark]].map(([label, key, color]) => {
                       const pts = recentAsc.map((r, i) => ({ r, i, v: r[key] != null ? toPct(r[key]) : null }));
                       const withVal = pts.filter(p => p.v != null);
                       const linePath = withVal.map((p, idx) => `${idx === 0 ? 'M' : 'L'}${xOf(p.i)},${yOf(p.v)}`).join(' ');
@@ -666,19 +666,19 @@ export default function HistoryView({ reports, students, classes = [], reportVie
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
           <div style={{ background: '#fff', borderRadius: '16px', padding: '28px 24px', width: '100%', maxWidth: '320px', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
             <div style={{ width: '44px', height: '44px', background: '#FEE2E2', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-              <Trash2 size={20} color="#DC2626" />
+              <Trash2 size={20} color={C.danger} />
             </div>
             <p style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', margin: '0 0 8px', textAlign: 'center' }}>리포트를 삭제할까요?</p>
-            <div style={{ background: '#FFF5F5', border: '1px solid #FECACA', borderRadius: '8px', padding: '12px', margin: '0 0 16px' }}>
+            <div style={{ background: C.dangerBg, border: `1px solid ${C.dangerBorder}`, borderRadius: '8px', padding: '12px', margin: '0 0 16px' }}>
               <p style={{ fontSize: '13px', color: '#374151', margin: '0 0 4px', textAlign: 'center' }}><strong>{fmtDate(deleteTarget)}</strong></p>
-              <p style={{ fontSize: '14px', fontWeight: 700, color: '#DC2626', margin: 0, textAlign: 'center' }}>{deleteTarget.studentName} 학생 리포트</p>
+              <p style={{ fontSize: '14px', fontWeight: 700, color: C.danger, margin: 0, textAlign: 'center' }}>{deleteTarget.studentName} 학생 리포트</p>
             </div>
             <p style={{ fontSize: '12px', color: '#6C7586', textAlign: 'center', margin: '0 0 20px' }}>삭제 후 복구가 불가능합니다.</p>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button onClick={() => setDeleteConfirmReport(null)}
                 style={{ flex: 1, padding: '11px', fontSize: '13px', fontWeight: 600, border: '1px solid #E5E7EB', borderRadius: '8px', background: '#fff', cursor: 'pointer', fontFamily: 'inherit', color: '#374151' }}>취소</button>
               <button onClick={() => { setDeleteConfirmReport(null); setSelectedId(null); onDelete(deleteConfirmReport); }}
-                style={{ flex: 1, padding: '11px', fontSize: '13px', fontWeight: 700, border: 'none', borderRadius: '8px', background: '#DC2626', color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>삭제</button>
+                style={{ flex: 1, padding: '11px', fontSize: '13px', fontWeight: 700, border: 'none', borderRadius: '8px', background: C.danger, color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>삭제</button>
             </div>
           </div>
         </div>

@@ -2,6 +2,7 @@ import React from 'react';
 import { toPct } from '../growth.js';
 import { DIAG_BADGE as DIAG_MAP, DIAG_LABELS as diagLabels } from '../diagnosis.js';
 import { useMediaQuery } from '../hooks.js';
+import { C } from '../tokens.jsx';
 
 export default function GrowthDashboard({ reports, students }) {
   // App.jsx의 isPc(900px)와 기준 통일 — 앱 전체에서 PC/모바일 판정 기준이 화면마다
@@ -52,10 +53,10 @@ export default function GrowthDashboard({ reports, students }) {
     const a = avg(rs.map(r => r.conceptRating));
     const trend3 = rs.length >= 3 ? rs[rs.length - 1].conceptRating - rs[rs.length - 3].conceptRating
       : rs.length >= 2 ? rs[rs.length - 1].conceptRating - rs[rs.length - 2].conceptRating : 0;
-    if (a >= 80 && trend3 >= 0) return { label: '안정', color: '#0F6E56', bg: '#E1F5EE', border: '#0F6E56' };
+    if (a >= 80 && trend3 >= 0) return { label: '안정', color: C.successDark, bg: C.successBg, border: C.successDark };
     if (trend3 <= -20 || a < 50) return { label: '경고', color: '#A32D2D', bg: '#FCEBEB', border: '#A32D2D' };
-    if (trend3 < 0 || a < 70) return { label: '주의', color: '#8A5A00', bg: '#FAEEDA', border: '#EF9F27' };
-    return { label: '안정', color: '#0F6E56', bg: '#E1F5EE', border: '#0F6E56' };
+    if (trend3 < 0 || a < 70) return { label: '주의', color: C.warningText, bg: '#FAEEDA', border: '#EF9F27' };
+    return { label: '안정', color: C.successDark, bg: C.successBg, border: C.successDark };
   }, [getStudentReports]);
 
   // 탭 전환 시 완전 초기화
@@ -118,7 +119,10 @@ export default function GrowthDashboard({ reports, students }) {
   const bestStudent = students.length ? students.reduce((b, s) => getAvg(s.id) > getAvg(b.id) ? s : b) : null;
 
   return (
-    <div style={{ maxWidth: '780px', margin: '0 auto', padding: '20px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>
+    // DirectorView와 같은 스크롤 안에 이어 붙어 렌더링되는 화면(App.jsx 원장분석 › 원장 보고서
+    // 서브탭) — maxWidth가 DirectorView(880px)와 달라서 두 화면이 폭 다른 덩어리로 어긋나 보이던
+    // 문제. DirectorView 쪽에 맞춤(반대가 아닌 이유: DirectorView가 먼저 렌더되는 주 화면)
+    <div style={{ maxWidth: '880px', margin: '0 auto', padding: '20px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>
 
       {/* TOP 위젯 + 기간 필터 */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px', marginBottom: '12px', flexWrap: 'wrap' }}>
@@ -253,7 +257,7 @@ export default function GrowthDashboard({ reports, students }) {
           const isSel = selId === s.id;
 
           const trendStr = trend === null ? '―' : trend > 0 ? `▲${Math.abs(trend)}` : trend < 0 ? `▼${Math.abs(trend)}` : '―';
-          const trendColor = trend === null ? '#6B7785' : trend > 0 ? '#0F6E56' : trend < 0 ? '#A32D2D' : '#6B7785';
+          const trendColor = trend === null ? '#6B7785' : trend > 0 ? C.successDark : trend < 0 ? '#A32D2D' : '#6B7785';
 
           // 스파크라인 — 상태 컬러 사용
           const sparkW = 56, sparkH = 22;
@@ -330,7 +334,7 @@ export default function GrowthDashboard({ reports, students }) {
         const a = getAvg(selId);
         const trend = getTrend(selId);
         const trendStr = trend === null ? '―' : trend > 0 ? `▲${Math.abs(trend)}` : trend < 0 ? `▼${Math.abs(trend)}` : '―';
-        const trendColor = trend === null ? '#6B7785' : trend > 0 ? '#0F6E56' : trend < 0 ? '#A32D2D' : '#6B7785';
+        const trendColor = trend === null ? '#6B7785' : trend > 0 ? C.successDark : trend < 0 ? '#A32D2D' : '#6B7785';
 
         // 예전엔 "보기(공개 페이지)"/"편집" 버튼 2개로 나뉘어 있었는데, 사실 같은 페이지에
         // ?edit=1 하나 차이 — 편집 모드가 보기 모드를 완전히 포함하고(학부모에게는 원래도
@@ -396,7 +400,7 @@ export default function GrowthDashboard({ reports, students }) {
                   return (
                     <div key={i} style={{
                       background: '#FAFAF8', border: '0.5px solid #E5E7EB', borderRadius: '8px', padding: '8px 10px',
-                      borderLeft: isWarning ? '2px solid #DC2626' : hasPerfect ? '2px solid #0F6E56' : '2px solid transparent',
+                      borderLeft: isWarning ? `2px solid ${C.danger}` : hasPerfect ? `2px solid ${C.successDark}` : '2px solid transparent',
                     }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
                         <span style={{ fontSize: '11px', fontWeight: 600, color: '#1A1A1A' }}>{dateStr}</span>
@@ -413,7 +417,7 @@ export default function GrowthDashboard({ reports, students }) {
                       )}
                       {(tags.length > 0 || hasPerfect) && (
                         <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: cleanNote ? '4px' : 0 }}>
-                          {hasPerfect && <span style={{ fontSize: '10px', background: '#F0FAF5', color: '#0F6E56', padding: '1px 6px', borderRadius: '8px', fontWeight: 600 }}>개념 완벽</span>}
+                          {hasPerfect && <span style={{ fontSize: '10px', background: C.successBg, color: C.successDark, padding: '1px 6px', borderRadius: '8px', fontWeight: 600 }}>개념 완벽</span>}
                           {tags.map((d, ti) => (
                             <span key={ti} style={{ fontSize: '10px', background: '#FDF0F0', color: '#8A2020', padding: '1px 6px', borderRadius: '8px', fontWeight: 600 }}>
                               {diagLabels[d.key] || d.key}

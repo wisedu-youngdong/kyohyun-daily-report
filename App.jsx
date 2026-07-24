@@ -16,7 +16,7 @@ import { kstDay } from './growth.js';
 import { DIAG_LABELS } from './diagnosis.js';
 import { useMediaQuery } from './hooks.js';
 import ErrorBoundary from './ErrorBoundary.jsx';
-import { T } from './tokens.jsx';
+import { T, C } from './tokens.jsx';
 import LoginScreen from './views/LoginScreen.jsx';
 // 로그인 직후 기본 랜딩 화면이라 즉시 페인트가 중요 — 이것만 정적 import로 남김
 import DashboardView from './views/DashboardView.jsx';
@@ -754,7 +754,7 @@ export default function App() {
             <span style={{ fontSize: '12px', color: T.textMute, fontWeight: 500, whiteSpace: 'nowrap' }}>
               {new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
             </span>
-            <span style={{ fontSize: '12px', fontWeight: 700, color: isDirector ? '#0D2D6B' : '#0F6E56', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: '12px', fontWeight: 700, color: isDirector ? '#0D2D6B' : C.successDark, whiteSpace: 'nowrap' }}>
               {isDirector ? '원장님' : `${teachers.find(t => t.id === userTeacherId)?.name || '강사'}님`}
             </span>
             <button onClick={() => { if (window.confirm('정말 로그아웃 하시겠어요?')) signOut(auth); }} style={{ background: 'none', border: 'none', color: T.textMute, cursor: 'pointer', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, borderRadius: '50%', WebkitTapHighlightColor: 'transparent' }} title="로그아웃">
@@ -770,7 +770,7 @@ export default function App() {
         <div style={{
           position: 'fixed', bottom: isPc ? '24px' : 'calc(80px + env(safe-area-inset-bottom))', left: '50%', transform: 'translateX(-50%)',
           // 에러가 브랜드 네이비로 떠서 성공과 구분이 안 가던 문제 — 에러는 빨간 계열로
-          background: appToast.type === 'success' ? '#0F6E56' : appToast.type === 'error' ? '#B3261E' : '#0D2D6B',
+          background: appToast.type === 'success' ? C.successDark : appToast.type === 'error' ? '#B3261E' : '#0D2D6B',
           color: '#fff', padding: '10px 20px', borderRadius: '20px',
           fontSize: '13px', fontWeight: 600, zIndex: 9999,
           boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
@@ -860,8 +860,8 @@ export default function App() {
                           }}
                           style={{
                             padding: '7px 12px', borderRadius: '14px', border: 'none', minHeight: '32px',
-                            background: done ? '#F0FAF5' : '#FFF8EC',
-                            color: done ? '#0F6E56' : '#7A4F00',
+                            background: done ? C.successBg : C.warningBg,
+                            color: done ? C.successDark : C.warningText,
                             fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
                           }}>
                           {s.name} {done ? '✓' : '✍️'}

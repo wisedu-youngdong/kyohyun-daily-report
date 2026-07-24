@@ -228,7 +228,7 @@ export default function DirectorView({ reports, students, classes = [], reportVi
                       )}
                       <button onClick={() => handleDeleteQuestion(q.id)} disabled={deletingQuestionId === q.id}
                         style={{
-                          background: confirmDeleteQuestionId === q.id ? '#DC2626' : 'none', border: 'none', borderRadius: '6px',
+                          background: confirmDeleteQuestionId === q.id ? C.danger : 'none', border: 'none', borderRadius: '6px',
                           padding: confirmDeleteQuestionId === q.id ? '2px 8px' : 0,
                           color: confirmDeleteQuestionId === q.id ? '#fff' : '#B0B5BD', fontSize: '11px', fontWeight: 700,
                           cursor: deletingQuestionId === q.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
@@ -270,7 +270,7 @@ export default function DirectorView({ reports, students, classes = [], reportVi
           <div style={{ border: '1px solid #E8E6E0', borderRadius: '14px', marginBottom: '20px', overflow: 'hidden' }}>
             <button onClick={() => setShowAnswered(v => !v)}
               style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px', padding: '14px 18px', background: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
-              <MessageCircle size={15} style={{ color: '#0F6E56', flexShrink: 0 }} />
+              <MessageCircle size={15} style={{ color: C.successDark, flexShrink: 0 }} />
               <span style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A' }}>답변 완료 · {answered.length}건</span>
               <span style={{ marginLeft: 'auto', fontSize: '11px', color: '#6C7586' }}>{showAnswered ? '접기' : '펼치기'}</span>
             </button>
@@ -287,7 +287,7 @@ export default function DirectorView({ reports, students, classes = [], reportVi
                         <p style={{ fontSize: '11px', color: '#6B7785', margin: 0 }}>{q.studentName} · {reportLabel}</p>
                         <button onClick={() => handleDeleteQuestion(q.id)} disabled={deletingQuestionId === q.id}
                           style={{
-                            background: confirmDeleteQuestionId === q.id ? '#DC2626' : 'none', border: 'none', borderRadius: '6px',
+                            background: confirmDeleteQuestionId === q.id ? C.danger : 'none', border: 'none', borderRadius: '6px',
                             padding: confirmDeleteQuestionId === q.id ? '2px 8px' : 0, flexShrink: 0,
                             color: confirmDeleteQuestionId === q.id ? '#fff' : '#B0B5BD', fontSize: '11px', fontWeight: 700,
                             cursor: deletingQuestionId === q.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
@@ -296,7 +296,7 @@ export default function DirectorView({ reports, students, classes = [], reportVi
                         </button>
                       </div>
                       <p style={{ fontSize: '12px', color: '#1A1A1A', margin: '0 0 6px', fontWeight: 600, lineHeight: 1.6 }}>Q. {q.questionText}</p>
-                      <div style={{ borderLeft: '2px solid #0F6E56', paddingLeft: '10px' }}>
+                      <div style={{ borderLeft: `2px solid ${C.successDark}`, paddingLeft: '10px' }}>
                         <p style={{ fontSize: '12px', color: '#5A6472', margin: 0, lineHeight: 1.6 }}>A. {q.answerText}</p>
                         {q.askedAt?.seconds && q.answeredAt?.seconds && (
                           <p style={{ fontSize: '10px', color: '#6C7586', margin: '4px 0 0' }}>답변까지 {formatElapsed(q.askedAt.seconds, q.answeredAt.seconds)} 소요</p>
@@ -325,7 +325,7 @@ export default function DirectorView({ reports, students, classes = [], reportVi
             const viewRate = Math.round(viewedCount / sentReports.length * 100);
             const questionCount = reportQuestions.filter(q => q.studentId === s.id).length;
             let label, labelBg, labelColor;
-            if (questionCount > 0) { label = '적극적'; labelBg = '#F0FAF5'; labelColor = '#0F6E56'; }
+            if (questionCount > 0) { label = '적극적'; labelBg = C.successBg; labelColor = C.successDark; }
             else if (viewRate < 50) { label = '조용함'; labelBg = '#FDF0F0'; labelColor = '#A32D2D'; }
             else { label = '양호'; labelBg = '#F3F4F6'; labelColor = '#6B7280'; }
             return { student: s, sentCount: sentReports.length, viewRate, questionCount, label, labelBg, labelColor };
@@ -441,7 +441,7 @@ export default function DirectorView({ reports, students, classes = [], reportVi
           const weakDiag = (r.diagnosis || []).filter(d => d.key !== 'perfect');
           const goodDiag = (r.diagnosis || []).filter(d => d.key === 'perfect');
           const mainDiag = r.diagnosis?.[0];
-          const borderColor = weakDiag.length > 0 ? '#A32D2D' : goodDiag.length > 0 ? '#0F6E56' : '#E8E6E0';
+          const borderColor = weakDiag.length > 0 ? '#A32D2D' : goodDiag.length > 0 ? C.successDark : '#E8E6E0';
           const dateStr = r.createdAt?.seconds
             ? new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })
             : '';
@@ -618,7 +618,7 @@ export default function DirectorView({ reports, students, classes = [], reportVi
                           <div key={q.id} style={{ background: '#FAFAFA', border: '0.5px solid #E8E6E0', borderRadius: '8px', padding: '10px 12px' }}>
                             <p style={{ fontSize: '12px', color: '#1A1A1A', margin: '0 0 8px', lineHeight: 1.6 }}>{q.questionText}</p>
                             {q.answerText ? (
-                              <div style={{ borderLeft: '2px solid #0F6E56', paddingLeft: '10px' }}>
+                              <div style={{ borderLeft: `2px solid ${C.successDark}`, paddingLeft: '10px' }}>
                                 <p style={{ fontSize: '12px', color: '#5A6472', margin: 0, lineHeight: 1.6 }}>{q.answerText}</p>
                               </div>
                             ) : (
@@ -666,7 +666,7 @@ export default function DirectorView({ reports, students, classes = [], reportVi
                       <div style={{ display: 'flex', gap: '10px', margin: '0 0 6px', flexWrap: 'wrap' }}>
                         {r.homeworkRating != null && <span style={{ fontSize: '11px', color: '#5A6472' }}>과제 {toPct(r.homeworkRating)}%</span>}
                         {r.conceptRating != null && <span style={{ fontSize: '11px', color: '#5A6472' }}>개념 {toPct(r.conceptRating)}%</span>}
-                        <span style={{ fontSize: '11px', color: r.attendance === '정시' ? '#0F6E56' : '#A32D2D' }}>{r.attendance}</span>
+                        <span style={{ fontSize: '11px', color: r.attendance === '정시' ? C.successDark : '#A32D2D' }}>{r.attendance}</span>
                         {r.hasTest && r.testScore && <span style={{ fontSize: '11px', color: '#5A6472' }}>시험 {r.testScore}점</span>}
                       </div>
                       {(r.diagnosis || []).length > 0 && (

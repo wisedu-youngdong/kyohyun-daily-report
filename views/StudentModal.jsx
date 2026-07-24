@@ -161,11 +161,11 @@ export function StudentModal({ student, onClose, onSubmit, teachers = [], classe
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
             <div>
-              <FieldLabel>이름 <span style={{ color: '#DC2626' }}>*</span></FieldLabel>
+              <FieldLabel>이름 <span style={{ color: C.danger }}>*</span></FieldLabel>
               <input value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 박지호" style={inputStyle} autoFocus={!isEdit} />
             </div>
             <div>
-              <FieldLabel>학교 / 학년 <span style={{ color: '#DC2626' }}>*</span></FieldLabel>
+              <FieldLabel>학교 / 학년 <span style={{ color: C.danger }}>*</span></FieldLabel>
               {/* placeholder 필수 — guessCourseKey가 이 문자열에서 학년/학교급을 파싱해
                   단원 추천을 만들기 때문에, 형식이 깨지면 추천이 조용히 죽음 */}
               <input value={school} onChange={(e) => setSchool(e.target.value)} placeholder="예: 교현초 5학년" style={inputStyle} />
@@ -230,7 +230,7 @@ export function StudentModal({ student, onClose, onSubmit, teachers = [], classe
 
           <div style={{ marginBottom: '12px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-              <FieldLabel>교재 <span style={{ color: '#DC2626' }}>*</span></FieldLabel>
+              <FieldLabel>교재 <span style={{ color: C.danger }}>*</span></FieldLabel>
               <button onClick={addTextbook} style={miniAddButtonStyle}><Plus size={11} /> 교재 추가</button>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>

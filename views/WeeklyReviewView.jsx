@@ -140,7 +140,7 @@ export default function WeeklyReviewView({ reports = [], students = [], classes 
 
       {staleDrafts.length > 0 && weekOffset === 0 && (
         <div style={{ background: '#FFF8E7', border: '1px solid #F5D76E', borderRadius: '12px', padding: '12px 14px', marginBottom: '16px' }}>
-          <p style={{ fontSize: '12px', fontWeight: 700, color: '#7A5200', margin: '0 0 4px' }}>⚠ 지난주 이전에 발송하지 못한 리포트가 {staleDrafts.length}건 있어요</p>
+          <p style={{ fontSize: '12px', fontWeight: 700, color: C.warningText, margin: '0 0 4px' }}>⚠ 지난주 이전에 발송하지 못한 리포트가 {staleDrafts.length}건 있어요</p>
           <p style={{ fontSize: '11px', color: '#8A6A2A', margin: 0, lineHeight: 1.6 }}>
             {staleDrafts.map(r => r.studentName).join(', ')} — 주 선택기에서 해당 주로 이동해 확인해주세요.
           </p>
@@ -171,8 +171,8 @@ export default function WeeklyReviewView({ reports = [], students = [], classes 
                     <span style={{ fontSize: '11px', color: T.textMute }}>{sessions.length}/{scheduledCount}회</span>
                     <span style={{
                       fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '10px',
-                      background: !draft ? '#F3F4F6' : ready ? '#F0FAF5' : '#FFF8EC',
-                      color: !draft ? T.textMute : ready ? '#0F6E56' : '#7A5200',
+                      background: !draft ? '#F3F4F6' : ready ? C.successBg : C.warningBg,
+                      color: !draft ? T.textMute : ready ? C.successDark : C.warningText,
                     }}>
                       {!draft ? '세션 없음' : ready ? '발송 준비 완료' : '진행 중'}
                     </span>
