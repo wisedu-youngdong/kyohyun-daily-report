@@ -714,11 +714,15 @@ export default function App() {
           ? { maxWidth: '1440px', margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: '20px' }
           : { display: 'flex', alignItems: 'center', gap: '10px' }}>
 
-          {/* 좌 — 로고 + 학원명 */}
+          {/* 좌 — 로고 + 학원명. 로고를 직접 등록한 학원만 이미지를 보여줌 — 예전엔 미등록
+              학원도 전부 /kyohyun-logo.png(교현학원 로고)로 폴백돼서, 다른 학원 이름 옆에
+              엉뚱한 학원 로고가 뜨는 문제가 있었음. 등록 안 했으면 그냥 학원명 텍스트만 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, ...(isPc ? {} : { flex: 1 }) }}>
-            <div style={{ width: '28px', height: '28px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
-              <img src={logoUrl || '/kyohyun-logo.png'} alt="로고" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            </div>
+            {logoUrl && (
+              <div style={{ width: '28px', height: '28px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
+                <img src={logoUrl} alt="로고" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              </div>
+            )}
             <h1 style={{ fontSize: '16px', fontWeight: 700, color: T.text, letterSpacing: '-0.02em', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{academyName || '데일리 리포트 시스템'}</h1>
           </div>
 
@@ -743,16 +747,18 @@ export default function App() {
             </div>
           )}
 
-          {/* 우 — 날짜 · 역할 · 로그아웃 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, justifySelf: 'end' }}>
-            <span style={{ fontSize: '10px', color: T.textMute, fontWeight: 500, background: T.bgSoft, padding: '3px 8px', borderRadius: '6px', border: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>
+          {/* 우 — 날짜·역할·로그아웃을 하나의 pill로 묶음(시안 1a) — 예전엔 배지 3개가
+              따로 떠 있어서 하나하나 작아 보였는데, 하나의 그룹으로 묶으니 폰트를
+              억지로 안 키워도 훨씬 잘 읽힘 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0, justifySelf: 'end', background: T.bgSoft, border: `1px solid ${T.border}`, borderRadius: '24px', padding: '4px 6px 4px 14px' }}>
+            <span style={{ fontSize: '12px', color: T.textMute, fontWeight: 500, whiteSpace: 'nowrap' }}>
               {new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
             </span>
-            <span style={{ fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '6px', background: isDirector ? '#EAF0F9' : '#E1F5EE', color: isDirector ? '#0D2D6B' : '#0F6E56', whiteSpace: 'nowrap' }}>
-              {isDirector ? '원장' : (teachers.find(t => t.id === userTeacherId)?.name || '강사')}
+            <span style={{ fontSize: '12px', fontWeight: 700, color: isDirector ? '#0D2D6B' : '#0F6E56', whiteSpace: 'nowrap' }}>
+              {isDirector ? '원장님' : `${teachers.find(t => t.id === userTeacherId)?.name || '강사'}님`}
             </span>
-            <button onClick={() => signOut(auth)} style={{ background: 'none', border: 'none', color: T.textMute, cursor: 'pointer', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, WebkitTapHighlightColor: 'transparent' }} title="로그아웃">
-              <LogOut size={16} />
+            <button onClick={() => { if (window.confirm('정말 로그아웃 하시겠어요?')) signOut(auth); }} style={{ background: 'none', border: 'none', color: T.textMute, cursor: 'pointer', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, borderRadius: '50%', WebkitTapHighlightColor: 'transparent' }} title="로그아웃">
+              <LogOut size={18} />
             </button>
           </div>
         </div>
