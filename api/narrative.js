@@ -86,7 +86,9 @@ ${field} 작성 규칙: ${rules[field]}
 JSON만 반환 (코드블록 없이, 순수 JSON만): {"text":"..."}`;
 
     try {
-      const cleaned = await callGemini(prompt, 2048);
+      // gemini-2.5는 thinking 토큰이 maxOutputTokens 예산을 먼저 소모함 — 2048로 줬더니
+      // 생각만 하다 본문이 잘려 "응답이 잘렸거나..." 오류가 났음. 전체 생성과 동일하게 8192
+      const cleaned = await callGemini(prompt, 8192);
       const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
       let text = null;
       if (jsonMatch) {
