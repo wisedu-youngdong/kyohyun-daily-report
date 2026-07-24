@@ -3,7 +3,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { db, auth } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { collection, getDoc, getDocs, query, where, doc, setDoc, limit } from 'firebase/firestore';
-import { ReportCard } from './tokens.jsx';
+import { ReportCard, R } from './tokens.jsx';
 import { toPct, isNewStudent as computeIsNewStudent, fetchAcademyBranding, fmtPages } from './growth.js';
 import { findUnitKey, extractUnitNumbers } from './curriculum.js';
 import { DIAG_LABELS as diagLabels, DIAG_SOFT as DIAG_COLORS } from './diagnosis.js';
@@ -523,7 +523,7 @@ export default function GrowthStory() {
       <style>{`@keyframes storyPulse { 0%,100% { opacity: 0.5; } 50% { opacity: 0.9; } }`}</style>
       <div style={{ width: '100%', maxWidth: '420px' }}>
         <div style={{ borderRadius: '4px', overflow: 'hidden', boxShadow: '0 2px 20px rgba(0,0,0,0.10)' }}>
-          <div style={{ background: '#0D2D6B', padding: '32px 24px 28px' }}>
+          <div style={{ background: R.navy, padding: '32px 24px 28px' }}>
             <div style={{ width: '55%', height: '20px', background: 'rgba(255,255,255,0.2)', borderRadius: '4px', marginBottom: '10px', animation: 'storyPulse 1.4s ease-in-out infinite' }} />
             <div style={{ width: '35%', height: '12px', background: 'rgba(255,255,255,0.15)', borderRadius: '4px', animation: 'storyPulse 1.4s ease-in-out infinite' }} />
           </div>
@@ -540,7 +540,7 @@ export default function GrowthStory() {
   if (loadError) return (
     <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '10px', fontFamily: "'Pretendard Variable', Pretendard, -apple-system, sans-serif", color: '#757575', fontSize: '14px' }}>
       <p style={{ margin: 0 }}>정보를 불러오지 못했습니다.</p>
-      <button onClick={() => setRetryKey(k => k + 1)} style={{ padding: '9px 20px', background: '#0D2D6B', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>다시 시도</button>
+      <button onClick={() => setRetryKey(k => k + 1)} style={{ padding: '9px 20px', background: R.navy, color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>다시 시도</button>
     </div>
   );
 
@@ -554,9 +554,9 @@ export default function GrowthStory() {
   const teacherDisplay = teacherName ? teacherName.replace(/선생님?$/, '').trim() + ' 선생님' : '담당 교사';
 
   const S = {
-    header: { background: '#0D2D6B', padding: '32px 24px 28px', position: 'relative', overflow: 'hidden' },
+    header: { background: R.navy, padding: '32px 24px 28px', position: 'relative', overflow: 'hidden' },
     section: { background: '#fff', padding: '22px', borderBottom: '1px solid #EEECEA' },
-    label: { fontSize: '10px', fontWeight: 700, color: '#0D2D6B', letterSpacing: '0.14em', marginBottom: '16px' },
+    label: { fontSize: '10px', fontWeight: 700, color: R.navy, letterSpacing: '0.14em', marginBottom: '16px' },
   };
 
   return (
@@ -566,7 +566,7 @@ export default function GrowthStory() {
       {/* 헤더 */}
       <div style={S.header}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
-          <div style={{ width: '3px', height: '16px', background: '#C9A227', borderRadius: '1px' }} />
+          <div style={{ width: '3px', height: '16px', background: R.gold, borderRadius: '1px' }} />
           <span style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.16em' }}>{academyName || '데일리 리포트 시스템'}</span>
         </div>
         <div style={{ height: '1px', background: 'rgba(201,162,39,0.2)', marginBottom: '20px' }} />
@@ -584,8 +584,8 @@ export default function GrowthStory() {
               <button key={key} onClick={() => handlePeriodChange(key)}
                 style={{
                   padding: '10px 16px', minHeight: '40px', borderRadius: '16px', border: 'none', cursor: 'pointer',
-                  background: period === key ? '#C9A227' : 'transparent',
-                  color: period === key ? '#1A1A1A' : 'rgba(255,255,255,0.5)',
+                  background: period === key ? R.gold : 'transparent',
+                  color: period === key ? R.ink : 'rgba(255,255,255,0.5)',
                   fontSize: '11px', fontWeight: 700, fontFamily: 'inherit', transition: 'all 0.2s',
                 }}>
                 {label}
@@ -611,7 +611,7 @@ export default function GrowthStory() {
         const aiGenButtonContent = !isEditor ? null : (
       <div style={{ padding: '12px 22px 0' }}>
         <button onClick={handleGenNarrative} disabled={narLoading}
-          style={{ width: '100%', padding: '11px', background: narLoading ? '#E5E7EB' : narrative ? '#F0FAF5' : '#0D2D6B', color: narLoading ? '#6C7586' : narrative ? '#0F6E56' : '#fff', border: narrative ? '1px solid #0F6E5640' : 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: narLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+          style={{ width: '100%', padding: '11px', background: narLoading ? '#E5E7EB' : narrative ? '#F0FAF5' : R.navy, color: narLoading ? '#6C7586' : narrative ? '#0F6E56' : '#fff', border: narrative ? '1px solid #0F6E5640' : 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: narLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
           {narLoading ? '⏳ AI 서사 생성 중...' : narrative ? '🔄 전체 서사 다시 만들기 (4개 항목 모두)' : '✨ AI 서사 자동 생성'}
         </button>
       </div>
@@ -633,7 +633,7 @@ export default function GrowthStory() {
         ) : (
         <>
         <div style={{ position: 'relative', paddingLeft: '28px' }}>
-          <div style={{ position: 'absolute', left: '7px', top: '8px', bottom: '8px', width: '2px', background: 'linear-gradient(to bottom, #0D2D6B, #C9A227)', borderRadius: '2px' }} />
+          <div style={{ position: 'absolute', left: '7px', top: '8px', bottom: '8px', width: '2px', background: `linear-gradient(to bottom, ${R.navy}, ${R.gold})`, borderRadius: '2px' }} />
           {milestones.map((m, i) => {
             const isChapter1 = i === 0;
             const isChapter2 = i === milestones.length - 1;
@@ -644,15 +644,15 @@ export default function GrowthStory() {
 
             return (
             <div key={i} style={{ position: 'relative', marginBottom: i < milestones.length - 1 ? '20px' : 0 }}>
-              <div style={{ position: 'absolute', left: '-24px', top: '4px', width: '16px', height: '16px', borderRadius: '50%', border: `2px solid ${m.active ? '#C9A227' : '#0D2D6B'}`, background: m.active ? '#C9A227' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: m.active ? '0 0 0 3px rgba(201,162,39,0.2)' : 'none' }}>
+              <div style={{ position: 'absolute', left: '-24px', top: '4px', width: '16px', height: '16px', borderRadius: '50%', border: `2px solid ${m.active ? R.gold : R.navy}`, background: m.active ? R.gold : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: m.active ? '0 0 0 3px rgba(201,162,39,0.2)' : 'none' }}>
                 {m.active
                   ? <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M1.5 4L3 5.5L6.5 2" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  : <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><circle cx="4" cy="4" r="2" fill="#0D2D6B"/></svg>
+                  : <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><circle cx="4" cy="4" r="2" fill={R.navy}/></svg>
                 }
               </div>
-              <p style={{ fontSize: '10px', fontWeight: 700, color: '#C9A227', letterSpacing: '0.14em', marginBottom: '3px' }}>{m.phase}</p>
+              <p style={{ fontSize: '10px', fontWeight: 700, color: R.gold, letterSpacing: '0.14em', marginBottom: '3px' }}>{m.phase}</p>
               <span style={{ fontSize: '11px', color: '#757575', fontWeight: 500, marginBottom: '4px', display: 'block' }}>{m.date}</span>
-              <p style={{ fontSize: '13px', fontWeight: 700, color: '#0D2D6B', margin: '0 0 4px' }}>{m.title}</p>
+              <p style={{ fontSize: '13px', fontWeight: 700, color: R.navy, margin: '0 0 4px' }}>{m.title}</p>
 
               {/* 실데이터 카드 */}
               {m.realData && (
@@ -667,7 +667,7 @@ export default function GrowthStory() {
                   <div style={{ display: 'flex', gap: '10px', marginBottom: m.realData.diagTags.length > 0 || m.realData.testScore || m.realData.notePreview ? '5px' : 0 }}>
                     {m.realData.homeworkRating != null && (
                       <span style={{ fontSize: '12px', color: '#374151' }}>
-                        과제 <strong style={{ color: '#0D2D6B' }}>{m.realData.homeworkRating}%</strong>
+                        과제 <strong style={{ color: R.navy }}>{m.realData.homeworkRating}%</strong>
                         {m.realData.hwDelta !== null && m.realData.hwDelta !== 0 && (
                           <span style={{ color: m.realData.hwDelta > 0 ? '#0F6E56' : '#DC2626', marginLeft: '3px' }}>
                             {m.realData.hwDelta > 0 ? `+${m.realData.hwDelta}` : m.realData.hwDelta}
@@ -677,12 +677,12 @@ export default function GrowthStory() {
                     )}
                     {m.realData.conceptRating != null && (
                       <span style={{ fontSize: '12px', color: '#374151' }}>
-                        개념 <strong style={{ color: '#0D2D6B' }}>{m.realData.conceptRating}%</strong>
+                        개념 <strong style={{ color: R.navy }}>{m.realData.conceptRating}%</strong>
                       </span>
                     )}
                     {m.realData.testScore && (
                       <span style={{ fontSize: '12px', color: '#374151' }}>
-                        시험 <strong style={{ color: '#C9A227' }}>{m.realData.testScore}점</strong>
+                        시험 <strong style={{ color: R.gold }}>{m.realData.testScore}점</strong>
                       </span>
                     )}
                   </div>
@@ -716,7 +716,7 @@ export default function GrowthStory() {
                     style={{ width: '100%', minHeight: '70px', padding: '10px', border: '1px solid #E5E5E5', borderRadius: '8px', color: '#2C2C2C', fontSize: '16px', lineHeight: 1.8, fontFamily: 'inherit', resize: 'vertical', outline: 'none' }} />
                   <EditCharCount text={editText} />
                   <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
-                    <button onClick={saveEdit} style={{ flex: 1, padding: '7px', background: '#0D2D6B', border: 'none', borderRadius: '6px', color: '#fff', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>저장</button>
+                    <button onClick={saveEdit} style={{ flex: 1, padding: '7px', background: R.navy, border: 'none', borderRadius: '6px', color: '#fff', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>저장</button>
                     <button onClick={cancelEdit} style={{ flex: 1, padding: '7px', background: '#F3F4F6', border: 'none', borderRadius: '6px', color: '#6B7280', fontSize: '11px', cursor: 'pointer' }}>취소</button>
                   </div>
                 </div>
@@ -731,7 +731,7 @@ export default function GrowthStory() {
                       </button>
                       <button onClick={() => handleRegenField(chapterField)} disabled={!!regenField}
                         title="이 항목만 AI로 다시 생성 (다른 항목은 그대로)"
-                        style={{ marginLeft: '4px', background: '#EAF0F9', border: 'none', color: '#0D2D6B', fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '6px', cursor: regenField ? 'wait' : 'pointer', verticalAlign: 'middle', opacity: regenField && regenField !== chapterField ? 0.5 : 1 }}>
+                        style={{ marginLeft: '4px', background: '#EAF0F9', border: 'none', color: R.navy, fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '6px', cursor: regenField ? 'wait' : 'pointer', verticalAlign: 'middle', opacity: regenField && regenField !== chapterField ? 0.5 : 1 }}>
                         {regenField === chapterField ? '⏳ 생성 중' : '🔄 이 항목만'}
                       </button>
                     </>
@@ -739,7 +739,7 @@ export default function GrowthStory() {
                 </p>
               )}
 
-              <span style={{ display: 'inline-block', fontSize: '10px', fontWeight: 700, color: m.active ? '#8A6500' : '#0D2D6B', background: m.active ? 'rgba(201,162,39,0.12)' : '#EAF0F9', padding: '3px 9px', borderRadius: '3px' }}>{m.badge}</span>
+              <span style={{ display: 'inline-block', fontSize: '10px', fontWeight: 700, color: m.active ? '#8A6500' : R.navy, background: m.active ? 'rgba(201,162,39,0.12)' : '#EAF0F9', padding: '3px 9px', borderRadius: '3px' }}>{m.badge}</span>
             </div>
             );
           })}
@@ -749,7 +749,7 @@ export default function GrowthStory() {
         {sorted.length > milestones.length && (
           <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px dashed #E5E7EB' }}>
             <button onClick={() => setShowAllSessions(v => !v)}
-              style={{ width: '100%', padding: '9px', fontSize: '11px', fontWeight: 700, color: '#0D2D6B', background: '#F0F7FC', border: '1px solid #E6F1FB', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit' }}>
+              style={{ width: '100%', padding: '9px', fontSize: '11px', fontWeight: 700, color: R.navy, background: '#F0F7FC', border: '1px solid #E6F1FB', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit' }}>
               {showAllSessions ? '접기' : `전체 ${sorted.length}회 리포트 보기`}
             </button>
             {showAllSessions && (
@@ -794,14 +794,14 @@ export default function GrowthStory() {
               <div key={ui} style={{ marginBottom: ui < visibleUnits.length - 1 ? '16px' : 0 }}>
                 <p style={{ fontSize: '11px', fontWeight: 700, color: '#2C2C2C', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   {u.unit}
-                  <span style={{ fontSize: '9px', color: '#0D2D6B', background: '#EAF0F9', padding: '2px 7px', borderRadius: '3px', fontWeight: 600 }}>
+                  <span style={{ fontSize: '9px', color: R.navy, background: '#EAF0F9', padding: '2px 7px', borderRadius: '3px', fontWeight: 600 }}>
                     {u.scores.length}회 평가
                   </span>
                 </p>
                 {u.scores.map((s, si) => {
                   const isMax = s.score === Math.max(...u.scores.map(x => x.score));
                   const pct = Math.min(100, Math.round((s.score / 100) * 100));
-                  const barColor = pct < 60 ? '#757575' : pct < 75 ? '#7BA4D4' : isMax ? 'linear-gradient(90deg, #0D2D6B, #C9A227)' : '#0D2D6B';
+                  const barColor = pct < 60 ? '#757575' : pct < 75 ? '#7BA4D4' : isMax ? `linear-gradient(90deg, ${R.navy}, ${R.gold})` : R.navy;
                   const prev = si > 0 ? u.scores[si - 1].score : null;
                   const delta = prev !== null ? s.score - prev : null;
                   return (
@@ -810,10 +810,10 @@ export default function GrowthStory() {
                       <div style={{ flex: 1, height: '6px', background: '#F3F4F6', borderRadius: '6px', overflow: 'hidden' }}>
                         <div style={{ height: '100%', width: `${pct}%`, borderRadius: '6px', background: barColor }} />
                       </div>
-                      <span style={{ fontSize: '12px', fontWeight: 700, color: isMax ? '#0D2D6B' : '#2C2C2C', width: '42px', textAlign: 'right', flexShrink: 0 }}>{s.score}점</span>
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: isMax ? R.navy : '#2C2C2C', width: '42px', textAlign: 'right', flexShrink: 0 }}>{s.score}점</span>
                       <span style={{ fontSize: '10px', fontWeight: 600, width: '36px', flexShrink: 0, color: delta > 0 ? '#0F6E56' : delta < 0 ? '#A32D2D' : '#757575', display: 'flex', alignItems: 'center', gap: '3px' }}>
                         {delta === null ? '—' : delta > 0 ? `+${delta}` : `${delta}`}
-                        {isMax && <span style={{ fontSize: '9px', background: '#C9A227', color: '#fff', padding: '2px 5px', borderRadius: '3px', lineHeight: 1, display: 'inline-flex', alignItems: 'center' }}>최고</span>}
+                        {isMax && <span style={{ fontSize: '9px', background: R.gold, color: '#fff', padding: '2px 5px', borderRadius: '3px', lineHeight: 1, display: 'inline-flex', alignItems: 'center' }}>최고</span>}
                       </span>
                     </div>
                   );
@@ -823,14 +823,14 @@ export default function GrowthStory() {
           })}
           {hiddenCount > 0 && (
             <button onClick={() => setShowAllUnits(true)}
-              style={{ width: '100%', marginTop: '10px', padding: '9px', fontSize: '11px', fontWeight: 700, color: '#0D2D6B', background: '#F0F7FC', border: '1px solid #E6F1FB', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit' }}>
+              style={{ width: '100%', marginTop: '10px', padding: '9px', fontSize: '11px', fontWeight: 700, color: R.navy, background: '#F0F7FC', border: '1px solid #E6F1FB', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit' }}>
               + {hiddenCount}개 단원 더보기
             </button>
           )}
           {/* 전체 요약 — 2회 이상 평가 시만 표시. 서로 다른 단원 시험 점수를 모은 범위라
               "→"로 이으면 마치 같은 시험이 오른 것처럼 보여 오해를 살 수 있어 "~"로 표기 */}
           {allScores.length >= 2 && (
-            <div style={{ padding: '10px 12px', background: '#F7F5F1', borderRadius: '4px', borderLeft: '2px solid #C9A227', marginTop: '12px' }}>
+            <div style={{ padding: '10px 12px', background: '#F7F5F1', borderRadius: '4px', borderLeft: `2px solid ${R.gold}`, marginTop: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '11px', color: '#757575', fontWeight: 600, flexShrink: 0 }}>전체 점수 범위</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1 }}>
@@ -844,9 +844,9 @@ export default function GrowthStory() {
             </div>
           )}
           {allScores.length === 1 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', background: '#F7F5F1', borderRadius: '4px', borderLeft: '2px solid #C9A227', marginTop: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', background: '#F7F5F1', borderRadius: '4px', borderLeft: `2px solid ${R.gold}`, marginTop: '12px' }}>
               <span style={{ fontSize: '11px', color: '#757575', fontWeight: 600 }}>이번 평가</span>
-              <span style={{ fontSize: '16px', fontWeight: 800, color: '#0D2D6B', marginLeft: 'auto' }}>{maxScore}점</span>
+              <span style={{ fontSize: '16px', fontWeight: 800, color: R.navy, marginLeft: 'auto' }}>{maxScore}점</span>
               <span style={{ fontSize: '11px', color: '#757575' }}>/ 100점 만점</span>
             </div>
           )}
@@ -908,9 +908,9 @@ export default function GrowthStory() {
         const reviewEffectContent = reviewProof.length === 0 ? null : (
       <div style={S.section}>
           <p style={S.label}>복습 효과</p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', background: '#F7F5F1', borderRadius: '4px', borderLeft: '2px solid #C9A227', marginBottom: '14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', background: '#F7F5F1', borderRadius: '4px', borderLeft: `2px solid ${R.gold}`, marginBottom: '14px' }}>
             <span style={{ fontSize: '11px', color: '#757575', fontWeight: 600 }}>복습 완료</span>
-            <span style={{ fontSize: '16px', fontWeight: 800, color: '#0D2D6B' }}>{reviewProof.length}건</span>
+            <span style={{ fontSize: '16px', fontWeight: 800, color: R.navy }}>{reviewProof.length}건</span>
             {reviewProofImproved > 0 && (
               <span style={{ fontSize: '11px', color: '#0F6E56', fontWeight: 700, marginLeft: 'auto' }}>{reviewProofImproved}건 점수 향상</span>
             )}
@@ -923,7 +923,7 @@ export default function GrowthStory() {
                   <p style={{ fontSize: '11px', fontWeight: 700, color: '#2C2C2C', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     {p.unit || '복습'}
                     {p.weakLabel && (
-                      <span style={{ fontSize: '9px', color: '#0D2D6B', background: '#EAF0F9', padding: '2px 7px', borderRadius: '3px', fontWeight: 600 }}>{p.weakLabel}</span>
+                      <span style={{ fontSize: '9px', color: R.navy, background: '#EAF0F9', padding: '2px 7px', borderRadius: '3px', fontWeight: 600 }}>{p.weakLabel}</span>
                     )}
                   </p>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
@@ -939,13 +939,13 @@ export default function GrowthStory() {
                     <div style={{ textAlign: 'center' }}>
                       <p style={{ fontSize: '9px', margin: '0 0 2px', visibility: 'hidden' }}>·</p>
                       <div style={{ height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <span style={{ fontSize: '12px', color: '#C9A227', lineHeight: 1 }}>→</span>
+                        <span style={{ fontSize: '12px', color: R.gold, lineHeight: 1 }}>→</span>
                       </div>
                     </div>
                     <div style={{ textAlign: 'center' }}>
                       <p style={{ fontSize: '9px', color: '#757575', fontWeight: 600, margin: '0 0 2px' }}>복습 후</p>
                       <div style={{ height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <span style={{ fontSize: '16px', fontWeight: 800, color: delta > 0 ? '#0D2D6B' : '#2C2C2C', lineHeight: 1 }}>{p.after}점</span>
+                        <span style={{ fontSize: '16px', fontWeight: 800, color: delta > 0 ? R.navy : '#2C2C2C', lineHeight: 1 }}>{p.after}점</span>
                       </div>
                     </div>
                     <div style={{ textAlign: 'center' }}>
@@ -972,11 +972,11 @@ export default function GrowthStory() {
         // 세로 리스트 — 예전엔 2x2 타일이었는데, 프레임 높이가 마일스톤 페이지 기준으로
         // 고정돼 있어서 짧은 통계 4개만으로는 위아래에 빈 여백이 크게 남았음. 한 줄짜리
         // 카드 4개로 바꾸면 그 높이를 자연스럽게 채우고, 맨 아래 출석 카드도 더 크게 보여줄 수 있음.
-        const tileStyle = { background: '#F7F5F1', borderRadius: '8px', padding: '13px 14px', borderLeft: '2px solid #C9A227' };
+        const tileStyle = { background: '#F7F5F1', borderRadius: '8px', padding: '13px 14px', borderLeft: `2px solid ${R.gold}` };
         const rowStyle = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' };
         const labelStyle = { fontSize: '12px', fontWeight: 600, color: '#2C2C2C', margin: '0 0 3px' };
         const captionStyle = { fontSize: '12px', color: '#2C2C2C', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' };
-        const numStyle = { fontSize: '22px', fontWeight: 800, color: '#0D2D6B', flexShrink: 0, lineHeight: 1 };
+        const numStyle = { fontSize: '22px', fontWeight: 800, color: R.navy, flexShrink: 0, lineHeight: 1 };
         const unitStyle = { fontSize: '11px', color: '#5C5C5C', fontWeight: 600 };
 
         return (
@@ -1026,37 +1026,37 @@ export default function GrowthStory() {
             {absentCount > 0 ? (
               <>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: '#0D2D6B', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#fff', fontSize: '16px', fontWeight: 800 }}>{sorted.length}</div>
+                  <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: R.navy, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#fff', fontSize: '16px', fontWeight: 800 }}>{sorted.length}</div>
                   <div style={{ minWidth: 0 }}>
                     <p style={labelStyle}>총 {sorted.length}회 수업 · 출석률 {attendanceRate}%</p>
                     <p style={captionStyle}>{fmtDate(sorted[0])} – {fmtDate(sorted[sorted.length - 1])} 기준</p>
                   </div>
                 </div>
                 <div style={{ display: 'flex', height: '6px', borderRadius: '5px', overflow: 'hidden', gap: '2px', marginTop: '10px' }}>
-                  <div style={{ flex: onTimeCount || 0.0001, background: '#0D2D6B' }} />
-                  <div style={{ flex: lateCount || 0.0001, background: '#C9A227' }} />
+                  <div style={{ flex: onTimeCount || 0.0001, background: R.navy }} />
+                  <div style={{ flex: lateCount || 0.0001, background: R.gold }} />
                   <div style={{ flex: absentCount, background: '#A32D2D' }} />
                 </div>
                 <div style={{ display: 'flex', gap: '12px', marginTop: '7px', fontSize: '10px', fontWeight: 600 }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '3px', color: '#0D2D6B' }}><i style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#0D2D6B', display: 'inline-block' }} />출석 {onTimeCount}</span>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '3px', color: '#8A6412' }}><i style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#C9A227', display: 'inline-block' }} />지각 {lateCount}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '3px', color: R.navy }}><i style={{ width: '6px', height: '6px', borderRadius: '50%', background: R.navy, display: 'inline-block' }} />출석 {onTimeCount}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '3px', color: '#8A6412' }}><i style={{ width: '6px', height: '6px', borderRadius: '50%', background: R.gold, display: 'inline-block' }} />지각 {lateCount}</span>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '3px', color: '#A32D2D' }}><i style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#A32D2D', display: 'inline-block' }} />결석 {absentCount}</span>
                 </div>
               </>
             ) : lateCount > 0 ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: '#0D2D6B', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#fff', fontSize: '16px', fontWeight: 800 }}>{sorted.length}</div>
+                <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: R.navy, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#fff', fontSize: '16px', fontWeight: 800 }}>{sorted.length}</div>
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <p style={labelStyle}>총 {sorted.length}회 수업 · 출석 {onTimeCount}</p>
                   <div style={{ display: 'flex', gap: '6px', marginTop: '6px' }}>
-                    <span style={{ fontSize: '10px', fontWeight: 700, color: '#0D2D6B', background: '#E8EEFA', padding: '2px 8px', borderRadius: '20px' }}>출석 {onTimeCount}</span>
+                    <span style={{ fontSize: '10px', fontWeight: 700, color: R.navy, background: '#E8EEFA', padding: '2px 8px', borderRadius: '20px' }}>출석 {onTimeCount}</span>
                     <span style={{ fontSize: '10px', fontWeight: 700, color: '#8A6412', background: '#FBF1DE', padding: '2px 8px', borderRadius: '20px' }}>지각 {lateCount}</span>
                   </div>
                 </div>
               </div>
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: '#C9A227', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#fff', fontSize: '16px', fontWeight: 800 }}>{sorted.length}</div>
+                <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: R.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#fff', fontSize: '16px', fontWeight: 800 }}>{sorted.length}</div>
                 <div style={{ minWidth: 0 }}>
                   <p style={labelStyle}>총 {sorted.length}회 수업 · 개근</p>
                   <p style={{ fontSize: '11px', color: '#8A6412', fontWeight: 700, margin: 0 }}>지각 한 번도 없어요!</p>
@@ -1071,7 +1071,7 @@ export default function GrowthStory() {
 
         // 4페이지 — 선생님 한마디 + 다음 목표 (둘 다 항상 존재, fallback 문구 있음)
         const teacherWordContent = (
-      <div style={{ background: '#0D2D6B', padding: '24px 22px' }}>
+      <div style={{ background: R.navy, padding: '24px 22px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
           <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.14em', fontWeight: 600 }}>TEACHER'S WORD</p>
           {isEditor && narrative && (
@@ -1094,12 +1094,12 @@ export default function GrowthStory() {
               style={{ width: '100%', minHeight: '100px', padding: '12px', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '8px', color: '#fff', fontSize: '16px', lineHeight: 1.8, fontFamily: 'inherit', resize: 'vertical', outline: 'none' }} />
             <EditCharCount text={editText} dark />
             <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-              <button onClick={saveEdit} style={{ flex: 1, padding: '8px', background: '#C9A227', border: 'none', borderRadius: '6px', color: '#fff', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>저장</button>
+              <button onClick={saveEdit} style={{ flex: 1, padding: '8px', background: R.gold, border: 'none', borderRadius: '6px', color: '#fff', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>저장</button>
               <button onClick={cancelEdit} style={{ flex: 1, padding: '8px', background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '6px', color: 'rgba(255,255,255,0.6)', fontSize: '12px', cursor: 'pointer' }}>취소</button>
             </div>
           </div>
         ) : (
-          <p style={{ fontSize: '14px', color: '#fff', lineHeight: 2.0, fontWeight: 500, wordBreak: 'keep-all', borderLeft: '2px solid #C9A227', paddingLeft: '14px', marginBottom: '12px' }}>
+          <p style={{ fontSize: '14px', color: '#fff', lineHeight: 2.0, fontWeight: 500, wordBreak: 'keep-all', borderLeft: `2px solid ${R.gold}`, paddingLeft: '14px', marginBottom: '12px' }}>
             {narrative?.teacherWord || (bestReport?.teacherNote
               ? `"${bestReport.teacherNote.slice(0, 60)}${bestReport.teacherNote.length > 60 ? '...' : ''}"`
               : `${student.name}이(가) 바뀐 건 점수가 아닙니다. 문제를 스스로 바라보는 시선이 바뀌었습니다.`)}
@@ -1123,7 +1123,7 @@ export default function GrowthStory() {
               </button>
               <button onClick={() => handleRegenField('nextChapter')} disabled={!!regenField}
                 title="이 항목만 AI로 다시 생성 (다른 항목은 그대로)"
-                style={{ background: '#EAF0F9', border: 'none', color: '#0D2D6B', fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '6px', cursor: regenField ? 'wait' : 'pointer', opacity: regenField && regenField !== 'nextChapter' ? 0.5 : 1 }}>
+                style={{ background: '#EAF0F9', border: 'none', color: R.navy, fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '6px', cursor: regenField ? 'wait' : 'pointer', opacity: regenField && regenField !== 'nextChapter' ? 0.5 : 1 }}>
                 {regenField === 'nextChapter' ? '⏳ 생성 중' : '🔄 이 항목만'}
               </button>
             </div>
@@ -1135,7 +1135,7 @@ export default function GrowthStory() {
               style={{ width: '100%', minHeight: '80px', padding: '12px', border: '1px solid #E5E5E5', borderRadius: '8px', color: '#2C2C2C', fontSize: '16px', lineHeight: 1.8, fontFamily: 'inherit', resize: 'vertical', outline: 'none' }} />
             <EditCharCount text={editText} />
             <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-              <button onClick={saveEdit} style={{ flex: 1, padding: '8px', background: '#0D2D6B', border: 'none', borderRadius: '6px', color: '#fff', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>저장</button>
+              <button onClick={saveEdit} style={{ flex: 1, padding: '8px', background: R.navy, border: 'none', borderRadius: '6px', color: '#fff', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>저장</button>
               <button onClick={cancelEdit} style={{ flex: 1, padding: '8px', background: '#F3F4F6', border: 'none', borderRadius: '6px', color: '#6B7280', fontSize: '12px', cursor: 'pointer' }}>취소</button>
             </div>
           </div>
@@ -1144,9 +1144,9 @@ export default function GrowthStory() {
             {narrative?.nextChapter || '판단 기준을 세우는 힘이 생기기 시작했습니다. 이제는 그 힘을 더 단단하게 만들 차례입니다.'}
           </p>
         )}
-        <div style={{ padding: '14px 16px', background: '#F7F5F1', borderRadius: '6px', borderLeft: '2px solid #C9A227' }}>
+        <div style={{ padding: '14px 16px', background: '#F7F5F1', borderRadius: '6px', borderLeft: `2px solid ${R.gold}` }}>
           <p style={{ fontSize: '11px', color: '#757575', fontWeight: 600, marginBottom: '3px' }}>다음 목표</p>
-          <p style={{ fontSize: '13px', fontWeight: 700, color: '#0D2D6B' }}>{topWeakLabel ? `${topWeakLabel} 집중 보완` : '다음 단원 준비'}</p>
+          <p style={{ fontSize: '13px', fontWeight: 700, color: R.navy }}>{topWeakLabel ? `${topWeakLabel} 집중 보완` : '다음 단원 준비'}</p>
         </div>
       </div>
         );
@@ -1200,20 +1200,20 @@ export default function GrowthStory() {
             {/* 페이지 내비게이션 */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', padding: '14px 22px', background: '#fff', borderTop: '1px solid #EEECEA' }}>
               <button onClick={() => goPage(curPage - 1)} disabled={curPage === 0} aria-label="이전 페이지"
-                style={{ width: '36px', height: '36px', borderRadius: '50%', border: '1px solid #E5E7EB', background: curPage === 0 ? '#F7F5F1' : '#fff', color: curPage === 0 ? '#D0D0D0' : '#0D2D6B', fontSize: '18px', lineHeight: 1, cursor: curPage === 0 ? 'default' : 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
+                style={{ width: '36px', height: '36px', borderRadius: '50%', border: '1px solid #E5E7EB', background: curPage === 0 ? '#F7F5F1' : '#fff', color: curPage === 0 ? '#D0D0D0' : R.navy, fontSize: '18px', lineHeight: 1, cursor: curPage === 0 ? 'default' : 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
                 ‹
               </button>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
                 <div style={{ display: 'flex', gap: '6px' }}>
                   {pages.map((p, i) => (
                     <button key={p.key} onClick={() => goPage(i)} title={p.label} aria-label={p.label}
-                      style={{ width: i === curPage ? '18px' : '6px', height: '6px', borderRadius: '3px', border: 'none', padding: 0, background: i === curPage ? '#0D2D6B' : '#E5E7EB', cursor: 'pointer', transition: 'width 0.2s, background 0.2s' }} />
+                      style={{ width: i === curPage ? '18px' : '6px', height: '6px', borderRadius: '3px', border: 'none', padding: 0, background: i === curPage ? R.navy : '#E5E7EB', cursor: 'pointer', transition: 'width 0.2s, background 0.2s' }} />
                   ))}
                 </div>
                 <span style={{ fontSize: '10px', color: '#757575', fontWeight: 600, whiteSpace: 'nowrap' }}>{curPage + 1} / {pages.length} · {pages[curPage].label}</span>
               </div>
               <button onClick={() => goPage(curPage + 1)} disabled={curPage === pages.length - 1} aria-label="다음 페이지"
-                style={{ width: '36px', height: '36px', borderRadius: '50%', border: '1px solid #E5E7EB', background: curPage === pages.length - 1 ? '#F7F5F1' : '#fff', color: curPage === pages.length - 1 ? '#D0D0D0' : '#0D2D6B', fontSize: '18px', lineHeight: 1, cursor: curPage === pages.length - 1 ? 'default' : 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
+                style={{ width: '36px', height: '36px', borderRadius: '50%', border: '1px solid #E5E7EB', background: curPage === pages.length - 1 ? '#F7F5F1' : '#fff', color: curPage === pages.length - 1 ? '#D0D0D0' : R.navy, fontSize: '18px', lineHeight: 1, cursor: curPage === pages.length - 1 ? 'default' : 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
                 ›
               </button>
             </div>
