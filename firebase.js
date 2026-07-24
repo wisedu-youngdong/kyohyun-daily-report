@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
-import { getAuth, connectAuthEmulator, createUserWithEmailAndPassword, signOut, inMemoryPersistence, browserSessionPersistence, setPersistence } from "firebase/auth";
+import { getAuth, connectAuthEmulator, createUserWithEmailAndPassword, signOut, inMemoryPersistence, browserLocalPersistence, setPersistence } from "firebase/auth";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
@@ -18,11 +18,11 @@ export const db = getFirestore(app);
 export const auth = getAuth(app);
 export const storage = getStorage(app);
 
-// 로그인 세션을 브라우저 창이 열려있는 동안만 유지 — 기본값(browserLocalPersistence)은
-// 브라우저를 완전히 꺼도 로그인이 계속 살아있어서, 여러 학원의 학생 개인정보를 다루는
-// 서비스로 커지는 상황에서 공용 PC 등에 세션이 남는 게 위험하다고 판단해 변경.
-// 새로고침(F5)은 같은 창이 유지되는 거라 로그인이 안 풀리고, 창을 완전히 닫으면 풀림.
-setPersistence(auth, browserSessionPersistence);
+// 로그인 세션 지속성 — 한때 공용 PC 우려로 browserSessionPersistence(탭 단위)로 바꿨었는데,
+// sessionStorage가 탭마다 분리되는 특성 때문에 성장 포트폴리오/시상장처럼 새 탭으로 여는
+// 핵심 흐름이 전부 "로그인 안 됨" 상태가 되는 부작용이 있어 기본값(localPersistence)으로 복귀.
+// 공용 PC 보안은 사용 안내(꼭 로그아웃)로 커버하고, 추후 유휴 자동 로그아웃 등으로 보강 예정.
+setPersistence(auth, browserLocalPersistence);
 
 // 멀티테넌시 마이그레이션 검증용 — VITE_USE_EMULATOR=1일 때만 Firestore/Auth를
 // 로컬 에뮬레이터로 연결. 프로덕션 빌드/일반 개발에는 전혀 영향 없음(env var 없으면 그대로 실제 Firebase 사용).
