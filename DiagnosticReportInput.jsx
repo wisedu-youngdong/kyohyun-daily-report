@@ -10,13 +10,13 @@ const getHeic2any = async () => {
   return heic2anyLib;
 };
 import React, { useState, useMemo, useEffect } from 'react';
-import { useMediaQuery, useEscapeClose } from './hooks.js';
+import { useMediaQuery, useEscapeClose, useFocusTrap } from './hooks.js';
 import {
   User, Clock,
   FileText, Sparkles, Send, Plus, X, Check,
   UserPlus, GraduationCap, Info, Star, AlertTriangle, Palette
 } from 'lucide-react';
-import { C, RADIUS2, TYPE, SHADOW } from './tokens.jsx';
+import { C, R, RADIUS2, TYPE, SHADOW } from './tokens.jsx';
 import { calculateReportPoints, toPct, ratingLabel, kstDay, getKstWeekRange } from './growth.js';
 import { DIAG_LABELS as diagLabels, DIAG_BADGE, WRONG_TAGS, WRONG_TAG_LABELS } from './diagnosis.js';
 import { findUnitKey, getUnits, getCourses } from './curriculum.js';
@@ -200,7 +200,9 @@ export const SKINS = {
 
 // 공통 중앙 알림 모달
 function AlertModal({ message, onClose }) {
+  const panelRef = React.useRef(null);
   useEscapeClose(onClose, !!message);
+  useFocusTrap(panelRef, !!message);
   if (!message) return null;
   return (
     <div role="dialog" aria-modal="true" style={{
@@ -209,7 +211,7 @@ function AlertModal({ message, onClose }) {
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       padding: '20px',
     }} onClick={onClose}>
-      <div style={{
+      <div ref={panelRef} style={{
         background: TOKENS.bg, borderRadius: `${RADIUS2.panel}px`, padding: '32px 24px',
         width: '100%', maxWidth: '320px', textAlign: 'center',
         boxShadow: SHADOW[3],

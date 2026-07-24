@@ -3,7 +3,7 @@ import { X, Check } from 'lucide-react';
 import { kstDay, kstWeekday, isReportSent } from '../growth.js';
 import { T, C, RADIUS2 } from '../tokens.jsx';
 import { AVATARS, StatCard, onKeyActivate } from './shared.jsx';
-import { useMediaQuery, useEscapeClose } from '../hooks.js';
+import { useMediaQuery, useEscapeClose, useFocusTrap } from '../hooks.js';
 
 // 학생 아바타(사진 없을 때 이니셜 배경) 색 순환 — 실제 유형과 무관하게 그냥 시각적 다양성용
 const AVATAR_PALETTE = [
@@ -45,6 +45,8 @@ export default function DashboardView({ students, reports, classes = [], reportV
   const [markingAbsent, setMarkingAbsent] = React.useState(null); // studentId 처리 중
   const [confirmAbsenceStudent, setConfirmAbsenceStudent] = React.useState(null); // 결석 처리 확인 모달 대상
   useEscapeClose(() => setConfirmAbsenceStudent(null), !!confirmAbsenceStudent);
+  const absenceModalRef = React.useRef(null);
+  useFocusTrap(absenceModalRef, !!confirmAbsenceStudent);
   // 복습 알림 카드의 세 가지 동작:
   //   "복습 지시" — 학생에게 복습하라고 알려줬다는 가벼운 표시(instructed 필드). 목록에서
   //     사라지진 않고 카드만 흐려짐 — 진짜 끝난 게 아니라 "지시는 했다"는 중간 상태이기 때문.
@@ -446,7 +448,7 @@ export default function DashboardView({ students, reports, classes = [], reportV
   const absenceModal = confirmAbsenceStudent && (
     <div role="dialog" aria-modal="true" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '20px', backdropFilter: 'blur(4px)' }}
       onClick={() => setConfirmAbsenceStudent(null)}>
-      <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: '16px', padding: '28px 24px', width: '100%', maxWidth: '320px', textAlign: 'center', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
+      <div ref={absenceModalRef} onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: '16px', padding: '28px 24px', width: '100%', maxWidth: '320px', textAlign: 'center', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
         <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: C.warningBg, border: '2px solid #D97706', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px', fontSize: '22px', color: '#D97706', fontWeight: 700 }}>!</div>
         <p style={{ fontSize: '15px', fontWeight: 700, color: '#1A1A1A', margin: '0 0 6px' }}>{confirmAbsenceStudent.name} 학생을 오늘 결석 처리할까요?</p>
         <p style={{ fontSize: '12px', color: '#6B7280', margin: '0 0 20px', lineHeight: 1.6 }}>기록 보관소에서 나중에 수정할 수 있어요.</p>

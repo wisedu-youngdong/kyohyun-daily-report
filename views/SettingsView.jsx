@@ -4,7 +4,7 @@ import { collection, addDoc, doc, getDoc, getDocs, setDoc, serverTimestamp, getC
 import { Pencil, AlertTriangle, Check, HelpCircle, X } from 'lucide-react';
 import { T, C } from '../tokens.jsx';
 import { PRESET_SKINS, onKeyActivate } from './shared.jsx';
-import { useEscapeClose } from '../hooks.js';
+import { useEscapeClose, useFocusTrap } from '../hooks.js';
 
 const DEFAULT_SKIN_COLOR = '#1A2540';
 
@@ -211,8 +211,12 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
   const [gradeBumping, setGradeBumping] = React.useState(false);
   const [gradeBumpResult, setGradeBumpResult] = React.useState('');
   // 모달 Escape 닫기 — 학년 올리기는 처리 중(gradeBumping)엔 오버레이 클릭과 동일하게 닫기 차단
+  const logoDeleteRef = React.useRef(null);
+  const gradeBumpRef = React.useRef(null);
   useEscapeClose(() => setShowLogoDeleteConfirm(false), showLogoDeleteConfirm);
   useEscapeClose(() => setGradeBumpPreview(null), !!gradeBumpPreview && !gradeBumping);
+  useFocusTrap(logoDeleteRef, showLogoDeleteConfirm);
+  useFocusTrap(gradeBumpRef, !!gradeBumpPreview && !gradeBumping);
 
   const handlePreviewGradeBump = () => {
     setGradeBumpResult('');
@@ -792,7 +796,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
       {showLogoDeleteConfirm && (
         <div role="dialog" aria-modal="true" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '20px', backdropFilter: 'blur(4px)' }}
           onClick={() => setShowLogoDeleteConfirm(false)}>
-          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: '16px', padding: '28px 24px', width: '100%', maxWidth: '320px', textAlign: 'center', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
+          <div ref={logoDeleteRef} onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: '16px', padding: '28px 24px', width: '100%', maxWidth: '320px', textAlign: 'center', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
             <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: C.dangerBg, border: `2px solid ${C.danger}`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px', fontSize: '22px', color: C.danger, fontWeight: 700 }}>!</div>
             <p style={{ fontSize: '15px', fontWeight: 700, color: '#1A1A1A', margin: '0 0 6px' }}>학원 로고를 삭제할까요?</p>
             <p style={{ fontSize: '12px', color: '#6B7280', margin: '0 0 20px', lineHeight: 1.6 }}>삭제하면 앱 상단 헤더가 기본 아이콘으로 바뀝니다.</p>
@@ -1088,7 +1092,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
       {gradeBumpPreview && (
         <div role="dialog" aria-modal="true" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '20px', backdropFilter: 'blur(4px)' }}
           onClick={() => !gradeBumping && setGradeBumpPreview(null)}>
-          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '420px', maxHeight: '80vh', overflow: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
+          <div ref={gradeBumpRef} onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '420px', maxHeight: '80vh', overflow: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
             <p style={{ fontSize: '15px', fontWeight: 700, margin: '0 0 4px' }}>학년을 올릴까요?</p>
             <p style={{ fontSize: '12px', color: '#6B7280', margin: '0 0 14px', lineHeight: 1.6 }}>
               {gradeBumpPreview.changes.length}명의 학년이 아래처럼 바뀝니다.

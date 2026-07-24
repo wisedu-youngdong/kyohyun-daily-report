@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Pencil } from 'lucide-react';
 import { toPct, fmtPages } from '../growth.js';
 import { findUnitKey, extractUnitNumbers } from '../curriculum.js';
 import { DIAG_LABELS as diagLabels, DIAG_BADGE as DIAG_MAP, DIAG_SOFT } from '../diagnosis.js';
 import { C } from '../tokens.jsx';
-import { useEscapeClose } from '../hooks.js';
+import { useEscapeClose, useFocusTrap } from '../hooks.js';
 
 // ============================================================
 // 학생 종합 프로필 — 내용 본체(모달 크롬 없음)
@@ -15,6 +15,8 @@ import { useEscapeClose } from '../hooks.js';
 export function StudentProfileContent({ student, reports, reviews = [], onClose, onToast, academyName }) {
   const [showWeekly, setShowWeekly] = useState(false);
   useEscapeClose(() => setShowWeekly(false), showWeekly);
+  const weeklyPanelRef = useRef(null);
+  useFocusTrap(weeklyPanelRef, showWeekly);
   const [expandedWeak, setExpandedWeak] = useState(null); // 반복 약점 패턴 중 "자세히 보기"로 펼친 key
   // 캘린더가 기본으로 펼쳐져 있으면 그 아래 내용(수업 기록/약점 패턴 등) 보려고 매번 스크롤을 많이 해야 해서, 기본은 요약만 접어서 보여줌
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -567,7 +569,7 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
                   {showWeekly && (
                     <div role="dialog" aria-modal="true" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: '20px' }}
                       onClick={() => setShowWeekly(false)}>
-                      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: '420px', maxHeight: '90vh', overflowY: 'auto', borderRadius: '16px' }}>
+                      <div ref={weeklyPanelRef} onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: '420px', maxHeight: '90vh', overflowY: 'auto', borderRadius: '16px' }}>
                         <WeeklySummaryCard student={student} reports={reports} academyName={academyName} />
                         <button onClick={() => setShowWeekly(false)}
                           style={{ width: '100%', marginTop: '8px', padding: '12px', background: 'rgba(255,255,255,0.9)', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', color: '#374151' }}>
@@ -596,6 +598,8 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
 // ============================================================
 export function StudentProfileModal({ student, reports, reviews = [], onClose, onToast, academyName }) {
   useEscapeClose(onClose);
+  const wrapperPanelRef = useRef(null);
+  useFocusTrap(wrapperPanelRef, true);
   // 모바일 뒤로가기 지원 — SPA history 보호
   useEffect(() => {
     // 현재 페이지를 history에 한 번 더 쌓아서 뒤로가기가 앱 밖으로 안 나가게
@@ -613,7 +617,7 @@ export function StudentProfileModal({ student, reports, reviews = [], onClose, o
   return (
     <div role="dialog" aria-modal="true" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px', backdropFilter: 'blur(4px)' }}
       onClick={onClose}>
-      <div style={{ background: '#fff', borderRadius: '12px', width: '100%', maxWidth: '620px', maxHeight: '88vh', overflow: 'auto' }}
+      <div ref={wrapperPanelRef} style={{ background: '#fff', borderRadius: '12px', width: '100%', maxWidth: '620px', maxHeight: '88vh', overflow: 'auto' }}
         onClick={e => e.stopPropagation()}>
         <StudentProfileContent student={student} reports={reports} reviews={reviews} onClose={onClose} onToast={onToast} academyName={academyName} />
       </div>
