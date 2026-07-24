@@ -840,7 +840,7 @@ export default function GrowthStory() {
                 </div>
                 <span style={{ fontSize: '11px', color: '#8A8A8A' }}>100점 만점</span>
               </div>
-              <p style={{ fontSize: '10px', color: '#B0B0B0', margin: '4px 0 0' }}>서로 다른 단원 시험 점수를 모은 범위예요</p>
+              <p style={{ fontSize: '12px', color: '#2C2C2C', margin: '4px 0 0' }}>서로 다른 단원 시험 점수를 모은 범위예요</p>
             </div>
           )}
           {allScores.length === 1 && (
@@ -894,7 +894,7 @@ export default function GrowthStory() {
                       <div style={{ width: `${Math.round(count / maxCount * 100)}%`, height: '100%', background: info.color, borderRadius: '6px' }} />
                     </div>
                     {topUnits.length > 0 && (
-                      <p style={{ fontSize: '10px', color: '#B0B0B0', margin: '4px 0 0' }}>주로 {topUnits.join(', ')}에서 나왔어요</p>
+                      <p style={{ fontSize: '12px', color: '#2C2C2C', margin: '4px 0 0' }}>주로 {topUnits.join(', ')}에서 나왔어요</p>
                     )}
                   </div>
                 );
