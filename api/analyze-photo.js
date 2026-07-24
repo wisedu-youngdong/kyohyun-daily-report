@@ -169,8 +169,11 @@ export default async function handler(req, res) {
     if (!academyId) return res.status(403).json({ error: '학원 정보를 확인할 수 없습니다.' });
     const billingRef = db.collection('academies').doc(academyId).collection('private').doc('billing');
     const billingSnap = await billingRef.get();
-    const creditBalance = billingSnap.exists ? (billingSnap.data().creditBalance || 0) : 0;
-    if (creditBalance <= 0) {
+    const billingData = billingSnap.exists ? billingSnap.data() : {};
+    // 무제한 학원(예: 자체 운영 학원) — 잔액 체크/차감을 건너뜀. SettingsView "무제한" 토글로 설정
+    const isUnlimited = billingData.unlimited === true;
+    const creditBalance = billingData.creditBalance || 0;
+    if (!isUnlimited && creditBalance <= 0) {
       return res.status(200).json({ error: '크레딧이 부족합니다. 원장님께 문의해 충전 후 다시 시도해주세요.' });
     }
 
@@ -261,8 +264,12 @@ export default async function handler(req, res) {
     }
 
     // 실제로 쓸 수 있는 결과를 돌려줄 때만 차감 — 위의 에러 반환 경로들(쿼터초과/안전필터/
-    // 파싱실패 등)은 여기 도달하지 않으므로 실패한 호출에는 크레딧이 나가지 않음
-    await billingRef.update({ creditBalance: FieldValue.increment(-1) });
+    // 파싱실패 등)은 여기 도달하지 않으므로 실패한 호출에는 크레딧이 나가지 않음.
+    // 무제한 학원은 차감을 건너뜀(잔액 필드 자체를 안 건드림) — 사용 내역 기록은 그대로 남겨서
+    // 무제한이어도 실제 사용량은 계속 볼 수 있게 함
+    if (!isUnlimited) {
+      await billingRef.update({ creditBalance: FieldValue.increment(-1) });
+    }
     // 사용 내역 — 원장/플랫폼 관리자가 "이 학원이 언제 얼마나 썼는지" 조회할 수 있게 기록.
     // teacherEmail은 토큰 클레임에 이미 있어 추가 조회 없이 무료로 붙일 수 있음
     db.collection('academies').doc(academyId).collection('creditUsage').add({
@@ -270,7 +277,8 @@ export default async function handler(req, res) {
       teacherEmail: decoded.email || null,
       hintTextbook: hintTextbook || null,
       hintUnit: hintUnit || null,
-      balanceAfter: creditBalance - 1,
+      balanceAfter: isUnlimited ? null : creditBalance - 1,
+      unlimited: isUnlimited,
       usedAt: FieldValue.serverTimestamp(),
     }).catch(e => console.error('크레딧 사용 로그 기록 실패(과금엔 영향 없음):', e.message));
     res.status(200).json(parsed);

@@ -389,6 +389,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
   const [creditAmount, setCreditAmount] = React.useState(String(PACKAGE_PRICES['20']));
   const [creditMemo, setCreditMemo] = React.useState('');
   const [creditGranting, setCreditGranting] = React.useState(false);
+  const [unlimitedToggling, setUnlimitedToggling] = React.useState(null); // 토글 중인 academyId
 
   const loadBilling = async (targetAcademyId) => {
     setBillingLoading(targetAcademyId);
@@ -404,7 +405,11 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
       const history = historySnap.docs.map(d => ({ id: d.id, ...d.data() }))
         .sort((a, b) => (b.grantedAt?.seconds || 0) - (a.grantedAt?.seconds || 0));
       const usage = usageSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-      setAcademyBilling(prev => ({ ...prev, [targetAcademyId]: { balance: billingSnap.exists() ? (billingSnap.data().creditBalance || 0) : 0, history, usage, usageCount: usageCountSnap.data().count } }));
+      setAcademyBilling(prev => ({ ...prev, [targetAcademyId]: {
+        balance: billingSnap.exists() ? (billingSnap.data().creditBalance || 0) : 0,
+        unlimited: billingSnap.exists() ? (billingSnap.data().unlimited === true) : false,
+        history, usage, usageCount: usageCountSnap.data().count,
+      } }));
     } catch (e) {
       console.error('크레딧 정보 조회 실패:', e);
     }
@@ -442,6 +447,26 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
       console.error('크레딧 지급 실패:', e);
     }
     setCreditGranting(false);
+  };
+
+  // 무제한 학원 지정 — 자체 운영 학원(교현학원)처럼 크레딧 소진 걱정 없이 쓰게 하려는 용도.
+  // analyze-photo.js가 이 플래그를 보고 잔액 체크/차감을 건너뜀(사용 내역 기록은 그대로 남김)
+  const handleToggleUnlimited = async (targetAcademyId, next) => {
+    setUnlimitedToggling(targetAcademyId);
+    try {
+      await setDoc(doc(db, 'academies', targetAcademyId, 'private', 'billing'), {
+        unlimited: next, updatedAt: serverTimestamp(),
+      }, { merge: true });
+      logPlatformEvent(next ? 'unlimited_enabled' : 'unlimited_disabled', {
+        academyId: targetAcademyId,
+        academyName: academyList.find(a => a.id === targetAcademyId)?.academyName || targetAcademyId,
+      });
+      await loadBilling(targetAcademyId);
+      loadPlatformEvents();
+    } catch (e) {
+      console.error('무제한 설정 변경 실패:', e);
+    }
+    setUnlimitedToggling(null);
   };
 
   const loadAcademies = React.useCallback(async () => {
@@ -1276,7 +1301,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                   </div>
                   <button onClick={() => toggleCreditForm(a.id)}
                     style={{ background: formOpen ? C.primary : '#fff', color: formOpen ? '#fff' : C.primary, border: `1px solid ${C.primary}`, borderRadius: '8px', padding: '6px 12px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
-                    {billing ? `크레딧 ${billing.balance}건` : '크레딧 지급'}
+                    {billing?.unlimited ? '♾️ 무제한' : billing ? `크레딧 ${billing.balance}건` : '크레딧 지급'}
                   </button>
                   {!isMine && (
                     <button onClick={() => handleToggleSuspend(a)} disabled={togglingAcademy === a.id}
@@ -1298,7 +1323,17 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                       <p style={{ fontSize: '11px', color: '#6C7586', margin: 0 }}>불러오는 중...</p>
                     ) : (
                       <>
-                        <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
+                        {/* 무제한 토글 — 자체 운영 학원처럼 크레딧 소진 걱정 없이 쓰게 할 때. 켜져 있으면
+                            아래 지급 폼은 의미 없어져서 흐리게 표시(그래도 지급 자체는 막지 않음 — 나중에
+                            무제한 끌 때를 대비해 잔액을 미리 쌓아둘 수도 있으니) */}
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '10px', padding: '8px 10px', background: billing?.unlimited ? '#FBF1DE' : '#F9FAFB', borderRadius: '8px', cursor: unlimitedToggling === a.id ? 'wait' : 'pointer' }}>
+                          <input type="checkbox" checked={!!billing?.unlimited} disabled={unlimitedToggling === a.id}
+                            onChange={e => handleToggleUnlimited(a.id, e.target.checked)} />
+                          <span style={{ fontSize: '11px', fontWeight: 700, color: billing?.unlimited ? '#8A6412' : '#374151' }}>
+                            {unlimitedToggling === a.id ? '변경 중...' : '♾️ 무제한 (크레딧 잔액 체크/차감 안 함)'}
+                          </span>
+                        </label>
+                        <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', opacity: billing?.unlimited ? 0.5 : 1 }}>
                           <select value={creditPackage} onChange={e => { setCreditPackage(e.target.value); setCreditAmount(String(PACKAGE_PRICES[e.target.value])); }}
                             style={{ padding: '7px 8px', fontSize: '12px', border: '1px solid #E5E7EB', borderRadius: '8px', background: '#fff', fontFamily: 'inherit' }}>
                             {Object.keys(PACKAGE_PRICES).map(p => <option key={p} value={p}>{p}건</option>)}
@@ -1335,7 +1370,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                                 <p key={u.id} style={{ fontSize: '10px', color: '#6C7586', margin: 0 }}>
                                   {u.usedAt?.seconds ? new Date(u.usedAt.seconds * 1000).toLocaleString('ko-KR') : ''} · {u.teacherEmail || u.teacherUid}
                                   {(u.hintTextbook || u.hintUnit) ? ` · ${[u.hintTextbook, u.hintUnit].filter(Boolean).join(' ')}` : ''}
-                                  {' · 잔액 '}{u.balanceAfter}건
+                                  {u.unlimited ? ' · 무제한' : ` · 잔액 ${u.balanceAfter}건`}
                                 </p>
                               ))}
                             </div>
@@ -1362,6 +1397,8 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
           academy_suspended: { icon: '⏸️', label: '이용 정지' },
           academy_resumed: { icon: '▶️', label: '이용 재개' },
           credit_granted: { icon: '💳', label: '크레딧 지급' },
+          unlimited_enabled: { icon: '♾️', label: '무제한 설정' },
+          unlimited_disabled: { icon: '♾️', label: '무제한 해제' },
         };
         return (
           <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: `1px solid ${T.border}`, marginBottom: '14px' }}>
