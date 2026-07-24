@@ -838,7 +838,10 @@ export default function App() {
               const showPerClass = classes.length > 0 && classGroups.length > 1;
 
               return (
-                <div style={{ background: '#F8F9FC', borderBottom: '1px solid #E5E7EB', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                // 배경 띠는 전체 폭, 내용은 아래 리포트 작성 영역(maxWidth 1100px)과 같은 라인으로 —
+                // 안 맞추면 넓은 모니터에서 왼쪽 칩과 오른쪽 복사 버튼이 화면 양끝으로 밀려 따로 놀아 보임
+                <div style={{ background: '#F8F9FC', borderBottom: '1px solid #E5E7EB', padding: '8px 16px' }}>
+                <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                   <span style={{ fontSize: '11px', color: '#6B7280', fontWeight: 500, flexShrink: 0 }}>오늘</span>
                   {visibleStudents
                     .filter(s => todayReports.some(r => r.studentId === s.id))
@@ -882,6 +885,7 @@ export default function App() {
                       </button>
                     </div>
                   )}
+                </div>
                 </div>
               );
             })()}
