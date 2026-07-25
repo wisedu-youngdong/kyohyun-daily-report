@@ -371,9 +371,12 @@ export default function DiagnosticReportInput({
     const number = window.prompt('AI가 놓친 오답 문항의 번호를 입력해주세요 (예: 03)');
     if (!number?.trim()) return;
     const type = window.prompt('이 문항은 어떤 유형/내용인가요? (간단히)') || '';
+    // sectionIdx는 일부러 안 넣음 — Firestore updateDoc은 undefined 필드값을 거부하고
+    // (실제로 "Unsupported field value: undefined" 저장 오류로 이어졌던 버그), 키 자체를
+    // 생략해도 이후 비교 코드(w.sectionIdx === item.sectionIdx)는 어차피 undefined로 읽힘
     setWrongItems(prev => [...prev, {
       number: number.trim(), type: type.trim(), correctRate: '', mark: '수동오답',
-      confidence: 'high', tags: [], memo: '', sectionIdx: undefined,
+      confidence: 'high', tags: [], memo: '',
       ...(photoIndex != null ? { photoIndex } : {}),
     }]);
   };
@@ -862,7 +865,10 @@ export default function DiagnosticReportInput({
                 )
               );
             }
-            return { ...item, sectionIdx: sectionIdx >= 0 ? sectionIdx : undefined, tags: [], memo: '' };
+            // sectionIdx가 안 잡히면 undefined를 명시적으로 넣지 않고 키 자체를 생략함 —
+            // Firestore updateDoc이 undefined 필드값을 거부해 저장 오류로 이어졌던 버그
+            const { sectionIdx: _drop, ...itemRest } = item;
+            return { ...itemRest, ...(sectionIdx >= 0 ? { sectionIdx } : {}), tags: [], memo: '' };
           }));
         } else {
           setWrongItems([]);
