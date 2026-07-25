@@ -3,7 +3,7 @@ import { Pencil } from 'lucide-react';
 import { toPct, fmtPages } from '../growth.js';
 import { findUnitKey, extractUnitNumbers } from '../curriculum.js';
 import { DIAG_LABELS as diagLabels, DIAG_BADGE as DIAG_MAP, DIAG_SOFT } from '../diagnosis.js';
-import { C } from '../tokens.jsx';
+import { T, C } from '../tokens.jsx';
 import { useEscapeClose, useFocusTrap } from '../hooks.js';
 
 // ============================================================
@@ -120,7 +120,7 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
     ? { bg: C.successBg, color: C.successDark, border: `${C.successDark}30` }
     : pct >= 60
       ? { bg: C.warningBg, color: C.warningText, border: `${C.accent}30` }
-      : { bg: '#FDF0F0', color: '#A32D2D', border: '#A32D2D30' };
+      : { bg: '#FDF0F0', color: C.errorDark, border: `${C.errorDark}30` };
 
   // 완료된 복습 이력 — 최신순. "완료" 자체보다 그때 실제로 뭘 했는지(note/testScore)를 보여주는 게 목적
   const completedReviews = [...reviews]
@@ -152,12 +152,12 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
           {/* 핵심 지표 */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px', marginBottom: '20px' }}>
             {[
-              { label: '개념 이해 평균', value: `${avgConcept}%`, color: avgConcept >= 80 ? C.successDark : avgConcept >= 60 ? C.warningText : '#A32D2D' },
+              { label: '개념 이해 평균', value: `${avgConcept}%`, color: avgConcept >= 80 ? C.successDark : avgConcept >= 60 ? C.warningText : C.errorDark },
               { label: '과제 수행 평균', value: `${avgHomework}%`, color: avgHomework >= 80 ? C.successDark : C.warningText },
-              { label: '정시 출석률', value: `${attendanceRate}%`, color: attendanceRate >= 90 ? C.successDark : attendanceRate >= 70 ? C.warningText : '#A32D2D' },
+              { label: '정시 출석률', value: `${attendanceRate}%`, color: attendanceRate >= 90 ? C.successDark : attendanceRate >= 70 ? C.warningText : C.errorDark },
             ].map((item, i) => (
               <div key={i} style={{ border: '0.5px solid #E8E6E0', borderRadius: '10px', padding: '12px', textAlign: 'center' }}>
-                <p style={{ fontSize: '10px', color: '#6B7785', margin: '0 0 4px', letterSpacing: '0.06em' }}>{item.label}</p>
+                <p style={{ fontSize: '10px', color: T.textMute, margin: '0 0 4px', letterSpacing: '0.06em' }}>{item.label}</p>
                 <p style={{ fontSize: '22px', fontWeight: 800, color: item.color, margin: 0, fontVariantNumeric: 'tabular-nums' }}>{item.value}</p>
               </div>
             ))}
@@ -165,7 +165,7 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
 
           {/* 출결 캘린더 */}
           {(() => {
-            const ATTEND_COLORS = { '정시': C.successDark, '지각': '#C9A227', '결석': '#A32D2D', '조퇴': C.warningText };
+            const ATTEND_COLORS = { '정시': C.successDark, '지각': '#C9A227', '결석': C.errorDark, '조퇴': C.warningText };
             const attendanceByDate = {};
             sorted.forEach(r => {
               if (!r.createdAt?.seconds) return;
@@ -193,12 +193,12 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
                   {calendarOpen ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <button onClick={() => setCalMonth(new Date(calYear, calMonthIdx - 1, 1))}
-                        style={{ background: 'none', border: 'none', color: '#6B7280', cursor: 'pointer', fontSize: '14px', padding: '4px', width: '28px', height: '28px' }}>‹</button>
+                        style={{ background: 'none', border: 'none', color: T.textSub, cursor: 'pointer', fontSize: '14px', padding: '4px', width: '28px', height: '28px' }}>‹</button>
                       <span style={{ fontSize: '12px', fontWeight: 700, color: '#374151' }}>{calYear}년 {calMonthIdx + 1}월</span>
                       <button onClick={() => setCalMonth(new Date(calYear, calMonthIdx + 1, 1))}
-                        style={{ background: 'none', border: 'none', color: '#6B7280', cursor: 'pointer', fontSize: '14px', padding: '4px', width: '28px', height: '28px' }}>›</button>
+                        style={{ background: 'none', border: 'none', color: T.textSub, cursor: 'pointer', fontSize: '14px', padding: '4px', width: '28px', height: '28px' }}>›</button>
                       <button onClick={() => setCalendarOpen(false)}
-                        style={{ fontSize: '11px', fontWeight: 700, color: '#6B7280', background: '#F3F4F6', border: 'none', borderRadius: '8px', padding: '5px 10px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                        style={{ fontSize: '11px', fontWeight: 700, color: T.textSub, background: '#F3F4F6', border: 'none', borderRadius: '8px', padding: '5px 10px', cursor: 'pointer', fontFamily: 'inherit' }}>
                         접기
                       </button>
                     </div>
@@ -213,7 +213,7 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
 
                 {!calendarOpen ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', padding: '11px 13px', background: '#FAFAF8', border: '0.5px solid #E5E7EB', borderRadius: '10px' }}>
-                    <span style={{ fontSize: '11px', color: '#6C7586', fontWeight: 700 }}>{calYear}년 {calMonthIdx + 1}월</span>
+                    <span style={{ fontSize: '11px', color: T.textMute, fontWeight: 700 }}>{calYear}년 {calMonthIdx + 1}월</span>
                     {Object.entries(ATTEND_COLORS).map(([label, color]) => (
                       monthCounts[label] ? (
                         <span key={label} style={{ fontSize: '11px', color: '#374151', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -228,7 +228,7 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
                   <>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', marginBottom: '4px' }}>
                       {['일', '월', '화', '수', '목', '금', '토'].map(d => (
-                        <p key={d} style={{ textAlign: 'center', fontSize: '10px', color: '#6C7586', margin: 0, fontWeight: 600 }}>{d}</p>
+                        <p key={d} style={{ textAlign: 'center', fontSize: '10px', color: T.textMute, margin: 0, fontWeight: 600 }}>{d}</p>
                       ))}
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
@@ -254,7 +254,7 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
                       {Object.entries(ATTEND_COLORS).map(([label, color]) => (
                         <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: color, display: 'inline-block' }} />
-                          <span style={{ fontSize: '10px', color: '#6B7280' }}>{label}</span>
+                          <span style={{ fontSize: '10px', color: T.textSub }}>{label}</span>
                         </div>
                       ))}
                     </div>
@@ -290,12 +290,12 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
                       <span style={{ fontSize: '11px', fontWeight: 600, color: '#1A1A1A' }}>{fmtDate(r)}</span>
                       <div style={{ display: 'flex', gap: '8px' }}>
                         {r.homeworkRating != null && (
-                          <span style={{ fontSize: '10px', color: '#6B7280' }}>
+                          <span style={{ fontSize: '10px', color: T.textSub }}>
                             과제 <strong style={{ color: '#0D2D6B' }}>{r.homeworkRating}%</strong>
                           </span>
                         )}
                         {r.conceptRating != null && (
-                          <span style={{ fontSize: '10px', color: '#6B7280' }}>
+                          <span style={{ fontSize: '10px', color: T.textSub }}>
                             개념 <strong style={{ color: '#0D2D6B' }}>{r.conceptRating}%</strong>
                           </span>
                         )}
@@ -309,7 +309,7 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
 
                     {/* 교재 + 단원 */}
                     {(r.textbook || r.unit) && (
-                      <p style={{ fontSize: '10px', color: '#6C7586', margin: '0 0 5px' }}>
+                      <p style={{ fontSize: '10px', color: T.textMute, margin: '0 0 5px' }}>
                         {[r.textbook, r.unit, r.pages && fmtPages(r.pages)].filter(Boolean).join(' · ')}
                       </p>
                     )}
@@ -333,7 +333,7 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
 
                     {/* 코멘트 미리보기 */}
                     {cleanNote && (
-                      <p style={{ fontSize: '10px', color: '#6B7280', margin: 0, lineHeight: 1.6, fontStyle: 'italic' }}>
+                      <p style={{ fontSize: '10px', color: T.textSub, margin: 0, lineHeight: 1.6, fontStyle: 'italic' }}>
                         "{cleanNote.length > 45 ? cleanNote.slice(0, 45) + '...' : cleanNote}"
                       </p>
                     )}
@@ -342,7 +342,7 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
               })}
             </div>
             {sorted.length > 5 && (
-              <p style={{ fontSize: '11px', color: '#6C7586', margin: '8px 0 0', textAlign: 'center' }}>
+              <p style={{ fontSize: '11px', color: T.textMute, margin: '8px 0 0', textAlign: 'center' }}>
                 최근 5회 표시 · 전체 {sorted.length}회
               </p>
             )}
@@ -406,7 +406,7 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
                   );
                 })}
               </div>
-              <p style={{ fontSize: '10px', color: '#6B7785', margin: '8px 0 0' }}>개념 이해 평가 평균 · 낮은 순 정렬 · 빨강/주황일수록 보강이 필요해요</p>
+              <p style={{ fontSize: '10px', color: T.textMute, margin: '8px 0 0' }}>개념 이해 평가 평균 · 낮은 순 정렬 · 빨강/주황일수록 보강이 필요해요</p>
             </div>
           )}
 
@@ -422,26 +422,26 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
                       <span style={{ fontSize: '11px', fontWeight: 700, color: '#1A1A1A' }}>
                         {rv.round}차 복습
-                        {rv.weakTypes?.length > 0 && <span style={{ fontWeight: 500, color: '#6B7280' }}> · {rv.weakTypes.map(w => w.label).join(', ')}</span>}
+                        {rv.weakTypes?.length > 0 && <span style={{ fontWeight: 500, color: T.textSub }}> · {rv.weakTypes.map(w => w.label).join(', ')}</span>}
                       </span>
-                      <span style={{ fontSize: '10px', color: '#6C7586' }}>
+                      <span style={{ fontSize: '10px', color: T.textMute }}>
                         {rv.completedAt?.seconds ? new Date(rv.completedAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' }) : ''}
                       </span>
                     </div>
                     {(rv.textbook || rv.unit) && (
-                      <p style={{ fontSize: '10px', color: '#6C7586', margin: '0 0 4px' }}>{[rv.textbook, rv.unit].filter(Boolean).join(' · ')}</p>
+                      <p style={{ fontSize: '10px', color: T.textMute, margin: '0 0 4px' }}>{[rv.textbook, rv.unit].filter(Boolean).join(' · ')}</p>
                     )}
                     {rv.testScore != null && rv.testScore !== '' && (
                       <p style={{ fontSize: '10px', color: '#C9A227', fontWeight: 700, margin: '0 0 4px' }}>재시험 {rv.testScore}점</p>
                     )}
                     {rv.note && (
-                      <p style={{ fontSize: '11px', color: '#5A6472', margin: 0, lineHeight: 1.6 }}>{rv.note}</p>
+                      <p style={{ fontSize: '11px', color: T.textSub, margin: 0, lineHeight: 1.6 }}>{rv.note}</p>
                     )}
                   </div>
                 ))}
               </div>
               {completedReviews.length > 5 && (
-                <p style={{ fontSize: '11px', color: '#6C7586', margin: '8px 0 0', textAlign: 'center' }}>
+                <p style={{ fontSize: '11px', color: T.textMute, margin: '8px 0 0', textAlign: 'center' }}>
                   최근 5건 표시 · 전체 {completedReviews.length}건
                 </p>
               )}
@@ -457,8 +457,8 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
                 {unitHistory.map((unit, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: i === 0 ? '#0D2D6B' : '#D8DDE4', flexShrink: 0 }} />
-                    <p style={{ fontSize: '12px', color: i === 0 ? '#0D2D6B' : '#5A6472', fontWeight: i === 0 ? 700 : 400, margin: 0 }}>{unit}</p>
-                    {i === 0 && <span style={{ fontSize: '10px', background: '#EAF0F9', color: '#1A5CB8', padding: '1px 7px', borderRadius: '10px', fontWeight: 700 }}>최근</span>}
+                    <p style={{ fontSize: '12px', color: i === 0 ? '#0D2D6B' : T.textSub, fontWeight: i === 0 ? 700 : 400, margin: 0 }}>{unit}</p>
+                    {i === 0 && <span style={{ fontSize: '10px', background: '#EAF0F9', color: T.brand, padding: '1px 7px', borderRadius: '10px', fontWeight: 700 }}>최근</span>}
                   </div>
                 ))}
               </div>
@@ -473,8 +473,8 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {sorted.filter(r => r.teacherNote).slice(-3).reverse().map((r, i) => (
                   <div key={i} style={{ borderLeft: '2px solid #C9A227', paddingLeft: '12px' }}>
-                    <p style={{ fontSize: '10px', color: '#6B7785', margin: '0 0 3px' }}>{fmtDate(r)}</p>
-                    <p style={{ fontSize: '12px', color: '#5A6472', margin: 0, lineHeight: 1.7, fontStyle: 'italic' }}>"{r.teacherNote}"</p>
+                    <p style={{ fontSize: '10px', color: T.textMute, margin: '0 0 3px' }}>{fmtDate(r)}</p>
+                    <p style={{ fontSize: '12px', color: T.textSub, margin: 0, lineHeight: 1.7, fontStyle: 'italic' }}>"{r.teacherNote}"</p>
                   </div>
                 ))}
               </div>
@@ -493,7 +493,7 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
                 </div>
               ))}
               {sorted.filter(r => r.directorMemo).length === 0 && (
-                <p style={{ fontSize: '12px', color: '#6B7785', margin: 0 }}>저장된 상담 메모가 없습니다.</p>
+                <p style={{ fontSize: '12px', color: T.textMute, margin: 0 }}>저장된 상담 메모가 없습니다.</p>
               )}
             </div>
           </div>
@@ -732,7 +732,7 @@ function WeeklySummaryCard({ student, reports, academyName }) {
       </div>
 
       {weekReports.length === 0 ? (
-        <div style={{ padding: '40px 22px', textAlign: 'center', color: '#6C7586', fontSize: '13px' }}>
+        <div style={{ padding: '40px 22px', textAlign: 'center', color: T.textMute, fontSize: '13px' }}>
           이번 주 수업 기록이 없습니다
         </div>
       ) : (
@@ -745,7 +745,7 @@ function WeeklySummaryCard({ student, reports, academyName }) {
               { label: '출석률', value: `${attendRate}%`, color: attendRate === 100 ? C.successDark : C.warningText },
             ].map((s, i) => (
               <div key={i} style={{ padding: '14px 12px', textAlign: 'center', borderRight: i < 2 ? '0.5px solid #E5E7EB' : 'none' }}>
-                <p style={{ fontSize: '10px', color: '#6C7586', margin: '0 0 4px', fontWeight: 500 }}>{s.label}</p>
+                <p style={{ fontSize: '10px', color: T.textMute, margin: '0 0 4px', fontWeight: 500 }}>{s.label}</p>
                 <p style={{ fontSize: '20px', fontWeight: 700, color: s.color, margin: 0 }}>{s.value}</p>
               </div>
             ))}
@@ -754,7 +754,7 @@ function WeeklySummaryCard({ student, reports, academyName }) {
           {/* 이번 주 학습 단원 */}
           {units.length > 0 && (
             <div style={{ padding: '16px 22px', borderBottom: '0.5px solid #E5E7EB' }}>
-              <p style={{ fontSize: '10px', color: '#6C7586', fontWeight: 600, letterSpacing: '0.1em', margin: '0 0 10px' }}>이번 주 학습 단원</p>
+              <p style={{ fontSize: '10px', color: T.textMute, fontWeight: 600, letterSpacing: '0.1em', margin: '0 0 10px' }}>이번 주 학습 단원</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {units.map((u, i) => {
                   const avgScore = u.scores.length ? Math.round(u.scores.reduce((a,b)=>a+b,0)/u.scores.length) : null;
@@ -765,7 +765,7 @@ function WeeklySummaryCard({ student, reports, academyName }) {
                       <div style={{ width: '3px', height: '34px', background: barColor, borderRadius: '2px', flexShrink: 0 }} />
                       <div style={{ flex: 1 }}>
                         <p style={{ fontSize: '12px', fontWeight: 600, color: '#1A1A1A', margin: '0 0 1px' }}>{u.name}</p>
-                        {avgScore && <p style={{ fontSize: '11px', color: '#6C7586', margin: 0 }}>{avgScore}점</p>}
+                        {avgScore && <p style={{ fontSize: '11px', color: T.textMute, margin: 0 }}>{avgScore}점</p>}
                       </div>
                       {avgScore && (
                         <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '8px', background: achieved ? C.successBg : C.warningBg, color: achieved ? C.successDark : C.warningText, flexShrink: 0 }}>
@@ -779,7 +779,7 @@ function WeeklySummaryCard({ student, reports, academyName }) {
               {/* 배지만 봐서는 "뭘 점검하라는 건지" 알 수 없다는 피드백 — 기준(80점)을
                   한 줄로 밝혀줌. 이 카드는 카카오톡/링크로 학부모에게도 공유되므로 문구를
                   쉽게 풀어씀. */}
-              <p style={{ fontSize: '10px', color: '#6B7785', margin: '10px 0 0', lineHeight: 1.5 }}>
+              <p style={{ fontSize: '10px', color: T.textMute, margin: '10px 0 0', lineHeight: 1.5 }}>
                 이번 주 평균 80점을 기준으로 그 이상이면 "목표달성", 미만이면 "점검 필요"로 표시돼요
               </p>
             </div>
@@ -788,7 +788,7 @@ function WeeklySummaryCard({ student, reports, academyName }) {
           {/* 집중 포인트 */}
           {diagList.length > 0 && (
             <div style={{ padding: '14px 22px', borderBottom: '0.5px solid #E5E7EB' }}>
-              <p style={{ fontSize: '10px', color: '#6C7586', fontWeight: 600, letterSpacing: '0.1em', margin: '0 0 8px' }}>이번 주 집중 포인트</p>
+              <p style={{ fontSize: '10px', color: T.textMute, fontWeight: 600, letterSpacing: '0.1em', margin: '0 0 8px' }}>이번 주 집중 포인트</p>
               <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                 {diagList.map(d => {
                   const info = DIAG[d.key] || { label: d.key, color: '#4A4A4A', bg: '#F3F4F6' };
@@ -805,18 +805,18 @@ function WeeklySummaryCard({ student, reports, academyName }) {
           {/* 선생님 한마디 */}
           {lastNote && (
             <div style={{ padding: '16px 22px', borderBottom: '0.5px solid #E5E7EB', background: '#FAFAF8' }}>
-              <p style={{ fontSize: '10px', color: '#6C7586', fontWeight: 600, letterSpacing: '0.1em', margin: '0 0 8px' }}>선생님 한마디</p>
+              <p style={{ fontSize: '10px', color: T.textMute, fontWeight: 600, letterSpacing: '0.1em', margin: '0 0 8px' }}>선생님 한마디</p>
               <p style={{ fontSize: '12px', color: '#1A1A1A', lineHeight: 1.8, margin: 0 }}>
                 {lastNote}
               </p>
-              {teacherName && <p style={{ fontSize: '10px', color: '#6C7586', margin: '8px 0 0', textAlign: 'right' }}>— {teacherName}</p>}
+              {teacherName && <p style={{ fontSize: '10px', color: T.textMute, margin: '8px 0 0', textAlign: 'right' }}>— {teacherName}</p>}
             </div>
           )}
 
           {/* 다음 주 예고 */}
           {nextPlan && (
             <div style={{ padding: '12px 22px', borderBottom: '0.5px solid #E5E7EB' }}>
-              <p style={{ fontSize: '10px', color: '#6C7586', fontWeight: 600, letterSpacing: '0.1em', margin: '0 0 4px' }}>다음 주 학습 예정</p>
+              <p style={{ fontSize: '10px', color: T.textMute, fontWeight: 600, letterSpacing: '0.1em', margin: '0 0 4px' }}>다음 주 학습 예정</p>
               <p style={{ fontSize: '12px', color: '#1A1A1A', margin: 0 }}>{nextPlan}</p>
             </div>
           )}

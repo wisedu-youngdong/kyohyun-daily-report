@@ -241,7 +241,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
               {selected.diagnosis?.length > 0 && (
                 <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginBottom: '10px' }}>
                   {selected.diagnosis.map((d, i) => (
-                    <span key={i} style={{ fontSize: '11px', background: d.key === 'perfect' ? C.successBg : '#FDF0F0', color: d.key === 'perfect' ? C.successDark : '#8A2020', padding: '3px 9px', borderRadius: '8px', fontWeight: 600 }}>{DIAG_LABELS[d.key] || d.key}</span>
+                    <span key={i} style={{ fontSize: '11px', background: d.key === 'perfect' ? C.successBg : '#FDF0F0', color: d.key === 'perfect' ? C.successDark : C.errorDark, padding: '3px 9px', borderRadius: '8px', fontWeight: 600 }}>{DIAG_LABELS[d.key] || d.key}</span>
                   ))}
                 </div>
               )}
@@ -489,7 +489,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
 
             const TAG_COLORS = {
               '연산 실수 주의': { bg: C.warningBg, color: C.warningText },
-              '응용 연습 필요': { bg: '#FDF0F0', color: '#8A2020' },
+              '응용 연습 필요': { bg: '#FDF0F0', color: C.errorDark },
               '개념 완성':      { bg: C.successBg, color: C.successDark },
               '집중력 우수':    { bg: '#EAF1FB', color: '#0D2D6B' },
               '과제 완성도 높음':{ bg: C.successBg, color: C.successDark },

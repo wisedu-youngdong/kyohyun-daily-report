@@ -39,6 +39,9 @@ export const T = {
 export const R = {
   navy: '#0D2D6B', gold: '#C9A227', goldText: '#8A6500', rule: '#E8E6E0',
   inkMute: '#6B7785', inkSub: '#5A6472', ink: '#1A1A1A', positive: '#1E6B4E',
+  // negative — C.errorDark와 동일 값. 학부모 화면 쪽에서 부정적 추세/결석 등을 나타낼 때
+  // #DC2626/#A32D2D/#8A2020 세 가지가 파일마다 따로 하드코딩돼 있던 걸 이 값 하나로 통일
+  negative: '#B92C2C',
   serif: "'Noto Serif KR', serif",
   body: "'Pretendard Variable', Pretendard, sans-serif",
 };

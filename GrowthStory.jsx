@@ -15,7 +15,7 @@ function EditCharCount({ text, dark }) {
   const len = (text || '').length;
   const over = len >= NARRATIVE_MAX_LEN;
   return (
-    <p style={{ fontSize: '10px', textAlign: 'right', margin: '4px 0 0', color: over ? '#DC2626' : dark ? 'rgba(255,255,255,0.4)' : '#6C7586' }}>
+    <p style={{ fontSize: '10px', textAlign: 'right', margin: '4px 0 0', color: over ? R.negative : dark ? 'rgba(255,255,255,0.4)' : '#6C7586' }}>
       {len}/{NARRATIVE_MAX_LEN}자
     </p>
   );
@@ -611,7 +611,7 @@ export default function GrowthStory() {
         const aiGenButtonContent = !isEditor ? null : (
       <div style={{ padding: '12px 22px 0' }}>
         <button onClick={handleGenNarrative} disabled={narLoading}
-          style={{ width: '100%', padding: '11px', background: narLoading ? '#E5E7EB' : narrative ? '#F0FAF5' : R.navy, color: narLoading ? '#6C7586' : narrative ? '#0F6E56' : '#fff', border: narrative ? '1px solid #0F6E5640' : 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: narLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+          style={{ width: '100%', padding: '11px', background: narLoading ? '#E5E7EB' : narrative ? '#F0FAF5' : R.navy, color: narLoading ? '#6C7586' : narrative ? R.positive : '#fff', border: narrative ? `1px solid ${R.positive}40` : 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: narLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
           {narLoading ? '⏳ AI 서사 생성 중...' : narrative ? '🔄 전체 서사 다시 만들기 (4개 항목 모두)' : '✨ AI 서사 자동 생성'}
         </button>
       </div>
@@ -669,7 +669,7 @@ export default function GrowthStory() {
                       <span style={{ fontSize: '12px', color: '#374151' }}>
                         과제 <strong style={{ color: R.navy }}>{m.realData.homeworkRating}%</strong>
                         {m.realData.hwDelta !== null && m.realData.hwDelta !== 0 && (
-                          <span style={{ color: m.realData.hwDelta > 0 ? '#0F6E56' : '#DC2626', marginLeft: '3px' }}>
+                          <span style={{ color: m.realData.hwDelta > 0 ? R.positive : R.negative, marginLeft: '3px' }}>
                             {m.realData.hwDelta > 0 ? `+${m.realData.hwDelta}` : m.realData.hwDelta}
                           </span>
                         )}
@@ -690,7 +690,7 @@ export default function GrowthStory() {
                   {m.realData.diagTags.length > 0 && (
                     <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: m.realData.notePreview ? '5px' : 0 }}>
                       {m.realData.diagTags.map((tag, ti) => (
-                        <span key={ti} style={{ fontSize: '11px', fontWeight: 600, padding: '2px 6px', borderRadius: '8px', background: '#FDF0F0', color: '#8A2020' }}>{tag}</span>
+                        <span key={ti} style={{ fontSize: '11px', fontWeight: 600, padding: '2px 6px', borderRadius: '8px', background: '#FDF0F0', color: R.negative }}>{tag}</span>
                       ))}
                     </div>
                   )}
@@ -811,7 +811,7 @@ export default function GrowthStory() {
                         <div style={{ height: '100%', width: `${pct}%`, borderRadius: '6px', background: barColor }} />
                       </div>
                       <span style={{ fontSize: '12px', fontWeight: 700, color: isMax ? R.navy : '#2C2C2C', width: '42px', textAlign: 'right', flexShrink: 0 }}>{s.score}점</span>
-                      <span style={{ fontSize: '10px', fontWeight: 600, width: '36px', flexShrink: 0, color: delta > 0 ? '#0F6E56' : delta < 0 ? '#A32D2D' : '#757575', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      <span style={{ fontSize: '10px', fontWeight: 600, width: '36px', flexShrink: 0, color: delta > 0 ? R.positive : delta < 0 ? R.negative : '#757575', display: 'flex', alignItems: 'center', gap: '3px' }}>
                         {delta === null ? '—' : delta > 0 ? `+${delta}` : `${delta}`}
                         {isMax && <span style={{ fontSize: '9px', background: R.gold, color: '#fff', padding: '2px 5px', borderRadius: '3px', lineHeight: 1, display: 'inline-flex', alignItems: 'center' }}>최고</span>}
                       </span>
@@ -912,7 +912,7 @@ export default function GrowthStory() {
             <span style={{ fontSize: '11px', color: '#757575', fontWeight: 600 }}>복습 완료</span>
             <span style={{ fontSize: '16px', fontWeight: 800, color: R.navy }}>{reviewProof.length}건</span>
             {reviewProofImproved > 0 && (
-              <span style={{ fontSize: '11px', color: '#0F6E56', fontWeight: 700, marginLeft: 'auto' }}>{reviewProofImproved}건 점수 향상</span>
+              <span style={{ fontSize: '11px', color: R.positive, fontWeight: 700, marginLeft: 'auto' }}>{reviewProofImproved}건 점수 향상</span>
             )}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -951,7 +951,7 @@ export default function GrowthStory() {
                     <div style={{ textAlign: 'center' }}>
                       <p style={{ fontSize: '9px', margin: '0 0 2px', visibility: 'hidden' }}>·</p>
                       <div style={{ height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <span style={{ fontSize: '11px', fontWeight: 700, color: delta > 0 ? '#0F6E56' : delta < 0 ? '#A32D2D' : '#757575', lineHeight: 1 }}>
+                        <span style={{ fontSize: '11px', fontWeight: 700, color: delta > 0 ? R.positive : delta < 0 ? R.negative : '#757575', lineHeight: 1 }}>
                           {delta === 0 ? '동일' : delta > 0 ? `+${delta}` : `${delta}`}
                         </span>
                       </div>
@@ -1035,12 +1035,12 @@ export default function GrowthStory() {
                 <div style={{ display: 'flex', height: '6px', borderRadius: '5px', overflow: 'hidden', gap: '2px', marginTop: '10px' }}>
                   <div style={{ flex: onTimeCount || 0.0001, background: R.navy }} />
                   <div style={{ flex: lateCount || 0.0001, background: R.gold }} />
-                  <div style={{ flex: absentCount, background: '#A32D2D' }} />
+                  <div style={{ flex: absentCount, background: R.negative }} />
                 </div>
                 <div style={{ display: 'flex', gap: '12px', marginTop: '7px', fontSize: '10px', fontWeight: 600 }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '3px', color: R.navy }}><i style={{ width: '6px', height: '6px', borderRadius: '50%', background: R.navy, display: 'inline-block' }} />출석 {onTimeCount}</span>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '3px', color: '#8A6412' }}><i style={{ width: '6px', height: '6px', borderRadius: '50%', background: R.gold, display: 'inline-block' }} />지각 {lateCount}</span>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '3px', color: '#A32D2D' }}><i style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#A32D2D', display: 'inline-block' }} />결석 {absentCount}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '3px', color: R.negative }}><i style={{ width: '6px', height: '6px', borderRadius: '50%', background: R.negative, display: 'inline-block' }} />결석 {absentCount}</span>
                 </div>
               </>
             ) : lateCount > 0 ? (

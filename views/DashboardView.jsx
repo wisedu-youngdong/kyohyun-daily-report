@@ -404,7 +404,7 @@ export default function DashboardView({ students, reports, classes = [], reportV
         <h3 style={{ fontSize: '13px', fontWeight: 700, color: '#0D2D6B', margin: 0 }}>
           📭 아직 안 읽은 리포트 · {unreadReports.length}건
         </h3>
-        <p style={{ fontSize: '11px', color: '#1A5CB8', margin: '2px 0 0' }}>발송한 지 하루가 지났는데도 학부모가 확인하지 않았어요</p>
+        <p style={{ fontSize: '11px', color: T.brand, margin: '2px 0 0' }}>발송한 지 하루가 지났는데도 학부모가 확인하지 않았어요</p>
       </div>
       {unreadReports.slice(0, 5).map(r => {
         const unreadDays = Math.floor((new Date(todayKst) - new Date(kstDay(r.createdAt.seconds))) / 86400000);
@@ -412,14 +412,14 @@ export default function DashboardView({ students, reports, classes = [], reportV
           <div key={r.id} style={{ padding: '10px 18px', borderBottom: '1px solid #C5D5F030', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>
-                {r.studentName} <span style={{ fontSize: '10px', fontWeight: 600, color: '#1A5CB8' }}>{unreadDays}일째 미열람</span>
+                {r.studentName} <span style={{ fontSize: '10px', fontWeight: 600, color: T.brand }}>{unreadDays}일째 미열람</span>
               </p>
               <p style={{ fontSize: '11px', color: '#6B7280', margin: '1px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {[r.textbook, r.unit].filter(Boolean).join(' · ')}
               </p>
             </div>
             <button onClick={() => handleCopyReportLink(r.id)}
-              style={{ flexShrink: 0, padding: '6px 12px', fontSize: '11px', fontWeight: 700, borderRadius: '8px', border: '1px solid #1A5CB8', background: copiedReportId === r.id ? '#1A5CB8' : '#fff', color: copiedReportId === r.id ? '#fff' : '#1A5CB8', cursor: 'pointer', fontFamily: 'inherit' }}>
+              style={{ flexShrink: 0, padding: '6px 12px', fontSize: '11px', fontWeight: 700, borderRadius: '8px', border: `1px solid ${T.brand}`, background: copiedReportId === r.id ? T.brand : '#fff', color: copiedReportId === r.id ? '#fff' : T.brand, cursor: 'pointer', fontFamily: 'inherit' }}>
               {copiedReportId === r.id ? '✓ 복사됨' : '링크 복사'}
             </button>
             <button onClick={() => handleDismissUnread(r)} title="이 리마인더에서 숨기기 (리포트 자체는 그대로 남아요)"
@@ -431,14 +431,14 @@ export default function DashboardView({ students, reports, classes = [], reportV
       })}
       {undoBanner && (
         <div style={{ padding: '9px 18px', background: '#EAF0F9', borderTop: '1px solid #C5D5F0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-          <span style={{ fontSize: '11px', color: '#1A5CB8' }}>{undoBanner.studentName} 리포트를 리마인더에서 숨겼어요 (삭제 아님)</span>
+          <span style={{ fontSize: '11px', color: T.brand }}>{undoBanner.studentName} 리포트를 리마인더에서 숨겼어요 (삭제 아님)</span>
           <button onClick={handleUndoDismiss} style={{ flexShrink: 0, background: 'none', border: 'none', color: '#0D2D6B', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>
             실행취소
           </button>
         </div>
       )}
       {unreadReports.length > 5 && (
-        <p style={{ padding: '8px 18px', fontSize: '11px', color: '#1A5CB8', margin: 0, textAlign: 'center' }}>
+        <p style={{ padding: '8px 18px', fontSize: '11px', color: T.brand, margin: 0, textAlign: 'center' }}>
           외 {unreadReports.length - 5}건 더 있어요
         </p>
       )}

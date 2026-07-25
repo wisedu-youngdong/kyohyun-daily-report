@@ -55,7 +55,7 @@ export default function GrowthDashboard({ reports, students }) {
     const trend3 = rs.length >= 3 ? rs[rs.length - 1].conceptRating - rs[rs.length - 3].conceptRating
       : rs.length >= 2 ? rs[rs.length - 1].conceptRating - rs[rs.length - 2].conceptRating : 0;
     if (a >= 80 && trend3 >= 0) return { label: '안정', color: C.successDark, bg: C.successBg, border: C.successDark };
-    if (trend3 <= -20 || a < 50) return { label: '경고', color: '#A32D2D', bg: '#FCEBEB', border: '#A32D2D' };
+    if (trend3 <= -20 || a < 50) return { label: '경고', color: C.errorDark, bg: '#FCEBEB', border: C.errorDark };
     if (trend3 < 0 || a < 70) return { label: '주의', color: C.warningText, bg: '#FAEEDA', border: '#EF9F27' };
     return { label: '안정', color: C.successDark, bg: C.successBg, border: C.successDark };
   }, [getStudentReports]);
@@ -129,7 +129,7 @@ export default function GrowthDashboard({ reports, students }) {
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px', marginBottom: '12px', flexWrap: 'wrap' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '8px', flex: 1, minWidth: '280px' }}>
           {[
-            { label: '🚨 관심 필요', value: `${atRisk}명`, sub: `주의 ${caution}명 포함`, c: '#A32D2D', bg: '#FCEBEB', bd: '#A32D2D' },
+            { label: '🚨 관심 필요', value: `${atRisk}명`, sub: `주의 ${caution}명 포함`, c: C.errorDark, bg: '#FCEBEB', bd: C.errorDark },
             { label: '전체 평균', value: `${overallAvg}%`, sub: periodLabel, c: '#0D2D6B', bg: '#fff', bd: '#E8E6E0' },
             { label: '총 학생', value: `${students.length}명`, sub: '등록', c: '#1A1A1A', bg: '#fff', bd: '#E8E6E0' },
             { label: '최고 성취', value: bestStudent?.name || '-', sub: `${bestStudent ? getAvg(bestStudent.id) : 0}%`, c: bestStudent ? getStatus(bestStudent.id).color : '#6B7785', bg: '#fff', bd: '#E8E6E0' },
@@ -258,7 +258,7 @@ export default function GrowthDashboard({ reports, students }) {
           const isSel = selId === s.id;
 
           const trendStr = trend === null ? '―' : trend > 0 ? `▲${Math.abs(trend)}` : trend < 0 ? `▼${Math.abs(trend)}` : '―';
-          const trendColor = trend === null ? '#6B7785' : trend > 0 ? C.successDark : trend < 0 ? '#A32D2D' : '#6B7785';
+          const trendColor = trend === null ? '#6B7785' : trend > 0 ? C.successDark : trend < 0 ? C.errorDark : '#6B7785';
 
           // 스파크라인 — 상태 컬러 사용
           const sparkW = 56, sparkH = 22;
@@ -289,7 +289,7 @@ export default function GrowthDashboard({ reports, students }) {
                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: status.border, flexShrink: 0 }} />
                 <span style={{ fontSize: '13px', fontWeight: isSel ? 700 : 400, color: '#1A1A1A' }}>{s.name}</span>
                 {topWeak && (
-                  <span style={{ fontSize: '10px', color: '#A32D2D', background: '#FCEBEB', padding: '1px 6px', borderRadius: '10px' }}>⚠</span>
+                  <span style={{ fontSize: '10px', color: C.errorDark, background: '#FCEBEB', padding: '1px 6px', borderRadius: '10px' }}>⚠</span>
                 )}
               </div>
               <div style={{ textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -336,7 +336,7 @@ export default function GrowthDashboard({ reports, students }) {
         const a = getAvg(selId);
         const trend = getTrend(selId);
         const trendStr = trend === null ? '―' : trend > 0 ? `▲${Math.abs(trend)}` : trend < 0 ? `▼${Math.abs(trend)}` : '―';
-        const trendColor = trend === null ? '#6B7785' : trend > 0 ? C.successDark : trend < 0 ? '#A32D2D' : '#6B7785';
+        const trendColor = trend === null ? '#6B7785' : trend > 0 ? C.successDark : trend < 0 ? C.errorDark : '#6B7785';
 
         // 예전엔 "보기(공개 페이지)"/"편집" 버튼 2개로 나뉘어 있었는데, 사실 같은 페이지에
         // ?edit=1 하나 차이 — 편집 모드가 보기 모드를 완전히 포함하고(학부모에게는 원래도
@@ -421,7 +421,7 @@ export default function GrowthDashboard({ reports, students }) {
                         <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: cleanNote ? '4px' : 0 }}>
                           {hasPerfect && <span style={{ fontSize: '10px', background: C.successBg, color: C.successDark, padding: '1px 6px', borderRadius: '8px', fontWeight: 600 }}>개념 완벽</span>}
                           {tags.map((d, ti) => (
-                            <span key={ti} style={{ fontSize: '10px', background: '#FDF0F0', color: '#8A2020', padding: '1px 6px', borderRadius: '8px', fontWeight: 600 }}>
+                            <span key={ti} style={{ fontSize: '10px', background: '#FDF0F0', color: C.errorDark, padding: '1px 6px', borderRadius: '8px', fontWeight: 600 }}>
                               {diagLabels[d.key] || d.key}
                             </span>
                           ))}

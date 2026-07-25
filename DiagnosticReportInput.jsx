@@ -2290,7 +2290,7 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
               <p style={{ fontSize: '13px', fontWeight: 700, color: navy, margin: 0 }}>{nextPlan}</p>
               {nextPlanDetail && <p style={{ fontSize: '12px', color: inkSub, margin: '2px 0 0' }}>{nextPlanDetail}</p>}
             </div>
-            <div style={{ width: '28px', height: '28px', background: '#EAF0F9', borderRadius: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1A5CB8', fontSize: '14px', flexShrink: 0 }}>→</div>
+            <div style={{ width: '28px', height: '28px', background: `${navy}14`, borderRadius: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: navy, fontSize: '14px', flexShrink: 0 }}>→</div>
           </div>
         )}
 

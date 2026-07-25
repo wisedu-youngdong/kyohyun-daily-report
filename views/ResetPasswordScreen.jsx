@@ -80,7 +80,7 @@ export default function ResetPasswordScreen() {
 
           {status === 'invalid' && (
             <>
-              <p style={{ fontSize: '13px', fontWeight: 600, color: '#B92C2C', background: '#FDEAEA', padding: '10px 12px', borderRadius: '6px', margin: '0 0 16px', lineHeight: 1.6 }}>
+              <p style={{ fontSize: '13px', fontWeight: 600, color: C.errorDark, background: '#FDEAEA', padding: '10px 12px', borderRadius: '6px', margin: '0 0 16px', lineHeight: 1.6 }}>
                 링크가 만료됐거나 이미 사용됐어요. 로그인 화면에서 재설정 메일을 다시 요청해주세요.
               </p>
               <a href="/" style={{
@@ -116,7 +116,7 @@ export default function ResetPasswordScreen() {
                 />
               </div>
               {error && (
-                <p style={{ fontSize: '12px', fontWeight: 600, color: '#B92C2C', margin: '0 0 16px', background: '#FDEAEA', padding: '8px 12px', borderRadius: '6px' }}>
+                <p style={{ fontSize: '12px', fontWeight: 600, color: C.errorDark, margin: '0 0 16px', background: '#FDEAEA', padding: '8px 12px', borderRadius: '6px' }}>
                   {error}
                 </p>
               )}

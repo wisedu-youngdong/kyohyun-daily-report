@@ -770,7 +770,7 @@ export default function App() {
         <div style={{
           position: 'fixed', bottom: isPc ? '24px' : 'calc(80px + env(safe-area-inset-bottom))', left: '50%', transform: 'translateX(-50%)',
           // 에러가 브랜드 네이비로 떠서 성공과 구분이 안 가던 문제 — 에러는 빨간 계열로
-          background: appToast.type === 'success' ? C.successDark : appToast.type === 'error' ? '#B3261E' : '#0D2D6B',
+          background: appToast.type === 'success' ? C.successDark : appToast.type === 'error' ? C.errorDark : '#0D2D6B',
           color: '#fff', padding: '10px 20px', borderRadius: '20px',
           fontSize: '13px', fontWeight: 600, zIndex: 9999,
           boxShadow: '0 4px 12px rgba(0,0,0,0.15)',

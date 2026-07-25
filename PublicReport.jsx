@@ -228,7 +228,7 @@ export default function PublicReport() {
   // 추세 배지 — 지난 리포트 대비 ▲/▼N%p, 변화 없으면 "동일"
   const TrendBadge = ({ trend }) => {
     if (trend == null) return null;
-    const color = trend > 0 ? positive : trend < 0 ? '#B92C2C' : inkMute;
+    const color = trend > 0 ? positive : trend < 0 ? R.negative : inkMute;
     const text = trend > 0 ? `▲${trend}` : trend < 0 ? `▼${Math.abs(trend)}` : '동일';
     return <span style={{ fontSize: '11px', fontWeight: 700, color, marginLeft: '5px' }}>{text}</span>;
   };
@@ -430,7 +430,7 @@ export default function PublicReport() {
                   <p style={{ fontSize: '13px', fontWeight: 700, color: navy, margin: 0 }}>{r.nextPlan}</p>
                   {r.nextPlanDetail && <p style={{ fontSize: '12px', color: inkSub, margin: '2px 0 0' }}>{r.nextPlanDetail}</p>}
                 </div>
-                <div style={{ width: '28px', height: '28px', background: '#EAF0F9', borderRadius: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1A5CB8', fontSize: '14px', flexShrink: 0 }}>→</div>
+                <div style={{ width: '28px', height: '28px', background: `${navy}14`, borderRadius: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: navy, fontSize: '14px', flexShrink: 0 }}>→</div>
               </div>
             )}
 
@@ -470,7 +470,7 @@ export default function PublicReport() {
                 </button>
               </div>
               {questionError && (
-                <p style={{ fontSize: '11px', color: '#B92C2C', margin: '6px 0 0' }}>{questionError}</p>
+                <p style={{ fontSize: '11px', color: R.negative, margin: '6px 0 0' }}>{questionError}</p>
               )}
             </div>
           </div>
