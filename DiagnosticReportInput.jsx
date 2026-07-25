@@ -31,6 +31,18 @@ async function getAuthHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+// 파일 내용 해시(SHA-256, hex) — 완전히 같은 사진을 두 번 골랐는지 판별하는 용도.
+// crypto.subtle은 보안 컨텍스트(HTTPS/localhost)에서만 동작하므로, 실패하면 null을 돌려주고
+// 호출부에서 dedup 없이 그냥 통과시킴 — 이 기능이 안 되더라도 사진 업로드 자체는 막지 않음
+async function hashBuffer(buffer) {
+  try {
+    const digest = await crypto.subtle.digest('SHA-256', buffer);
+    return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+  } catch {
+    return null;
+  }
+}
+
 // 빠른 썸네일 생성 (canvas, 미리보기 전용 — imageCompression 생략으로 속도 2배)
 function makeThumbnail(file, maxPx = 300) {
   return new Promise((resolve) => {
@@ -672,19 +684,39 @@ export default function DiagnosticReportInput({
       filesToProcess.map(async (file) => {
         try {
           const buffer = await file.arrayBuffer();
+          const hash = await hashBuffer(buffer);
           const blob = new Blob([buffer], { type: file.type || 'image/jpeg' });
-          return new File([blob], file.name || 'photo.jpg', { type: file.type || 'image/jpeg' });
+          return { file: new File([blob], file.name || 'photo.jpg', { type: file.type || 'image/jpeg' }), hash };
         } catch (e) {
           console.warn('파일 버퍼링 실패, 원본 사용:', e);
-          return file;
+          return { file, hash: null };
         }
       })
     );
-    showToast(`사진 ${bufferedFiles.length}장 압축 중...`, 'info');
+
+    // 중복 사진 걸러내기 — 이미 추가된 사진 및 이번에 함께 고른 파일들 사이에서 내용이 완전히
+    // 같은 파일(SHA-256 해시 동일)은 건너뜀. 같은 페이지를 실수로 두 번 고르면 AI가 각각
+    // 독립적으로 분석해 오답 문항이 조용히 2배로 기록되는 문제가 있어서 업로드 단계에서 미리 차단.
+    // 해시 계산이 안 되는 환경(구형 브라우저 등)은 dedup 없이 그냥 통과시킴(업로드 자체는 안 막음)
+    const existingHashes = new Set(photosRef.current.map(p => p.hash).filter(Boolean));
+    const seenInBatch = new Set();
+    let dupCount = 0;
+    const deduped = bufferedFiles.filter(({ hash }) => {
+      if (!hash) return true;
+      if (existingHashes.has(hash) || seenInBatch.has(hash)) { dupCount++; return false; }
+      seenInBatch.add(hash);
+      return true;
+    });
+    if (dupCount > 0) {
+      showToast(`이미 추가된 사진과 완전히 같은 파일 ${dupCount}장은 건너뛰었어요`, 'info');
+    }
+    if (deduped.length === 0) return;
+
+    showToast(`사진 ${deduped.length}장 압축 중...`, 'info');
 
     let okCount = 0;
     let failCount = 0;
-    for (const file of bufferedFiles) {
+    for (const { file, hash } of deduped) {
       try {
         if (file.size > 50 * 1024 * 1024) {
           throw new Error(`파일이 너무 큽니다 (${(file.size/1024/1024).toFixed(1)}MB)`);
@@ -696,6 +728,7 @@ export default function DiagnosticReportInput({
           base64: result.aiBase64,
           mimeType: result.mimeType,
           blob: result.blob,
+          hash,
         };
         photosRef.current = [...photosRef.current, newPhoto];
         setPhotos(prev => [...prev, newPhoto]);
