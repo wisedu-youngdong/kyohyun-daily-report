@@ -453,6 +453,9 @@ export default function DiagnosticReportInput({
   // 새 탭 대신 앱 안에서 원본 크기로 보여주는 라이트박스로 대체
   const [zoomedPhoto, setZoomedPhoto] = useState(null);
   useEscapeClose(() => setZoomedPhoto(null), !!zoomedPhoto);
+  // AI가 문항별로 무엇을 보고 어떻게 판단했는지(rawObservations) — 평소엔 접어두고, 결과가
+  // 이상할 때(예: 문항이 빠짐) 펼쳐서 AI가 그 번호를 아예 검토했는지, 왜 뺐는지 바로 확인용
+  const [showRawObservations, setShowRawObservations] = useState(false);
   const MAX_PHOTOS = 5;
   const photosRef = React.useRef([]);
 
@@ -1560,6 +1563,22 @@ export default function DiagnosticReportInput({
                             <p style={{ fontSize: '11px', color: TOKENS.warn, margin: 0, lineHeight: 1.5 }}>
                               <AlertTriangle size={11} style={{ verticalAlign: '-1px' }} /> 사진이 잘려서 일부 문항이 안 보여요{photoAnalysis.pageCutoffNote ? ` (${photoAnalysis.pageCutoffNote})` : ''}. 잘린 문항은 결과에서 빠졌을 수 있으니, 가능하면 페이지 전체가 나오게 다시 찍어주세요.
                             </p>
+                          </div>
+                        )}
+
+                        {/* AI 관찰 로그 — 특정 문항이 결과에서 빠졌을 때 "AI가 그 번호를 보긴 봤는지,
+                            왜 뺐는지"를 바로 확인하는 용도. 평소엔 접어둠(정상일 땐 안 볼 정보) */}
+                        {photoAnalysis.rawObservations?.length > 0 && (
+                          <div style={{ marginBottom: '10px' }}>
+                            <button type="button" onClick={() => setShowRawObservations(v => !v)}
+                              style={{ fontSize: '10px', fontWeight: 700, color: TOKENS.textMute, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                              {showRawObservations ? '▾' : '▸'} AI 관찰 로그 보기 (결과가 이상할 때 확인) · {photoAnalysis.rawObservations.length}건
+                            </button>
+                            {showRawObservations && (
+                              <ul style={{ margin: '6px 0 0', paddingLeft: '16px', fontSize: '11px', color: TOKENS.textSub, lineHeight: 1.7 }}>
+                                {photoAnalysis.rawObservations.map((obs, i) => <li key={i}>{obs}</li>)}
+                              </ul>
+                            )}
                           </div>
                         )}
 
