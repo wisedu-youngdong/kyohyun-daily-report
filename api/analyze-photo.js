@@ -271,6 +271,108 @@ async function analyzeOneImage(img, mode, hintTextbook, hintUnit, hintSubject) {
   }
 }
 
+// 한 장씩 분리 호출(위 analyzeOneImage)로도 여전히 특정 번호를 놓치는 경우가 실사용 중
+// 확인됨 — 같은 사진을 같은 프롬프트로 다시 불러도(temperature:0) 결과가 매번 똑같지 않다는
+// 뜻이라(Gemini API가 문서상으로도 완전한 결정론을 보장하지 않음), 재시도 자체가 무의미하지
+// 않다. identifiedNumbers엔 있는데 problemTypes/weakDetail 어디에도 없는 "붕 뜬" 번호만 골라
+// 그 번호만 콕 집어 한 번 더 확인시킨다 — 매번 전체를 다시 부르는 것보다 훨씬 저렴하고,
+// 애초에 놓친 적 없는 사진은 이 재확인 호출 자체가 안 붙는다.
+function findMissingNumbers(sections) {
+  const groups = [];
+  (sections || []).forEach((s, sectionIdx) => {
+    const known = new Set([
+      ...(s.problemTypes || []).map(p => p.number),
+      ...(s.weakDetail || []).map(p => p.number),
+    ]);
+    const missing = (s.identifiedNumbers || []).filter(n => !known.has(n));
+    if (missing.length > 0) {
+      groups.push({ sectionIdx, sectionType: s.sectionType, bookSection: s.bookSection, numbers: missing });
+    }
+  });
+  return groups;
+}
+
+// 놓친 번호만 짚어 다시 확인시키고 { number, mark, type }[] 를 돌려준다. 실패해도 그냥 빈
+// 배열을 돌려줘 1차 결과는 그대로 살아있게 한다(재확인은 "있으면 좋은 보강"이지 필수 단계가 아님).
+async function recheckMissingNumbers(img, missingGroups) {
+  const listText = missingGroups.map(g =>
+    `- ${g.bookSection ? `"${g.bookSection}" 섹션의 ` : ''}문항 번호: ${g.numbers.join(', ')}`
+  ).join('\n');
+
+  const prompt = `첨부한 사진은 채점 완료된 학습지/문제집입니다. 1차 분석에서 아래 문항 번호들은 번호 자체는 확인됐지만 채점 표시(정답 원 / 오답 사선)를 찾지 못해 결과에서 제외됐습니다.
+${listText}
+
+이 번호들에 대해서만, 이 사진에서 채점 표시를 아주 꼼꼼하게 다시 찾아주세요. 번호 바로 옆이나 근처의 아주 작고 흐릿한 원/사선도 놓치지 마세요. 다른 문항은 볼 필요 없습니다.
+
+각 번호마다 다음 중 하나로만 판정하세요:
+- "정답": 번호를 감싸거나 걸치는 원이 있음(느슨해도 원이면 정답)
+- "오답": 번호 옆에 사선(빗금)이 있음(아무리 작아도)
+- "표시없음": 다시 봐도 정말 아무 채점 표시가 없음(못 찾은 게 아니라 확신할 때만)
+
+JSON만 출력:
+{"results": [{"number": "03", "mark": "정답" | "오답" | "표시없음", "type": "문제 내용 5~10자 키워드(모르면 빈 문자열)"}]}`;
+
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${process.env.GEMINI_API_KEY}`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { text: prompt },
+            { inline_data: { mime_type: img.mimeType || 'image/jpeg', data: img.imageBase64 } }
+          ]
+        }],
+        generationConfig: { temperature: 0, responseMimeType: 'application/json', maxOutputTokens: 4096 }
+      })
+    });
+    const data = await response.json();
+    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const cleaned = rawText.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(cleaned);
+    return Array.isArray(parsed.results) ? parsed.results : [];
+  } catch (e) {
+    console.error('재확인 호출 실패(1차 결과 그대로 사용):', e.message);
+    return [];
+  }
+}
+
+// analyzeOneImage + 놓친 번호 재확인을 한 세트로 묶은 함수. concept 섹션(유형별 문항, 이
+// 서비스에서 가장 흔한 형태)만 병합 지원 — mock_exam은 원래 오답만 기록하는 구조(weakDetail)라
+// "정답으로 재확인됨"을 끼워 넣을 자리가 없고, calculation은 문항별 상세가 아예 없어 해당 없음.
+async function analyzeOneImageWithRecheck(img, mode, hintTextbook, hintUnit, hintSubject) {
+  const first = await analyzeOneImage(img, mode, hintTextbook, hintUnit, hintSubject);
+  if (!first.ok) return first;
+
+  const sections = first.data.sections || [];
+  const missingGroups = findMissingNumbers(sections);
+  if (missingGroups.length === 0) return first;
+
+  const recheckResults = await recheckMissingNumbers(img, missingGroups);
+  if (recheckResults.length === 0) return first;
+
+  const byNumber = new Map(recheckResults.map(r => [r.number, r]));
+  missingGroups.forEach(g => {
+    if (g.sectionType !== 'concept') return;
+    const s = sections[g.sectionIdx];
+    g.numbers.forEach(number => {
+      const r = byNumber.get(number);
+      if (!r || (r.mark !== '정답' && r.mark !== '오답')) return; // 표시없음/응답누락 → missing 상태 그대로 유지
+      s.problemTypes = [...(s.problemTypes || []), {
+        number,
+        type: r.type || '',
+        mark: r.mark === '정답' ? '원' : '사선',
+        result: r.mark === '정답' ? '잘함' : '약점',
+        note: '',
+        confidence: 'low',
+      }];
+    });
+  });
+
+  return { ok: true, data: { ...first.data, sections } };
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
   const decoded = await verifyIdTokenHeader(req);
@@ -310,7 +412,7 @@ export default async function handler(req, res) {
     // 일부만 성공한 결과를 그대로 돌려주면 "표시가 있는데도 빠진" 문제를 또 만드는 셈이라
     // 절반의 결과보다는 명확한 재시도 요청이 안전함.
     const results = await Promise.all(
-      imageList.map(img => analyzeOneImage(img, mode, hintTextbook, hintUnit, hintSubject))
+      imageList.map(img => analyzeOneImageWithRecheck(img, mode, hintTextbook, hintUnit, hintSubject))
     );
     const failIdx = results.findIndex(r => !r.ok);
     if (failIdx !== -1) {
