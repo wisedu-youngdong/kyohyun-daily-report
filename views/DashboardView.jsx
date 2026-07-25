@@ -260,7 +260,7 @@ export default function DashboardView({ students, reports, classes = [], reportV
                   const hasMemoContent = !!group.reviews[0]?.note?.trim();
                   return (
                     <div key={group.key} style={{
-                      border: '1px solid #EFE9DC', borderLeft: `4px solid ${urg.color}`, borderRadius: '11px',
+                      border: '1px solid #EFE9DC', borderLeft: `4px solid ${urg.color}`, borderRadius: '14px',
                       padding: '12px 14px', background: '#FDFCF9', opacity: group.instructed ? 0.5 : 1, transition: 'opacity .18s',
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>

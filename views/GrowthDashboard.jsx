@@ -154,7 +154,7 @@ export default function GrowthDashboard({ reports, students }) {
       </div>
 
       {/* 메인 그래프 — 전체 평균 단일선 */}
-      <div style={{ background: '#fff', border: '0.5px solid #E8E6E0', borderRadius: '12px', padding: '14px', marginBottom: '10px' }}>
+      <div style={{ background: '#fff', border: '0.5px solid #E8E6E0', borderRadius: '14px', padding: '14px', marginBottom: '10px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px', flexWrap: 'wrap' }}>
           <p style={{ fontSize: '12px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>학급 평균 추이</p>
           <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -243,7 +243,7 @@ export default function GrowthDashboard({ reports, students }) {
       </div>
 
       {/* 학생 리스트 */}
-      <div style={{ background: '#fff', border: '0.5px solid #E8E6E0', borderRadius: '12px', overflow: 'hidden' }}>
+      <div style={{ background: '#fff', border: '0.5px solid #E8E6E0', borderRadius: '14px', overflow: 'hidden' }}>
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 50px 60px 55px' : '1fr 65px 80px 70px 55px', padding: '8px 14px', borderBottom: '0.5px solid #E8E6E0', background: '#FAFAFA' }}>
           {(isMobile ? ['학생', '현재', '변화량', '상태'] : ['학생', '현재', '변화량', '추이', '상태']).map((h, i) => (
             <p key={i} style={{ fontSize: '10px', color: '#6B7785', margin: 0, textAlign: i === 0 ? 'left' : 'center', letterSpacing: '0.06em' }}>{h}</p>

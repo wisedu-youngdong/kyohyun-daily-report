@@ -196,7 +196,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
             const badge = statusBadge(r);
             return (
               <div key={r.id} role="button" tabIndex={0} onClick={() => setSelectedId(r.id)} onKeyDown={onKeyActivate(() => setSelectedId(r.id))}
-                style={{ background: '#fff', borderRadius: '12px', padding: '14px 16px', border: '1px solid #E5E7EB', cursor: 'pointer' }}>
+                style={{ background: '#fff', borderRadius: '14px', padding: '14px 16px', border: '1px solid #E5E7EB', cursor: 'pointer' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                   <span style={{ fontSize: '14px', fontWeight: 700 }}>{r.studentName}</span>
                   <span style={{ fontSize: '10px', fontWeight: 600, background: badge.bg, color: badge.color, padding: '1px 7px', borderRadius: '8px' }}>{badge.label}</span>
@@ -574,7 +574,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
               if (d.key !== 'perfect') diagCountMap[d.key] = (diagCountMap[d.key] || 0) + 1;
             }));
             const topDiag = Object.entries(diagCountMap).sort((a, b) => b[1] - a[1]).slice(0, 3);
-            const cardStyle = { background: '#fff', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '14px 16px' };
+            const cardStyle = { background: '#fff', border: '1px solid #E5E7EB', borderRadius: '14px', padding: '14px 16px' };
             const cardTitle = { fontSize: '11px', color: '#6C7586', margin: '0 0 10px', fontWeight: 600, letterSpacing: '0.06em' };
             const chartW = 260, chartH = 40, padX = 8;
             const xOf = (i) => padX + (i / Math.max(1, recentAsc.length - 1)) * (chartW - padX * 2);

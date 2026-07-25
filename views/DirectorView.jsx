@@ -423,7 +423,7 @@ export default function DirectorView({ reports, students, classes = [], reportVi
         return (
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: '8px', marginBottom: '14px', alignItems: 'start' }}>
         {todayReports.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '48px 20px', color: '#6C7586', background: '#fff', borderRadius: '10px', border: '0.5px solid #E8E6E0', gridColumn: '1 / -1' }}>
+          <div style={{ textAlign: 'center', padding: '48px 20px', color: '#6C7586', background: '#fff', borderRadius: '14px', border: '0.5px solid #E8E6E0', gridColumn: '1 / -1' }}>
             <FileText size={28} style={{ marginBottom: '8px' }} />
             <p style={{ fontSize: '14px', fontWeight: 600, margin: '0 0 4px' }}>이 날짜의 리포트가 없습니다</p>
             <p style={{ fontSize: '12px', margin: 0 }}>다른 날짜를 선택해보세요</p>
@@ -460,7 +460,7 @@ export default function DirectorView({ reports, students, classes = [], reportVi
           const unansweredCount = questions.filter(q => !q.answerText).length;
 
           return (
-            <div key={r.id} style={{ background: '#fff', border: `0.5px solid ${borderColor}`, borderRadius: '10px', overflow: 'hidden', gridColumn: isOpen ? '1 / -1' : 'auto' }}>
+            <div key={r.id} style={{ background: '#fff', border: `0.5px solid ${borderColor}`, borderRadius: '14px', overflow: 'hidden', gridColumn: isOpen ? '1 / -1' : 'auto' }}>
 
               {/* 요약 행 — 안에 종합 프로필 버튼·성장 포트폴리오 링크가 따로 있어 role="button"은
                   안 씀(중첩 시맨틱 충돌). tabIndex+onKeyDown으로 키보드 포커스·Enter/Space만 추가 */}
@@ -550,7 +550,7 @@ export default function DirectorView({ reports, students, classes = [], reportVi
                     {/* 약점 상세 */}
                     {r.diagnosis?.length > 0 && (
                       <div>
-                        <p style={{ fontSize: '10px', color: '#6B7785', margin: '0 0 6px', letterSpacing: '0.08em' }}>약점 상세</p>
+                        <p style={{ fontSize: '11px', color: T.textMute, fontWeight: 600, margin: '0 0 6px', letterSpacing: '0.06em' }}>약점 상세</p>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                           {r.diagnosis.map((d, i) => {
                             const tag = DIAG_MAP[d.key];
@@ -575,7 +575,7 @@ export default function DirectorView({ reports, students, classes = [], reportVi
                     {/* 선생님 코멘트 */}
                     {r.teacherNote && (
                       <div>
-                        <p style={{ fontSize: '10px', color: '#6B7785', margin: '0 0 6px', letterSpacing: '0.08em' }}>선생님 코멘트</p>
+                        <p style={{ fontSize: '11px', color: T.textMute, fontWeight: 600, margin: '0 0 6px', letterSpacing: '0.06em' }}>선생님 코멘트</p>
                         <div style={{ borderLeft: '2px solid #C9A227', paddingLeft: '10px' }}>
                           <p style={{ fontSize: '12px', color: '#5A6472', margin: 0, lineHeight: 1.7, fontStyle: 'italic' }}>"{r.teacherNote}"</p>
                         </div>
@@ -586,14 +586,14 @@ export default function DirectorView({ reports, students, classes = [], reportVi
                   {/* 다음 수업 계획 */}
                   {r.nextPlan && (
                     <div style={{ marginBottom: '12px', padding: '8px 12px', background: '#EAF0F9', borderRadius: '8px' }}>
-                      <p style={{ fontSize: '10px', color: T.brand, margin: '0 0 3px', letterSpacing: '0.08em' }}>다음 수업 계획</p>
+                      <p style={{ fontSize: '11px', color: T.brand, fontWeight: 600, margin: '0 0 3px', letterSpacing: '0.06em' }}>다음 수업 계획</p>
                       <p style={{ fontSize: '12px', fontWeight: 600, color: '#0D2D6B', margin: 0 }}>{r.nextPlan}{r.nextPlanDetail ? ` · ${r.nextPlanDetail}` : ''}</p>
                     </div>
                   )}
 
                   {/* 원장님 메모 */}
                   <div>
-                    <p style={{ fontSize: '10px', color: '#6B7785', margin: '0 0 5px', letterSpacing: '0.08em' }}>원장님 메모</p>
+                    <p style={{ fontSize: '11px', color: T.textMute, fontWeight: 600, margin: '0 0 5px', letterSpacing: '0.06em' }}>원장님 메모</p>
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <textarea
                         value={memos[r.id] ?? (r.directorMemo || '')}
@@ -614,7 +614,7 @@ export default function DirectorView({ reports, students, classes = [], reportVi
                   {/* 학부모 질문 */}
                   {questions.length > 0 && (
                     <div style={{ marginTop: '12px' }}>
-                      <p style={{ fontSize: '10px', color: '#6B7785', margin: '0 0 5px', letterSpacing: '0.08em' }}>학부모 질문 · {questions.length}건</p>
+                      <p style={{ fontSize: '11px', color: T.textMute, fontWeight: 600, margin: '0 0 5px', letterSpacing: '0.06em' }}>학부모 질문 · {questions.length}건</p>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         {questions.map(q => (
                           <div key={q.id} style={{ background: '#FAFAFA', border: '0.5px solid #E8E6E0', borderRadius: '8px', padding: '10px 12px' }}>
@@ -660,7 +660,7 @@ export default function DirectorView({ reports, students, classes = [], reportVi
                     </div>
                   ) : (
                   <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '0.5px solid #E8E6E0' }}>
-                    <p style={{ fontSize: '10px', color: '#6B7785', margin: '0 0 7px', letterSpacing: '0.08em' }}>학부모 전송 미리보기</p>
+                    <p style={{ fontSize: '11px', color: T.textMute, fontWeight: 600, margin: '0 0 7px', letterSpacing: '0.06em' }}>학부모 전송 미리보기</p>
                     {/* 미리보기 카드 */}
                     <div style={{ background: '#F5F8FF', border: '1px solid #C5D5F0', borderRadius: '10px', padding: '12px 14px', marginBottom: '8px' }}>
                       <p style={{ fontSize: '11px', color: T.brand, fontWeight: 700, margin: '0 0 6px' }}>📋 {academyName || '데일리 리포트'} 수업 리포트</p>
@@ -729,7 +729,7 @@ export default function DirectorView({ reports, students, classes = [], reportVi
 
       {/* 진단 집계 */}
       {diagEntries.length > 0 && (
-        <div style={{ background: '#fff', border: '0.5px solid #E8E6E0', borderRadius: '10px', padding: '14px' }}>
+        <div style={{ background: '#fff', border: '0.5px solid #E8E6E0', borderRadius: '14px', padding: '14px' }}>
           <p style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A', margin: '0 0 10px' }}>오늘 진단 집계</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {diagEntries.map(([key, count]) => {

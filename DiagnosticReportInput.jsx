@@ -1000,7 +1000,7 @@ export default function DiagnosticReportInput({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
           {/* 헤더 + 강사 */}
-          <div style={{ background: TOKENS.bg, borderRadius: '16px', padding: '18px 20px', border: `1px solid ${TOKENS.border}`, boxShadow: SHADOW[1] }}>
+          <div style={{ background: TOKENS.bg, borderRadius: '16px', padding: '18px 20px', border: `1px solid ${TOKENS.border}` }}>
             {/* 로그인 화면과 동일한 레터헤드 톤 — 색 배지 없이 텍스트만. 실제 로고 업로드 기능은
                 이 화면에 연동되어 있지 않으므로(하드코딩 "K"), 로고 확정 시 별도로 연동 필요 */}
             <p style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', color: TOKENS.textMute, margin: '0 0 14px' }}>{academyName || '데일리 리포트'}</p>
@@ -2049,7 +2049,7 @@ export default function DiagnosticReportInput({
           <p style={{ fontSize: '11px', color: TOKENS.textMute, fontWeight: 700, marginBottom: '8px' }}>학부모 발송 미리보기</p>
 
           {/* 스킨 표시 — 학생 개별 스킨 or 선택 스킨 */}
-          <div style={{ background: TOKENS.bg, borderRadius: `${RADIUS2.card}px`, border: `1px solid ${TOKENS.border}`, padding: '10px 14px', marginBottom: '10px', boxShadow: SHADOW[1] }}>
+          <div style={{ background: TOKENS.bg, borderRadius: `${RADIUS2.card}px`, border: `1px solid ${TOKENS.border}`, padding: '10px 14px', marginBottom: '10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
               <FieldLabel><Palette size={10} style={{ verticalAlign: '-1px', marginRight: '3px' }} />리포트 스킨</FieldLabel>
               {student?.skinColor && (
@@ -2321,7 +2321,7 @@ function FormSection({ number, title, badge, badgeTone = 'neutral', children }) 
     neutral: { background: TOKENS.borderLight, color: TOKENS.textSub },
   }[badgeTone];
   return (
-    <div style={{ background: TOKENS.bg, borderRadius: `${RADIUS2.card}px`, padding: '16px', border: `1px solid ${TOKENS.border}`, boxShadow: SHADOW[1] }}>
+    <div style={{ background: TOKENS.bg, borderRadius: `${RADIUS2.card}px`, padding: '16px', border: `1px solid ${TOKENS.border}` }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
         <span style={{ width: '4px', height: '15px', borderRadius: '2px', background: TOKENS.brand, flexShrink: 0 }} />
         <h2 style={{ fontSize: '14px', fontWeight: 700, margin: 0, letterSpacing: '-0.02em' }}>{title}</h2>
