@@ -448,6 +448,11 @@ export default function DiagnosticReportInput({
   const [wrongItems, setWrongItems] = useState([]);
   const [alertMessage, setAlertMessage] = useState('');
   const [photoError, setPhotoError] = useState('');
+  // 사진 확대 보기 — window.open(dataUrl)로 새 탭을 띄우면 최신 Chrome이 data: URL의
+  // 최상위 탐색을 보안상 막아 백지 탭만 뜨는 문제가 있어(팝업 차단 위험도 별개로 있음),
+  // 새 탭 대신 앱 안에서 원본 크기로 보여주는 라이트박스로 대체
+  const [zoomedPhoto, setZoomedPhoto] = useState(null);
+  useEscapeClose(() => setZoomedPhoto(null), !!zoomedPhoto);
   const MAX_PHOTOS = 5;
   const photosRef = React.useRef([]);
 
@@ -943,6 +948,17 @@ export default function DiagnosticReportInput({
     <>
       {/* 중앙 알림 모달 */}
       <AlertModal message={alertMessage} onClose={() => setAlertMessage('')} />
+
+      {/* 사진 확대 보기 — 새 탭 대신 앱 안 라이트박스(위 zoomedPhoto 참고) */}
+      {zoomedPhoto && (
+        <div role="dialog" aria-modal="true" onClick={() => setZoomedPhoto(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <img src={zoomedPhoto} alt="확대된 사진" onClick={e => e.stopPropagation()}
+            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '4px' }} />
+          <button type="button" onClick={() => setZoomedPhoto(null)} aria-label="닫기"
+            style={{ position: 'fixed', top: '16px', right: '16px', width: '40px', height: '40px', borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,0.9)', fontSize: '18px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+        </div>
+      )}
 
       {/* 토스트 알림 */}
       {toast && (
@@ -1775,7 +1791,7 @@ export default function DiagnosticReportInput({
                               <div key={`photo-${pi}`} style={{ marginBottom: '14px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', background: TOKENS.bgSoft, border: `1px solid ${TOKENS.border}`, borderRadius: '10px', marginBottom: '8px' }}>
                                   {preview
-                                    ? <img src={preview} alt={`${pi}번째 사진`} onClick={() => window.open(preview, '_blank')}
+                                    ? <img src={preview} alt={`${pi}번째 사진`} onClick={() => setZoomedPhoto(preview)}
                                         style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '8px', border: `1px solid ${TOKENS.border}`, cursor: 'zoom-in', flexShrink: 0 }} />
                                     : <div style={{ width: '48px', height: '48px', borderRadius: '8px', background: TOKENS.borderLight, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', flexShrink: 0 }}>📷</div>}
                                   <div style={{ minWidth: 0 }}>
