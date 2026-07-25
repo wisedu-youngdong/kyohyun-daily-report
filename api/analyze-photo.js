@@ -186,7 +186,90 @@ export const config = {
       sizeLimit: '10mb',
     },
   },
+  // 사진 여러 장을 병렬로 여러 번 Gemini 호출하면서(아래 참고) 각 호출이 20~30초씩 걸릴 수 있어
+  // Vercel 기본 타임아웃(플랜에 따라 10초)보다 여유를 둠. 병렬이라 총 소요 시간은 "가장 느린
+  // 한 장"에 수렴하므로 5장이어도 60초면 충분할 것으로 판단.
+  maxDuration: 60,
 };
+
+// 이미지 한 장에 대해 Gemini를 호출하고 정제된 JSON을 돌려준다. 실패 시 { ok:false, error }.
+async function analyzeOneImage(img, mode, hintTextbook, hintUnit, hintSubject) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${process.env.GEMINI_API_KEY}`;
+  // pageCount는 항상 1 — 이 함수는 사진 한 장만 본다(아래 handler의 사진별 분리 호출 설계 참고)
+  const prompt = buildPrompt(mode || 'auto', hintTextbook, hintUnit, 1, hintSubject);
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{
+        parts: [
+          { text: prompt },
+          { inline_data: { mime_type: img.mimeType || 'image/jpeg', data: img.imageBase64 } }
+        ]
+      }],
+      generationConfig: {
+        temperature: 0,
+        responseMimeType: 'application/json',
+        maxOutputTokens: 65536
+      }
+    })
+  });
+
+  const data = await response.json();
+
+  // Gemini API 레벨 에러(쿼터초과 429, 키 오류 400 등) 먼저 체크 — 원인 그대로 노출
+  if (data.error) {
+    console.error('Gemini API 에러:', JSON.stringify(data.error));
+    const code = data.error.code;
+    const status = data.error.status;
+    let userMsg = `Gemini API 오류 (${code} ${status}): ${data.error.message}`;
+    if (status === 'RESOURCE_EXHAUSTED' || code === 429) {
+      userMsg = '⚠️ Gemini API 쿼터가 초과됐습니다. (프로젝트 단위 쿼터 소진 가능성 — 1test.ai와 같은 프로젝트 키를 쓰는 경우 그쪽 사용량도 확인 필요) 잠시 후 다시 시도하거나 콘솔에서 쿼터를 확인해주세요.';
+    } else if (code === 400 && /API key/i.test(data.error.message || '')) {
+      userMsg = '⚠️ API 키가 유효하지 않습니다. Vercel 환경변수 GEMINI_API_KEY를 확인해주세요.';
+    }
+    return { ok: false, error: userMsg };
+  }
+
+  const finishReason = data.candidates?.[0]?.finishReason;
+  const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+  if (!rawText) {
+    console.error('Gemini 응답 없음. finishReason:', finishReason, 'full:', JSON.stringify(data));
+    let reasonMsg = `AI가 응답하지 않았습니다. (finishReason: ${finishReason || '알수없음'}) 잠시 후 다시 시도해주세요.`;
+    if (finishReason === 'SAFETY' || finishReason === 'PROHIBITED_CONTENT') {
+      reasonMsg = '이미지가 안전 필터에 걸려 분석하지 못했습니다. 다른 사진으로 시도해주세요.';
+    } else if (finishReason === 'MAX_TOKENS') {
+      reasonMsg = '이 사진 한 장만으로도 응답이 중간에 잘렸습니다. 페이지를 나눠서 다시 찍어주세요.';
+    }
+    return { ok: false, error: reasonMsg };
+  }
+
+  const cleaned = rawText.replace(/```json|```/g, '').trim();
+
+  try {
+    return { ok: true, data: JSON.parse(cleaned) };
+  } catch {
+    if (finishReason === 'MAX_TOKENS') {
+      console.error('MAX_TOKENS로 응답 잘림. 길이:', cleaned.length);
+      return { ok: false, error: '이 사진 한 장만으로도 응답이 중간에 잘렸습니다. 페이지를 나눠서 다시 찍어주세요.' };
+    }
+    // 앞뒤에 설명 텍스트가 섞였을 경우 첫 '{' ~ 마지막 '}' 구간만 추출해 재시도
+    const start = cleaned.indexOf('{');
+    const end = cleaned.lastIndexOf('}');
+    if (start !== -1 && end !== -1 && end > start) {
+      try {
+        return { ok: true, data: JSON.parse(cleaned.slice(start, end + 1)) };
+      } catch {
+        console.error('JSON 파싱 2차 실패:', cleaned);
+        return { ok: false, error: 'AI 응답을 정리하지 못했습니다. 다시 시도하거나 직접 입력해주세요.' };
+      }
+    }
+    console.error('JSON 파싱 실패:', cleaned);
+    return { ok: false, error: 'AI 응답을 정리하지 못했습니다. 다시 시도하거나 직접 입력해주세요.' };
+  }
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
@@ -219,100 +302,55 @@ export default async function handler(req, res) {
       return res.status(200).json({ error: '크레딧이 부족합니다. 원장님께 문의해 충전 후 다시 시도해주세요.' });
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${process.env.GEMINI_API_KEY}`;
+    // 사진마다 독립적으로(1장씩) Gemini를 병렬 호출 — 여러 장을 한 번에 한 호출로 보내면
+    // 특정 사진에 쏟는 주의력이 떨어져, 그 사진 혼자 분석했을 땐 정상 인식되던 채점 표시를
+    // 놓치는 현상이 실사용 중 반복 확인됨(3장/5장 모두 재현, 1장씩은 항상 정상). 장수와
+    // 무관하게 크레딧은 이 요청 전체에 대해 1건만 차감 — 늘어난 Gemini API 비용은 서비스가
+    // 흡수(가격 정책상 결정됨). 한 장이라도 실패하면 전체를 실패로 처리해 크레딧을 안 뗌 —
+    // 일부만 성공한 결과를 그대로 돌려주면 "표시가 있는데도 빠진" 문제를 또 만드는 셈이라
+    // 절반의 결과보다는 명확한 재시도 요청이 안전함.
+    const results = await Promise.all(
+      imageList.map(img => analyzeOneImage(img, mode, hintTextbook, hintUnit, hintSubject))
+    );
+    const failIdx = results.findIndex(r => !r.ok);
+    if (failIdx !== -1) {
+      const prefix = imageList.length > 1 ? `${failIdx + 1}번째 사진 분석 실패 — ` : '';
+      return res.status(200).json({ error: prefix + results[failIdx].error });
+    }
 
-    const prompt = buildPrompt(mode || 'auto', hintTextbook, hintUnit, imageList.length, hintSubject);
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { text: prompt },
-            ...imageList.map(img => ({ inline_data: { mime_type: img.mimeType || 'image/jpeg', data: img.imageBase64 } }))
-          ]
-        }],
-        generationConfig: {
-          temperature: 0,
-          responseMimeType: 'application/json',
-          // 5장을 한 번에 보내면 sections/wrongItems/rawObservations/identifiedNumbers를 전부
-          // 하나의 JSON에 담아야 해서 24576으로는 여유가 부족했을 가능성 — 여유를 크게 둠.
-          // finishReason이 MAX_TOKENS가 아니었다는 건 하드 한도에 걸려 잘린 건 아니라는 뜻이지만,
-          // 그래도 비용 없는 실험이라 우선 넉넉하게 올려서 영향을 배제
-          maxOutputTokens: 65536
-        }
-      })
+    // 각 사진 결과를 병합. photoIndex는 모델이 스스로 알 수 없는 값(한 장씩만 봤으므로)이라
+    // 여기서 원본 업로드 순서(1-based) 기준으로 항상 명시적으로 덮어씀 — 클라이언트의 책 섹션
+    // 판별(photoSections.js)과 사진별 그룹 UI가 이 값에 의존하므로 반드시 정확해야 함.
+    const merged = {
+      rawObservations: [],
+      bookOrTest: '', unit: '', pageRange: '', pageType: 'concept',
+      pageCutoff: false, pageCutoffNote: '',
+      wrongItems: [], sections: [],
+    };
+    results.forEach((r, i) => {
+      const pi = i + 1;
+      const d = r.data || {};
+      if (Array.isArray(d.rawObservations)) {
+        merged.rawObservations.push(...d.rawObservations.map(o =>
+          imageList.length > 1 ? `(${pi}번째 사진) ${o}` : o
+        ));
+      }
+      if (!merged.bookOrTest && d.bookOrTest) merged.bookOrTest = d.bookOrTest;
+      if (!merged.unit && d.unit) merged.unit = d.unit;
+      if (!merged.pageRange && d.pageRange) merged.pageRange = d.pageRange;
+      if (d.pageType) merged.pageType = d.pageType;
+      if (d.pageCutoff) {
+        merged.pageCutoff = true;
+        const note = d.pageCutoffNote ? `${pi}번째 사진: ${d.pageCutoffNote}` : `${pi}번째 사진`;
+        merged.pageCutoffNote = [merged.pageCutoffNote, note].filter(Boolean).join(' / ');
+      }
+      (d.wrongItems || []).forEach(item => merged.wrongItems.push({ ...item, photoIndex: pi }));
+      (d.sections || []).forEach(sec => merged.sections.push({ ...sec, photoIndex: pi }));
     });
 
-    const data = await response.json();
-
-    // Gemini API 레벨 에러(쿼터초과 429, 키 오류 400 등) 먼저 체크 — 원인 그대로 노출
-    if (data.error) {
-      console.error('Gemini API 에러:', JSON.stringify(data.error));
-      const code = data.error.code;
-      const status = data.error.status;
-      let userMsg = `Gemini API 오류 (${code} ${status}): ${data.error.message}`;
-      if (status === 'RESOURCE_EXHAUSTED' || code === 429) {
-        userMsg = '⚠️ Gemini API 쿼터가 초과됐습니다. (프로젝트 단위 쿼터 소진 가능성 — 1test.ai와 같은 프로젝트 키를 쓰는 경우 그쪽 사용량도 확인 필요) 잠시 후 다시 시도하거나 콘솔에서 쿼터를 확인해주세요.';
-      } else if (code === 400 && /API key/i.test(data.error.message || '')) {
-        userMsg = '⚠️ API 키가 유효하지 않습니다. Vercel 환경변수 GEMINI_API_KEY를 확인해주세요.';
-      }
-      return res.status(200).json({ error: userMsg });
-    }
-
-    const finishReason = data.candidates?.[0]?.finishReason;
-    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-    if (!rawText) {
-      console.error('Gemini 응답 없음. finishReason:', finishReason, 'full:', JSON.stringify(data));
-      let reasonMsg = `AI가 응답하지 않았습니다. (finishReason: ${finishReason || '알수없음'}) 잠시 후 다시 시도해주세요.`;
-      if (finishReason === 'SAFETY' || finishReason === 'PROHIBITED_CONTENT') {
-        reasonMsg = '이미지가 안전 필터에 걸려 분석하지 못했습니다. 다른 사진으로 시도해주세요.';
-      } else if (finishReason === 'MAX_TOKENS') {
-        reasonMsg = '문항이 너무 많아 응답이 중간에 잘렸습니다. 사진을 페이지 절반씩 나눠서 다시 시도해주세요.';
-      }
-      return res.status(200).json({ error: reasonMsg });
-    }
-
-    const cleaned = rawText.replace(/```json|```/g, '').trim();
-
-    let parsed;
-    try {
-      parsed = JSON.parse(cleaned);
-    } catch {
-      if (finishReason === 'MAX_TOKENS') {
-        console.error('MAX_TOKENS로 응답 잘림. 길이:', cleaned.length);
-        return res.status(200).json({
-          error: '문항이 너무 많아 응답이 중간에 잘렸습니다. 사진을 페이지 절반씩 나눠서 다시 시도해주세요.'
-        });
-      }
-      // 앞뒤에 설명 텍스트가 섞였을 경우 첫 '{' ~ 마지막 '}' 구간만 추출해 재시도
-      const start = cleaned.indexOf('{');
-      const end = cleaned.lastIndexOf('}');
-      if (start !== -1 && end !== -1 && end > start) {
-        try {
-          parsed = JSON.parse(cleaned.slice(start, end + 1));
-        } catch {
-          console.error('JSON 파싱 2차 실패:', cleaned);
-          return res.status(200).json({
-            error: 'AI 응답을 정리하지 못했습니다. 다시 시도하거나 직접 입력해주세요.',
-            raw: cleaned
-          });
-        }
-      } else {
-        console.error('JSON 파싱 실패:', cleaned);
-        return res.status(200).json({
-          error: 'AI 응답을 정리하지 못했습니다. 다시 시도하거나 직접 입력해주세요.',
-          raw: cleaned
-        });
-      }
-    }
-
-    // 실제로 쓸 수 있는 결과를 돌려줄 때만 차감 — 위의 에러 반환 경로들(쿼터초과/안전필터/
-    // 파싱실패 등)은 여기 도달하지 않으므로 실패한 호출에는 크레딧이 나가지 않음.
-    // 무제한 학원은 차감을 건너뜀(잔액 필드 자체를 안 건드림) — 사용 내역 기록은 그대로 남겨서
-    // 무제한이어도 실제 사용량은 계속 볼 수 있게 함
+    // 실제로 쓸 수 있는 결과를 돌려줄 때만 차감 — 위에서 하나라도 실패하면 여기 도달하지 않으므로
+    // 실패한 요청에는 크레딧이 나가지 않음. 무제한 학원은 차감을 건너뜀(잔액 필드 자체를 안
+    // 건드림) — 사용 내역 기록은 그대로 남겨서 무제한이어도 실제 사용량은 계속 볼 수 있게 함
     if (!isUnlimited) {
       await billingRef.update({ creditBalance: FieldValue.increment(-1) });
     }
@@ -323,11 +361,12 @@ export default async function handler(req, res) {
       teacherEmail: decoded.email || null,
       hintTextbook: hintTextbook || null,
       hintUnit: hintUnit || null,
+      photoCount: imageList.length,
       balanceAfter: isUnlimited ? null : creditBalance - 1,
       unlimited: isUnlimited,
       usedAt: FieldValue.serverTimestamp(),
     }).catch(e => console.error('크레딧 사용 로그 기록 실패(과금엔 영향 없음):', e.message));
-    res.status(200).json(parsed);
+    res.status(200).json(merged);
   } catch (e) {
     console.error('사진분석 에러:', e.message);
     res.status(500).json({ error: '오류: ' + e.message });
