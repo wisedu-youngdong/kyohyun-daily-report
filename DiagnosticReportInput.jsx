@@ -1625,11 +1625,21 @@ export default function DiagnosticReportInput({
                                 {sectionLabelFor(item) ? `${sectionLabelFor(item)} · ` : ''}{item.number}번 오답
                               </span>
                               <span style={{ fontSize: '11px', color: TOKENS.textSub, flex: '1 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.type}</span>
-                              {item.correctRate && (
-                                <span style={{ fontSize: '10px', color: C.danger, fontWeight: 600, marginLeft: 'auto' }}>
-                                  정답률 {item.correctRate}
-                                </span>
-                              )}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto', flexShrink: 0 }}>
+                                {item.correctRate && (
+                                  <span style={{ fontSize: '10px', color: C.danger, fontWeight: 600 }}>
+                                    정답률 {item.correctRate}
+                                  </span>
+                                )}
+                                <button type="button" onClick={() => removeAnalyzedItem(item.sectionIdx, item.number)}
+                                  title="이 문항 결과에서 제외"
+                                  style={{
+                                    flexShrink: 0, width: '22px', height: '22px', borderRadius: '6px',
+                                    border: `1px solid ${TOKENS.dangerBorder}40`, background: 'transparent', color: TOKENS.dangerBorder,
+                                    cursor: 'pointer', fontFamily: 'inherit', fontSize: '11px', lineHeight: 1, padding: 0,
+                                    WebkitTapHighlightColor: 'transparent',
+                                  }}>✕</button>
+                              </div>
                             </div>
                             <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginBottom: '8px' }}>
                               {WRONG_TAGS.map(tag => {
