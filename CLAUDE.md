@@ -66,6 +66,11 @@
 → [AI로 학부모 톤으로 다듬기] → 발송
 (이전에 있던 "AI 코멘트 초안 생성", "draftComment 표시+이어붙이기" 버튼들은 제거됨 — 루트 하나로 통일)
 
+## 크레딧 차감 정책
+- **차감 트리거는 오직 `/api/analyze-photo` 호출 한 가지뿐.** 리포트 텍스트/태그/메모 수정, 오답 정답↔오답 토글, "AI가 놓친 오답 직접 추가"/"✕ 제외", `/api/polish`(오답 분석 기반 코멘트 생성·AI로 학부모 톤으로 다듬기), `/api/narrative`(성장 스토리 서사) — 전부 무료·무제한. 사진을 다시 채점 분석할 때만 크레딧이 나감
+- 사진 여러 장을 올려도 내부적으로 사진별 병렬 Gemini 호출(`analyze-photo.js`)이 여러 번 나가지만, 사용자에게는 **요청당 정확히 1건만** 차감(정책 결정 완료 — 늘어난 API 비용은 서비스가 흡수). 한 장이라도 분석 실패하면 전체를 실패 처리해 크레딧 미차감
+- **"결과가 다르다면 다시 분석" 버튼은 사진을 안 바꿔도 크레딧이 또 나감** — 같은 photos 배열로 `/api/analyze-photo`를 다시 호출하는 것뿐이라 서버는 "재분석"과 "새 분석"을 구분하지 않음. `DiagnosticReportInput.jsx`의 `handleAnalyzePhoto`가 `hasChargedAnalysis` 플래그로 이미 한 번 차감됐음을 추적해, 재클릭 시 `window.confirm`으로 "크레딧이 1건 더 차감돼요"를 사전에 알리고 동의해야만 진행됨
+
 ## 배포 방식
 - GitHub Actions 없음. Vercel이 GitHub push 시 자동 배포.
 - 레포: wisedu-youngdong/kyohyun-daily-report (public)
