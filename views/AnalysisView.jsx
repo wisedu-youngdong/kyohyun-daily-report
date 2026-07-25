@@ -450,6 +450,80 @@ export default function AnalysisView({ students, reports }) {
               </div>
             );
           })()}
+
+          {/* 대단원 > 중단원 코멘트 카드 — AI 호출 없이 wrongItems를 대단원(unitKey)별로 묶고,
+              그 안에서 다시 문항 유형(type) 텍스트로 소그룹핑해 "어느 유형에서 반복되는지"를
+              문장으로 보여줌. 기존 "단원별 정답률"/"오답 원인 통계"와 같은 집계 기반 방식 —
+              사진분석 재확인 로직 작업 중 temperature:0도 완전한 결정론이 아니라는 게 확인된
+              마당에, 이 화면은 AI 문장 생성보다 집계만으로 뽑는 게 더 정확하고 빠르고 무료임 */}
+          {(() => {
+            const unitGroups = {};
+            periodReports.forEach(r => {
+              const unitLabel = [r.unit, r.textbook].filter(Boolean).join(' ');
+              if (!unitLabel) return;
+              const unitKey = r.unitKey || findUnitKey(r.subject || '수학', r.unit || '') || unitLabel;
+              if (!unitGroups[unitKey]) unitGroups[unitKey] = { label: unitLabel, subunits: {}, total: 0 };
+              (r.wrongItems || []).forEach(w => {
+                const subLabel = (w.type || '').trim();
+                if (!subLabel) return;
+                unitGroups[unitKey].total++;
+                if (!unitGroups[unitKey].subunits[subLabel]) {
+                  unitGroups[unitKey].subunits[subLabel] = { count: 0, tagCounts: {} };
+                }
+                unitGroups[unitKey].subunits[subLabel].count++;
+                (w.tags || []).forEach(tagKey => {
+                  unitGroups[unitKey].subunits[subLabel].tagCounts[tagKey] =
+                    (unitGroups[unitKey].subunits[subLabel].tagCounts[tagKey] || 0) + 1;
+                });
+              });
+            });
+
+            const unitList = Object.values(unitGroups)
+              .filter(u => u.total > 0)
+              .sort((a, b) => b.total - a.total);
+            if (unitList.length === 0) return null;
+
+            const tagInfo2 = Object.fromEntries(WRONG_TAGS.map(t => [t.key, t]));
+
+            return (
+              <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <p style={{ fontSize: '12px', fontWeight: 700, margin: 0 }}>대단원별 코멘트</p>
+                {unitList.map(u => {
+                  const subList = Object.entries(u.subunits)
+                    .sort((a, b) => b[1].count - a[1].count)
+                    .slice(0, 3);
+                  return (
+                    <div key={u.label} style={{ background: T.bg, borderRadius: `${RADIUS2.card}px`, padding: '14px 16px', border: `1px solid ${T.border}` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: T.text }}>{u.label}</span>
+                        <span style={{ fontSize: '11px', color: T.textMute }}>오답 {u.total}건</span>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {subList.map(([subLabel, val]) => {
+                          const topTag = Object.entries(val.tagCounts).sort((a, b) => b[1] - a[1])[0];
+                          const topTagInfo = topTag ? tagInfo2[topTag[0]] : null;
+                          return (
+                            <div key={subLabel} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                              <span style={{ fontSize: '11px', color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                "{subLabel}"에서 {val.count}회 반복
+                              </span>
+                              {topTagInfo && (
+                                <span style={{
+                                  fontSize: '10px', padding: '2px 7px', borderRadius: `${RADIUS2.chip}px`, flexShrink: 0,
+                                  background: `${topTagInfo.color}12`, border: `0.5px solid ${topTagInfo.color}40`,
+                                  color: topTagInfo.color, fontWeight: 600,
+                                }}>{topTagInfo.label}</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>
