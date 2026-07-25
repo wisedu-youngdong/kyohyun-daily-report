@@ -236,7 +236,11 @@ export default async function handler(req, res) {
         generationConfig: {
           temperature: 0,
           responseMimeType: 'application/json',
-          maxOutputTokens: 24576
+          // 5장을 한 번에 보내면 sections/wrongItems/rawObservations/identifiedNumbers를 전부
+          // 하나의 JSON에 담아야 해서 24576으로는 여유가 부족했을 가능성 — 여유를 크게 둠.
+          // finishReason이 MAX_TOKENS가 아니었다는 건 하드 한도에 걸려 잘린 건 아니라는 뜻이지만,
+          // 그래도 비용 없는 실험이라 우선 넉넉하게 올려서 영향을 배제
+          maxOutputTokens: 65536
         }
       })
     });
