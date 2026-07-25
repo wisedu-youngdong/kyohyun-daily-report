@@ -1630,6 +1630,16 @@ export default function DiagnosticReportInput({
                             (s.problemTypes || []).filter(p => p.result === '약점').length
                             + (s.weakDetail || []).length
                             + (s.problemTypes ? 0 : (s.summary?.wrong || 0));
+                          // identifiedNumbers(존재를 확인한 번호 전체)에는 있는데 problemTypes/weakDetail
+                          // 어디에도 최종 판정이 안 남은 번호 — "AI가 보긴 봤는데 표시를 못 찾아 제외한 번호"
+                          // 후보. 03번 사례처럼 실제로는 표시가 있었는데 놓친 경우를 눈에 띄게 하기 위함
+                          const sectionMissingNumbers = (s) => {
+                            const seen = [
+                              ...(s.problemTypes || []).map(p => p.number),
+                              ...(s.weakDetail || []).map(p => p.number),
+                            ];
+                            return (s.identifiedNumbers || []).filter(n => !seen.includes(n));
+                          };
                           // 책 섹션 칩 — AI가 확정한 라벨 표시 + 탭해서 수동 지정/수정 (최종 확정권은 사람)
                           const renderSectionChip = (sec, si) => {
                             const label = sec.resolvedSection?.label || null;
@@ -1816,6 +1826,7 @@ export default function DiagnosticReportInput({
                             // 안 그러면 라이트박스를 열어도 300px짜리라 여전히 흐릿하고 작게 보임
                             const fullRes = photoRec?.base64 ? `data:${photoRec.mimeType || 'image/jpeg'};base64,${photoRec.base64}` : preview;
                             const wrongTotal = inPhoto.reduce((n, x) => n + sectionWrongCount(x.s), 0);
+                            const missingNumbers = [...new Set(inPhoto.flatMap(x => sectionMissingNumbers(x.s)))];
                             return (
                               <div key={`photo-${pi}`} style={{ marginBottom: '14px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', background: TOKENS.bgSoft, border: `1px solid ${TOKENS.border}`, borderRadius: '10px', marginBottom: '8px' }}>
@@ -1830,6 +1841,17 @@ export default function DiagnosticReportInput({
                                     </p>
                                   </div>
                                 </div>
+                                {/* AI가 번호 존재는 확인했지만(Step 0) 표시를 못 찾아 최종 결과에서 빠진 번호 —
+                                    03번 사례처럼 실제로는 표시가 있었는데 인식을 놓친 경우일 수 있어 바로
+                                    확인/추가할 수 있게 노출 */}
+                                {missingNumbers.length > 0 && (
+                                  <div style={{ background: TOKENS.warnBg, border: `1px solid ${TOKENS.warnBorder}`, borderRadius: '8px', padding: '8px 10px', marginBottom: '8px', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                                    <AlertTriangle size={11} style={{ color: TOKENS.warn, flexShrink: 0 }} />
+                                    <span style={{ fontSize: '11px', color: TOKENS.warn }}>
+                                      {missingNumbers.join(', ')}번은 번호는 확인했지만 채점 표시를 못 찾아 결과에서 빠졌어요. 실제로 채점 표시가 있었다면 아래 "직접 추가"로 넣어주세요.
+                                    </span>
+                                  </div>
+                                )}
                                 {inPhoto.length === 0
                                   ? <p style={{ fontSize: '11px', color: TOKENS.textMute, margin: '0 0 4px 4px' }}>이 사진에서는 채점된 문항을 찾지 못했어요 — 사진이 잘 나왔는지 확인해주세요.</p>
                                   : inPhoto.map(({ s, si }) => renderSection(s, si))}
