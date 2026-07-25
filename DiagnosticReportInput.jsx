@@ -66,11 +66,15 @@ async function compressImage(file) {
       processFile = new File([blob], file.name.replace(/\.heic$/i, '.jpg'), { type: 'image/jpeg' });
     }
 
-    // AI용 압축(1800px, 0.88품질) + 썸네일(canvas) 병렬 처리
+    // AI용 압축(2200px, 0.88품질) + 썸네일(canvas) 병렬 처리
+    // 해상도를 1800→2200px로, 용량 상한을 0.8→1.2MB로 올림 — 문항 번호 옆의 가늘고 짧은
+    // 빨간 사선처럼 미세한 채점 표시를 Gemini가 더 잘 보게 하려는 시도(실사용 중 특정 문항의
+    // 사선을 계속 놓치는 사례 발견). 5장 기준 최대 6MB(base64 인코딩 후 약 8MB)로, Vercel
+    // 바디 제한(10mb, config 참고)에 여유를 두고 맞춤. 정확도 보장은 아니고 완화 시도.
     const [aiFile, thumbDataUrl] = await Promise.all([
       imageCompression(processFile, {
-        maxSizeMB: 0.8,
-        maxWidthOrHeight: 1800,
+        maxSizeMB: 1.2,
+        maxWidthOrHeight: 2200,
         fileType: 'image/jpeg',
         useWebWorker: false,
         initialQuality: 0.88,
@@ -1896,6 +1900,27 @@ export default function DiagnosticReportInput({
                             </div>
                           </div>
                         )}
+
+                        {/* AI가 놓친 문항 직접 추가 — temperature:0이라 같은 사진을 재분석해도 같은
+                            문항을 또 놓칠 수 있음. 프롬프트 튜닝으로 인식률을 조금 올릴 순 있어도
+                            100% 보장은 못 하므로, 사람이 "이 번호도 오답이었어요"를 바로 기록할 수
+                            있는 확실한 대안을 항상 열어둠(AI 결과가 있든 없든) */}
+                        <button type="button" onClick={() => {
+                          const number = window.prompt('AI가 놓친 오답 문항의 번호를 입력해주세요 (예: 03)');
+                          if (!number?.trim()) return;
+                          const type = window.prompt('이 문항은 어떤 유형/내용인가요? (간단히)') || '';
+                          setWrongItems(prev => [...prev, {
+                            number: number.trim(), type: type.trim(), correctRate: '', mark: '수동오답',
+                            confidence: 'high', tags: [], memo: '', sectionIdx: undefined,
+                          }]);
+                        }}
+                          style={{
+                            marginTop: '12px', width: '100%', padding: '9px', fontSize: '11px', fontWeight: 700,
+                            border: `1.5px dashed ${TOKENS.border}`, borderRadius: '10px', background: 'transparent',
+                            color: TOKENS.textSub, cursor: 'pointer', fontFamily: 'inherit',
+                          }}>
+                          + AI가 놓친 오답 직접 추가
+                        </button>
 
                         {/* 오답 카드 기반 코멘트 생성 — 체크리스트 인라인이든 leftover 카드든 상관없이 wrongItems 전체 기준 */}
                         {wrongItems.length > 0 && (
