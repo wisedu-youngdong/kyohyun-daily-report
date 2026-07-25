@@ -571,7 +571,7 @@ export default function GrowthStory() {
         </div>
         <div style={{ height: '1px', background: 'rgba(201,162,39,0.2)', marginBottom: '20px' }} />
         <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.6)', letterSpacing: '0.18em', fontWeight: 600, marginBottom: '6px' }}>GROWTH PORTFOLIO</p>
-        <p style={{ fontSize: '26px', fontWeight: 700, color: '#fff', letterSpacing: '-0.5px', marginBottom: '4px' }}>{student.name}의 성장 포트폴리오</p>
+        <p style={{ fontFamily: R.serif, fontSize: '26px', fontWeight: 700, color: '#fff', letterSpacing: '-0.5px', marginBottom: '4px' }}>{student.name}의 성장 포트폴리오</p>
         <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginBottom: '16px' }}>{periodLabel}</p>
 
         {/* 기간 토글 */}
@@ -972,7 +972,7 @@ export default function GrowthStory() {
         // 세로 리스트 — 예전엔 2x2 타일이었는데, 프레임 높이가 마일스톤 페이지 기준으로
         // 고정돼 있어서 짧은 통계 4개만으로는 위아래에 빈 여백이 크게 남았음. 한 줄짜리
         // 카드 4개로 바꾸면 그 높이를 자연스럽게 채우고, 맨 아래 출석 카드도 더 크게 보여줄 수 있음.
-        const tileStyle = { background: '#F7F5F1', borderRadius: '8px', padding: '13px 14px', borderLeft: `2px solid ${R.gold}` };
+        const tileStyle = { background: '#F7F5F1', borderRadius: '4px', padding: '13px 14px', borderLeft: `2px solid ${R.gold}` };
         const rowStyle = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' };
         const labelStyle = { fontSize: '12px', fontWeight: 600, color: '#2C2C2C', margin: '0 0 3px' };
         const captionStyle = { fontSize: '12px', color: '#2C2C2C', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' };
@@ -1144,7 +1144,7 @@ export default function GrowthStory() {
             {narrative?.nextChapter || '판단 기준을 세우는 힘이 생기기 시작했습니다. 이제는 그 힘을 더 단단하게 만들 차례입니다.'}
           </p>
         )}
-        <div style={{ padding: '14px 16px', background: '#F7F5F1', borderRadius: '6px', borderLeft: `2px solid ${R.gold}` }}>
+        <div style={{ padding: '14px 16px', background: '#F7F5F1', borderRadius: '4px', borderLeft: `2px solid ${R.gold}` }}>
           <p style={{ fontSize: '11px', color: '#757575', fontWeight: 600, marginBottom: '3px' }}>다음 목표</p>
           <p style={{ fontSize: '13px', fontWeight: 700, color: R.navy }}>{topWeakLabel ? `${topWeakLabel} 집중 보완` : '다음 단원 준비'}</p>
         </div>

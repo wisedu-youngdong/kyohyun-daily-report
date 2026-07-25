@@ -865,7 +865,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
 
         {/* 파생 색상 미리보기 */}
         <div style={{ background: '#F8F6FC', borderRadius: '12px', padding: '12px', marginBottom: '14px' }}>
-          <p style={{ fontSize: '9px', fontWeight: 700, color: '#7A6B99', letterSpacing: '0.1em', marginBottom: '8px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>자동 파생 색상</p>
+          <p style={{ fontSize: '10px', fontWeight: 700, color: '#7A6B99', letterSpacing: '0.1em', marginBottom: '8px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>자동 파생 색상</p>
           {[
             { label: '헤더 배경', color: globalColor },
             { label: '다크 카드', color: globalColor },
@@ -876,7 +876,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
               <div style={{ width: '26px', height: '26px', borderRadius: '7px', background: item.color, border: '1.5px solid rgba(0,0,0,0.06)', flexShrink: 0 }}></div>
               <span style={{ fontSize: '11px', fontWeight: 600, color: '#6B7280', flex: 1 }}>{item.label}</span>
               {item.text
-                ? <span style={{ fontSize: '9px', fontWeight: 700, color: '#6B3FA0', background: '#F0E8FF', padding: '2px 7px', borderRadius: '6px' }}>{item.text}</span>
+                ? <span style={{ fontSize: '10px', fontWeight: 700, color: '#6B3FA0', background: '#F0E8FF', padding: '2px 7px', borderRadius: '6px' }}>{item.text}</span>
                 : <span style={{ fontSize: '10px', fontWeight: 600, color: '#7A6B99', fontFamily: 'monospace' }}>{item.color}</span>
               }
             </div>
@@ -1188,7 +1188,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                           {req.directorName} 원장 · {req.createdAt?.seconds ? new Date(req.createdAt.seconds * 1000).toLocaleDateString('ko-KR') : ''}
                         </p>
                       </div>
-                      <span style={{ fontSize: '9px', fontWeight: 700, color: badge.color, background: badge.bg, padding: '2px 8px', borderRadius: '6px', flexShrink: 0 }}>{badge.label}</span>
+                      <span style={{ fontSize: '10px', fontWeight: 700, color: badge.color, background: badge.bg, padding: '2px 8px', borderRadius: '6px', flexShrink: 0 }}>{badge.label}</span>
                     </div>
 
                     {expanded && (
@@ -1295,8 +1295,8 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ fontSize: '13px', fontWeight: 600, color: '#1A1A1A', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
                       {a.academyName || a.id}
-                      {isMine && <span style={{ fontSize: '9px', fontWeight: 700, color: '#6B7280', background: '#E5E7EB', padding: '2px 6px', borderRadius: '5px' }}>내 학원</span>}
-                      <span style={{ fontSize: '9px', fontWeight: 700, padding: '2px 6px', borderRadius: '5px', background: suspended ? C.dangerBg : C.successBg, color: suspended ? C.danger : C.successDark }}>
+                      {isMine && <span style={{ fontSize: '10px', fontWeight: 700, color: '#6B7280', background: '#E5E7EB', padding: '2px 6px', borderRadius: '5px' }}>내 학원</span>}
+                      <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '5px', background: suspended ? C.dangerBg : C.successBg, color: suspended ? C.danger : C.successDark }}>
                         {suspended ? '정지됨' : '이용 중'}
                       </span>
                     </p>

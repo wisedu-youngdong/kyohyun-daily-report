@@ -495,7 +495,7 @@ export default function DirectorView({ reports, students, classes = [], reportVi
                     ) : isViewed ? (
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
                         <span style={{ fontSize: '10px', fontWeight: 700, color: C.successDark, background: C.successBg, padding: '2px 8px', borderRadius: '10px' }}>✓ 열람완료</span>
-                        <span style={{ fontSize: '9px', color: '#6B7785', marginTop: '2px' }}>{viewSrc} · {lastViewTime}</span>
+                        <span style={{ fontSize: '10px', color: T.textMute, marginTop: '2px' }}>{viewSrc} · {lastViewTime}</span>
                       </div>
                     ) : (
                       <span style={{ fontSize: '10px', fontWeight: 700, color: C.warningText, background: C.warningBg, padding: '2px 8px', borderRadius: '10px' }}>미열람</span>

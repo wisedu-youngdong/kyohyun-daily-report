@@ -356,8 +356,8 @@ export default function PublicReport() {
               <>
                 <div style={{ borderLeft: `3px solid ${gold}`, paddingLeft: '13px', marginBottom: '18px' }}>
                   <p style={{ fontSize: '9px', fontWeight: 700, color: goldText, letterSpacing: '0.12em', margin: '0 0 7px' }}>TEACHER'S NOTE</p>
-                  {r.teacherNote.split('\n').filter(Boolean).map((para, i) => (
-                    <p key={i} style={{ fontSize: '13px', color: ink, margin: i === 0 ? '0 0 10px' : '0', lineHeight: 1.9, fontWeight: 500 }}>{para}</p>
+                  {r.teacherNote.split('\n').filter(Boolean).map((para, i, arr) => (
+                    <p key={i} style={{ fontSize: '13px', color: ink, margin: i === arr.length - 1 ? '0' : '0 0 10px', lineHeight: 1.9, fontWeight: 500 }}>{para}</p>
                   ))}
                 </div>
                 <div style={{ height: '1px', background: rule, marginBottom: '18px' }} />
@@ -390,7 +390,7 @@ export default function PublicReport() {
                             {s.diagnosis.map((d, di) => {
                               const badge = DIAG_BADGES[d.key];
                               if (!badge) return null;
-                              return <span key={di} style={{ fontSize: '9px', fontWeight: 700, color: '#fff', background: badge.bg, padding: '2px 7px', borderRadius: '3px' }}>{badge.label}</span>;
+                              return <span key={di} style={{ fontSize: '9px', fontWeight: 700, color: '#fff', background: badge.bg, padding: '2px 7px', borderRadius: '20px' }}>{badge.label}</span>;
                             })}
                           </div>
                         )}

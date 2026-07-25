@@ -738,7 +738,7 @@ export default function App() {
                 return (
                   <button key={tab.key} className="pc-tab" onClick={() => setActiveTab(tab.key)}
                     aria-current={active ? 'page' : undefined}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', height: '44px', padding: '0 18px', border: 'none', borderRadius: '22px', cursor: 'pointer', fontSize: '14.5px', fontWeight: active ? 800 : 600, color: active ? '#12336F' : '#3A3A38', background: active ? '#EAEFF8' : undefined, fontFamily: "'Pretendard Variable', Pretendard, sans-serif", whiteSpace: 'nowrap' }}>
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', height: '44px', padding: '0 18px', border: 'none', borderRadius: '22px', cursor: 'pointer', fontSize: '15px', fontWeight: active ? 800 : 600, color: active ? '#12336F' : '#3A3A38', background: active ? '#EAEFF8' : undefined, fontFamily: "'Pretendard Variable', Pretendard, sans-serif", whiteSpace: 'nowrap' }}>
                     <TabLineIcon tabKey={tab.key} />
                     <span>{tab.label}</span>
                   </button>
@@ -874,13 +874,13 @@ export default function App() {
                       {showPerClass && classGroups.map(g => (
                         <button key={g.cls.id}
                           onClick={() => navigator.clipboard.writeText(linksText(g.reports)).then(() => showAppToast(`${g.cls.name} 리포트 ${g.reports.length}건 링크 복사됐어요!`))}
-                          style={{ padding: '4px 10px', borderRadius: '12px', border: '1px solid #E5E7EB', background: '#fff', color: '#374151', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
+                          style={{ padding: '4px 10px', borderRadius: '12px', border: '1px solid #E5E7EB', minHeight: '32px', background: '#fff', color: '#374151', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
                           {g.cls.name} ({g.reports.length}건)
                         </button>
                       ))}
                       <button
                         onClick={() => navigator.clipboard.writeText(allLinks).then(() => showAppToast(`발송 완료 리포트 ${sentReports.length}건 링크 복사됐어요!`))}
-                        style={{ padding: '4px 10px', borderRadius: '12px', border: '1px solid #0D2D6B', background: '#fff', color: '#0D2D6B', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
+                        style={{ padding: '4px 10px', borderRadius: '12px', border: '1px solid #0D2D6B', minHeight: '32px', background: '#fff', color: '#0D2D6B', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
                         전체 링크 복사 ({sentReports.length}건)
                       </button>
                     </div>

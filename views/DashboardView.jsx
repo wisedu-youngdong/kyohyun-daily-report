@@ -244,7 +244,7 @@ export default function DashboardView({ students, reports, classes = [], reportV
             <div key={section.studentName + si}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 2px 8px' }}>
                 <span style={{ fontSize: '15px', fontWeight: 800, color: '#2A2724' }}>{section.studentName}</span>
-                <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#fff', background: '#777165', padding: '1px 7px', borderRadius: '20px' }}>{section.groups.length}건</span>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: '#fff', background: '#777165', padding: '1px 7px', borderRadius: '20px' }}>{section.groups.length}건</span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '9px' }}>
                 {section.groups.map(group => {
@@ -264,15 +264,15 @@ export default function DashboardView({ students, reports, classes = [], reportV
                       padding: '12px 14px', background: '#FDFCF9', opacity: group.instructed ? 0.5 : 1, transition: 'opacity .18s',
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                        <span style={{ fontSize: '17px', fontWeight: 800, letterSpacing: '-0.01em', color: cat.color }}>
+                        <span style={{ fontSize: '14px', fontWeight: 800, letterSpacing: '-0.01em', color: cat.color }}>
                           {group.weakTypes.map(w => w.label).join(', ') || '복습 필요'}
                         </span>
-                        <span style={{ padding: '3px 9px', borderRadius: '20px', fontSize: '11.5px', fontWeight: 700, whiteSpace: 'nowrap', color: urg.color, background: urg.bg }}>
+                        <span style={{ padding: '3px 9px', borderRadius: '20px', fontSize: '12px', fontWeight: 700, whiteSpace: 'nowrap', color: urg.color, background: urg.bg }}>
                           {group.latestRound}차{group.isOverdue ? ` · ${group.overdueDays}일 지남` : ' · 오늘 기한'}
                         </span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginTop: '4px' }}>
-                        {diagLabel && <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#7D7465' }}>{diagLabel} 진단</span>}
+                        {diagLabel && <span style={{ fontSize: '12px', fontWeight: 700, color: '#7D7465' }}>{diagLabel} 진단</span>}
                         {diagLabel && (group.textbook || group.unit) && <span style={{ width: '3px', height: '3px', borderRadius: '50%', background: '#D6CEBE' }} />}
                         <span style={{ fontSize: '13px', color: '#5C564C' }}>{[group.textbook, group.unit].filter(Boolean).join(' · ')}</span>
                       </div>
@@ -286,16 +286,16 @@ export default function DashboardView({ students, reports, classes = [], reportV
                           }}>
                             {group.instructed && <Check size={10} strokeWidth={3} />}
                           </span>
-                          <span style={{ fontSize: '12.5px', fontWeight: 700 }}>{group.instructed ? '복습 지시함' : '복습 지시'}</span>
+                          <span style={{ fontSize: '13px', fontWeight: 700 }}>{group.instructed ? '복습 지시함' : '복습 지시'}</span>
                         </button>
                         <button onClick={() => toggleMemo(group)}
-                          style={{ position: 'relative', background: 'none', border: 'none', padding: '5px 6px', cursor: 'pointer', fontFamily: 'inherit', fontSize: '12.5px', fontWeight: 700, color: '#8B8375' }}>
+                          style={{ position: 'relative', background: 'none', border: 'none', padding: '5px 6px', cursor: 'pointer', fontFamily: 'inherit', fontSize: '13px', fontWeight: 700, color: '#8B8375' }}>
                           메모
                           {hasMemoContent && <span style={{ display: 'inline-block', position: 'absolute', top: '2px', right: '0', width: '6px', height: '6px', borderRadius: '50%', background: '#C67A2E' }} />}
                         </button>
                         <div style={{ flex: 1 }} />
                         <button onClick={() => handleConfirmGroup(group)} disabled={isCompleting}
-                          style={{ padding: '7px 15px', borderRadius: '9px', border: '1px solid #EBDFC0', background: isCompleting ? '#F0EADD' : '#FCF4DE', color: '#8A6412', fontSize: '12.5px', fontWeight: 800, cursor: isCompleting ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                          style={{ padding: '7px 15px', borderRadius: '9px', border: '1px solid #EBDFC0', background: isCompleting ? '#F0EADD' : '#FCF4DE', color: '#8A6412', fontSize: '13px', fontWeight: 800, cursor: isCompleting ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
                           {isCompleting ? '처리 중...' : '확인하기'}
                         </button>
                       </div>
@@ -305,13 +305,13 @@ export default function DashboardView({ students, reports, classes = [], reportV
                             value={noteDrafts[group.key] ?? group.reviews[0]?.note ?? ''}
                             onChange={e => setNoteDrafts(prev => ({ ...prev, [group.key]: e.target.value }))}
                             placeholder="무엇을 복습시킬지 메모…" rows={2}
-                            style={{ width: '100%', minHeight: '50px', resize: 'vertical', border: '1px solid #E7E0D0', borderRadius: '8px', padding: '8px 10px', fontFamily: 'inherit', fontSize: '12.5px', color: '#3A362F', background: '#FBFAF6', outline: 'none', boxSizing: 'border-box' }} />
+                            style={{ width: '100%', minHeight: '50px', resize: 'vertical', border: '1px solid #E7E0D0', borderRadius: '8px', padding: '8px 10px', fontFamily: 'inherit', fontSize: '13px', color: '#3A362F', background: '#FBFAF6', outline: 'none', boxSizing: 'border-box' }} />
                           <input
                             type="number"
                             value={scoreDrafts[group.key] ?? ''}
                             onChange={e => setScoreDrafts(prev => ({ ...prev, [group.key]: e.target.value }))}
                             placeholder="재시험 점수 (선택)"
-                            style={{ width: '140px', padding: '7px 9px', fontSize: '12.5px', border: '1px solid #E7E0D0', borderRadius: '8px', fontFamily: 'inherit', outline: 'none', background: '#FBFAF6', color: '#3A362F' }} />
+                            style={{ width: '140px', padding: '7px 9px', fontSize: '13px', border: '1px solid #E7E0D0', borderRadius: '8px', fontFamily: 'inherit', outline: 'none', background: '#FBFAF6', color: '#3A362F' }} />
                         </div>
                       )}
                     </div>
@@ -345,7 +345,7 @@ export default function DashboardView({ students, reports, classes = [], reportV
           </select>
         )}
         <button onClick={() => onTabChange('write')}
-          style={{ padding: '7px 15px', borderRadius: '9px', border: '1px solid #EBDFC0', background: '#FCF4DE', color: '#8A6412', fontSize: '12.5px', fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}>
+          style={{ padding: '7px 15px', borderRadius: '9px', border: '1px solid #EBDFC0', background: '#FCF4DE', color: '#8A6412', fontSize: '13px', fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}>
           리포트 작성
         </button>
       </div>
@@ -376,7 +376,7 @@ export default function DashboardView({ students, reports, classes = [], reportV
             {avatarUrl ? <img src={avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : s.name?.[0]}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ fontSize: '14.5px', fontWeight: 800, color: '#2A2724', margin: 0 }}>{s.name}</p>
+            <p style={{ fontSize: '15px', fontWeight: 800, color: '#2A2724', margin: 0 }}>{s.name}</p>
             <p style={{ fontSize: '12px', color: '#7D7465', margin: '1px 0 0' }}>{s.school}</p>
           </div>
           {/* 결석/공휴일 등으로 수업 자체가 없었던 학생 — 무거운 진단 리포트 폼 없이 출결만 원터치 기록 */}
@@ -391,7 +391,7 @@ export default function DashboardView({ students, reports, classes = [], reportV
             </button>
           )}
           {/* 대기가 유일한 '할 일' 신호 — 완료보다 눈에 띄어야 함 */}
-          <span style={{ fontSize: '12.5px', fontWeight: 800, flexShrink: 0, color: done ? '#3F6B49' : '#8A6412' }}>{done ? '완료 ✓' : '대기'}</span>
+          <span style={{ fontSize: '13px', fontWeight: 800, flexShrink: 0, color: done ? '#3F6B49' : '#8A6412' }}>{done ? '완료 ✓' : '대기'}</span>
         </div>
       );
     });

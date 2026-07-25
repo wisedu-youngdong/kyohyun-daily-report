@@ -128,9 +128,9 @@ export default function WeeklyReviewView({ reports = [], students = [], classes 
     : [{ cls: null, students: weeklyStudents }];
 
   return (
-    <div style={{ padding: '0 20px 20px', maxWidth: '760px', margin: '0 auto', boxSizing: 'border-box' }}>
+    <div style={{ padding: '0 20px 20px', maxWidth: '880px', margin: '0 auto', boxSizing: 'border-box' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-        <h2 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>{week.label} <span style={{ color: T.textMute, fontWeight: 500, fontSize: '12px' }}>({week.rangeLabel})</span></h2>
+        <h2 style={{ fontSize: '20px', fontWeight: 700, margin: 0 }}>{week.label} <span style={{ color: T.textMute, fontWeight: 500, fontSize: '12px' }}>({week.rangeLabel})</span></h2>
         <div style={{ display: 'flex', gap: '4px' }}>
           <button onClick={() => setWeekOffset(o => o + 1)} style={{ padding: '5px 10px', fontSize: '12px', border: `1px solid ${T.border}`, background: '#fff', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit' }}>‹ 이전 주</button>
           <button onClick={() => setWeekOffset(0)} disabled={weekOffset === 0} style={{ padding: '5px 10px', fontSize: '12px', border: `1px solid ${T.border}`, background: weekOffset === 0 ? '#F3F4F6' : '#fff', color: weekOffset === 0 ? T.textMute : T.text, borderRadius: '8px', cursor: weekOffset === 0 ? 'default' : 'pointer', fontFamily: 'inherit' }}>이번 주</button>

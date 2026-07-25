@@ -16,7 +16,7 @@ import {
   FileText, Sparkles, Send, Plus, X, Check,
   UserPlus, GraduationCap, Info, Star, AlertTriangle, Palette
 } from 'lucide-react';
-import { C, R, RADIUS2, TYPE, SHADOW } from './tokens.jsx';
+import { C, R, RADIUS2, TYPE, SHADOW, textSafeColor } from './tokens.jsx';
 import { calculateReportPoints, toPct, ratingLabel, kstDay, getKstWeekRange } from './growth.js';
 import { DIAG_LABELS as diagLabels, DIAG_BADGE, WRONG_TAGS, WRONG_TAG_LABELS } from './diagnosis.js';
 import { findUnitKey, getUnits, getCourses } from './curriculum.js';
@@ -2165,6 +2165,9 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
   const { rule, inkMute, inkSub, ink, positive, serif, body } = R;
   const navy = student?.skinColor || skin?.main || R.navy;
   const gold = (!student?.skinColor && skin?.accent) || R.gold;
+  // 텍스트 색으로 쓸 땐 gold를 그대로 쓰지 않는다 — PublicReport.jsx와 동일한 이유
+  // (학생이 고른 스킨의 accent가 배경/테두리용 옅은 톤일 수도 있음)
+  const goldText = (!student?.skinColor && skin?.accent) ? textSafeColor(gold) : R.goldText;
 
   const teacherSuffix = /선생님?$/.test(teacher?.name || '') ? '' : ' 선생님';
   const hasDiagnosis = diagnosis && diagnosis.length > 0;
@@ -2273,9 +2276,9 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
         {teacherNote && (
           <>
             <div style={{ borderLeft: `3px solid ${gold}`, paddingLeft: '13px', marginBottom: '18px' }}>
-              <p style={{ fontSize: '9px', fontWeight: 700, color: gold, letterSpacing: '0.12em', margin: '0 0 7px' }}>TEACHER'S NOTE</p>
-              {teacherNote.split('\n').filter(Boolean).map((para, i) => (
-                <p key={i} style={{ fontSize: '13px', color: ink, margin: i === 0 ? '0 0 10px' : '0', lineHeight: 1.9, fontWeight: 500 }}>{para}</p>
+              <p style={{ fontSize: '9px', fontWeight: 700, color: goldText, letterSpacing: '0.12em', margin: '0 0 7px' }}>TEACHER'S NOTE</p>
+              {teacherNote.split('\n').filter(Boolean).map((para, i, arr) => (
+                <p key={i} style={{ fontSize: '13px', color: ink, margin: i === arr.length - 1 ? '0' : '0 0 10px', lineHeight: 1.9, fontWeight: 500 }}>{para}</p>
               ))}
             </div>
             <div style={{ height: '1px', background: rule, marginBottom: '18px' }} />

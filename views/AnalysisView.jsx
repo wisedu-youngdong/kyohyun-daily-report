@@ -212,7 +212,7 @@ export default function AnalysisView({ students, reports }) {
   };
 
   return (
-    <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto', boxSizing: 'border-box' }}>
+    <div style={{ padding: '20px', maxWidth: '880px', margin: '0 auto', boxSizing: 'border-box' }}>
       <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '16px', letterSpacing: '-0.02em' }}>종합 분석</h2>
       <div style={{ background: T.bg, borderRadius: `${RADIUS2.panel}px`, padding: '18px', border: `1px solid ${T.border}`, marginBottom: '16px' }}>
         <select value={selectedId} onChange={(e) => setSelectedId(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontSize: '16px', fontWeight: 500, border: `1px solid ${T.border}`, borderRadius: `${RADIUS2.input}px`, background: T.bgSoft, outline: 'none', fontFamily: 'inherit' }}>
@@ -294,7 +294,7 @@ export default function AnalysisView({ students, reports }) {
                 <div style={{ background: T.bg, borderRadius: `${RADIUS2.card}px`, padding: '14px 16px', border: `1px solid ${T.border}` }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                     <p style={{ fontSize: '12px', fontWeight: 700, margin: 0 }}>단원별 정답률</p>
-                    <span style={{ fontSize: '9px', color: T.textMute }}>목표 {TARGET}%</span>
+                    <span style={{ fontSize: '10px', color: T.textMute }}>목표 {TARGET}%</span>
                   </div>
                   <div style={{ position: 'relative' }}>
                     <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${TARGET}%`, width: '1px', background: C.primary, opacity: 0.12 }} />
@@ -311,7 +311,7 @@ export default function AnalysisView({ students, reports }) {
                             <div style={{ height: '6px', background: isWorst ? C.errorBg : '#F3F4F6', borderRadius: '3px', overflow: 'hidden' }}>
                               <div style={{ width: `${u.pct}%`, height: '100%', background: barColor, borderRadius: '3px' }} />
                             </div>
-                            {isWorst && <span style={{ fontSize: '9px', color: C.errorDark, fontWeight: 700 }}>즉시 점검</span>}
+                            {isWorst && <span style={{ fontSize: '10px', color: C.errorDark, fontWeight: 700 }}>즉시 점검</span>}
                           </div>
                         );
                       })}
@@ -373,7 +373,7 @@ export default function AnalysisView({ students, reports }) {
                             <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                               {topUnits.map(([uKey, uVal]) => (
                                 <span key={uKey} style={{
-                                  fontSize: '9px', padding: '2px 7px', borderRadius: `${RADIUS2.chip}px`,
+                                  fontSize: '10px', padding: '2px 7px', borderRadius: `${RADIUS2.chip}px`,
                                   background: `${info.color}12`,
                                   border: `0.5px solid ${info.color}40`,
                                   color: info.color, fontWeight: 600,
@@ -435,7 +435,7 @@ export default function AnalysisView({ students, reports }) {
                           <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                             {topUnits.map(([uKey, uVal]) => (
                               <span key={uKey} style={{
-                                fontSize: '9px', padding: '2px 7px', borderRadius: `${RADIUS2.chip}px`,
+                                fontSize: '10px', padding: '2px 7px', borderRadius: `${RADIUS2.chip}px`,
                                 background: `${info.color}12`,
                                 border: `0.5px solid ${info.color}40`,
                                 color: info.color, fontWeight: 600,

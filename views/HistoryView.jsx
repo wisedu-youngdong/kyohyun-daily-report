@@ -163,7 +163,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
 
   if (isMobile) {
     return (
-      <div style={{ padding: '16px' }}>
+      <div style={{ padding: '20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', width: '100%', boxSizing: 'border-box', border: '1px solid #E5E7EB', borderRadius: '10px', background: '#fff', marginBottom: '12px' }}>
           <input value={searchText} onChange={e => setSearchText(e.target.value)}
             placeholder="학생명·교재·코멘트 검색"
@@ -628,7 +628,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
                         </div>
                       );
                     })}
-                    <p style={{ fontSize: '9px', color: '#757575', margin: 0 }}>금색 = 현재 보는 리포트 · 점에 마우스를 올리면 상세가 보여요</p>
+                    <p style={{ fontSize: '10px', color: '#757575', margin: 0 }}>금색 = 현재 보는 리포트 · 점에 마우스를 올리면 상세가 보여요</p>
                   </div>
                 )}
 
