@@ -377,6 +377,22 @@ export default function DiagnosticReportInput({
       ...(photoIndex != null ? { photoIndex } : {}),
     }]);
   };
+  // AI가 잘못 포함시킨 문항 완전 제외 — 예: 교재가 이미 풀어준 예제인데 학생이 검산하며 남긴
+  // 필기를 채점 마크로 오인해 별도 문항으로 잡은 경우("확인N"만 진짜 학생 문항이고 "N"은
+  // 선생님이 같이 푼 문제라 평가에서 빼고 싶은 경우 등). 정답↔오답 토글과 달리 행 자체를
+  // problemTypes/weakDetail에서 지우고, 남아있던 wrongItems 항목도 같이 정리
+  const removeAnalyzedItem = (si, number) => {
+    if (!window.confirm(`${number}번 문항을 결과에서 완전히 제외할까요?\n(교재 예제, 선생님과 같이 푼 문제 등 학생 채점 대상이 아닐 때 사용)`)) return;
+    setPhotoAnalysis(prev => ({
+      ...prev,
+      sections: prev.sections.map((s, sIdx) => sIdx !== si ? s : {
+        ...s,
+        problemTypes: (s.problemTypes || []).filter(pt => pt.number !== number),
+        weakDetail: (s.weakDetail || []).filter(pt => pt.number !== number),
+      }),
+    }));
+    setWrongItems(prev => prev.filter(w => !(w.number === number && w.sectionIdx === si)));
+  };
 
   const buildSessionEntry = () => ({
     date: kstDay(Date.now() / 1000),
@@ -1846,6 +1862,14 @@ export default function DiagnosticReportInput({
                                     </p>
                                   )}
                                 </div>
+                                <button type="button" onClick={() => removeAnalyzedItem(si, p.number)}
+                                  title="이 문항 결과에서 제외"
+                                  style={{
+                                    marginLeft: 'auto', flexShrink: 0, width: '28px', height: '28px', borderRadius: '8px',
+                                    border: `1px solid ${TOKENS.border}`, background: 'transparent', color: TOKENS.textMute,
+                                    cursor: 'pointer', fontFamily: 'inherit', fontSize: '13px', lineHeight: 1,
+                                    WebkitTapHighlightColor: 'transparent',
+                                  }}>✕</button>
                                 </div>
 
                                 {/* 오답 원인 입력 — 체크리스트 바로 이 줄 안에 붙여서, 옆에 따로 뒀을 때
@@ -1899,12 +1923,22 @@ export default function DiagnosticReportInput({
                                   <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: `1px solid ${TOKENS.border}` }}>
                                     <p style={{ fontSize: '11px', fontWeight: 700, color: TOKENS.textSub, margin: '0 0 6px' }}>보완 필요 문항</p>
                                     {sec.weakDetail.map((p, i) => (
-                                      <p key={i} style={{ fontSize: '12px', margin: '0 0 4px', ...(p.confidence === 'low' ? { background: TOKENS.warnBg, borderRadius: '6px', padding: '4px 6px' } : {}) }}>
-                                        {p.number ? `${p.number}. ` : ''}{p.type}
-                                        {p.mark && <span style={{ marginLeft: '6px', fontSize: '10px', color: TOKENS.textMute }}>[{p.mark}]</span>}
-                                        {p.confidence === 'low' && <span style={{ marginLeft: '6px', fontSize: '10px', fontWeight: 700, color: TOKENS.warn }}>확인 필요</span>}
-                                        {p.note && <span style={{ display: 'block', color: TOKENS.textSub }}>{p.note}</span>}
-                                      </p>
+                                      <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', fontSize: '12px', margin: '0 0 4px', ...(p.confidence === 'low' ? { background: TOKENS.warnBg, borderRadius: '6px', padding: '4px 6px' } : {}) }}>
+                                        <p style={{ margin: 0, flex: '1 1 auto', minWidth: 0 }}>
+                                          {p.number ? `${p.number}. ` : ''}{p.type}
+                                          {p.mark && <span style={{ marginLeft: '6px', fontSize: '10px', color: TOKENS.textMute }}>[{p.mark}]</span>}
+                                          {p.confidence === 'low' && <span style={{ marginLeft: '6px', fontSize: '10px', fontWeight: 700, color: TOKENS.warn }}>확인 필요</span>}
+                                          {p.note && <span style={{ display: 'block', color: TOKENS.textSub }}>{p.note}</span>}
+                                        </p>
+                                        <button type="button" onClick={() => removeAnalyzedItem(si, p.number)}
+                                          title="이 문항 결과에서 제외"
+                                          style={{
+                                            flexShrink: 0, width: '22px', height: '22px', borderRadius: '6px',
+                                            border: `1px solid ${TOKENS.border}`, background: 'transparent', color: TOKENS.textMute,
+                                            cursor: 'pointer', fontFamily: 'inherit', fontSize: '11px', lineHeight: 1, padding: 0,
+                                            WebkitTapHighlightColor: 'transparent',
+                                          }}>✕</button>
+                                      </div>
                                     ))}
                                   </div>
                                 )}
