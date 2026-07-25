@@ -953,8 +953,10 @@ export default function DiagnosticReportInput({
       {zoomedPhoto && (
         <div role="dialog" aria-modal="true" onClick={() => setZoomedPhoto(null)}
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          {/* width/height:100% + objectFit:contain — maxWidth/maxHeight만 쓰면 원본이 뷰포트보다
+              작을 때(예: 압축된 사진) 늘어나지 않고 원래 크기 그대로 작게 떠서 확대한 의미가 없어짐 */}
           <img src={zoomedPhoto} alt="확대된 사진" onClick={e => e.stopPropagation()}
-            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '4px' }} />
+            style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '4px' }} />
           <button type="button" onClick={() => setZoomedPhoto(null)} aria-label="닫기"
             style={{ position: 'fixed', top: '16px', right: '16px', width: '40px', height: '40px', borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,0.9)', fontSize: '18px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
         </div>
@@ -1785,13 +1787,17 @@ export default function DiagnosticReportInput({
                           const totalPhotos = Math.max(analyzedPhotos.length, maxPi);
                           return Array.from({ length: totalPhotos }, (_, i) => i + 1).map(pi => {
                             const inPhoto = secs.map((s, si) => ({ s, si })).filter(x => (x.s.photoIndex ?? 0) === pi);
-                            const preview = analyzedPhotos[pi - 1]?.preview || null;
+                            const photoRec = analyzedPhotos[pi - 1] || null;
+                            const preview = photoRec?.preview || null; // 48px 썸네일 표시용(300px 압축본)
+                            // 확대 보기는 썸네일이 아니라 AI 분석에 실제로 쓰인 원본급(최대 1800px) 이미지를 사용 —
+                            // 안 그러면 라이트박스를 열어도 300px짜리라 여전히 흐릿하고 작게 보임
+                            const fullRes = photoRec?.base64 ? `data:${photoRec.mimeType || 'image/jpeg'};base64,${photoRec.base64}` : preview;
                             const wrongTotal = inPhoto.reduce((n, x) => n + sectionWrongCount(x.s), 0);
                             return (
                               <div key={`photo-${pi}`} style={{ marginBottom: '14px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', background: TOKENS.bgSoft, border: `1px solid ${TOKENS.border}`, borderRadius: '10px', marginBottom: '8px' }}>
                                   {preview
-                                    ? <img src={preview} alt={`${pi}번째 사진`} onClick={() => setZoomedPhoto(preview)}
+                                    ? <img src={preview} alt={`${pi}번째 사진`} onClick={() => setZoomedPhoto(fullRes)}
                                         style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '8px', border: `1px solid ${TOKENS.border}`, cursor: 'zoom-in', flexShrink: 0 }} />
                                     : <div style={{ width: '48px', height: '48px', borderRadius: '8px', background: TOKENS.borderLight, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', flexShrink: 0 }}>📷</div>}
                                   <div style={{ minWidth: 0 }}>
