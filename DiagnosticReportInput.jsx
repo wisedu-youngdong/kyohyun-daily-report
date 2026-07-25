@@ -364,6 +364,19 @@ export default function DiagnosticReportInput({
   const sectionLabelFor = (w) => (w?.sectionIdx != null && photoAnalysis?.sections?.[w.sectionIdx]?.resolvedSection?.label) || '';
   // 저장 시점에 섹션 라벨을 얹음 — 화면에서 칩으로 수정한 최신 라벨이 반영되도록 저장 직전에 계산
   const enrichedWrongItems = () => wrongItems.map(w => ({ ...w, section: sectionLabelFor(w) || null }));
+  // AI가 놓친 문항 직접 추가 — photoIndex를 지정하면 그 사진 카드 밑에 바로 붙어서 보이고,
+  // 안 지정하면(사진 구분이 없는 레거시 데이터) 맨 아래 공용 목록에 들어감. 사진이 여러 장일 때
+  // photoIndex 없이 추가하면 어느 사진 문항인지 알 수 없어져서, 사진별 버튼에서 항상 넘겨줌
+  const addMissedWrongItem = (photoIndex) => {
+    const number = window.prompt('AI가 놓친 오답 문항의 번호를 입력해주세요 (예: 03)');
+    if (!number?.trim()) return;
+    const type = window.prompt('이 문항은 어떤 유형/내용인가요? (간단히)') || '';
+    setWrongItems(prev => [...prev, {
+      number: number.trim(), type: type.trim(), correctRate: '', mark: '수동오답',
+      confidence: 'high', tags: [], memo: '', sectionIdx: undefined,
+      ...(photoIndex != null ? { photoIndex } : {}),
+    }]);
+  };
 
   const buildSessionEntry = () => ({
     date: kstDay(Date.now() / 1000),
@@ -1579,6 +1592,61 @@ export default function DiagnosticReportInput({
                           .flatMap(s => (s.problemTypes || []).map(p => p.number))
                       );
                       const leftoverWrongItems = wrongItems.filter(w => !conceptNumbers.has(w.number));
+                      // 사진별로 그룹 렌더링되는 화면인지 — 그렇다면 아래 leftover 카드도 사진별
+                      // "+직접 추가" 버튼으로 넣은 항목(photoIndex 있음)은 해당 사진 카드 밑에서 렌더링하고,
+                      // 여기 공용 목록에는 photoIndex 없는 항목(레거시 데이터/그룹 UI 밖 사진)만 남김
+                      const hasPhotoInfoOuter = (photoAnalysis.sections || []).some(s => s.photoIndex != null);
+                      // 오답 원인 입력 카드 하나 — 사진별 그룹 안/공용 leftover 목록 양쪽에서 재사용
+                      const renderLeftoverCard = (item, idx) => {
+                        // number만으로 매칭하면 사진 2장에 같은 번호 오답이 있을 때 한 카드의
+                        // 태그/메모 입력이 다른 카드까지 같이 바뀜 — concept 섹션과 동일하게
+                        // sectionIdx까지 함께 매칭 (CLAUDE.md 인덱스 매칭 버그 패턴)
+                        const matches = (w) => w.number === item.number && w.sectionIdx === item.sectionIdx;
+                        return (
+                          <div key={`${item.sectionIdx ?? 'x'}-${item.number ?? idx}`} style={{ border: `1px solid ${C.danger}30`, borderRadius: `${RADIUS2.thumbnail}px`, padding: '14px', background: C.dangerBg }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                              <span style={{ background: TOKENS.dangerBorder, color: '#fff', fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px' }}>
+                                {sectionLabelFor(item) ? `${sectionLabelFor(item)} · ` : ''}{item.number}번 오답
+                              </span>
+                              <span style={{ fontSize: '11px', color: TOKENS.textSub, flex: '1 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.type}</span>
+                              {item.correctRate && (
+                                <span style={{ fontSize: '10px', color: C.danger, fontWeight: 600, marginLeft: 'auto' }}>
+                                  정답률 {item.correctRate}
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                              {WRONG_TAGS.map(tag => {
+                                const active = item.tags.includes(tag.key);
+                                return (
+                                  <button type="button" key={tag.key}
+                                    onClick={() => setWrongItems(prev => prev.map((w) => matches(w) ? {
+                                      ...w,
+                                      tags: active ? w.tags.filter(t => t !== tag.key) : [...w.tags, tag.key]
+                                    } : w))}
+                                    style={{
+                                      fontSize: '11px', padding: '5px 11px', borderRadius: '20px',
+                                      background: active ? tag.bg : '#fff',
+                                      color: active ? tag.color : TOKENS.textMute,
+                                      border: `1px solid ${active ? tag.border : TOKENS.border}`,
+                                      cursor: 'pointer', fontFamily: 'inherit', fontWeight: active ? 700 : 400,
+                                      WebkitTapHighlightColor: 'transparent',
+                                      touchAction: 'manipulation',
+                                    }}>
+                                    {active ? '✓ ' : ''}{tag.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <input
+                              value={item.memo}
+                              onChange={e => setWrongItems(prev => prev.map((w) => matches(w) ? { ...w, memo: e.target.value } : w))}
+                              placeholder="직접 입력 (선택) — 답 잘못 씀, 문제 안 읽음 등"
+                              style={{ width: '100%', padding: '6px 10px', fontSize: '16px', border: `1px solid ${TOKENS.border}`, borderRadius: '8px', fontFamily: 'inherit', outline: 'none', background: '#fff', boxSizing: 'border-box', color: TOKENS.text }}
+                            />
+                          </div>
+                        );
+                      };
                       return (
                       <div style={{ background: TOKENS.bgSoft, border: `1px solid ${TOKENS.borderLight}`, borderRadius: '12px', padding: '12px', marginTop: '4px' }}>
                         {(photoAnalysis.bookOrTest || photoAnalysis.unit || photoAnalysis.pageRange) && (
@@ -1888,94 +1956,61 @@ export default function DiagnosticReportInput({
                                 {inPhoto.length === 0
                                   ? <p style={{ fontSize: '11px', color: TOKENS.textMute, margin: '0 0 4px 4px' }}>이 사진에서는 채점된 문항을 찾지 못했어요 — 사진이 잘 나왔는지 확인해주세요.</p>
                                   : inPhoto.map(({ s, si }) => renderSection(s, si))}
+                                {/* 이 사진에서 "+직접 추가"로 넣은 오답 — photoIndex로 이 사진 카드 밑에만 표시 */}
+                                {(() => {
+                                  const inPhotoLeftover = leftoverWrongItems.filter(w => w.photoIndex === pi);
+                                  return inPhotoLeftover.length > 0 && (
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '8px', marginTop: '8px' }}>
+                                      {[...inPhotoLeftover].sort(sortByItemNumber).map((item, idx) => renderLeftoverCard(item, idx))}
+                                    </div>
+                                  );
+                                })()}
+                                <button type="button" onClick={() => addMissedWrongItem(pi)}
+                                  style={{
+                                    marginTop: '8px', width: '100%', padding: '7px', fontSize: '10.5px', fontWeight: 700,
+                                    border: `1.5px dashed ${TOKENS.border}`, borderRadius: '8px', background: 'transparent',
+                                    color: TOKENS.textSub, cursor: 'pointer', fontFamily: 'inherit',
+                                  }}>
+                                  + 이 사진에서 놓친 오답 추가
+                                </button>
                               </div>
                             );
                           });
                         })()}
 
-                        {/* 모의고사 등 concept 섹션 밖에서 나온 오답 — 체크리스트 행 안에 못 붙인 것만 여기 별도로 */}
-                        {leftoverWrongItems.length > 0 && (
-                          <div style={{ marginTop: '12px' }}>
-                            <p style={{ fontSize: '11px', fontWeight: 700, color: TOKENS.textSub, margin: '0 0 8px' }}>
-                              오답 문제별 원인 입력
-                            </p>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '8px' }}>
-                            {[...leftoverWrongItems]
-                              .sort(sortByItemNumber)
-                              .map((item, idx) => {
-                              // number만으로 매칭하면 사진 2장에 같은 번호 오답이 있을 때 한 카드의
-                              // 태그/메모 입력이 다른 카드까지 같이 바뀜 — concept 섹션과 동일하게
-                              // sectionIdx까지 함께 매칭 (CLAUDE.md 인덱스 매칭 버그 패턴)
-                              const matches = (w) => w.number === item.number && w.sectionIdx === item.sectionIdx;
-                              return (
-                                <div key={`${item.sectionIdx ?? 'x'}-${item.number ?? idx}`} style={{ border: `1px solid ${C.danger}30`, borderRadius: `${RADIUS2.thumbnail}px`, padding: '14px', background: C.dangerBg }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                                    <span style={{ background: TOKENS.dangerBorder, color: '#fff', fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px' }}>
-                                      {sectionLabelFor(item) ? `${sectionLabelFor(item)} · ` : ''}{item.number}번 오답
-                                    </span>
-                                    <span style={{ fontSize: '11px', color: TOKENS.textSub, flex: '1 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.type}</span>
-                                    {item.correctRate && (
-                                      <span style={{ fontSize: '10px', color: C.danger, fontWeight: 600, marginLeft: 'auto' }}>
-                                        정답률 {item.correctRate}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginBottom: '8px' }}>
-                                    {WRONG_TAGS.map(tag => {
-                                      const active = item.tags.includes(tag.key);
-                                      return (
-                                        <button type="button" key={tag.key}
-                                          onClick={() => setWrongItems(prev => prev.map((w) => matches(w) ? {
-                                            ...w,
-                                            tags: active ? w.tags.filter(t => t !== tag.key) : [...w.tags, tag.key]
-                                          } : w))}
-                                          style={{
-                                            fontSize: '11px', padding: '5px 11px', borderRadius: '20px',
-                                            background: active ? tag.bg : '#fff',
-                                            color: active ? tag.color : TOKENS.textMute,
-                                            border: `1px solid ${active ? tag.border : TOKENS.border}`,
-                                            cursor: 'pointer', fontFamily: 'inherit', fontWeight: active ? 700 : 400,
-                                            WebkitTapHighlightColor: 'transparent',
-                                            touchAction: 'manipulation',
-                                          }}>
-                                          {active ? '✓ ' : ''}{tag.label}
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                  <input
-                                    value={item.memo}
-                                    onChange={e => setWrongItems(prev => prev.map((w) => matches(w) ? { ...w, memo: e.target.value } : w))}
-                                    placeholder="직접 입력 (선택) — 답 잘못 씀, 문제 안 읽음 등"
-                                    style={{ width: '100%', padding: '6px 10px', fontSize: '16px', border: `1px solid ${TOKENS.border}`, borderRadius: '8px', fontFamily: 'inherit', outline: 'none', background: '#fff', boxSizing: 'border-box', color: TOKENS.text }}
-                                  />
-                                </div>
-                              );
-                            })}
+                        {/* 모의고사 등 concept 섹션 밖에서 나온 오답 중 사진에 안 붙는 것만 여기 별도로 —
+                            사진별 그룹 UI(hasPhotoInfoOuter)에서는 photoIndex 있는 항목이 각 사진 카드
+                            밑에서 이미 렌더링되므로, 여기서는 photoIndex 없는 잔여 항목만 남김 */}
+                        {(() => {
+                          const residualLeftover = leftoverWrongItems.filter(w => !hasPhotoInfoOuter || w.photoIndex == null);
+                          return residualLeftover.length > 0 && (
+                            <div style={{ marginTop: '12px' }}>
+                              <p style={{ fontSize: '11px', fontWeight: 700, color: TOKENS.textSub, margin: '0 0 8px' }}>
+                                오답 문제별 원인 입력
+                              </p>
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '8px' }}>
+                                {[...residualLeftover].sort(sortByItemNumber).map((item, idx) => renderLeftoverCard(item, idx))}
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          );
+                        })()}
 
                         {/* AI가 놓친 문항 직접 추가 — temperature:0이라 같은 사진을 재분석해도 같은
                             문항을 또 놓칠 수 있음. 프롬프트 튜닝으로 인식률을 조금 올릴 순 있어도
                             100% 보장은 못 하므로, 사람이 "이 번호도 오답이었어요"를 바로 기록할 수
-                            있는 확실한 대안을 항상 열어둠(AI 결과가 있든 없든) */}
-                        <button type="button" onClick={() => {
-                          const number = window.prompt('AI가 놓친 오답 문항의 번호를 입력해주세요 (예: 03)');
-                          if (!number?.trim()) return;
-                          const type = window.prompt('이 문항은 어떤 유형/내용인가요? (간단히)') || '';
-                          setWrongItems(prev => [...prev, {
-                            number: number.trim(), type: type.trim(), correctRate: '', mark: '수동오답',
-                            confidence: 'high', tags: [], memo: '', sectionIdx: undefined,
-                          }]);
-                        }}
-                          style={{
-                            marginTop: '12px', width: '100%', padding: '9px', fontSize: '11px', fontWeight: 700,
-                            border: `1.5px dashed ${TOKENS.border}`, borderRadius: '10px', background: 'transparent',
-                            color: TOKENS.textSub, cursor: 'pointer', fontFamily: 'inherit',
-                          }}>
-                          + AI가 놓친 오답 직접 추가
-                        </button>
+                            있는 확실한 대안을 항상 열어둠(AI 결과가 있든 없든). 사진별 그룹 UI에서는
+                            사진마다 이미 자기 버튼이 있으니, 여기서는 레거시(사진 구분 없는) 데이터일
+                            때만 공용 버튼을 보여줌 — 안 그러면 어느 사진 문항인지 모른 채 추가돼버림 */}
+                        {!hasPhotoInfoOuter && (
+                          <button type="button" onClick={() => addMissedWrongItem()}
+                            style={{
+                              marginTop: '12px', width: '100%', padding: '9px', fontSize: '11px', fontWeight: 700,
+                              border: `1.5px dashed ${TOKENS.border}`, borderRadius: '10px', background: 'transparent',
+                              color: TOKENS.textSub, cursor: 'pointer', fontFamily: 'inherit',
+                            }}>
+                            + AI가 놓친 오답 직접 추가
+                          </button>
+                        )}
 
                         {/* 오답 카드 기반 코멘트 생성 — 체크리스트 인라인이든 leftover 카드든 상관없이 wrongItems 전체 기준 */}
                         {wrongItems.length > 0 && (
