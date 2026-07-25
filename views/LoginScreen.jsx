@@ -110,6 +110,11 @@ export default function LoginScreen() {
               placeholder="이메일 입력" required
               style={inputStyle}
             />
+            <label style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '12px', fontWeight: 500, color: R.inkSub, margin: '7px 0 0', cursor: 'pointer', userSelect: 'none' }}>
+              <input type="checkbox" checked={rememberEmail} onChange={(e) => setRememberEmail(e.target.checked)}
+                style={{ width: '14px', height: '14px', margin: 0, cursor: 'pointer', accentColor: R.navy }} />
+              이메일 기억하기
+            </label>
           </div>
           <div style={{ marginBottom: '16px' }}>
             <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: R.ink, marginBottom: '7px' }}>비밀번호</label>
@@ -121,11 +126,6 @@ export default function LoginScreen() {
               style={inputStyle}
             />
           </div>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '12px', fontWeight: 500, color: R.inkSub, margin: '-4px 0 16px', cursor: 'pointer', userSelect: 'none' }}>
-            <input type="checkbox" checked={rememberEmail} onChange={(e) => setRememberEmail(e.target.checked)}
-              style={{ width: '14px', height: '14px', margin: 0, cursor: 'pointer', accentColor: R.navy }} />
-            이메일 기억하기
-          </label>
           {error && (
             <p style={{ fontSize: '12px', fontWeight: 600, color: C.errorDark, margin: '0 0 16px', background: '#FDEAEA', padding: '8px 12px', borderRadius: '6px' }}>
               {error}
