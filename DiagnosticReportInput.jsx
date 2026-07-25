@@ -17,6 +17,7 @@ import {
   UserPlus, GraduationCap, Info, Star, AlertTriangle, Palette
 } from 'lucide-react';
 import { C, R, RADIUS2, TYPE, SHADOW, textSafeColor } from './tokens.jsx';
+import { resolveBookSections } from './photoSections.js';
 import { calculateReportPoints, toPct, ratingLabel, kstDay, getKstWeekRange } from './growth.js';
 import { DIAG_LABELS as diagLabels, DIAG_BADGE, WRONG_TAGS, WRONG_TAG_LABELS } from './diagnosis.js';
 import { findUnitKey, getUnits, getCourses } from './curriculum.js';
@@ -342,6 +343,12 @@ export default function DiagnosticReportInput({
   // 주간형 세션 1건(오늘치) — photoUrls는 일부러 안 넣음(자동저장은 사진을 업로드하지 않으므로,
   // 아래 upsertSessionEntry에서 기존에 저장돼 있던 photoUrls를 실수로 지우지 않게 하기 위함).
   // 실제 사진 업로드는 handleSubmit에서만 일어나고, 그때 photoUrls를 명시적으로 얹어서 덮어씀.
+  // 오답이 속한 책 섹션 라벨 — 문제집은 소단원 섹션마다 번호가 01부터 리셋되므로,
+  // 저장·코멘트 생성 시 "중단원 마무리하기 01번"처럼 섹션을 붙여야 번호가 안 겹침
+  const sectionLabelFor = (w) => (w?.sectionIdx != null && photoAnalysis?.sections?.[w.sectionIdx]?.resolvedSection?.label) || '';
+  // 저장 시점에 섹션 라벨을 얹음 — 화면에서 칩으로 수정한 최신 라벨이 반영되도록 저장 직전에 계산
+  const enrichedWrongItems = () => wrongItems.map(w => ({ ...w, section: sectionLabelFor(w) || null }));
+
   const buildSessionEntry = () => ({
     date: kstDay(Date.now() / 1000),
     attendance, arrivalTime,
@@ -355,7 +362,7 @@ export default function DiagnosticReportInput({
     unitKey: findUnitKey(subject, unit, curriculumCourseOverride || guessCourseKey(subject, student?.school)),
     diagnosis: selectedTags,
     teacherNote: teacherNote || '',
-    wrongItems: wrongItems.length > 0 ? wrongItems : null,
+    wrongItems: wrongItems.length > 0 ? enrichedWrongItems() : null,
   });
   const upsertSessionEntry = (existingSessions, entry) => {
     const idx = existingSessions.findIndex(s => s.date === entry.date);
@@ -754,21 +761,31 @@ export default function DiagnosticReportInput({
         setPhotoError(data.error);
       } else {
         setHasChargedAnalysis(true);
-        setPhotoAnalysis(data);
+        // 책 섹션 확정(쪽번호 정렬 → 번호 퍼즐 → 순서 상속)을 섹션에 주입 — photoAnalysis에
+        // 같이 저장되므로 리포트 문서에도 따라가고, 수정 모드에서 다시 열어도 유지됨
+        const resolvedList = resolveBookSections(data.sections || []);
+        const enriched = {
+          ...data,
+          sections: (data.sections || []).map((s, i) => ({ ...s, resolvedSection: resolvedList[i] })),
+        };
+        setPhotoAnalysis(enriched);
         if (data.wrongItems?.length > 0) {
           // data.wrongItems는 섹션 구분 없는 전체 요약이라, 어느 섹션의 항목인지 찾아서
           // sectionIdx를 붙여둬야 이후 섹션별 토글/태그 UI가 올바른 섹션과 매칭됨.
-          // concept 섹션을 먼저 찾고(체크리스트 행 인라인 표시와 연결), 없으면 모의고사 등
-          // 나머지 섹션에서도 찾는다 — leftover 카드도 사진 2장에 같은 번호가 있을 때
-          // number만으로는 서로 구분이 안 돼 sectionIdx가 꼭 필요함
+          // 같은 번호가 여러 섹션에 있을 수 있으므로(책 섹션마다 01부터 리셋) photoIndex가
+          // 있으면 같은 사진의 섹션만 후보로 삼는다. concept 섹션을 먼저 찾고(체크리스트 행
+          // 인라인 표시와 연결), 없으면 모의고사 등 나머지 섹션에서도 찾는다.
+          const samePhoto = (s, item) => item.photoIndex == null || s.photoIndex == null || s.photoIndex === item.photoIndex;
           setWrongItems(data.wrongItems.map(item => {
-            let sectionIdx = (data.sections || []).findIndex(s =>
-              s.sectionType === 'concept' && (s.problemTypes || []).some(pt => pt.number === item.number && pt.result === '약점')
+            let sectionIdx = enriched.sections.findIndex(s =>
+              s.sectionType === 'concept' && samePhoto(s, item) && (s.problemTypes || []).some(pt => pt.number === item.number && pt.result === '약점')
             );
             if (sectionIdx < 0) {
-              sectionIdx = (data.sections || []).findIndex(s =>
-                (s.problemTypes || []).some(pt => pt.number === item.number && pt.result === '약점')
-                || (s.weakDetail || []).some(pt => pt.number === item.number)
+              sectionIdx = enriched.sections.findIndex(s =>
+                samePhoto(s, item) && (
+                  (s.problemTypes || []).some(pt => pt.number === item.number && pt.result === '약점')
+                  || (s.weakDetail || []).some(pt => pt.number === item.number)
+                )
               );
             }
             return { ...item, sectionIdx: sectionIdx >= 0 ? sectionIdx : undefined, tags: [], memo: '' };
@@ -875,7 +892,7 @@ export default function DiagnosticReportInput({
         nextPlan, nextPlanDetail,
         photoUrls,
         photoAnalysis: photoAnalysis || null,
-        wrongItems: wrongItems.length > 0 ? wrongItems : null,
+        wrongItems: wrongItems.length > 0 ? enrichedWrongItems() : null,
         // 선택한 스킨을 문서에 저장 — PublicReport가 읽어서 레터헤드 색으로 반영.
         // 우선순위는 미리보기(ParentCard)와 동일: 학생 개별 색 > 픽커 선택.
         // 기본값(navy)은 저장 안 함 → 기존 리포트와 똑같이 PublicReport 기본색 사용
@@ -1560,9 +1577,47 @@ export default function DiagnosticReportInput({
                           <Sparkles size={11} /> 결과가 다르다면 다시 분석
                         </button>
 
-                        {/* 섹션별 렌더링: 연산 = 집계만 / 유형 = 문항별 상세 / 모의고사 = 그룹집계+약점상세 */}
-                        {(photoAnalysis.sections || []).map((sec, si) => (
+                        {/* 섹션별 렌더링: 연산 = 집계만 / 유형 = 문항별 상세 / 모의고사 = 그룹집계+약점상세.
+                            새 응답(photoIndex 포함)은 사진별로 묶어서 보여줌 — 썸네일이 작아 어떤 사진의
+                            결과인지 알기 어려웠던 문제 해결 + 책 섹션 라벨 검수 화면 역할 겸함 */}
+                        {(() => {
+                          const secs = photoAnalysis.sections || [];
+                          // 구버전 저장 리포트(photoIndex 없음)는 기존 평면 렌더 그대로 유지
+                          const hasPhotoInfo = secs.some(s => s.photoIndex != null);
+                          const analyzedPhotos = photos.filter(p => p.base64);
+                          const sectionWrongCount = (s) =>
+                            (s.problemTypes || []).filter(p => p.result === '약점').length
+                            + (s.weakDetail || []).length
+                            + (s.problemTypes ? 0 : (s.summary?.wrong || 0));
+                          // 책 섹션 칩 — AI가 확정한 라벨 표시 + 탭해서 수동 지정/수정 (최종 확정권은 사람)
+                          const renderSectionChip = (sec, si) => {
+                            const label = sec.resolvedSection?.label || null;
+                            const unknown = !label;
+                            return (
+                              <button type="button"
+                                onClick={() => {
+                                  const name = window.prompt('이 문항들이 속한 책 섹션 이름을 입력해주세요\n(예: 중단원 마무리하기, 이런 문제가 시험에 나온다)', label || '');
+                                  if (name == null) return;
+                                  setPhotoAnalysis(prev => ({
+                                    ...prev,
+                                    sections: prev.sections.map((s, i) => i === si ? { ...s, resolvedSection: { label: name.trim() || null, source: 'manual' } } : s),
+                                  }));
+                                }}
+                                style={{
+                                  display: 'inline-flex', alignItems: 'center', gap: '4px', marginBottom: '6px',
+                                  fontSize: '11px', fontWeight: 700, padding: '4px 10px', borderRadius: `${RADIUS2.chip}px`,
+                                  border: `1px solid ${unknown ? TOKENS.warnBorder : TOKENS.border}`,
+                                  background: unknown ? TOKENS.warnBg : TOKENS.bgSoft,
+                                  color: unknown ? TOKENS.warn : TOKENS.textSub,
+                                  cursor: 'pointer', fontFamily: 'inherit',
+                                }}>
+                                {unknown ? '⚠ 섹션 미확인 — 눌러서 지정' : `${label} ✎`}
+                              </button>
+                            );
+                          };
+                          const renderSection = (sec, si) => (
                           <div key={si} style={{ marginBottom: '10px' }}>
+                            {hasPhotoInfo && renderSectionChip(sec, si)}
                             {sec.sectionType === 'calculation' && sec.summary && (
                               <div style={{ background: '#fff', borderRadius: '10px', padding: '10px' }}>
                                 {sec.label && <p style={{ fontSize: '11px', fontWeight: 700, margin: '0 0 6px' }}>{sec.label}</p>}
@@ -1704,7 +1759,39 @@ export default function DiagnosticReportInput({
                               </div>
                             )}
                           </div>
-                        ))}
+                          );
+
+                          if (!hasPhotoInfo) return secs.map((sec, si) => renderSection(sec, si));
+
+                          // 사진별 그룹 — 분석에 포함된 모든 사진을 나열. 문항이 안 나온 사진도
+                          // 숨기지 않고 보여줘서, 누락인지 진짜 전부 정답인지 구분되게 함
+                          const maxPi = Math.max(0, ...secs.map(s => s.photoIndex ?? 0));
+                          const totalPhotos = Math.max(analyzedPhotos.length, maxPi);
+                          return Array.from({ length: totalPhotos }, (_, i) => i + 1).map(pi => {
+                            const inPhoto = secs.map((s, si) => ({ s, si })).filter(x => (x.s.photoIndex ?? 0) === pi);
+                            const preview = analyzedPhotos[pi - 1]?.preview || null;
+                            const wrongTotal = inPhoto.reduce((n, x) => n + sectionWrongCount(x.s), 0);
+                            return (
+                              <div key={`photo-${pi}`} style={{ marginBottom: '14px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', background: TOKENS.bgSoft, border: `1px solid ${TOKENS.border}`, borderRadius: '10px', marginBottom: '8px' }}>
+                                  {preview
+                                    ? <img src={preview} alt={`${pi}번째 사진`} onClick={() => window.open(preview, '_blank')}
+                                        style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '8px', border: `1px solid ${TOKENS.border}`, cursor: 'zoom-in', flexShrink: 0 }} />
+                                    : <div style={{ width: '48px', height: '48px', borderRadius: '8px', background: TOKENS.borderLight, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', flexShrink: 0 }}>📷</div>}
+                                  <div style={{ minWidth: 0 }}>
+                                    <p style={{ fontSize: '12px', fontWeight: 800, margin: 0, color: TOKENS.text }}>{pi}번째 사진</p>
+                                    <p style={{ fontSize: '11px', margin: '2px 0 0', fontWeight: 600, color: inPhoto.length === 0 ? TOKENS.warn : wrongTotal === 0 ? TOKENS.successDark : TOKENS.dangerBorder }}>
+                                      {inPhoto.length === 0 ? '분석된 문항 없음' : wrongTotal === 0 ? '오답 없음 ✓' : `오답 ${wrongTotal}건`}
+                                    </p>
+                                  </div>
+                                </div>
+                                {inPhoto.length === 0
+                                  ? <p style={{ fontSize: '11px', color: TOKENS.textMute, margin: '0 0 4px 4px' }}>이 사진에서는 채점된 문항을 찾지 못했어요 — 사진이 잘 나왔는지 확인해주세요.</p>
+                                  : inPhoto.map(({ s, si }) => renderSection(s, si))}
+                              </div>
+                            );
+                          });
+                        })()}
 
                         {/* 모의고사 등 concept 섹션 밖에서 나온 오답 — 체크리스트 행 안에 못 붙인 것만 여기 별도로 */}
                         {leftoverWrongItems.length > 0 && (
@@ -1724,7 +1811,7 @@ export default function DiagnosticReportInput({
                                 <div key={`${item.sectionIdx ?? 'x'}-${item.number ?? idx}`} style={{ border: `1px solid ${C.danger}30`, borderRadius: `${RADIUS2.thumbnail}px`, padding: '14px', background: C.dangerBg }}>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
                                     <span style={{ background: TOKENS.dangerBorder, color: '#fff', fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px' }}>
-                                      {item.number}번 오답
+                                      {sectionLabelFor(item) ? `${sectionLabelFor(item)} · ` : ''}{item.number}번 오답
                                     </span>
                                     <span style={{ fontSize: '11px', color: TOKENS.textSub, flex: '1 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.type}</span>
                                     {item.correctRate && (
@@ -1778,7 +1865,8 @@ export default function DiagnosticReportInput({
                               const wrongSummary = wrongItems.map(w => {
                                 const tags = w.tags.map(t => WRONG_TAG_LABELS[t]).filter(Boolean).join(', ');
                                 const memo = w.memo?.trim();
-                                return `${w.number}번(${w.type}${w.correctRate ? ` 정답률${w.correctRate}` : ''})${tags ? ` — ${tags}` : ''}${memo ? ` / ${memo}` : ''}`;
+                                const lbl = sectionLabelFor(w);
+                                return `${lbl ? `[${lbl}] ` : ''}${w.number}번(${w.type}${w.correctRate ? ` 정답률${w.correctRate}` : ''})${tags ? ` — ${tags}` : ''}${memo ? ` / ${memo}` : ''}`;
                               }).join('; ');
 
                               showToast('코멘트 생성 중...', 'info');

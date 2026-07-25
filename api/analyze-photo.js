@@ -21,7 +21,21 @@ function buildPrompt(mode, hintTextbook, hintUnit, pageCount = 1, hintSubject = 
 
   return `# 역할 및 임무
 당신은 수학 문제집 이미지에서 각 문항의 채점 결과(정답: 동그라미 ◯, 오답: 사선/빗금 /)를 정확하게 판별하는 채점 AI 엔진입니다. 반드시 아래의 예외 처리 규칙을 완벽히 준수하여 판정해 주세요.
-${pageCount > 1 ? `\n## 다중 페이지 안내\n지금 ${pageCount}장의 사진이 순서대로 첨부됐다. 같은 학생의 연속된 페이지로 취급하라. 각 관찰 앞에 "(N페이지)"를 붙여라. summary는 모든 페이지 합산하라.\n` : ''}
+${pageCount > 1 ? `\n## 다중 페이지 안내\n지금 ${pageCount}장의 사진이 첨부됐다. 같은 학생의 문제집 페이지들로 취급하되, **업로드 순서가 책 순서와 같다고 가정하지 마라** (무작위 순서일 수 있다). 각 관찰 앞에 "(N번째 사진)"을 붙여라.\n` : ''}
+
+# 책 섹션·쪽 번호 인식 (문항 번호 충돌 방지 — 매우 중요)
+문제집은 "이런 문제가 시험에 나온다", "중단원 마무리하기" 같은 소단원 섹션마다 문항 번호가 01부터 다시 시작한다. 서로 다른 섹션의 같은 번호(예: 두 섹션 모두 01번이 있음)가 충돌하지 않도록 반드시 아래를 지켜라:
+
+1. **sections 배열의 각 항목은 "한 장의 사진 안, 하나의 책 섹션"에 속한 문항만 담아라.**
+   - 한 사진에 책 섹션 두 개가 걸쳐 있으면(예: 앞 섹션의 마지막 문항들 + 새 섹션 제목 배너 + 새 섹션의 첫 문항들) 섹션 항목을 두 개로 나눠라.
+   - 같은 책 섹션이 여러 사진에 걸쳐 있어도 사진마다 별도 섹션 항목으로 나눠라 (클라이언트가 나중에 합친다).
+2. **각 섹션 항목에 다음 3개 필드를 반드시 포함하라:**
+   - "photoIndex": 이 문항들이 담긴 사진의 순번 (첫 번째 첨부 사진 = 1)
+   - "bookSection": 이 문항들 위에 인쇄된 책 섹션 제목을 그대로 (예: "이런 문제가 시험에 나온다", "중단원 마무리하기"). **그 사진에 섹션 제목 배너가 실제로 보일 때만** 적고, 안 보이면 반드시 null — 앞 사진의 제목을 이어받아 추측해서 채우지 마라.
+   - "printedPage": 페이지 상단/하단 모서리에 인쇄된 쪽 번호(숫자만, 예: 118). 사진에 안 찍혔으면 null.
+3. **번호 리셋 = 새 섹션 신호:** 문항 번호가 직전 흐름보다 작은 번호로 되돌아가면(예: 10 다음에 01) 제목 배너가 안 보이더라도 새 책 섹션이 시작된 것이다 — 섹션 항목을 나누고 bookSection은 null로 둬라.
+4. 참고: "STEP 1 기본문제 → STEP 2 발전문제"처럼 번호가 이어지는 경우(01~12 → 13~18)는 같은 책 섹션이다 — STEP 표시만으로 섹션을 나누지 마라.
+5. **wrongItems의 각 항목에도 "photoIndex"를 붙여라** (그 오답이 몇 번째 사진에 있는지).
 
 # [핵심] 가장 빈번한 오인식 방지 규칙 (필독)
 
@@ -128,12 +142,12 @@ JSON만 출력하라. 마크다운 코드펜스 없이 JSON 객체 하나만.
   "pageCutoff": false,
   "pageCutoffNote": "잘린 부분이 있을 때만 간단히 설명 (없으면 빈 문자열)",
   "wrongItems": [
-    { "number": "02", "type": "두 직육면체 겉넓이 합", "correctRate": "69%", "mark": "빗금", "confidence": "high" }
+    { "number": "02", "photoIndex": 1, "type": "두 직육면체 겉넓이 합", "correctRate": "69%", "mark": "빗금", "confidence": "high" }
   ],
   "sections": [
-    { "sectionType": "calculation", "label": "단원명", "summary": { "total": 0, "correct": 0, "wrong": 0 } },
-    { "sectionType": "concept", "problemTypes": [{ "number": "", "type": "", "mark": "", "result": "잘함"|"약점", "note": "", "confidence": "high"|"low" }] },
-    { "sectionType": "mock_exam", "groupSummary": [{ "type": "", "total": 0, "correct": 0, "wrong": 0 }], "weakDetail": [{ "number": "", "type": "", "mark": "", "note": "", "confidence": "high"|"low" }] }
+    { "sectionType": "calculation", "label": "단원명", "photoIndex": 1, "bookSection": "이런 문제가 시험에 나온다", "printedPage": 118, "summary": { "total": 0, "correct": 0, "wrong": 0 } },
+    { "sectionType": "concept", "photoIndex": 2, "bookSection": null, "printedPage": null, "problemTypes": [{ "number": "", "type": "", "mark": "", "result": "잘함"|"약점", "note": "", "confidence": "high"|"low" }] },
+    { "sectionType": "mock_exam", "photoIndex": 3, "bookSection": "중단원 마무리하기", "printedPage": 120, "groupSummary": [{ "type": "", "total": 0, "correct": 0, "wrong": 0 }], "weakDetail": [{ "number": "", "type": "", "mark": "", "note": "", "confidence": "high"|"low" }] }
   ]
 }`;
 }
