@@ -9,8 +9,14 @@ import { R, C } from '../tokens.jsx';
 // 아직 학원 로고 이미지가 없어(정사각형 파비콘 대기 중) 이번엔 자리만 비워둠 — 로고 확정되면 재도입.
 // 로그인 전에는 어느 학원 계정인지 알 방법이 없어(URL/서브도메인 구분 없음) 학원명을
 // 하드코딩하지 않고 중립 문구만 표시 — 실제 학원 브랜딩(로고/이름)은 로그인 후 대시보드에서 표시됨.
+// 마지막으로 로그인 성공한 이메일을 기억해두는 로컬 키 — 비밀번호는 저장 안 함(브라우저
+// 자체 비밀번호 관리자에 맡김, 아래 autoComplete 속성으로 그쪽도 같이 도와줌)
+const LAST_EMAIL_KEY = 'dailyReportLastEmail';
+
 export default function LoginScreen() {
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => {
+    try { return localStorage.getItem(LAST_EMAIL_KEY) || ''; } catch { return ''; }
+  });
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -24,6 +30,7 @@ export default function LoginScreen() {
     setResetMessage('');
     try {
       await signInWithEmailAndPassword(auth, email, password);
+      try { localStorage.setItem(LAST_EMAIL_KEY, email); } catch { /* 저장 실패해도 로그인 자체엔 지장 없음 */ }
     } catch (err) {
       setError('이메일 또는 비밀번호가 올바르지 않습니다.');
     }
@@ -91,7 +98,7 @@ export default function LoginScreen() {
           <div style={{ marginBottom: '16px' }}>
             <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: R.ink, marginBottom: '7px' }}>이메일</label>
             <input
-              type="email" value={email}
+              type="email" name="email" autoComplete="username" value={email}
               onChange={(e) => setEmail(e.target.value)}
               onFocus={focusInput} onBlur={blurInput}
               placeholder="이메일 입력" required
@@ -101,7 +108,7 @@ export default function LoginScreen() {
           <div style={{ marginBottom: '16px' }}>
             <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: R.ink, marginBottom: '7px' }}>비밀번호</label>
             <input
-              type="password" value={password}
+              type="password" name="password" autoComplete="current-password" value={password}
               onChange={(e) => setPassword(e.target.value)}
               onFocus={focusInput} onBlur={blurInput}
               placeholder="비밀번호 입력" required
