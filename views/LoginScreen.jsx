@@ -17,6 +17,9 @@ export default function LoginScreen() {
   const [email, setEmail] = useState(() => {
     try { return localStorage.getItem(LAST_EMAIL_KEY) || ''; } catch { return ''; }
   });
+  // 체크박스 기본값 true — "로그인 기억"류 체크박스는 보통 켜진 채로 시작해서
+  // 끄고 싶을 때만 사용자가 직접 해제하는 게 익숙한 패턴이라 그대로 따름
+  const [rememberEmail, setRememberEmail] = useState(true);
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -30,7 +33,10 @@ export default function LoginScreen() {
     setResetMessage('');
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      try { localStorage.setItem(LAST_EMAIL_KEY, email); } catch { /* 저장 실패해도 로그인 자체엔 지장 없음 */ }
+      try {
+        if (rememberEmail) localStorage.setItem(LAST_EMAIL_KEY, email);
+        else localStorage.removeItem(LAST_EMAIL_KEY); // 체크 해제하고 로그인하면 이전에 기억해둔 것도 잊음
+      } catch { /* 저장 실패해도 로그인 자체엔 지장 없음 */ }
     } catch (err) {
       setError('이메일 또는 비밀번호가 올바르지 않습니다.');
     }
@@ -115,6 +121,11 @@ export default function LoginScreen() {
               style={inputStyle}
             />
           </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '12px', fontWeight: 500, color: R.inkSub, margin: '-4px 0 16px', cursor: 'pointer', userSelect: 'none' }}>
+            <input type="checkbox" checked={rememberEmail} onChange={(e) => setRememberEmail(e.target.checked)}
+              style={{ width: '14px', height: '14px', margin: 0, cursor: 'pointer', accentColor: R.navy }} />
+            이메일 기억하기
+          </label>
           {error && (
             <p style={{ fontSize: '12px', fontWeight: 600, color: C.errorDark, margin: '0 0 16px', background: '#FDEAEA', padding: '8px 12px', borderRadius: '6px' }}>
               {error}
