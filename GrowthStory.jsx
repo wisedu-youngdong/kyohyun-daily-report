@@ -645,6 +645,20 @@ export default function GrowthStory() {
           </div>
         ) : (
         <>
+        {/* 핵심 숫자 3개 — 타임라인을 읽기 전에 결과부터 한눈에. 전부 위에서 이미 계산해둔
+            실데이터(avgScore/attendanceRate)만 쓰고 새 지표는 지어내지 않음 */}
+        <div style={{ display: 'flex', gap: '10px', margin: '0 0 22px' }}>
+          {[
+            { value: `${sorted.length}회`, label: '수업' },
+            { value: avgScore != null ? `${avgScore}점` : (hwAvg != null ? `${hwAvg}%` : '-'), label: avgScore != null ? '평균 점수' : '평균 과제' },
+            { value: `${attendanceRate}%`, label: '정시 출석' },
+          ].map((stat, si) => (
+            <div key={si} style={{ flex: 1, textAlign: 'center', padding: '14px 8px', background: '#F8F9FC', border: '0.5px solid #E5E7EB', borderRadius: '10px' }}>
+              <p style={{ fontSize: '20px', fontWeight: 800, color: R.navy, margin: '0 0 3px', fontFamily: R.serif }}>{stat.value}</p>
+              <p style={{ fontSize: '10px', fontWeight: 600, color: '#8A93A3', margin: 0, letterSpacing: '0.02em' }}>{stat.label}</p>
+            </div>
+          ))}
+        </div>
         <div style={{ position: 'relative', paddingLeft: '28px' }}>
           <div style={{ position: 'absolute', left: '7px', top: '8px', bottom: '8px', width: '2px', background: `linear-gradient(to bottom, ${R.navy}, ${R.gold})`, borderRadius: '2px' }} />
           {milestones.map((m, i) => {
@@ -656,20 +670,24 @@ export default function GrowthStory() {
               : m.desc;
 
             return (
-            <div key={i} style={{ position: 'relative', marginBottom: i < milestones.length - 1 ? '20px' : 0 }}>
+            <div key={i} style={{ position: 'relative', marginBottom: i < milestones.length - 1 ? '28px' : 0 }}>
               <div style={{ position: 'absolute', left: '-24px', top: '4px', width: '16px', height: '16px', borderRadius: '50%', border: `2px solid ${m.active ? R.gold : R.navy}`, background: m.active ? R.gold : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: m.active ? '0 0 0 3px rgba(201,162,39,0.2)' : 'none' }}>
                 {m.active
                   ? <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M1.5 4L3 5.5L6.5 2" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                   : <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><circle cx="4" cy="4" r="2" fill={R.navy}/></svg>
                 }
               </div>
-              <p style={{ fontSize: '10px', fontWeight: 700, color: R.goldText, letterSpacing: '0.14em', marginBottom: '3px' }}>{m.phase}</p>
-              <span style={{ fontSize: '11px', color: '#757575', fontWeight: 500, marginBottom: '4px', display: 'block' }}>{m.date}</span>
-              <p style={{ fontSize: '13px', fontWeight: 700, color: R.navy, margin: '0 0 4px' }}>{m.title}</p>
+              {/* 카드 맨 위에 분류 태그(m.badge)부터 — 서사 읽기 전에 "이게 어떤 종류의 순간인지" 먼저 보이게 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '6px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '10px', fontWeight: 700, color: m.active ? '#8A6500' : R.navy, background: m.active ? 'rgba(201,162,39,0.12)' : '#EAF0F9', padding: '3px 9px', borderRadius: '20px' }}>{m.badge}</span>
+                <p style={{ fontSize: '10px', fontWeight: 700, color: R.goldText, letterSpacing: '0.14em', margin: 0 }}>{m.phase}</p>
+              </div>
+              <span style={{ fontSize: '11px', color: '#757575', fontWeight: 500, marginBottom: '5px', display: 'block' }}>{m.date}</span>
+              <p style={{ fontSize: '13px', fontWeight: 700, color: R.navy, margin: '0 0 8px' }}>{m.title}</p>
 
               {/* 실데이터 카드 */}
               {m.realData && (
-                <div style={{ background: '#F8F9FC', border: '0.5px solid #E5E7EB', borderRadius: '8px', padding: '8px 10px', marginBottom: '6px' }}>
+                <div style={{ background: '#F8F9FC', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px', marginBottom: '8px' }}>
                   {/* 교재/단원 */}
                   {(m.realData.textbook || m.realData.unit) && (
                     <p style={{ fontSize: '12px', color: '#6B7280', margin: '0 0 5px', fontWeight: 500 }}>
@@ -751,8 +769,6 @@ export default function GrowthStory() {
                   )}
                 </p>
               )}
-
-              <span style={{ display: 'inline-block', fontSize: '10px', fontWeight: 700, color: m.active ? '#8A6500' : R.navy, background: m.active ? 'rgba(201,162,39,0.12)' : '#EAF0F9', padding: '3px 9px', borderRadius: '3px' }}>{m.badge}</span>
             </div>
             );
           })}
