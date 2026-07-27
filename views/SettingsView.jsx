@@ -6,6 +6,10 @@ import { T, C } from '../tokens.jsx';
 import { PRESET_SKINS, onKeyActivate } from './shared.jsx';
 import { useEscapeClose, useFocusTrap } from '../hooks.js';
 
+// recharts를 쓰는 사용량 모니터링 카드는 플랫폼 관리자만 보므로, 일반 강사/원장이 설정 탭을
+// 열 때 그 번들까지 받지 않도록 여기서만 React.lazy로 분리 (AnalysisView.jsx와 같은 패턴)
+const UsageMonitoring = React.lazy(() => import('./UsageMonitoring.jsx'));
+
 const DEFAULT_SKIN_COLOR = '#1A2540';
 
 // ── 학원 ID 슬러그 제안/검증 — "새 학원 추가" 전용
@@ -382,6 +386,13 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
     setDeletingRequestId(null);
   };
 
+  // 사용량 모니터링 카드가 조회할 월 (플랫폼 관리자 전용) — api/usage-monitoring.js와 동일한
+  // KST 환산으로 초기값을 "이번 달"로 맞춤
+  const [usageMonth, setUsageMonth] = React.useState(() => {
+    const kst = new Date(Date.now() + 9 * 3600 * 1000);
+    return `${kst.getUTCFullYear()}-${String(kst.getUTCMonth() + 1).padStart(2, '0')}`;
+  });
+
   // 분양 학원 목록 + 정지/해제 + 통계 (플랫폼 관리자 전용)
   const [academyList, setAcademyList] = React.useState([]);
   const [academyStats, setAcademyStats] = React.useState({});
@@ -663,7 +674,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
   const derived = deriveColors(globalColor);
 
   return (
-    <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto', boxSizing: 'border-box' }}>
+    <div style={{ padding: '20px', maxWidth: settingsTab === 'platform' ? '900px' : '600px', margin: '0 auto', boxSizing: 'border-box', transition: 'max-width 0.15s ease' }}>
       <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '4px', letterSpacing: '-0.02em' }}>설정</h2>
       <p style={{ fontSize: '12px', color: '#6B7280', marginBottom: '16px', fontWeight: 500 }}>학원 기본 정보와 색상을 설정하세요. 학생별로 다르게 설정할 수 있습니다.</p>
 
@@ -1135,6 +1146,15 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
 
       </>)}
 
+      {/* 사용량 모니터링 — 플랫폼 관리자 전용. 가장 상위 요약이라 다른 관리 카드보다 먼저 보여줌 */}
+      {settingsTab === 'platform' && isPlatformAdmin && (
+        <React.Suspense fallback={
+          <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB', marginBottom: '14px', height: '200px' }} />
+        }>
+          <UsageMonitoring month={usageMonth} onMonthChange={setUsageMonth} />
+        </React.Suspense>
+      )}
+
       {/* 가입 신청 관리 — 플랫폼 관리자 전용. 목록만 먼저 보여주고 클릭하면 상세가 펼쳐지는
           패턴("분양 학원 관리"의 크레딧 지급 폼과 동일한 아코디언 방식). 승인/거절 후에도 탭을 옮기면
           신청 당시 정보(사업자등록번호·주소 등)를 계속 조회할 수 있음 — 세금계산서 발행 등에 필요 */}
@@ -1469,6 +1489,12 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
           </div>
         );
       })()}
+
+      {isPlatformAdmin && (
+        <p style={{ fontSize: '10px', color: '#B0B0B0', textAlign: 'center', margin: '20px 0 0' }}>
+          {__COMMIT_SHA__} · {new Date(__BUILD_TIME__).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })} 빌드
+        </p>
+      )}
     </div>
   );
 }
