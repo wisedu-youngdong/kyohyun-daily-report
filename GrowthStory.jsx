@@ -830,12 +830,15 @@ export default function GrowthStory() {
                   })}
                   <text x={PAD_L} y={H - 4} fontSize="9" fill="#9A9A9A">{fmtDate(trendPoints[0])}</text>
                   <text x={W - PAD_R} y={H - 4} fontSize="9" fill="#9A9A9A" textAnchor="end">{fmtDate(trendPoints[trendPoints.length - 1])}</text>
-                  {/* 탭 히트 영역 — 실제 점(2.5~4px)은 손가락으로 누르기 작아서, 리포트당
-                      투명한 넓은 원(r=9)을 따로 얹어 탭하면 그 지점의 날짜/점수가 뜨게 함 */}
+                  {/* 탭 히트 영역 — 처음엔 지점마다 반경 9(≈지름 18px) 원으로 했는데 실기기
+                      터치로 확인해보니 손가락으로 정확히 맞추기엔 너무 작았음. 지점 좌우로 컬럼
+                      전체(세로 풀하이트)를 히트 영역으로 넓혀서, 그 지점 근처 아무데나 눌러도
+                      반응하게 함 */}
                   {trendPoints.map((r, i) => {
                     const x = xAt(i);
+                    const colW = trendPoints.length > 1 ? plotW / (trendPoints.length - 1) : plotW;
                     return (
-                      <circle key={`hit${i}`} cx={x} cy={PAD_T + plotH / 2} r="9" fill="transparent"
+                      <rect key={`hit${i}`} x={x - colW / 2} y={0} width={colW} height={H} fill="transparent"
                         style={{ cursor: 'pointer' }}
                         onClick={() => setTrendTooltip(prev => (prev?.i === i ? null : { i, x }))} />
                     );
