@@ -445,8 +445,9 @@ export default function HistoryView({ reports, students, classes = [], reportVie
             </div>
           )}
 
-          {/* 평가 지표 */}
-          {selected.attendance !== '결석' && (
+          {/* 평가 지표 — 주간형은 한 주 안에 출결/평가가 세션마다 달라 대표값이 없으므로
+              (섞인 한 주를 억지로 단일 %로 보여주면 오해의 소지) 이 카드 대신 세션별 목록을 보여줌 */}
+          {selected.attendance !== '결석' && selected.reportType !== 'weekly' && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '20px' }}>
             {[
               { label: '과제 평가', value: selected.homeworkRating != null ? `${toPct(selected.homeworkRating)}%` : '—', color: C.primary },
@@ -459,6 +460,40 @@ export default function HistoryView({ reports, students, classes = [], reportVie
               </div>
             ))}
           </div>
+          )}
+
+          {/* 주간형 — 세션별 기록. 발송 전(작성 중)엔 위 요약 필드가 전부 비어있는 게 정상이라
+              여기가 유일한 정보원, 발송 후에도 "어느 날 뭘 했는지" 상세로 계속 유용함 */}
+          {selected.reportType === 'weekly' && (
+            <div style={{ marginBottom: '20px' }}>
+              <p style={{ fontSize: '11px', color: '#6C7586', margin: '0 0 8px', fontWeight: 600, letterSpacing: '0.06em' }}>
+                이번 주 세션 기록 {selected.sessions?.length > 0 && `· ${selected.sessions.length}회`}
+              </p>
+              {!selected.sessions || selected.sessions.length === 0 ? (
+                <p style={{ fontSize: '12px', color: '#9CA3AF', margin: 0 }}>아직 기록된 세션이 없어요.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {selected.sessions.map((s, i) => (
+                    <div key={i} style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#1A1A1A' }}>{s.date}</span>
+                        {s.attendance && <span style={{ fontSize: '11px', color: s.attendance === '결석' ? C.error : '#6B7280' }}>{s.attendance}</span>}
+                      </div>
+                      {s.attendance !== '결석' && (
+                        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', fontSize: '12px', color: '#374151', marginBottom: s.teacherNote ? '6px' : 0 }}>
+                          {s.homeworkRating != null && <span>과제 <b style={{ color: C.primary }}>{toPct(s.homeworkRating)}%</b></span>}
+                          {s.conceptRating != null && <span>개념 <b style={{ color: C.primary }}>{toPct(s.conceptRating)}%</b></span>}
+                          {s.hasTest && s.testScore && <span>시험 <b>{s.testScore}점</b></span>}
+                        </div>
+                      )}
+                      {s.teacherNote?.trim() && (
+                        <p style={{ fontSize: '12px', color: '#6B7280', margin: 0, lineHeight: 1.6 }}>{s.teacherNote}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
 
           {/* 진단 태그 */}
