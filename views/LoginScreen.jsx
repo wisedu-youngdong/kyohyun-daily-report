@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { auth } from '../firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { R, C } from '../tokens.jsx';
+import { R, C, RADIUS2 } from '../tokens.jsx';
 
 // 로그인 화면 — "공식 문서·성적표 톤" 컨셉(레터헤드 + 네이비 상단 라인).
 // 학부모 리포트 화면(R 팔레트: 네이비/골드/세리프)과 같은 브랜드 언어를 써서
@@ -66,9 +66,9 @@ export default function LoginScreen() {
   };
 
   const inputStyle = {
-    width: '100%', padding: '12px 14px', fontSize: '16px', fontWeight: 500,
+    width: '100%', padding: '13px 16px', fontSize: '16px', fontWeight: 500,
     fontFamily: R.body, color: R.ink, background: '#fff',
-    border: `1px solid ${R.rule}`, borderRadius: '6px', outline: 'none',
+    border: `1px solid ${R.rule}`, borderRadius: `${RADIUS2.input}px`, outline: 'none',
     boxSizing: 'border-box', transition: 'border-color .15s, box-shadow .15s',
   };
   const focusInput = (e) => { e.target.style.borderColor = R.navy; e.target.style.boxShadow = `0 0 0 3px ${R.navy}1A`; };
@@ -76,33 +76,33 @@ export default function LoginScreen() {
 
   return (
     <div style={{
-      minHeight: '100dvh', background: '#F5F5F0',
+      minHeight: '100dvh', background: 'linear-gradient(180deg, #F8F7F3 0%, #F1EFE7 100%)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontFamily: R.body, padding: '20px',
+      fontFamily: R.body, padding: '24px',
     }}>
       <div style={{
-        width: '100%', maxWidth: '400px', background: '#fff',
-        border: `1px solid ${R.rule}`, borderTop: `3px solid ${R.navy}`, borderRadius: '4px',
-        boxShadow: `0 2px 20px ${R.navy}12`, overflow: 'hidden',
+        width: '100%', maxWidth: '420px', background: '#fff',
+        border: `1px solid ${R.rule}`, borderTop: `3px solid ${R.navy}`, borderRadius: `${RADIUS2.card}px`,
+        boxShadow: `0 12px 40px ${R.navy}14, 0 2px 8px ${R.navy}0A`, overflow: 'hidden',
       }}>
         {/* 레터헤드 — 제목 블록만 가운데 정렬, 아래 입력 폼은 왼쪽 정렬 유지(절충안) */}
-        <div style={{ padding: '26px 36px 22px', borderBottom: `1px solid ${R.rule}`, textAlign: 'center' }}>
-          <p style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', color: R.inkMute, margin: '0 0 18px' }}>
+        <div style={{ padding: '36px 40px 30px', borderBottom: `1px solid ${R.rule}`, textAlign: 'center' }}>
+          <p style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', color: R.inkMute, margin: '0 0 20px' }}>
             DAILY REPORT SYSTEM
           </p>
           <h1 style={{ fontFamily: R.serif, fontSize: '27px', fontWeight: 700, color: R.ink, letterSpacing: '-0.5px', margin: 0 }}>
             데일리 리포트
           </h1>
-          <div style={{ width: '40px', height: '2px', background: R.gold, margin: '10px auto 8px' }} />
+          <div style={{ width: '40px', height: '2px', background: R.gold, margin: '12px auto 10px' }} />
           <p style={{ fontSize: '12px', fontWeight: 500, color: R.inkSub, margin: 0 }}>
             학원 관리자 로그인
           </p>
         </div>
 
         {/* 입력 폼 */}
-        <form onSubmit={handleLogin} style={{ padding: '26px 36px 30px' }}>
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: R.ink, marginBottom: '7px' }}>이메일</label>
+        <form onSubmit={handleLogin} style={{ padding: '32px 40px 36px' }}>
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: R.ink, marginBottom: '8px' }}>이메일</label>
             <input
               type="email" name="email" autoComplete="username" value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -110,14 +110,14 @@ export default function LoginScreen() {
               placeholder="이메일 입력" required
               style={inputStyle}
             />
-            <label style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '12px', fontWeight: 500, color: R.inkSub, margin: '7px 0 0', cursor: 'pointer', userSelect: 'none' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '12px', fontWeight: 500, color: R.inkSub, margin: '9px 0 0', cursor: 'pointer', userSelect: 'none' }}>
               <input type="checkbox" checked={rememberEmail} onChange={(e) => setRememberEmail(e.target.checked)}
                 style={{ width: '14px', height: '14px', margin: 0, cursor: 'pointer', accentColor: R.navy }} />
               이메일 기억하기
             </label>
           </div>
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: R.ink, marginBottom: '7px' }}>비밀번호</label>
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: R.ink, marginBottom: '8px' }}>비밀번호</label>
             <input
               type="password" name="password" autoComplete="current-password" value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -127,12 +127,12 @@ export default function LoginScreen() {
             />
           </div>
           {error && (
-            <p style={{ fontSize: '12px', fontWeight: 600, color: C.errorDark, margin: '0 0 16px', background: '#FDEAEA', padding: '8px 12px', borderRadius: '6px' }}>
+            <p style={{ fontSize: '12px', fontWeight: 600, color: C.errorDark, margin: '0 0 18px', background: '#FDEAEA', padding: '9px 13px', borderRadius: `${RADIUS2.input}px` }}>
               {error}
             </p>
           )}
           {resetMessage && (
-            <p style={{ fontSize: '12px', fontWeight: 600, color: C.successDark, margin: '0 0 16px', background: C.successBg, padding: '8px 12px', borderRadius: '6px' }}>
+            <p style={{ fontSize: '12px', fontWeight: 600, color: C.successDark, margin: '0 0 18px', background: C.successBg, padding: '9px 13px', borderRadius: `${RADIUS2.input}px` }}>
               {resetMessage}
             </p>
           )}
@@ -140,15 +140,15 @@ export default function LoginScreen() {
             onMouseEnter={(e) => { if (!loading) e.currentTarget.style.background = '#0A2456'; }}
             onMouseLeave={(e) => { if (!loading) e.currentTarget.style.background = R.navy; }}
             style={{
-              width: '100%', padding: '13px', fontSize: '14px', fontWeight: 700,
-              fontFamily: R.body, border: 'none', borderRadius: '6px',
+              width: '100%', padding: '14px', fontSize: '14px', fontWeight: 700,
+              fontFamily: R.body, border: 'none', borderRadius: `${RADIUS2.input}px`,
               background: loading ? R.inkMute : R.navy, color: '#fff',
-              cursor: loading ? 'not-allowed' : 'pointer', marginTop: '6px',
+              cursor: loading ? 'not-allowed' : 'pointer', marginTop: '8px',
               transition: 'background .15s',
             }}>
             {loading ? '로그인 중...' : '로그인'}
           </button>
-          <p style={{ textAlign: 'center', margin: '14px 0 0' }}>
+          <p style={{ textAlign: 'center', margin: '16px 0 0' }}>
             <button type="button" onClick={handleResetPassword} disabled={resetLoading}
               style={{
                 background: 'none', border: 'none', padding: 0, fontSize: '12px', fontWeight: 600,
@@ -158,12 +158,12 @@ export default function LoginScreen() {
               {resetLoading ? '발송 중...' : '비밀번호를 잊으셨나요?'}
             </button>
           </p>
-          <p style={{ textAlign: 'center', margin: '10px 0 0' }}>
+          <p style={{ textAlign: 'center', margin: '12px 0 0' }}>
             <a href="/signup" style={{ fontSize: '12px', fontWeight: 600, color: R.inkMute, textDecoration: 'underline' }}>
               처음이신가요? 학원 등록 신청
             </a>
           </p>
-          <p style={{ fontSize: '11px', fontWeight: 500, color: R.inkMute, textAlign: 'center', margin: '14px 0 0', paddingTop: '16px', borderTop: `1px dashed ${R.rule}`, letterSpacing: '0.02em' }}>
+          <p style={{ fontSize: '11px', fontWeight: 500, color: R.inkMute, textAlign: 'center', margin: '18px 0 0', paddingTop: '18px', borderTop: `1px dashed ${R.rule}`, letterSpacing: '0.02em' }}>
             학원 관리자 전용 시스템입니다
           </p>
         </form>
