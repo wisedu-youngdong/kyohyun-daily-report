@@ -781,7 +781,63 @@ export default function GrowthStory() {
       </div>
         );
 
-        // 2페이지 — 단원별 평가 추이 + 자주 나온 약점 유형 (둘 다 없으면 페이지 자체가 생략됨)
+        // 2페이지 — 성적 추이(라인차트) + 단원별 평가 추이 + 자주 나온 약점 유형 (셋 다 없으면 페이지 자체가 생략됨)
+        // 시험 점수(testScore)는 hasTest일 때만 존재해 값이 듬성듬성 비어 라인이 끊기므로 제외 —
+        // 과제/개념은 매 리포트마다 항상 기록되는 값이라 안정적인 연속 라인이 나옴. recharts는
+        // 여기서도 안 씀(위 weakTypeContent 주석과 같은 이유, 공개 페이지 번들 크기).
+        const trendPoints = sorted.filter(r => r.conceptRating != null || r.homeworkRating != null).slice(-10);
+        const scoreTrendContent = trendPoints.length < 2 ? null : (() => {
+          const W = 340, H = 120, PAD_L = 4, PAD_R = 4, PAD_T = 10, PAD_B = 20;
+          const plotW = W - PAD_L - PAD_R;
+          const plotH = H - PAD_T - PAD_B;
+          const xAt = (i) => PAD_L + (trendPoints.length === 1 ? plotW / 2 : (i / (trendPoints.length - 1)) * plotW);
+          const yAt = (v) => PAD_T + plotH - (Math.max(0, Math.min(100, v || 0)) / 100) * plotH;
+          const conceptPts = trendPoints.map((r, i) => r.conceptRating == null ? null : [xAt(i), yAt(r.conceptRating)]).filter(Boolean);
+          const homeworkPts = trendPoints.map((r, i) => r.homeworkRating == null ? null : [xAt(i), yAt(r.homeworkRating)]).filter(Boolean);
+          const toPolyline = (pts) => pts.map(p => p.join(',')).join(' ');
+
+          // 델타 캡션 — 개념 이해도를 앞/뒤 절반으로 나눠 평균 비교
+          const conceptVals = trendPoints.map(r => r.conceptRating).filter(v => v != null);
+          const half = Math.floor(conceptVals.length / 2);
+          let deltaCaption = null;
+          if (conceptVals.length >= 2) {
+            const recentAvg = Math.round(conceptVals.slice(half).reduce((a, b) => a + b, 0) / conceptVals.slice(half).length);
+            const prevAvg = Math.round(conceptVals.slice(0, half).reduce((a, b) => a + b, 0) / Math.max(1, conceptVals.slice(0, half).length));
+            const d = recentAvg - prevAvg;
+            if (d !== 0) deltaCaption = { d, dir: d > 0 ? '상승' : '하락', color: d > 0 ? R.positive : R.negative };
+          }
+
+          return (
+            <div style={S.section}>
+              <p style={S.label}>성적 추이 — 최근 {trendPoints.length}회</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '8px' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '10px', color: '#757575', fontWeight: 600 }}>
+                  <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: R.navy, display: 'inline-block' }} />개념
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '10px', color: '#757575', fontWeight: 600 }}>
+                  <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#7BA4D4', display: 'inline-block' }} />과제
+                </span>
+              </div>
+              <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
+                {homeworkPts.length >= 2 && <polyline points={toPolyline(homeworkPts)} fill="none" stroke="#7BA4D4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />}
+                {conceptPts.length >= 2 && <polyline points={toPolyline(conceptPts)} fill="none" stroke={R.navy} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />}
+                {homeworkPts.map((p, i) => <circle key={`h${i}`} cx={p[0]} cy={p[1]} r="2.5" fill="#7BA4D4" />)}
+                {conceptPts.map((p, i) => {
+                  const isLast = i === conceptPts.length - 1;
+                  return <circle key={`c${i}`} cx={p[0]} cy={p[1]} r={isLast ? 4 : 2.5} fill={isLast ? R.gold : R.navy} />;
+                })}
+                <text x={PAD_L} y={H - 4} fontSize="9" fill="#9A9A9A">{fmtDate(trendPoints[0])}</text>
+                <text x={W - PAD_R} y={H - 4} fontSize="9" fill="#9A9A9A" textAnchor="end">{fmtDate(trendPoints[trendPoints.length - 1])}</text>
+              </svg>
+              {deltaCaption && (
+                <p style={{ fontSize: '12px', color: '#2C2C2C', margin: '8px 0 0' }}>
+                  최근 개념 이해도가 <span style={{ fontWeight: 700, color: deltaCaption.color }}>{Math.abs(deltaCaption.d)}%p {deltaCaption.dir}</span>했어요
+                </p>
+              )}
+            </div>
+          );
+        })();
+
         const unitTrendContent = unitScores.length === 0 ? null : (() => {
         const UNIT_CAP = 6;
         const visibleUnits = showAllUnits ? unitScores : unitScores.slice(0, UNIT_CAP);
@@ -957,6 +1013,21 @@ export default function GrowthStory() {
                       </div>
                     </div>
                   </div>
+                  {(() => {
+                    // 복습 전/후를 한 눈에 — 또래 비교 없이 이 학생 자신의 전/후만 표시.
+                    // 낮은 점수까지 회색으로 채우고, 그 위로 변화폭만큼 델타 색(향상=초록/하락=빨강)을 이어 채움
+                    const beforePct = Math.max(0, Math.min(100, p.before));
+                    const afterPct = Math.max(0, Math.min(100, p.after));
+                    const lo = Math.min(beforePct, afterPct);
+                    const hi = Math.max(beforePct, afterPct);
+                    const deltaColor = delta > 0 ? R.positive : delta < 0 ? R.negative : '#B0B0B0';
+                    return (
+                      <div style={{ height: '6px', background: '#F3F4F6', borderRadius: '6px', overflow: 'hidden', marginTop: '8px', position: 'relative' }}>
+                        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${lo}%`, background: '#B0B0B0', borderRadius: '6px' }} />
+                        <div style={{ position: 'absolute', left: `${lo}%`, top: 0, bottom: 0, width: `${hi - lo}%`, background: deltaColor }} />
+                      </div>
+                    );
+                  })()}
                   {p.note && <p style={{ fontSize: '12px', color: '#2C2C2C', margin: '5px 0 0', lineHeight: 1.5 }}>{p.note}</p>}
                 </div>
               );
@@ -1155,7 +1226,7 @@ export default function GrowthStory() {
         // 통째로 비어(unitTrendContent/weakTypeContent 둘 다 null) 아래 filter(Boolean)로 걸러짐
         const pages = [
           { key: 'milestone', label: '성장 마일스톤', content: (<>{aiGenButtonContent}{milestoneContent}</>) },
-          (unitTrendContent || weakTypeContent) && { key: 'trend', label: '평가 추이', content: (<>{unitTrendContent}{weakTypeContent}</>) },
+          (scoreTrendContent || unitTrendContent || weakTypeContent) && { key: 'trend', label: '평가 추이', content: (<>{scoreTrendContent}{unitTrendContent}{weakTypeContent}</>) },
           { key: 'metrics', label: '핵심 지표', content: (<>{reviewEffectContent}{keyMetricsContent}</>) },
           { key: 'closing', label: '선생님 한마디', content: (<>{teacherWordContent}{nextChapterContent}</>) },
         ].filter(Boolean);
