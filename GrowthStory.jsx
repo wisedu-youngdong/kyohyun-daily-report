@@ -61,6 +61,7 @@ export default function GrowthStory() {
   const [showAllUnits, setShowAllUnits] = useState(false);
   const [showAllSessions, setShowAllSessions] = useState(false);
   const [completedReviews, setCompletedReviews] = useState([]); // 복습 효과 증명 그래프용
+  const [trendTooltip, setTrendTooltip] = useState(null); // 성적 추이 차트 — 탭한 지점의 날짜/점수
   const [editText, setEditText] = useState('');
 
   // 책장 넘기듯 좌우 탐색 — 예전엔 한 화면에 전부 이어붙여서 스크롤이 너무 길었음.
@@ -818,17 +819,45 @@ export default function GrowthStory() {
                   <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#7BA4D4', display: 'inline-block' }} />과제
                 </span>
               </div>
-              <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
-                {homeworkPts.length >= 2 && <polyline points={toPolyline(homeworkPts)} fill="none" stroke="#7BA4D4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />}
-                {conceptPts.length >= 2 && <polyline points={toPolyline(conceptPts)} fill="none" stroke={R.navy} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />}
-                {homeworkPts.map((p, i) => <circle key={`h${i}`} cx={p[0]} cy={p[1]} r="2.5" fill="#7BA4D4" />)}
-                {conceptPts.map((p, i) => {
-                  const isLast = i === conceptPts.length - 1;
-                  return <circle key={`c${i}`} cx={p[0]} cy={p[1]} r={isLast ? 4 : 2.5} fill={isLast ? R.gold : R.navy} />;
-                })}
-                <text x={PAD_L} y={H - 4} fontSize="9" fill="#9A9A9A">{fmtDate(trendPoints[0])}</text>
-                <text x={W - PAD_R} y={H - 4} fontSize="9" fill="#9A9A9A" textAnchor="end">{fmtDate(trendPoints[trendPoints.length - 1])}</text>
-              </svg>
+              <div style={{ position: 'relative' }}>
+                <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
+                  {homeworkPts.length >= 2 && <polyline points={toPolyline(homeworkPts)} fill="none" stroke="#7BA4D4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />}
+                  {conceptPts.length >= 2 && <polyline points={toPolyline(conceptPts)} fill="none" stroke={R.navy} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />}
+                  {homeworkPts.map((p, i) => <circle key={`h${i}`} cx={p[0]} cy={p[1]} r="2.5" fill="#7BA4D4" />)}
+                  {conceptPts.map((p, i) => {
+                    const isLast = i === conceptPts.length - 1;
+                    return <circle key={`c${i}`} cx={p[0]} cy={p[1]} r={isLast ? 4 : 2.5} fill={isLast ? R.gold : R.navy} />;
+                  })}
+                  <text x={PAD_L} y={H - 4} fontSize="9" fill="#9A9A9A">{fmtDate(trendPoints[0])}</text>
+                  <text x={W - PAD_R} y={H - 4} fontSize="9" fill="#9A9A9A" textAnchor="end">{fmtDate(trendPoints[trendPoints.length - 1])}</text>
+                  {/* 탭 히트 영역 — 실제 점(2.5~4px)은 손가락으로 누르기 작아서, 리포트당
+                      투명한 넓은 원(r=9)을 따로 얹어 탭하면 그 지점의 날짜/점수가 뜨게 함 */}
+                  {trendPoints.map((r, i) => {
+                    const x = xAt(i);
+                    return (
+                      <circle key={`hit${i}`} cx={x} cy={PAD_T + plotH / 2} r="9" fill="transparent"
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => setTrendTooltip(prev => (prev?.i === i ? null : { i, x }))} />
+                    );
+                  })}
+                </svg>
+                {trendTooltip && (() => {
+                  const r = trendPoints[trendTooltip.i];
+                  const parts = [];
+                  if (r.conceptRating != null) parts.push(`개념 ${r.conceptRating}%`);
+                  if (r.homeworkRating != null) parts.push(`과제 ${r.homeworkRating}%`);
+                  const leftPct = (trendTooltip.x / W) * 100;
+                  return (
+                    <div style={{
+                      position: 'absolute', left: `${leftPct}%`, top: 0, transform: `translateX(${leftPct < 15 ? '0%' : leftPct > 85 ? '-100%' : '-50%'})`,
+                      background: '#1A1A1A', color: '#fff', fontSize: '11px', padding: '5px 9px', borderRadius: '6px',
+                      whiteSpace: 'nowrap', pointerEvents: 'none', fontFamily: 'inherit',
+                    }}>
+                      {fmtDate(r)} · {parts.join(' · ')}
+                    </div>
+                  );
+                })()}
+              </div>
               {deltaCaption && (
                 <p style={{ fontSize: '12px', color: '#2C2C2C', margin: '8px 0 0' }}>
                   최근 개념 이해도가 <span style={{ fontWeight: 700, color: deltaCaption.color }}>{Math.abs(deltaCaption.d)}%p {deltaCaption.dir}</span>했어요
