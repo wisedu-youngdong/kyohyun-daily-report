@@ -61,8 +61,20 @@ export default function GrowthStory() {
   const [showAllUnits, setShowAllUnits] = useState(false);
   const [showAllSessions, setShowAllSessions] = useState(false);
   const [completedReviews, setCompletedReviews] = useState([]); // 복습 효과 증명 그래프용
-  const [trendTooltip, setTrendTooltip] = useState(null); // 성적 추이 차트 — 탭한 지점의 날짜/점수
+  const [trendTooltip, setTrendTooltip] = useState(null); // 성적 추이 차트 — 탭해서 선택된 지점의 인덱스
   const [editText, setEditText] = useState('');
+  const trendChartRef = useRef(null);
+
+  // 성적 추이 차트 바깥을 탭하면 선택 해제 — 카드 안(같은 점 재클릭/✕ 버튼)에서 이미
+  // 처리하는 케이스와 안 겹치게, ref로 감싼 영역 밖 클릭만 여기서 처리
+  useEffect(() => {
+    if (trendTooltip == null) return;
+    const onDocClick = (e) => {
+      if (trendChartRef.current && !trendChartRef.current.contains(e.target)) setTrendTooltip(null);
+    };
+    document.addEventListener('click', onDocClick);
+    return () => document.removeEventListener('click', onDocClick);
+  }, [trendTooltip]);
 
   // 책장 넘기듯 좌우 탐색 — 예전엔 한 화면에 전부 이어붙여서 스크롤이 너무 길었음.
   // 페이지 목록(pages)은 실데이터 유무에 따라 페이지 자체가 없을 수도 있어(예: 시험 점수도
@@ -819,14 +831,25 @@ export default function GrowthStory() {
                   <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#7BA4D4', display: 'inline-block' }} />과제
                 </span>
               </div>
-              <div style={{ position: 'relative' }}>
+              <div ref={trendChartRef}>
                 <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
+                  {/* 선택된 지점의 세로 가이드선 — 그래프 위를 덮는 툴팁 대신, 어느 지점을
+                      보고 있는지만 은은하게 표시. 값 자체는 차트 아래 고정 정보줄에 표시(겹침 없음) */}
+                  {trendTooltip != null && (
+                    <line x1={xAt(trendTooltip)} y1={PAD_T} x2={xAt(trendTooltip)} y2={H - PAD_B} stroke="#C9D3E6" strokeWidth="1" strokeDasharray="3 3" />
+                  )}
                   {homeworkPts.length >= 2 && <polyline points={toPolyline(homeworkPts)} fill="none" stroke="#7BA4D4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />}
                   {conceptPts.length >= 2 && <polyline points={toPolyline(conceptPts)} fill="none" stroke={R.navy} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />}
-                  {homeworkPts.map((p, i) => <circle key={`h${i}`} cx={p[0]} cy={p[1]} r="2.5" fill="#7BA4D4" />)}
+                  {homeworkPts.map((p, i) => <circle key={`h${i}`} cx={p[0]} cy={p[1]} r={i === trendTooltip ? 4 : 2.5} fill="#7BA4D4" />)}
                   {conceptPts.map((p, i) => {
                     const isLast = i === conceptPts.length - 1;
-                    return <circle key={`c${i}`} cx={p[0]} cy={p[1]} r={isLast ? 4 : 2.5} fill={isLast ? R.gold : R.navy} />;
+                    const isSelected = i === trendTooltip;
+                    return (
+                      <g key={`c${i}`}>
+                        {isSelected && <circle cx={p[0]} cy={p[1]} r="9" fill={R.gold} fillOpacity="0.18" />}
+                        <circle cx={p[0]} cy={p[1]} r={isLast || isSelected ? 4.5 : 2.5} fill={isLast || isSelected ? R.gold : R.navy} />
+                      </g>
+                    );
                   })}
                   <text x={PAD_L} y={H - 4} fontSize="9" fill="#9A9A9A">{fmtDate(trendPoints[0])}</text>
                   <text x={W - PAD_R} y={H - 4} fontSize="9" fill="#9A9A9A" textAnchor="end">{fmtDate(trendPoints[trendPoints.length - 1])}</text>
@@ -835,31 +858,33 @@ export default function GrowthStory() {
                       전체(세로 풀하이트)를 히트 영역으로 넓혀서, 그 지점 근처 아무데나 눌러도
                       반응하게 함 */}
                   {trendPoints.map((r, i) => {
-                    const x = xAt(i);
                     const colW = trendPoints.length > 1 ? plotW / (trendPoints.length - 1) : plotW;
                     return (
-                      <rect key={`hit${i}`} x={x - colW / 2} y={0} width={colW} height={H} fill="transparent"
+                      <rect key={`hit${i}`} x={xAt(i) - colW / 2} y={0} width={colW} height={H} fill="transparent"
                         style={{ cursor: 'pointer' }}
-                        onClick={() => setTrendTooltip(prev => (prev?.i === i ? null : { i, x }))} />
+                        onClick={() => setTrendTooltip(prev => (prev === i ? null : i))} />
                     );
                   })}
                 </svg>
-                {trendTooltip && (() => {
-                  const r = trendPoints[trendTooltip.i];
-                  const parts = [];
-                  if (r.conceptRating != null) parts.push(`개념 ${r.conceptRating}%`);
-                  if (r.homeworkRating != null) parts.push(`과제 ${r.homeworkRating}%`);
-                  const leftPct = (trendTooltip.x / W) * 100;
+                {/* 선택 정보 — 차트 위에 겹쳐 뜨는 툴팁 대신 항상 같은 자리(차트 바로 아래)에
+                    표시. 선택 전에도 안내 문구로 자리를 미리 차지해둬서, 선택해도 카드 높이가
+                    안 바뀜(레이아웃 흔들림 방지) */}
+                {trendTooltip != null ? (() => {
+                  const r = trendPoints[trendTooltip];
                   return (
-                    <div style={{
-                      position: 'absolute', left: `${leftPct}%`, top: 0, transform: `translateX(${leftPct < 15 ? '0%' : leftPct > 85 ? '-100%' : '-50%'})`,
-                      background: '#1A1A1A', color: '#fff', fontSize: '11px', padding: '5px 9px', borderRadius: '6px',
-                      whiteSpace: 'nowrap', pointerEvents: 'none', fontFamily: 'inherit',
-                    }}>
-                      {fmtDate(r)} · {parts.join(' · ')}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#F7F5F1', borderRadius: '4px', borderLeft: `2px solid ${R.gold}`, padding: '9px 12px', marginTop: '8px' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: R.navy, flexShrink: 0 }}>{fmtDate(r)}</span>
+                      {r.conceptRating != null && <span style={{ fontSize: '12px', color: '#2C2C2C' }}>개념 {r.conceptRating}%</span>}
+                      {r.homeworkRating != null && <span style={{ fontSize: '12px', color: '#2C2C2C' }}>과제 {r.homeworkRating}%</span>}
+                      <button onClick={() => setTrendTooltip(null)} aria-label="선택 해제"
+                        style={{ marginLeft: 'auto', border: 'none', background: 'transparent', cursor: 'pointer', color: '#9A9A9A', fontSize: '14px', lineHeight: 1, padding: '2px', fontFamily: 'inherit' }}>✕</button>
                     </div>
                   );
-                })()}
+                })() : (
+                  <div style={{ border: '1px dashed #DFE3EA', borderRadius: '4px', padding: '9px 12px', marginTop: '8px', fontSize: '11px', color: '#B0B5BD' }}>
+                    지점을 탭하면 그 날짜의 값이 여기에 표시돼요
+                  </div>
+                )}
               </div>
               {deltaCaption && (
                 <p style={{ fontSize: '12px', color: '#2C2C2C', margin: '8px 0 0' }}>
