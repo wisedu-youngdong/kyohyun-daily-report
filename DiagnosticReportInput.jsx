@@ -1124,15 +1124,15 @@ export default function DiagnosticReportInput({
                 이 화면에 연동되어 있지 않으므로(하드코딩 "K"), 로고 확정 시 별도로 연동 필요 */}
             <p style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', color: TOKENS.textMute, margin: '0 0 14px' }}>{academyName || '데일리 리포트'}</p>
             <h1 style={{ fontSize: `${TYPE.h2.fontSize}px`, fontWeight: TYPE.h2.fontWeight, lineHeight: TYPE.h2.lineHeight, margin: '0 0 4px', letterSpacing: '-0.025em' }}>오늘의 학습 리포트 작성</h1>
-            <p style={{ fontSize: '12px', color: TOKENS.textSub, margin: '0 0 14px', fontWeight: 500 }}>한 단계씩 채우면 우측에 학부모 발송 화면이 실시간으로 만들어집니다</p>
+            <p style={{ fontSize: '13px', color: TOKENS.textSub, margin: '0 0 14px', fontWeight: 500 }}>한 단계씩 채우면 우측에 학부모 발송 화면이 실시간으로 만들어집니다</p>
 
             <div style={{ paddingTop: '12px', borderTop: `1px dashed ${TOKENS.border}`, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <GraduationCap size={13} style={{ color: TOKENS.textMute, flexShrink: 0 }} />
-              <span style={{ fontSize: '12px', color: TOKENS.textSub, fontWeight: 600, flexShrink: 0 }}>작성 강사</span>
+              <GraduationCap size={14} style={{ color: TOKENS.textMute, flexShrink: 0 }} />
+              <span style={{ fontSize: '13px', color: TOKENS.textSub, fontWeight: 600, flexShrink: 0 }}>작성 강사</span>
               {teachers.length === 0 ? (
-                <span style={{ fontSize: '12px', color: TOKENS.textMute }}>강사 없음</span>
+                <span style={{ fontSize: '13px', color: TOKENS.textMute }}>강사 없음</span>
               ) : teachers.length === 1 ? (
-                <span style={{ fontSize: '13px', fontWeight: 700, color: TOKENS.brandDark }}>{teachers[0].name}</span>
+                <span style={{ fontSize: '14px', fontWeight: 700, color: TOKENS.brandDark }}>{teachers[0].name}</span>
               ) : (
                 <select value={teacherId} onChange={(e) => setTeacherId(e.target.value)}
                   style={{ ...inputStyle, padding: '5px 10px', fontSize: '16px', width: 'auto' }}>
@@ -1140,7 +1140,7 @@ export default function DiagnosticReportInput({
                   {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                 </select>
               )}
-              <span style={{ marginLeft: 'auto', fontSize: `${TYPE.small.fontSize}px`, fontWeight: TYPE.small.fontWeight, color: TOKENS.textSub }}>
+              <span style={{ marginLeft: 'auto', fontSize: '13px', fontWeight: TYPE.small.fontWeight, color: TOKENS.textSub }}>
                 강사 추가/수정은 관리 › 설정에서
               </span>
             </div>
