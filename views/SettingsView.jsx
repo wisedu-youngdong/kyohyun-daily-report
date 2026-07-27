@@ -502,6 +502,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
       setPendingRequests(prev => prev.filter(r => r.id !== req.id));
       if (academyBilling[req.academyId]) loadBilling(req.academyId);
       loadPlatformEvents();
+      if (req.academyId === academyId) loadMyBillingAndRequests();
       onToast?.('크레딧을 지급했어요.', 'success');
     } catch (e) {
       console.error('입금 확인 승인 실패:', e);
@@ -518,6 +519,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
         status: 'rejected', resolvedAt: serverTimestamp(),
       }, { merge: true });
       setPendingRequests(prev => prev.filter(r => r.id !== req.id));
+      if (req.academyId === academyId) loadMyBillingAndRequests();
     } catch (e) {
       console.error('입금 확인 거절 실패:', e);
     }
@@ -576,6 +578,9 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
       await loadBilling(targetAcademyId);
       loadPlatformEvents();
       setCreditFormOpen(null);
+      // 관리자가 자기 자신의 학원(=지금 로그인한 계정)에 지급했다면, 위쪽 "크레딧·결제"
+      // 자기 조회용 상태(myBilling)는 별개 state라 자동으로 안 따라옴 — 같이 새로고침
+      if (targetAcademyId === academyId) loadMyBillingAndRequests();
     } catch (e) {
       console.error('크레딧 지급 실패:', e);
     }
@@ -596,6 +601,8 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
       });
       await loadBilling(targetAcademyId);
       loadPlatformEvents();
+      // 위 handleGrantCredit과 동일한 이유 — 자기 학원 토글이면 자기 조회용 상태도 같이 새로고침
+      if (targetAcademyId === academyId) loadMyBillingAndRequests();
     } catch (e) {
       console.error('무제한 설정 변경 실패:', e);
     }
