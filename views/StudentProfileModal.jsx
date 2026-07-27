@@ -55,9 +55,17 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
   // 리포트의 textbook을 라벨에 함께 붙임. 단원을 안 적었으면(과거 리포트 등) '단원 미기재'로 묶임.
   const diagCount = {};
   const diagUnitCount = {}; // { [key]: { [unitLabel]: count } }
+  // 진짜 "정답률"(문항 단위 시도/정답 수)은 diagnosis에 분모가 없어 계산 불가 — 대신 그
+  // 약점이 나온 수업들의 평균 개념 이해도(conceptRating)를 정직한 대체 지표로 함께 집계
+  const diagRatingSum = {};
+  const diagRatingCount = {};
   sorted.forEach(r => (r.diagnosis || []).forEach(d => {
     if (d.key === 'perfect') return;
     diagCount[d.key] = (diagCount[d.key] || 0) + 1;
+    if (r.conceptRating != null) {
+      diagRatingSum[d.key] = (diagRatingSum[d.key] || 0) + r.conceptRating;
+      diagRatingCount[d.key] = (diagRatingCount[d.key] || 0) + 1;
+    }
     const normalizedUnit = normalizeTagUnit(d.unit);
     const unitLabel = normalizedUnit
       ? (r.textbook?.trim() ? `${r.textbook.trim()} · ${normalizedUnit}` : normalizedUnit)
@@ -369,6 +377,15 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
                           <div style={{ width: `${(count / (weakTop3[0][1])) * 100}%`, height: '100%', background: tag.bg, borderRadius: '4px' }} />
                         </div>
                         <span style={{ fontSize: '12px', fontWeight: 700, color: tag.bg, flexShrink: 0 }}>{count}회</span>
+                        {diagRatingCount[key] > 0 && (() => {
+                          const avg = Math.round(diagRatingSum[key] / diagRatingCount[key]);
+                          const tier = heatTier(avg);
+                          return (
+                            <span style={{ fontSize: '11px', fontWeight: 700, color: tier.color, background: tier.bg, padding: '2px 8px', borderRadius: '10px', flexShrink: 0 }}>
+                              평균 {avg}%
+                            </span>
+                          );
+                        })()}
                         <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" style={{ flexShrink: 0, transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
                           <path d="M3 4.5L6 7.5L9 4.5" stroke="#757575" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
