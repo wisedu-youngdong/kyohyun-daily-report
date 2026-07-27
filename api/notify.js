@@ -128,6 +128,15 @@ async function handleNewSignupNotify(req, res, db) {
   }
   const data = reqDoc.data();
 
+  // handleQuestionNotify와 동일한 남용 방지 — 비로그인 공개 화면이라 봇이 계정을 반복
+  // 생성하며 메일함/Resend 발송량을 소진시킬 수 있어 발송만 건너뜀(신청 자체는 이미 저장됨).
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+  const recentSnap = await db.collection('academySignupRequests').where('createdAt', '>=', oneHourAgo).get();
+  if (recentSnap.size > 30) {
+    console.error(`알림 남용 의심 — 최근 1시간 가입 신청 ${recentSnap.size}건, 메일 발송 건너뜀`);
+    return res.status(200).json({ ok: true, notified: false });
+  }
+
   const adminSnap = await db.collection('users').where('isPlatformAdmin', '==', true).get();
   const adminEmails = adminSnap.docs.map(d => d.data().email).filter(Boolean);
   if (adminEmails.length === 0) {
