@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { auth, db } from '../firebase';
 import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { R, C } from '../tokens.jsx';
+import { R, C, RADIUS2 } from '../tokens.jsx';
 import { formatPhone, isValidPhone } from '../phone.js';
 
 // 학원 가입 신청 화면(/signup) — 공개, 비로그인 접근.
@@ -81,6 +81,11 @@ export default function SignupRequestScreen() {
         reportMode, // 승인 시 academies/{id}.reportMode 초기값으로 그대로 반영 — 설정에서 언제든 변경 가능
         status: 'pending', createdAt: serverTimestamp(),
       });
+      // 관리자 알림 — 신청 접수 자체를 막으면 안 되므로 실패해도 무시(fire-and-forget)
+      fetch('/api/notify', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'new-signup-request', requestId: uid }),
+      }).catch(() => {});
       await signOut(auth);
       setStatus('done');
     } catch (err) {
@@ -95,50 +100,50 @@ export default function SignupRequestScreen() {
   };
 
   const inputStyle = {
-    width: '100%', padding: '12px 14px', fontSize: '16px', fontWeight: 500,
+    width: '100%', padding: '13px 16px', fontSize: '16px', fontWeight: 500,
     fontFamily: R.body, color: R.ink, background: '#fff',
-    border: `1px solid ${R.rule}`, borderRadius: '6px', outline: 'none',
+    border: `1px solid ${R.rule}`, borderRadius: `${RADIUS2.input}px`, outline: 'none',
     boxSizing: 'border-box', transition: 'border-color .15s, box-shadow .15s',
   };
   const focusInput = (e) => { e.target.style.borderColor = R.navy; e.target.style.boxShadow = `0 0 0 3px ${R.navy}1A`; };
   const blurInput = (e) => { e.target.style.borderColor = R.rule; e.target.style.boxShadow = 'none'; };
-  const labelStyle = { display: 'block', fontSize: '12px', fontWeight: 700, color: R.ink, marginBottom: '7px' };
-  const fieldWrap = { marginBottom: '16px' };
-  const sectionTitle = { fontSize: '11px', fontWeight: 700, color: R.inkMute, letterSpacing: '0.08em', margin: '22px 0 12px', paddingTop: '18px', borderTop: `1px dashed ${R.rule}` };
+  const labelStyle = { display: 'block', fontSize: '12px', fontWeight: 700, color: R.ink, marginBottom: '8px' };
+  const fieldWrap = { marginBottom: '20px' };
+  const sectionTitle = { fontSize: '11px', fontWeight: 700, color: R.inkMute, letterSpacing: '0.08em', margin: '26px 0 14px', paddingTop: '20px', borderTop: `1px dashed ${R.rule}` };
 
   return (
     <div style={{
-      minHeight: '100dvh', background: '#F5F5F0',
+      minHeight: '100dvh', background: 'linear-gradient(180deg, #F8F7F3 0%, #F1EFE7 100%)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontFamily: R.body, padding: '20px',
+      fontFamily: R.body, padding: '24px',
     }}>
       <div style={{
         width: '100%', maxWidth: '440px', background: '#fff',
-        border: `1px solid ${R.rule}`, borderTop: `3px solid ${R.navy}`, borderRadius: '4px',
-        boxShadow: `0 2px 20px ${R.navy}12`, overflow: 'hidden',
+        border: `1px solid ${R.rule}`, borderTop: `3px solid ${R.navy}`, borderRadius: `${RADIUS2.card}px`,
+        boxShadow: `0 12px 40px ${R.navy}14, 0 2px 8px ${R.navy}0A`, overflow: 'hidden',
       }}>
-        <div style={{ padding: '26px 36px 22px', borderBottom: `1px solid ${R.rule}`, textAlign: 'center' }}>
-          <p style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', color: R.inkMute, margin: '0 0 18px' }}>
+        <div style={{ padding: '36px 40px 30px', borderBottom: `1px solid ${R.rule}`, textAlign: 'center' }}>
+          <p style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', color: R.inkMute, margin: '0 0 20px' }}>
             DAILY REPORT SYSTEM
           </p>
           <h1 style={{ fontFamily: R.serif, fontSize: '27px', fontWeight: 700, color: R.ink, letterSpacing: '-0.5px', margin: 0 }}>
             학원 등록 신청
           </h1>
-          <div style={{ width: '40px', height: '2px', background: R.gold, margin: '10px auto 8px' }} />
+          <div style={{ width: '40px', height: '2px', background: R.gold, margin: '12px auto 10px' }} />
           <p style={{ fontSize: '12px', fontWeight: 500, color: R.inkSub, margin: 0 }}>
             검토 후 승인되면 로그인할 수 있어요
           </p>
         </div>
 
-        <div style={{ padding: '26px 36px 30px' }}>
+        <div style={{ padding: '32px 40px 36px' }}>
           {status === 'done' ? (
             <>
-              <p style={{ fontSize: '13px', fontWeight: 600, color: C.successDark, background: C.successBg, padding: '12px 14px', borderRadius: '6px', margin: '0 0 16px', lineHeight: 1.7 }}>
+              <p style={{ fontSize: '13px', fontWeight: 600, color: C.successDark, background: C.successBg, padding: '12px 14px', borderRadius: `${RADIUS2.input}px`, margin: '0 0 16px', lineHeight: 1.7 }}>
                 신청이 접수됐습니다.<br />검토 후 승인 안내를 드려요.
               </p>
               <a href="/" style={{
-                display: 'block', textAlign: 'center', width: '100%', padding: '13px', fontSize: '14px', fontWeight: 700,
-                fontFamily: R.body, borderRadius: '6px', background: R.navy, color: '#fff', textDecoration: 'none',
+                display: 'block', textAlign: 'center', width: '100%', padding: '14px', fontSize: '14px', fontWeight: 700,
+                fontFamily: R.body, borderRadius: `${RADIUS2.input}px`, background: R.navy, color: '#fff', textDecoration: 'none',
                 boxSizing: 'border-box',
               }}>
                 로그인 화면으로
@@ -204,7 +209,7 @@ export default function SignupRequestScreen() {
                     style={{
                       flexShrink: 0, padding: '0 16px', fontSize: '13px', fontWeight: 700,
                       fontFamily: R.body, color: R.navy, background: '#fff',
-                      border: `1px solid ${R.navy}`, borderRadius: '6px', cursor: 'pointer',
+                      border: `1px solid ${R.navy}`, borderRadius: `${RADIUS2.input}px`, cursor: 'pointer',
                     }}>주소 검색</button>
                 </div>
                 <input value={addressDetail} onChange={e => setAddressDetail(e.target.value)}
@@ -234,7 +239,7 @@ export default function SignupRequestScreen() {
                     return (
                       <button key={opt.key} type="button" onClick={() => setReportMode(opt.key)}
                         style={{
-                          flex: 1, textAlign: 'left', padding: '10px 12px', borderRadius: '6px',
+                          flex: 1, textAlign: 'left', padding: '10px 12px', borderRadius: `${RADIUS2.input}px`,
                           border: active ? `1.5px solid ${R.navy}` : `1px solid ${R.rule}`,
                           background: active ? `${R.navy}0D` : '#fff', cursor: 'pointer', fontFamily: R.body,
                         }}>
@@ -252,7 +257,7 @@ export default function SignupRequestScreen() {
               </label>
 
               {error && (
-                <p style={{ fontSize: '12px', fontWeight: 600, color: C.errorDark, margin: '0 0 16px', background: '#FDEAEA', padding: '8px 12px', borderRadius: '6px' }}>
+                <p style={{ fontSize: '12px', fontWeight: 600, color: C.errorDark, margin: '0 0 16px', background: '#FDEAEA', padding: '9px 13px', borderRadius: `${RADIUS2.input}px` }}>
                   {error}
                 </p>
               )}
@@ -261,10 +266,10 @@ export default function SignupRequestScreen() {
                 onMouseEnter={(e) => { if (status !== 'submitting') e.currentTarget.style.background = '#0A2456'; }}
                 onMouseLeave={(e) => { if (status !== 'submitting') e.currentTarget.style.background = R.navy; }}
                 style={{
-                  width: '100%', padding: '13px', fontSize: '14px', fontWeight: 700,
-                  fontFamily: R.body, border: 'none', borderRadius: '6px',
+                  width: '100%', padding: '14px', fontSize: '14px', fontWeight: 700,
+                  fontFamily: R.body, border: 'none', borderRadius: `${RADIUS2.input}px`,
                   background: status === 'submitting' ? R.inkMute : R.navy, color: '#fff',
-                  cursor: status === 'submitting' ? 'not-allowed' : 'pointer', marginTop: '6px',
+                  cursor: status === 'submitting' ? 'not-allowed' : 'pointer', marginTop: '8px',
                   transition: 'background .15s',
                 }}>
                 {status === 'submitting' ? '접수 중...' : '가입 신청'}

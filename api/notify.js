@@ -3,6 +3,8 @@
 //     (PublicReport.jsx에서 fire-and-forget 호출)
 //   'signup-approved' / 'signup-rejected' (플랫폼 관리자 인증 필요) — 학원 가입 신청 심사 결과를
 //     신청자 본인에게 알림 (SettingsView.jsx "가입 신청 관리"에서 fire-and-forget 호출)
+//   'new-signup-request' (인증 불필요 — 신청 자체가 비로그인 공개 화면) — 새 가입 신청이 들어오면
+//     플랫폼 관리자 전원에게 알림 (SignupRequestScreen.jsx에서 fire-and-forget 호출)
 // Vercel Hobby 플랜 서버리스 함수 12개 제한 때문에 새 파일을 안 늘리고 기존 notify-question.js를
 // 이 용도로 일반화함 — CLAUDE.md 참고.
 import { getFirestore } from 'firebase-admin/firestore';
@@ -53,6 +55,23 @@ function buildSignupRejectedEmailHtml({ academyName }) {
   });
 }
 
+function buildNewSignupRequestEmailHtml({ academyName, applicantName, directorName, phone }) {
+  return emailShell({
+    title: '새 가입 신청이 들어왔어요',
+    bodyHtml: `
+      <p style="font-size:13.5px;line-height:1.75;color:${INK_SOFT};margin:0 0 20px;font-family:${FONT_STACK};">
+        <b style="color:${INK};">${escapeHtml(academyName)}</b>에서 데일리 리포트 시스템 가입을 신청했어요.
+      </p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F5F8FF;border:1px solid #C5D5F0;border-radius:8px;margin-bottom:26px;">
+        <tr><td style="padding:14px 16px;">
+          <p style="margin:0 0 6px;font-size:13px;color:${INK};line-height:1.7;font-family:${FONT_STACK};">신청자 ${escapeHtml(applicantName)} · 원장 ${escapeHtml(directorName)}</p>
+          <p style="margin:0;font-size:13px;color:${INK};line-height:1.7;font-family:${FONT_STACK};">연락처 ${escapeHtml(phone)}</p>
+        </td></tr>
+      </table>
+      ${ctaButton('https://dailyreportsystem.co.kr/', '로그인해서 검토하기')}`,
+  });
+}
+
 async function handleQuestionNotify(req, res, db) {
   const { academyId, questionId } = req.body || {};
   if (!academyId || !questionId) return res.status(400).json({ error: '필수 정보가 없습니다.' });
@@ -96,6 +115,37 @@ async function handleQuestionNotify(req, res, db) {
   res.status(200).json({ ok: true, notified: ok });
 }
 
+async function handleNewSignupNotify(req, res, db) {
+  const { requestId } = req.body || {};
+  if (!requestId) return res.status(400).json({ error: '필수 정보가 없습니다.' });
+
+  // 클라이언트가 보낸 학원명 등을 그대로 믿지 않고, 방금 만들어진 신청 문서가 실제로 있는지
+  // 확인 후 그 문서의 값을 신뢰 소스로 사용 — handleQuestionNotify와 동일한 패턴.
+  const reqDoc = await db.collection('academySignupRequests').doc(requestId).get();
+  if (!reqDoc.exists) {
+    console.error(`알림 대상 가입 신청 문서 없음 (requestId=${requestId})`);
+    return res.status(200).json({ ok: true, notified: false });
+  }
+  const data = reqDoc.data();
+
+  const adminSnap = await db.collection('users').where('isPlatformAdmin', '==', true).get();
+  const adminEmails = adminSnap.docs.map(d => d.data().email).filter(Boolean);
+  if (adminEmails.length === 0) {
+    console.error('알림 대상 플랫폼 관리자 이메일 없음');
+    return res.status(200).json({ ok: true, notified: false });
+  }
+
+  const ok = await sendViaResend({
+    to: adminEmails,
+    subject: `[데일리 리포트 시스템] 새 가입 신청 — ${data.academyName || '학원'}`,
+    html: buildNewSignupRequestEmailHtml({
+      academyName: data.academyName || '', applicantName: data.applicantName || '',
+      directorName: data.directorName || '', phone: data.phone || '',
+    }),
+  });
+  res.status(200).json({ ok: true, notified: ok });
+}
+
 async function handleSignupDecisionNotify(req, res, db, type) {
   // 가입 승인/거절 결과 메일은 플랫폼 관리자만 트리거할 수 있어야 함(임의 이메일로
   // "승인/거절됐다"는 알림을 대신 보내는 악용 방지) — delete-signup-request.js와 동일한 검증.
@@ -129,6 +179,9 @@ export default async function handler(req, res) {
 
     if (type === 'signup-approved' || type === 'signup-rejected') {
       return await handleSignupDecisionNotify(req, res, db, type);
+    }
+    if (type === 'new-signup-request') {
+      return await handleNewSignupNotify(req, res, db);
     }
     return await handleQuestionNotify(req, res, db);
   } catch (e) {
