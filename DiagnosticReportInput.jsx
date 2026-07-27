@@ -504,6 +504,15 @@ export default function DiagnosticReportInput({
   // AI가 문항별로 무엇을 보고 어떻게 판단했는지(rawObservations) — 평소엔 접어두고, 결과가
   // 이상할 때(예: 문항이 빠짐) 펼쳐서 AI가 그 번호를 아예 검토했는지, 왜 뺐는지 바로 확인용
   const [showRawObservations, setShowRawObservations] = useState(false);
+  // 사진 분석 결과 화면의 "이 화면 사용법" 패널 — 처음엔 펼쳐서 보여주고, 한 번이라도
+  // 접으면 그 브라우저에서는 계속 접힌 채로 시작(다시 펼치는 건 언제든 가능, 완전히
+  // 숨기진 않음 — 매번 스쳐 지나가는 게 익숙해진 선생님한텐 방해될 수 있어서)
+  const [photoGuideOpen, setPhotoGuideOpen] = useState(() => localStorage.getItem('photoGuideCollapsed') !== '1');
+  const togglePhotoGuide = () => setPhotoGuideOpen(prev => {
+    const next = !prev;
+    localStorage.setItem('photoGuideCollapsed', next ? '0' : '1');
+    return next;
+  });
   const MAX_PHOTOS = 5;
   const photosRef = React.useRef([]);
 
@@ -1681,6 +1690,37 @@ export default function DiagnosticReportInput({
                       };
                       return (
                       <div style={{ background: TOKENS.bgSoft, border: `1px solid ${TOKENS.borderLight}`, borderRadius: '12px', padding: '12px', marginTop: '4px' }}>
+                        {/* "이 화면 사용법" 패널 — 제외/놓친 오답 추가/재분석/책 섹션 태그, 4개 기능을
+                            한 곳에서 설명. 개별 버튼마다 물음표 아이콘을 붙이는 안(A)도 검토했는데,
+                            발견을 사용자에게 맡기게 돼서 여기서는 진입 시 한 번에 보여주는 쪽(B)으로 감 */}
+                        <div style={{ border: `1px solid ${TOKENS.brandLight}`, background: TOKENS.brandBg, borderRadius: '10px', marginBottom: '12px', overflow: 'hidden' }}>
+                          <button type="button" onClick={togglePhotoGuide}
+                            style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                              <span style={{ width: '20px', height: '20px', borderRadius: '5px', background: TOKENS.brand, color: '#fff', fontSize: '11px', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>i</span>
+                              <span style={{ fontSize: '11.5px', fontWeight: 700, color: TOKENS.brand }}>이 화면 사용법</span>
+                            </span>
+                            <span style={{ fontSize: '10px', color: TOKENS.brand, transform: photoGuideOpen ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }}>▾</span>
+                          </button>
+                          {photoGuideOpen && (
+                            <div style={{ padding: '0 12px 12px' }}>
+                              {[
+                                { mark: '✕', title: '결과에서 제외', desc: '교재 예제, 선생님과 같이 푼 문제처럼 채점 대상이 아니면 완전히 빼요.' },
+                                { mark: '＋', title: '놓친 오답 추가', desc: 'AI가 못 찾은 오답을 문항 번호만 입력해서 직접 넣어요.' },
+                                { mark: '🔄', title: '재분석', desc: '결과가 실제 채점과 다르면 다시 시도할 수 있어요 — 크레딧이 1건 더 나가요.' },
+                                { mark: '📖', title: '책 섹션 태그', desc: '소단원별로 번호가 겹치지 않게 AI가 자동으로 구분해요. 틀렸으면 태그를 눌러 고칠 수 있어요.' },
+                              ].map((it, i) => (
+                                <div key={it.title} style={{ display: 'flex', gap: '10px', padding: '9px 0', borderTop: i === 0 ? 'none' : `1px solid ${TOKENS.brandLight}` }}>
+                                  <span style={{ width: '24px', height: '24px', borderRadius: '6px', background: '#fff', border: `1px solid ${TOKENS.brandLight}`, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px' }}>{it.mark}</span>
+                                  <span style={{ minWidth: 0 }}>
+                                    <span style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: TOKENS.text, marginBottom: '2px' }}>{it.title}</span>
+                                    <span style={{ display: 'block', fontSize: '10.5px', color: TOKENS.textSub, lineHeight: 1.6 }}>{it.desc}</span>
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                         {(photoAnalysis.bookOrTest || photoAnalysis.unit || photoAnalysis.pageRange) && (
                           <p style={{ fontSize: '11px', color: TOKENS.success, fontWeight: 700, margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                             {[photoAnalysis.bookOrTest, photoAnalysis.unit, photoAnalysis.pageRange].filter(Boolean).join(' · ')}
