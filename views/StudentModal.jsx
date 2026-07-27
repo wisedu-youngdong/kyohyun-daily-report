@@ -68,6 +68,9 @@ export function StudentModal({ student, onClose, onSubmit, teachers = [], classe
   const [classId, setClassId] = useState(
     student?.classId && classes.some(c => c.id === student.classId) ? student.classId : ''
   );
+  // 리포트 방식(매일형/주간형) — 비워두면 반/학원 기본값을 따름. 반 단위 예외(SettingsView.jsx의
+  // 반별 select)와 완전히 같은 컨벤션을 학생 단위로 한 겹 더 얹은 것
+  const [reportMode, setReportMode] = useState(student?.reportMode || '');
   // 요일 인덱스 배열(0=일...6=토). 비어있으면 "매일 대상"으로 취급(대시보드 판정 기준) — 이 배열 자체엔 기본값 없음
   const [scheduleDays, setScheduleDays] = useState(student?.scheduleDays || []);
   const toggleScheduleDay = (d) => setScheduleDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d].sort());
@@ -104,11 +107,13 @@ export function StudentModal({ student, onClose, onSubmit, teachers = [], classe
       // 미선택(레거시 학생)이면 필드를 아예 보내지 않아 자동 판정 폴백을 유지
       if (studentType) payload.studentType = studentType;
       payload.scheduleDays = scheduleDays;
+      payload.reportMode = reportMode || '';
     } else {
       payload.studentType = studentType;
       if (classId) payload.classId = classId;
       if (effectiveTeacherId) payload.assignedTeacherId = effectiveTeacherId;
       if (scheduleDays.length) payload.scheduleDays = scheduleDays;
+      if (reportMode) payload.reportMode = reportMode;
     }
     await onSubmit(payload);
     setSaving(false);
@@ -186,6 +191,16 @@ export function StudentModal({ student, onClose, onSubmit, teachers = [], classe
               </select>
             </div>
           )}
+
+          {/* 리포트 방식 — 반/학원 기본값과 다르게, 이 학생만 매일형/주간형을 지정하고 싶을 때 */}
+          <div style={{ marginBottom: '12px' }}>
+            <FieldLabel>리포트 방식</FieldLabel>
+            <select value={reportMode} onChange={(e) => setReportMode(e.target.value)} style={selectStyle}>
+              <option value="">반/학원 기본값을 따름</option>
+              <option value="daily">매일형</option>
+              <option value="weekly">주간형 (메모 모아 주 1회 발송)</option>
+            </select>
+          </div>
 
           {/* 담당 강사 — 반이 있으면 반 설정에 따라 자동 배정(읽기 전용), 반이 없을 때만 직접 선택 */}
           {classId ? (

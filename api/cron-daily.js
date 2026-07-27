@@ -67,6 +67,20 @@ export async function sendMorningBriefing(db, academyId, academy, todayStr, toda
     const excused = r.attendance === '결석' && r.isDraft !== true;
     if (sent || excused) handledIds.add(r.studentId);
   });
+
+  // 주간형 리포트는 그 주 첫 세션 때만 createdAt이 찍히고 이후 세션은 sessions[]만 갱신되므로
+  // (createdAt은 안 바뀜) 위 당일 범위 쿼리로는 아예 안 잡힘 — 게다가 발송 전까지 항상
+  // isDraft:true라 sent 판정에도 안 걸림. DashboardView.jsx의 hasWeeklySessionToday와 동일한
+  // 방식(sessions[].date가 오늘 KST 날짜인지)으로 별도 확인
+  const weeklySnap = await db.collection('academies').doc(academyId).collection('reports')
+    .where('reportType', '==', 'weekly')
+    .where('isDraft', '==', true)
+    .get();
+  weeklySnap.docs.forEach(d => {
+    const r = d.data();
+    if ((r.sessions || []).some(s => s.date === todayStr)) handledIds.add(r.studentId);
+  });
+
   const pending = scheduledToday.filter(s => !handledIds.has(s.id));
 
   // 전체 질문 이력을 매일 읽으면(where 없이 .get()) 질문이 쌓일수록 이 크론의 Firestore 읽기

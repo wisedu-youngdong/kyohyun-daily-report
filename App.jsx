@@ -662,7 +662,7 @@ export default function App() {
 
   // 학원 기본값이 주간형이거나, 반 하나라도 개별적으로 주간형으로 오버라이드돼 있으면
   // "주간 리포트 검토" 탭을 노출 — 매일형만 쓰는 학원(대부분)은 탭 자체가 안 보임
-  const hasWeeklyMode = academyReportMode === 'weekly' || classes.some(c => c.reportMode === 'weekly');
+  const hasWeeklyMode = academyReportMode === 'weekly' || classes.some(c => c.reportMode === 'weekly') || students.some(s => s.reportMode === 'weekly');
 
   const mainTabs = [
     { key: 'dashboard', label: '대시보드', icon: <LayoutDashboard size={20} />, roles: ['director', 'teacher'] },

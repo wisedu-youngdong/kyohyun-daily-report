@@ -39,7 +39,7 @@ export default function WeeklyReviewView({ reports = [], students = [], classes 
 
   const weeklyStudents = students
     .filter(s => !s.archived)
-    .filter(s => (classes.find(c => c.id === s.classId)?.reportMode || academyReportMode) === 'weekly');
+    .filter(s => (s.reportMode || classes.find(c => c.id === s.classId)?.reportMode || academyReportMode) === 'weekly');
 
   const draftFor = (studentId) => reports.find(r =>
     r.studentId === studentId && r.reportType === 'weekly' && r.isDraft === true &&

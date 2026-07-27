@@ -602,7 +602,7 @@ export default function DiagnosticReportInput({
   // 오직 학생 선택으로 새로 들어오는 라이브 작성 흐름에서만 세션 upsert가 일어남
   const effectiveReportMode = editingReport
     ? (editingReport.reportType || 'daily')
-    : (classes.find(c => c.id === student?.classId)?.reportMode || academyReportMode || 'daily');
+    : (student?.reportMode || classes.find(c => c.id === student?.classId)?.reportMode || academyReportMode || 'daily');
 
   // 이 학생의 최근 교재+단원 이력(최대 3개) — 단원 추천 칩과 "표준 단원표" 자동펼침 여부에 공용으로 사용
   const recentUnits = useMemo(() => {
@@ -1178,7 +1178,7 @@ export default function DiagnosticReportInput({
                 setAutoSaveError(false);
 
                 const newStudent = students.find(s => s.id === newId);
-                const newMode = classes.find(c => c.id === newStudent?.classId)?.reportMode || academyReportMode || 'daily';
+                const newMode = newStudent?.reportMode || classes.find(c => c.id === newStudent?.classId)?.reportMode || academyReportMode || 'daily';
 
                 if (newMode === 'weekly') {
                   // 이번 주 범위에 세션 날짜가 걸리는, 아직 발송 안 된(draft) 주간 리포트를 찾음 —
