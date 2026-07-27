@@ -1,6 +1,6 @@
 import React from 'react';
 import { db, auth, createUserWithoutSignIn } from '../firebase';
-import { collection, addDoc, doc, getDoc, getDocs, setDoc, serverTimestamp, getCountFromServer, increment, query, orderBy, limit } from 'firebase/firestore';
+import { collection, addDoc, doc, getDoc, getDocs, setDoc, serverTimestamp, getCountFromServer, increment, query, orderBy, limit, where } from 'firebase/firestore';
 import { Pencil, AlertTriangle, Check, HelpCircle, X } from 'lucide-react';
 import { T, C } from '../tokens.jsx';
 import { PRESET_SKINS, onKeyActivate } from './shared.jsx';
@@ -409,6 +409,120 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
   const [creditMemo, setCreditMemo] = React.useState('');
   const [creditGranting, setCreditGranting] = React.useState(false);
   const [unlimitedToggling, setUnlimitedToggling] = React.useState(null); // 토글 중인 academyId
+
+  // 입금 확인 대기 큐 — 원장이 무통장입금 후 "입금했어요"를 누르면 pending 상태로 쌓이고,
+  // 관리자가 실시간으로 안 봐도 나중에(수업 끝나고) 몰아서 승인할 수 있게 함
+  const [myBilling, setMyBilling] = React.useState(null);
+  const [myRequests, setMyRequests] = React.useState([]);
+  const [reqPackage, setReqPackage] = React.useState('20');
+  const [reqAmount, setReqAmount] = React.useState(String(PACKAGE_PRICES['20']));
+  const [reqNote, setReqNote] = React.useState('');
+  const [reqSubmitting, setReqSubmitting] = React.useState(false);
+  const [pendingRequests, setPendingRequests] = React.useState([]); // 관리자용 — 전체 학원 대기 목록
+  const [resolvingReqId, setResolvingReqId] = React.useState(null);
+  const [bonusChecked, setBonusChecked] = React.useState({}); // { [requestId]: boolean } 승인 시 첫결제 보너스 적용 여부
+
+  const loadMyBillingAndRequests = React.useCallback(async () => {
+    if (!academyId) return;
+    try {
+      const [billingSnap, reqSnap] = await Promise.all([
+        getDoc(doc(db, 'academies', academyId, 'private', 'billing')),
+        getDocs(query(collection(db, 'academies', academyId, 'paymentRequests'), orderBy('requestedAt', 'desc'), limit(10))),
+      ]);
+      setMyBilling(billingSnap.exists() ? billingSnap.data() : { creditBalance: 0 });
+      setMyRequests(reqSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (e) {
+      console.error('내 크레딧 정보 조회 실패:', e);
+    }
+  }, [academyId]);
+
+  React.useEffect(() => { loadMyBillingAndRequests(); }, [loadMyBillingAndRequests]);
+
+  const handleSubmitPaymentRequest = async () => {
+    const pkg = parseInt(reqPackage, 10);
+    const amount = parseInt(reqAmount, 10);
+    if (!pkg || !amount) return;
+    setReqSubmitting(true);
+    try {
+      await addDoc(collection(db, 'academies', academyId, 'paymentRequests'), {
+        packageSize: pkg, amount, note: reqNote.trim(), status: 'pending',
+        requestedAt: serverTimestamp(), requestedBy: auth.currentUser?.uid || null,
+      });
+      setReqNote('');
+      onToast?.('입금 확인 요청을 보냈어요. 확인되면 크레딧이 지급됩니다.', 'success');
+      loadMyBillingAndRequests();
+    } catch (e) {
+      console.error('입금 확인 요청 실패:', e);
+      onToast?.('요청 전송에 실패했습니다.', 'error');
+    }
+    setReqSubmitting(false);
+  };
+
+  // 관리자용 — 전체 학원의 대기 중인 입금 확인 요청. academyList가 이미 학원별로 순회하는
+  // 기존 구조라 그대로 따라감(collectionGroup 쿼리는 별도 인덱스 배포가 필요해 피함 —
+  // firestore.rules처럼 firestore.indexes.json도 git push로 자동배포 안 되는 함정이 있음)
+  const loadPendingRequests = React.useCallback(async () => {
+    if (!isPlatformAdmin || academyList.length === 0) return;
+    try {
+      const results = await Promise.all(academyList.map(async (a) => {
+        const snap = await getDocs(query(
+          collection(db, 'academies', a.id, 'paymentRequests'),
+          where('status', '==', 'pending'),
+        ));
+        return snap.docs.map(d => ({ id: d.id, academyId: a.id, academyName: a.academyName || a.id, ...d.data() }));
+      }));
+      setPendingRequests(results.flat().sort((x, y) => (x.requestedAt?.seconds || 0) - (y.requestedAt?.seconds || 0)));
+    } catch (e) {
+      console.error('입금 확인 대기 목록 조회 실패:', e);
+    }
+  }, [isPlatformAdmin, academyList]);
+
+  React.useEffect(() => { loadPendingRequests(); }, [loadPendingRequests]);
+
+  const handleApprovePaymentRequest = async (req) => {
+    const applyBonus = !!bonusChecked[req.id];
+    setResolvingReqId(req.id);
+    try {
+      const grantAmount = applyBonus ? Math.round(req.packageSize * 1.5) : req.packageSize;
+      await setDoc(doc(db, 'academies', req.academyId, 'private', 'billing'), {
+        creditBalance: increment(grantAmount), creditPackage: req.packageSize, updatedAt: serverTimestamp(),
+      }, { merge: true });
+      await addDoc(collection(db, 'academies', req.academyId, 'paymentHistory'), {
+        packageSize: grantAmount, amount: req.amount, method: 'bank_transfer',
+        memo: [req.note, applyBonus ? '첫 결제 50% 보너스 적용' : ''].filter(Boolean).join(' · '),
+        grantedAt: serverTimestamp(),
+      });
+      await setDoc(doc(db, 'academies', req.academyId, 'paymentRequests', req.id), {
+        status: 'approved', resolvedAt: serverTimestamp(),
+      }, { merge: true });
+      logPlatformEvent('credit_granted', {
+        academyId: req.academyId, academyName: req.academyName,
+        detail: `${grantAmount}건 · ${req.amount.toLocaleString()}원${applyBonus ? ' (첫결제 보너스)' : ''}`,
+      });
+      setPendingRequests(prev => prev.filter(r => r.id !== req.id));
+      if (academyBilling[req.academyId]) loadBilling(req.academyId);
+      loadPlatformEvents();
+      onToast?.('크레딧을 지급했어요.', 'success');
+    } catch (e) {
+      console.error('입금 확인 승인 실패:', e);
+      onToast?.('승인 처리에 실패했습니다.', 'error');
+    }
+    setResolvingReqId(null);
+  };
+
+  const handleRejectPaymentRequest = async (req) => {
+    if (!window.confirm(`${req.academyName}의 입금 확인 요청을 거절할까요?`)) return;
+    setResolvingReqId(req.id);
+    try {
+      await setDoc(doc(db, 'academies', req.academyId, 'paymentRequests', req.id), {
+        status: 'rejected', resolvedAt: serverTimestamp(),
+      }, { merge: true });
+      setPendingRequests(prev => prev.filter(r => r.id !== req.id));
+    } catch (e) {
+      console.error('입금 확인 거절 실패:', e);
+    }
+    setResolvingReqId(null);
+  };
 
   const loadBilling = async (targetAcademyId) => {
     setBillingLoading(targetAcademyId);
@@ -1144,7 +1258,94 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
         </div>
       )}
 
+      {/* 크레딧 · 결제 — 모든 직원(원장/강사) 공통. 실제 PG 연동 전이라 무통장입금 후
+          "입금했어요"만 눌러두면 관리자가 나중에 몰아서 승인하는 방식(반자동) */}
+      <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB', marginBottom: '14px' }}>
+        <p style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>크레딧 · 결제</p>
+        <p style={{ fontSize: '20px', fontWeight: 800, color: C.primary, margin: '10px 0 2px' }}>
+          {myBilling?.unlimited ? '무제한' : `${myBilling?.creditBalance ?? 0}건`}
+        </p>
+        <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 500, marginBottom: '14px' }}>남은 크레딧</p>
+
+        {!myBilling?.unlimited && (
+          <>
+            <p style={{ fontSize: '12px', fontWeight: 700, color: '#1A1A1A', marginBottom: '8px' }}>입금 완료했어요</p>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+              <select value={reqPackage} onChange={e => { setReqPackage(e.target.value); setReqAmount(String(PACKAGE_PRICES[e.target.value])); }}
+                style={{ flex: 1, padding: '9px 10px', fontSize: '13px', border: '1px solid #E5E7EB', borderRadius: '8px', fontFamily: 'inherit' }}>
+                {Object.keys(PACKAGE_PRICES).map(p => <option key={p} value={p}>{p}건 · {PACKAGE_PRICES[p].toLocaleString()}원</option>)}
+              </select>
+            </div>
+            <input value={reqNote} onChange={e => setReqNote(e.target.value)} placeholder="입금자명 등 메모 (선택)"
+              style={{ width: '100%', padding: '9px 10px', fontSize: '13px', border: '1px solid #E5E7EB', borderRadius: '8px', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: '10px' }} />
+            <button onClick={handleSubmitPaymentRequest} disabled={reqSubmitting}
+              style={{ width: '100%', padding: '11px', fontSize: '13px', fontWeight: 700, borderRadius: '10px', border: 'none', background: reqSubmitting ? '#E5E7EB' : C.primary, color: reqSubmitting ? '#6C7586' : '#fff', cursor: reqSubmitting ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+              {reqSubmitting ? '전송 중...' : '입금 확인 요청 보내기'}
+            </button>
+            <p style={{ fontSize: '10px', color: '#9CA3AF', margin: '6px 0 0', lineHeight: 1.5 }}>
+              요청을 보내면 관리자 확인 후 크레딧이 지급돼요. 즉시 반영되지 않을 수 있어요.
+            </p>
+          </>
+        )}
+
+        {myRequests.length > 0 && (
+          <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px dashed #E5E7EB' }}>
+            <p style={{ fontSize: '11px', fontWeight: 700, color: '#6B7280', marginBottom: '8px' }}>최근 요청</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {myRequests.map(r => {
+                const statusInfo = {
+                  pending: { label: '확인 중', color: C.warningText, bg: '#FFF8EC' },
+                  approved: { label: '지급 완료', color: C.successDark, bg: C.successBg },
+                  rejected: { label: '거절됨', color: '#6B7280', bg: '#F3F4F6' },
+                }[r.status] || { label: r.status, color: '#6B7280', bg: '#F3F4F6' };
+                return (
+                  <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px' }}>
+                    <span style={{ color: '#1A1A1A', fontWeight: 500 }}>{r.packageSize}건 · {(r.amount || 0).toLocaleString()}원</span>
+                    <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', color: statusInfo.color, background: statusInfo.bg }}>{statusInfo.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
       </>)}
+
+      {/* 입금 확인 대기 — 플랫폼 관리자 전용. 실시간으로 안 봐도 되게, 학원들이 넣은 요청을
+          모아서 한 번에 처리하는 큐 */}
+      {settingsTab === 'platform' && isPlatformAdmin && pendingRequests.length > 0 && (
+        <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: `1.5px solid ${C.warning}`, marginBottom: '14px' }}>
+          <p style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>입금 확인 대기 · {pendingRequests.length}건</p>
+          <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 500, marginBottom: '14px' }}>학원들이 입금 완료를 알려온 요청이에요. 확인되는 대로 승인해주세요.</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {pendingRequests.map(req => (
+              <div key={req.id} style={{ background: '#FFF8EC', border: '1px solid #F0D584', borderRadius: '10px', padding: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A' }}>{req.academyName}</span>
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: C.primary }}>{req.packageSize}건 · {(req.amount || 0).toLocaleString()}원</span>
+                </div>
+                {req.note && <p style={{ fontSize: '11px', color: '#6B7280', margin: '0 0 8px' }}>{req.note}</p>}
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#1A1A1A', marginBottom: '8px', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={!!bonusChecked[req.id]}
+                    onChange={e => setBonusChecked(prev => ({ ...prev, [req.id]: e.target.checked }))} />
+                  첫 결제 50% 보너스 적용 (지급 {Math.round(req.packageSize * 1.5)}건)
+                </label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button onClick={() => handleRejectPaymentRequest(req)} disabled={resolvingReqId === req.id}
+                    style={{ flex: 1, padding: '9px', fontSize: '12px', fontWeight: 700, borderRadius: '8px', border: '1px solid #E5E7EB', background: '#fff', color: '#6B7280', cursor: resolvingReqId ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                    거절
+                  </button>
+                  <button onClick={() => handleApprovePaymentRequest(req)} disabled={resolvingReqId === req.id}
+                    style={{ flex: 2, padding: '9px', fontSize: '12px', fontWeight: 700, borderRadius: '8px', border: 'none', background: resolvingReqId === req.id ? '#E5E7EB' : C.primary, color: resolvingReqId === req.id ? '#6C7586' : '#fff', cursor: resolvingReqId ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                    {resolvingReqId === req.id ? '처리 중...' : '승인하고 지급'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 사용량 모니터링 — 플랫폼 관리자 전용. 가장 상위 요약이라 다른 관리 카드보다 먼저 보여줌 */}
       {settingsTab === 'platform' && isPlatformAdmin && (
