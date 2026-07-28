@@ -160,17 +160,19 @@ export default function PartnerLanding() {
       </div>
 
       {/* ── 팩트 스트립 ── */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1px', background: RULE, borderTop: `1px solid ${RULE}` }}>
-        {[
-          { big: '최대 5장', sub: '한 리포트에 올릴 수 있는 시험지 사진' },
-          { big: '링크 하나', sub: '학부모는 설치도 로그인도 없이 열람' },
-          { big: '매 수업', sub: '쓴 기록은 그대로 아이의 학습 이력이 됩니다' },
-        ].map((f) => (
-          <div key={f.big} style={{ flex: '1 1 240px', background: PAPER, padding: '26px 32px' }}>
-            <p style={{ fontFamily: R.body, fontSize: '24px', fontWeight: 900, color: R.navy, margin: 0 }}>{f.big}</p>
-            <p style={{ fontSize: '12.5px', color: INK_SUB, marginTop: '6px', marginBottom: 0, lineHeight: 1.6 }}>{f.sub}</p>
-          </div>
-        ))}
+      <div style={{ background: PAPER, borderTop: `1px solid ${RULE}` }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1px', background: RULE, maxWidth: '1080px', margin: '0 auto' }}>
+          {[
+            { big: '최대 5장', sub: '한 리포트에 올릴 수 있는 시험지 사진' },
+            { big: '링크 하나', sub: '학부모는 설치도 로그인도 없이 열람' },
+            { big: '매 수업', sub: '쓴 기록은 그대로 아이의 학습 이력이 됩니다' },
+          ].map((f) => (
+            <div key={f.big} style={{ flex: '1 1 240px', background: PAPER, padding: '26px 32px' }}>
+              <p style={{ fontFamily: R.body, fontSize: '24px', fontWeight: 900, color: R.navy, margin: 0 }}>{f.big}</p>
+              <p style={{ fontSize: '12.5px', color: INK_SUB, marginTop: '6px', marginBottom: 0, lineHeight: 1.6 }}>{f.sub}</p>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* ── 문제 공감 ── */}
