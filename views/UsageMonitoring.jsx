@@ -73,7 +73,7 @@ export default function UsageMonitoring({ month, onMonthChange }) {
       {error && <p style={{ fontSize: '12px', color: C.error, margin: '0 0 10px' }}>오류: {error}</p>}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '16px' }}>
-        <StatCard label="총 분석 건수" value={loading ? '-' : (totals.analysisCount ?? 0)} unit="건" color={T.brand} />
+        <StatCard label="총 분석 횟수" value={loading ? '-' : (totals.analysisCount ?? 0)} unit="회" color={T.brand} />
         <StatCard label="활동 학원 수" value={loading ? '-' : (totals.activeAcademyCount ?? 0)} unit="곳" color={C.success} />
         <StatCard label="활동 강사 수" value={loading ? '-' : (totals.activeTeacherCount ?? 0)} unit="명" color="#9B6FD4" />
         <StatCard
@@ -91,7 +91,7 @@ export default function UsageMonitoring({ month, onMonthChange }) {
             <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={(d) => d.slice(5)} />
             <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
             <Tooltip contentStyle={{ fontSize: '11px', borderRadius: `${RADIUS2.input}px` }} />
-            <Area type="monotone" dataKey="count" name="분석 건수" stroke={T.brand} fill={T.brandLight} strokeWidth={2} />
+            <Area type="monotone" dataKey="count" name="분석 횟수" stroke={T.brand} fill={T.brandLight} strokeWidth={2} />
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -102,13 +102,13 @@ export default function UsageMonitoring({ month, onMonthChange }) {
           <div key={a.academyId} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#F9FAFB', borderRadius: '10px', padding: '10px 12px' }}>
             <span style={{ fontSize: '11px', fontWeight: 700, color: T.textMute, width: '18px', flexShrink: 0 }}>{i + 1}</span>
             <span style={{ fontSize: '12px', fontWeight: 600, color: T.text, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.academyName}</span>
-            <span style={{ fontSize: '11px', color: T.textSub, flexShrink: 0 }}>분석 {a.count}건</span>
+            <span style={{ fontSize: '11px', color: T.textSub, flexShrink: 0 }}>분석 {a.count}회</span>
             <span style={{ fontSize: '11px', color: T.textSub, flexShrink: 0 }}>강사 {a.teacherCount}명</span>
             <span style={{
               fontSize: '11px', fontWeight: 700, flexShrink: 0,
               color: a.unlimited ? C.info : ((a.creditBalance ?? 0) <= 5 ? C.warning : T.textMute),
             }}>
-              {a.unlimited ? '무제한' : `잔여 ${a.creditBalance ?? '-'}`}
+              {a.unlimited ? '무제한' : `잔여 ${a.creditBalance ?? '-'}회`}
             </span>
           </div>
         ))}

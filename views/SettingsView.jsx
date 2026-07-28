@@ -400,7 +400,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
   const [togglingAcademy, setTogglingAcademy] = React.useState(null);
 
   // 학원 크레딧 수동 지급 — 실제 PG 연동 전 임시 장부. 은행 입금 확인 후 관리자가 직접 반영.
-  const PACKAGE_PRICES = { '20': 5000, '50': 10000, '200': 30000, '500': 50000 };
+  const PACKAGE_PRICES = { '20': 5000, '50': 10000, '200': 30000, '500': 75000 };
   const [academyBilling, setAcademyBilling] = React.useState({}); // { [academyId]: { balance, history } }
   const [billingLoading, setBillingLoading] = React.useState(null);
   const [creditFormOpen, setCreditFormOpen] = React.useState(null);
@@ -922,6 +922,11 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
             );
           })}
         </div>
+        {academyReportMode === 'weekly' && (
+          <p style={{ fontSize: '10.5px', color: '#9CA3AF', margin: '10px 0 0', lineHeight: 1.6 }}>
+            분석 차감은 리포트 발송이 아니라 사진 분석 시점 기준이에요. 월·수·금 세 번 분석하면 리포트는 1건이어도 3회가 사용돼요.
+          </p>
+        )}
       </div>
 
       {/* 로고 삭제 확인 모달 — 헤더 전체에 반영되는 변화라 인라인 재클릭보다 명확하게 */}
@@ -1270,9 +1275,9 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
       <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB', marginBottom: '14px' }}>
         <p style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>크레딧 · 결제</p>
         <p style={{ fontSize: '20px', fontWeight: 800, color: C.primary, margin: '10px 0 2px' }}>
-          {myBilling?.unlimited ? '무제한' : `${myBilling?.creditBalance ?? 0}건`}
+          {myBilling?.unlimited ? '무제한' : `${myBilling?.creditBalance ?? 0}회`}
         </p>
-        <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 500, marginBottom: '14px' }}>남은 크레딧</p>
+        <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 500, marginBottom: '14px' }}>남은 분석</p>
 
         {!myBilling?.unlimited && (
           <>
@@ -1280,7 +1285,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
             <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
               <select value={reqPackage} onChange={e => { setReqPackage(e.target.value); setReqAmount(String(PACKAGE_PRICES[e.target.value])); }}
                 style={{ flex: 1, padding: '9px 10px', fontSize: '13px', border: '1px solid #E5E7EB', borderRadius: '8px', fontFamily: 'inherit' }}>
-                {Object.keys(PACKAGE_PRICES).map(p => <option key={p} value={p}>{p}건 · {PACKAGE_PRICES[p].toLocaleString()}원</option>)}
+                {Object.keys(PACKAGE_PRICES).map(p => <option key={p} value={p}>AI 분석 {p}회 · {PACKAGE_PRICES[p].toLocaleString()}원</option>)}
               </select>
             </div>
             <input value={reqNote} onChange={e => setReqNote(e.target.value)} placeholder="입금자명 등 메모 (선택)"
@@ -1292,6 +1297,13 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
             <p style={{ fontSize: '10px', color: '#9CA3AF', margin: '6px 0 0', lineHeight: 1.5 }}>
               요청을 보내면 관리자 확인 후 크레딧이 지급돼요. 즉시 반영되지 않을 수 있어요.
             </p>
+            <div style={{ background: '#F9FAFB', borderRadius: '8px', padding: '10px 12px', marginTop: '10px' }}>
+              <p style={{ fontSize: '11px', fontWeight: 700, color: '#1A1A1A', margin: '0 0 4px' }}>1회 = "AI로 분석하기" 버튼 1번</p>
+              <p style={{ fontSize: '10.5px', color: '#6B7280', margin: '0 0 4px', lineHeight: 1.6 }}>사진을 1장 올리든 5장 올리든, 한 번에 분석하면 1회입니다.</p>
+              <p style={{ fontSize: '10.5px', color: '#6B7280', margin: '0 0 2px', lineHeight: 1.6 }}>예) 시험지 앞뒤 2장을 한 번에 올려 분석 → 1회 차감</p>
+              <p style={{ fontSize: '10.5px', color: '#6B7280', margin: '0 0 4px', lineHeight: 1.6 }}>예) 분석이 실패하면(서버 오류 등) → 차감되지 않습니다</p>
+              <p style={{ fontSize: '10.5px', color: '#6B7280', margin: 0, lineHeight: 1.6 }}>리포트 작성·발송·AI 코멘트 다듬기는 횟수 차감 없이 무료입니다.</p>
+            </div>
           </>
         )}
 
@@ -1307,7 +1319,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                 }[r.status] || { label: r.status, color: '#6B7280', bg: '#F3F4F6' };
                 return (
                   <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px' }}>
-                    <span style={{ color: '#1A1A1A', fontWeight: 500 }}>{r.packageSize}건 · {(r.amount || 0).toLocaleString()}원</span>
+                    <span style={{ color: '#1A1A1A', fontWeight: 500 }}>{r.packageSize}회 · {(r.amount || 0).toLocaleString()}원</span>
                     <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', color: statusInfo.color, background: statusInfo.bg }}>{statusInfo.label}</span>
                   </div>
                 );
@@ -1330,13 +1342,13 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
               <div key={req.id} style={{ background: '#FFF8EC', border: '1px solid #F0D584', borderRadius: '10px', padding: '12px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
                   <span style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A' }}>{req.academyName}</span>
-                  <span style={{ fontSize: '12px', fontWeight: 700, color: C.primary }}>{req.packageSize}건 · {(req.amount || 0).toLocaleString()}원</span>
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: C.primary }}>{req.packageSize}회 · {(req.amount || 0).toLocaleString()}원</span>
                 </div>
                 {req.note && <p style={{ fontSize: '11px', color: '#6B7280', margin: '0 0 8px' }}>{req.note}</p>}
                 <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#1A1A1A', marginBottom: '8px', cursor: 'pointer' }}>
                   <input type="checkbox" checked={!!bonusChecked[req.id]}
                     onChange={e => setBonusChecked(prev => ({ ...prev, [req.id]: e.target.checked }))} />
-                  첫 결제 50% 보너스 적용 (지급 {Math.round(req.packageSize * 1.5)}건)
+                  첫 결제 50% 보너스 적용 (지급 {Math.round(req.packageSize * 1.5)}회)
                 </label>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button onClick={() => handleRejectPaymentRequest(req)} disabled={resolvingReqId === req.id}
@@ -1539,7 +1551,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                   </div>
                   <button onClick={() => toggleCreditForm(a.id)}
                     style={{ background: formOpen ? C.primary : '#fff', color: formOpen ? '#fff' : C.primary, border: `1px solid ${C.primary}`, borderRadius: '8px', padding: '6px 12px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
-                    {billing?.unlimited ? '♾️ 무제한' : billing ? `크레딧 ${billing.balance}건` : '크레딧 지급'}
+                    {billing?.unlimited ? '♾️ 무제한' : billing ? `분석 ${billing.balance}회` : '크레딧 지급'}
                   </button>
                   {!isMine && (
                     <button onClick={() => handleToggleSuspend(a)} disabled={togglingAcademy === a.id}
@@ -1574,7 +1586,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                         <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', opacity: billing?.unlimited ? 0.5 : 1 }}>
                           <select value={creditPackage} onChange={e => { setCreditPackage(e.target.value); setCreditAmount(String(PACKAGE_PRICES[e.target.value])); }}
                             style={{ padding: '7px 8px', fontSize: '12px', border: '1px solid #E5E7EB', borderRadius: '8px', background: '#fff', fontFamily: 'inherit' }}>
-                            {Object.keys(PACKAGE_PRICES).map(p => <option key={p} value={p}>{p}건</option>)}
+                            {Object.keys(PACKAGE_PRICES).map(p => <option key={p} value={p}>{p}회</option>)}
                           </select>
                           <input type="number" value={creditAmount} onChange={e => setCreditAmount(e.target.value)} placeholder="입금액(원)"
                             style={{ width: '90px', padding: '7px 8px', fontSize: '12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontFamily: 'inherit' }} />
@@ -1589,7 +1601,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                             {billing.history.map(h => (
                               <p key={h.id} style={{ fontSize: '10px', color: '#6C7586', margin: 0 }}>
-                                {h.grantedAt?.seconds ? new Date(h.grantedAt.seconds * 1000).toLocaleDateString('ko-KR') : ''} · {h.packageSize}건 · {h.amount?.toLocaleString()}원{h.memo ? ` · ${h.memo}` : ''}
+                                {h.grantedAt?.seconds ? new Date(h.grantedAt.seconds * 1000).toLocaleDateString('ko-KR') : ''} · {h.packageSize}회 · {h.amount?.toLocaleString()}원{h.memo ? ` · ${h.memo}` : ''}
                               </p>
                             ))}
                           </div>
@@ -1600,15 +1612,15 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                         {billing?.usageCount > 0 && (
                           <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #E5E7EB' }}>
                             <p style={{ fontSize: '11px', fontWeight: 700, color: '#374151', margin: '0 0 6px' }}>
-                              사용 내역 — 누적 {billing.usageCount}건
-                              {billing.usage.length < billing.usageCount ? ` (최근 ${billing.usage.length}건 표시)` : ''}
+                              사용 내역 — 누적 {billing.usageCount}회
+                              {billing.usage.length < billing.usageCount ? ` (최근 ${billing.usage.length}회 표시)` : ''}
                             </p>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                               {billing.usage.map(u => (
                                 <p key={u.id} style={{ fontSize: '10px', color: '#6C7586', margin: 0 }}>
                                   {u.usedAt?.seconds ? new Date(u.usedAt.seconds * 1000).toLocaleString('ko-KR') : ''} · {u.teacherEmail || u.teacherUid}
                                   {(u.hintTextbook || u.hintUnit) ? ` · ${[u.hintTextbook, u.hintUnit].filter(Boolean).join(' ')}` : ''}
-                                  {u.unlimited ? ' · 무제한' : ` · 잔액 ${u.balanceAfter}건`}
+                                  {u.unlimited ? ' · 무제한' : ` · 잔액 ${u.balanceAfter}회`}
                                 </p>
                               ))}
                             </div>

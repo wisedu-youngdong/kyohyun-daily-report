@@ -913,7 +913,7 @@ export default function DiagnosticReportInput({
     // (사진 지우고 다시 올려서 재분석하면 또 차감된다는 걸) 여기서 미리 크게 알려줌
     if (photoAnalysis && !window.confirm(
       hasChargedAnalysis
-        ? '이 사진을 지우면 지금까지의 사진 분석 결과와 오답 태그/메모가 모두 초기화돼요.\n\n⚠️ 새 사진으로 다시 분석하면 크레딧이 1건 더 차감돼요. 지울까요?'
+        ? '이 사진을 지우면 지금까지의 사진 분석 결과와 오답 태그/메모가 모두 초기화돼요.\n\n⚠️ 새 사진으로 다시 분석하면 분석 1회가 더 차감돼요. 지울까요?'
         : '이 사진을 지우면 지금까지의 사진 분석 결과와 오답 태그/메모가 모두 초기화됩니다. 지울까요?'
     )) return;
     setPhotos(prev => {
@@ -943,7 +943,7 @@ export default function DiagnosticReportInput({
     // 사진 분석은 건당 크레딧이 나가는 호출 — 이 리포트에서 이미 한 번 성공해서 차감됐다면
     // (사진을 지우고 새로 올렸어도 이 세션에서 재분석하는 거라면) 한 번 더 크레딧이 나간다는 걸
     // 분명히 알려주고 확인받음. 다듬기(코멘트 생성/학부모 톤)는 여기 안 걸림 — 무제한 무료.
-    if (hasChargedAnalysis && !window.confirm('사진을 다시 분석하면 크레딧이 1건 더 차감돼요. 계속할까요?')) {
+    if (hasChargedAnalysis && !window.confirm('사진을 다시 분석하면 분석 1회가 더 차감돼요. 계속할까요?')) {
       return;
     }
     setAnalyzingPhoto(true);
@@ -1020,7 +1020,7 @@ export default function DiagnosticReportInput({
   // "전체 지우기" 버튼 전용 — 이미 크레딧이 나간 분석이 있으면 지우기 전에 한 번 더 크게 확인
   const confirmRemoveAllPhotos = () => {
     if (hasChargedAnalysis && !window.confirm(
-      '지금까지의 사진 분석 결과와 오답 태그/메모가 모두 초기화돼요.\n\n⚠️ 새 사진으로 다시 분석하면 크레딧이 1건 더 차감돼요. 전체 지울까요?'
+      '지금까지의 사진 분석 결과와 오답 태그/메모가 모두 초기화돼요.\n\n⚠️ 새 사진으로 다시 분석하면 분석 1회가 더 차감돼요. 전체 지울까요?'
     )) return;
     removeAllPhotos();
   };
@@ -1710,11 +1710,16 @@ export default function DiagnosticReportInput({
                 {photos.length > 0 && (
                   <div>
                     {!photoAnalysis && (
-                      <button onClick={() => handleAnalyzePhoto('auto')} disabled={analyzingPhoto} style={aiButtonStyle(analyzingPhoto)}>
-                        {analyzingPhoto
-                          ? <span style={{ display: 'inline-block', width: 13, height: 13, border: `2px solid ${TOKENS.success}40`, borderTopColor: TOKENS.success, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                          : <Sparkles size={13} />} {analyzingPhoto ? 'AI가 분석 중...' : `AI로 분석하기 (${photos.length}장)`}
-                      </button>
+                      <>
+                        <button onClick={() => handleAnalyzePhoto('auto')} disabled={analyzingPhoto} style={aiButtonStyle(analyzingPhoto)}>
+                          {analyzingPhoto
+                            ? <span style={{ display: 'inline-block', width: 13, height: 13, border: `2px solid ${TOKENS.success}40`, borderTopColor: TOKENS.success, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                            : <Sparkles size={13} />} {analyzingPhoto ? 'AI가 분석 중...' : `AI로 분석하기 (${photos.length}장)`}
+                        </button>
+                        {!analyzingPhoto && (
+                          <p style={{ fontSize: '10px', color: TOKENS.textMute, textAlign: 'center', margin: '6px 0 0' }}>분석 1회 차감 (사진 장수 무관)</p>
+                        )}
+                      </>
                     )}
                     {analyzingPhoto && (
                       <div style={{ marginTop: '10px' }}>
@@ -1755,7 +1760,11 @@ export default function DiagnosticReportInput({
                         // sectionIdx까지 함께 매칭 (CLAUDE.md 인덱스 매칭 버그 패턴)
                         const matches = (w) => w.number === item.number && w.sectionIdx === item.sectionIdx;
                         return (
-                          <div key={`${item.sectionIdx ?? 'x'}-${item.number ?? idx}`} style={{ border: `1px solid ${C.danger}30`, borderRadius: `${RADIUS2.thumbnail}px`, padding: '14px', background: C.dangerBg }}>
+                          <div key={`${item.sectionIdx ?? 'x'}-${item.number ?? idx}`} style={{
+                            border: item.confidence === 'low' ? `1px solid ${TOKENS.warnBorder}` : `1px solid ${C.danger}30`,
+                            borderRadius: `${RADIUS2.thumbnail}px`, padding: '14px',
+                            background: item.confidence === 'low' ? TOKENS.warnBg : C.dangerBg,
+                          }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
                               <span style={{ background: TOKENS.dangerBorder, color: '#fff', fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px' }}>
                                 {sectionLabelFor(item) ? `${sectionLabelFor(item)} · ` : ''}{item.number}번 오답
@@ -1777,6 +1786,11 @@ export default function DiagnosticReportInput({
                                   }}>✕</button>
                               </div>
                             </div>
+                            {item.confidence === 'low' && (
+                              <p style={{ margin: '0 0 8px', fontSize: '11px', color: TOKENS.warn, fontWeight: 600, lineHeight: 1.4 }}>
+                                <AlertTriangle size={10} style={{ verticalAlign: '-1px' }} /> AI가 표시를 확신하지 못했어요 — 실제 채점과 맞는지 확인해주세요
+                              </p>
+                            )}
                             <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginBottom: '8px' }}>
                               {WRONG_TAGS.map(tag => {
                                 const active = item.tags.includes(tag.key);
@@ -1828,7 +1842,7 @@ export default function DiagnosticReportInput({
                               {[
                                 { mark: '✕', title: '결과에서 제외', desc: '교재 예제, 선생님과 같이 푼 문제처럼 채점 대상이 아니면 완전히 빼요.' },
                                 { mark: '＋', title: '놓친 오답 추가', desc: 'AI가 못 찾은 오답을 문항 번호만 입력해서 직접 넣어요.' },
-                                { mark: '🔄', title: '재분석', desc: '결과가 실제 채점과 다르면 다시 시도할 수 있어요 — 크레딧이 1건 더 나가요.' },
+                                { mark: '🔄', title: '재분석', desc: '결과가 실제 채점과 다르면 다시 시도할 수 있어요 — 분석 1회가 더 나가요.' },
                                 { mark: '📖', title: '책 섹션 태그', desc: '소단원별로 번호가 겹치지 않게 AI가 자동으로 구분해요. 틀렸으면 태그를 눌러 고칠 수 있어요.' },
                               ].map((it, i) => (
                                 <div key={it.title} style={{ display: 'flex', gap: '10px', padding: '9px 0', borderTop: i === 0 ? 'none' : `1px solid ${TOKENS.brandLight}` }}>

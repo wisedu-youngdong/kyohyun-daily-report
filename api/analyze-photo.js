@@ -15,6 +15,18 @@ export const config = {
   maxDuration: 60,
 };
 
+// Gemini가 unreadable:true로 판정한 결과를 기존 실패 경로(ok:false)로 변환한다 — 이렇게 하면
+// 아래 handler의 "한 장이라도 실패하면 전체 미차감" 로직을 그대로 재사용할 수 있어 별도
+// 크레딧 처리 코드가 필요 없다. 사진 품질 문제로 판독 자체가 안 되는 경우 크레딧을 받고
+// 쓸모없는 결과를 주는 것보다, 재촬영을 안내하고 이번 호출은 무료로 처리하는 편이 낫다.
+function finalizeParsed(parsed) {
+  if (parsed && parsed.unreadable === true) {
+    const reason = parsed.unreadableReason ? ` (${parsed.unreadableReason})` : '';
+    return { ok: false, error: `사진에서 채점 표시를 읽을 수 없어요${reason}. 빛 반사 없이, 채점 표시가 화면에 다 들어오게 다시 찍어서 올려주세요.` };
+  }
+  return { ok: true, data: parsed };
+}
+
 // 이미지 한 장에 대해 Gemini를 호출하고 정제된 JSON을 돌려준다. 실패 시 { ok:false, error }.
 async function analyzeOneImage(img, mode, hintTextbook, hintUnit, hintSubject) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${process.env.GEMINI_API_KEY}`;
@@ -72,7 +84,7 @@ async function analyzeOneImage(img, mode, hintTextbook, hintUnit, hintSubject) {
   const cleaned = rawText.replace(/```json|```/g, '').trim();
 
   try {
-    return { ok: true, data: JSON.parse(cleaned) };
+    return finalizeParsed(JSON.parse(cleaned));
   } catch {
     if (finishReason === 'MAX_TOKENS') {
       console.error('MAX_TOKENS로 응답 잘림. 길이:', cleaned.length);
@@ -83,7 +95,7 @@ async function analyzeOneImage(img, mode, hintTextbook, hintUnit, hintSubject) {
     const end = cleaned.lastIndexOf('}');
     if (start !== -1 && end !== -1 && end > start) {
       try {
-        return { ok: true, data: JSON.parse(cleaned.slice(start, end + 1)) };
+        return finalizeParsed(JSON.parse(cleaned.slice(start, end + 1)));
       } catch {
         console.error('JSON 파싱 2차 실패:', cleaned);
         return { ok: false, error: 'AI 응답을 정리하지 못했습니다. 다시 시도하거나 직접 입력해주세요.' };
