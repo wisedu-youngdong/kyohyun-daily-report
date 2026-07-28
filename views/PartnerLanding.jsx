@@ -71,7 +71,7 @@ function StepRow({ step, roleLabel, roleColor, roleBg, title, body, shotLabel, r
           <p style={{ fontSize: '11px', fontWeight: 800, color: R.gold, letterSpacing: '0.1em', margin: 0 }}>STEP {step}</p>
           <span style={{ fontSize: '10.5px', fontWeight: 700, color: roleColor, background: roleBg, padding: '3px 9px', borderRadius: '999px' }}>{roleLabel}</span>
         </div>
-        <h3 style={{ fontFamily: R.serif, fontSize: '20px', fontWeight: 700, color: R.navy, marginTop: '8px', marginBottom: 0 }}>{title}</h3>
+        <h3 style={{ fontFamily: R.body, fontSize: '20px', fontWeight: 700, color: R.navy, marginTop: '8px', marginBottom: 0 }}>{title}</h3>
         <p style={{ fontSize: '14.5px', lineHeight: 1.85, color: INK_SUB, marginTop: '10px', marginBottom: 0, maxWidth: '460px' }}>{body}</p>
       </div>
       {reverse && (
@@ -111,7 +111,7 @@ export default function PartnerLanding() {
           <div style={{
             width: '26px', height: '26px', borderRadius: '7px', background: R.navy, flexShrink: 0,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#fff', fontSize: '13px', fontWeight: 900, fontFamily: R.serif,
+            color: '#fff', fontSize: '13px', fontWeight: 900, fontFamily: R.body,
           }}>D</div>
           <span style={{ fontSize: '15px', fontWeight: 700, color: R.navy, whiteSpace: 'nowrap' }}>데일리 리포트 시스템</span>
           <span style={{ fontSize: '11px', fontWeight: 600, color: R.goldText, background: GOLD_TINT, padding: '3px 9px', borderRadius: '999px', marginLeft: '4px', whiteSpace: 'nowrap' }}>학원 파트너</span>
@@ -124,7 +124,7 @@ export default function PartnerLanding() {
         <div style={{ flex: '1 1 400px', minWidth: 0 }}>
           <p style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.16em', color: R.goldText, margin: 0 }}>FOR ACADEMY PARTNERS</p>
           <h1 style={{
-            fontFamily: R.serif, fontSize: 'clamp(30px, 3vw, 42px)', fontWeight: 900, lineHeight: 1.34,
+            fontFamily: R.body, fontSize: 'clamp(30px, 3vw, 42px)', fontWeight: 900, lineHeight: 1.34,
             color: R.navy, marginTop: '18px', marginBottom: 0, textWrap: 'balance',
           }}>아이의 하루를<br />이만큼 자세히 적어주는<br />학원은 흔치 않습니다</h1>
           <p style={{ fontSize: '16px', lineHeight: 1.85, color: INK_SUB, marginTop: '20px', marginBottom: 0, maxWidth: '480px', textWrap: 'pretty' }}>
@@ -167,7 +167,7 @@ export default function PartnerLanding() {
           { big: '매 수업', sub: '쓴 기록은 그대로 아이의 학습 이력이 됩니다' },
         ].map((f) => (
           <div key={f.big} style={{ flex: '1 1 240px', background: PAPER, padding: '26px 32px' }}>
-            <p style={{ fontFamily: R.serif, fontSize: '24px', fontWeight: 900, color: R.navy, margin: 0 }}>{f.big}</p>
+            <p style={{ fontFamily: R.body, fontSize: '24px', fontWeight: 900, color: R.navy, margin: 0 }}>{f.big}</p>
             <p style={{ fontSize: '12.5px', color: INK_SUB, marginTop: '6px', marginBottom: 0, lineHeight: 1.6 }}>{f.sub}</p>
           </div>
         ))}
@@ -177,7 +177,7 @@ export default function PartnerLanding() {
       <div style={{ background: OFFWHITE, borderTop: `1px solid ${RULE}` }}>
         <div style={{ padding: `60px ${PADX}`, maxWidth: '1080px', margin: '0 auto', boxSizing: 'border-box' }}>
           <p style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.16em', color: R.goldText, margin: 0 }}>혹시 이런 하루를 보내고 계신가요</p>
-          <h2 style={{ fontFamily: R.serif, fontSize: '26px', fontWeight: 700, color: R.navy, lineHeight: 1.45, marginTop: '12px', marginBottom: 0 }}>
+          <h2 style={{ fontFamily: R.body, fontSize: '26px', fontWeight: 700, color: R.navy, lineHeight: 1.45, marginTop: '12px', marginBottom: 0 }}>
             열심히 가르치고도<br />전달이 안 되면 남는 게 없습니다
           </h2>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginTop: '28px' }}>
@@ -219,7 +219,7 @@ export default function PartnerLanding() {
       <div id="howitworks" style={{ background: '#fff', borderTop: `1px solid ${RULE}` }}>
         <div style={{ padding: `60px ${PADX}`, maxWidth: '1080px', margin: '0 auto', boxSizing: 'border-box' }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'space-between', gap: '12px' }}>
-            <h2 style={{ fontFamily: R.serif, fontSize: '26px', fontWeight: 700, color: R.navy, margin: 0 }}>수업이 끝나고, 화면 그대로</h2>
+            <h2 style={{ fontFamily: R.body, fontSize: '26px', fontWeight: 700, color: R.navy, margin: 0 }}>수업이 끝나고, 화면 그대로</h2>
             <p style={{ fontSize: '13px', color: INK_WEAK, margin: 0 }}>아래 네 장면은 전부 실제 사용 화면입니다</p>
           </div>
           <StepRow first step={1} roleLabel="선생님" roleColor={R.navy} roleBg={BLUE_TINT}
@@ -241,7 +241,7 @@ export default function PartnerLanding() {
       <div style={{ background: R.navy }}>
         <div style={{ padding: `60px ${PADX}`, maxWidth: '1080px', margin: '0 auto', boxSizing: 'border-box' }}>
           <p style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.16em', color: '#E4C87A', margin: 0 }}>쌓이는 기록</p>
-          <h2 style={{ fontFamily: R.serif, fontSize: '26px', fontWeight: 700, color: '#fff', lineHeight: 1.45, marginTop: '12px', marginBottom: 0 }}>
+          <h2 style={{ fontFamily: R.body, fontSize: '26px', fontWeight: 700, color: '#fff', lineHeight: 1.45, marginTop: '12px', marginBottom: 0 }}>
             매 수업의 기록이 그대로<br />아이의 성장 이력이 됩니다
           </h2>
           <p style={{ fontSize: '14px', lineHeight: 1.8, color: '#A9B3CC', marginTop: '12px', marginBottom: 0, maxWidth: '640px' }}>
@@ -250,7 +250,7 @@ export default function PartnerLanding() {
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', marginTop: '28px' }}>
             <div style={{ flex: '1 1 min(420px, 100%)', minWidth: 0, maxWidth: '560px', background: PAPER, borderRadius: '18px', padding: '24px 22px', boxSizing: 'border-box' }}>
               <p style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.12em', color: R.goldText, margin: 0 }}>리포트 타임라인 · 예시 화면</p>
-              <h3 style={{ fontFamily: R.serif, fontSize: '17px', color: R.navy, marginTop: '6px', marginBottom: 0 }}>김민준 학생 · 수학 고급반</h3>
+              <h3 style={{ fontFamily: R.body, fontSize: '17px', color: R.navy, marginTop: '6px', marginBottom: 0 }}>김민준 학생 · 수학 고급반</h3>
               <div style={{ display: 'flex', flexDirection: 'column', marginTop: '18px' }}>
                 {[
                   { date: '7월 22일', dot: R.gold, title: '이차함수 최댓값 — 정답 9 / 12', body: '정의역 제한 조건만 반복해서 놓침. 오늘은 스스로 다시 풀어봄.', line: true },
@@ -280,7 +280,7 @@ export default function PartnerLanding() {
       {/* ── 두 화면 맛보기 ── */}
       <div style={{ background: '#fff' }}>
         <div style={{ padding: `60px ${PADX}`, maxWidth: '1080px', margin: '0 auto', boxSizing: 'border-box' }}>
-          <h2 style={{ fontFamily: R.serif, fontSize: '26px', fontWeight: 700, color: R.navy, lineHeight: 1.45, margin: 0 }}>
+          <h2 style={{ fontFamily: R.body, fontSize: '26px', fontWeight: 700, color: R.navy, lineHeight: 1.45, margin: 0 }}>
             선생님이 보는 화면과<br />학부모가 보는 화면은 다릅니다
           </h2>
           <p style={{ fontSize: '14px', lineHeight: 1.8, color: INK_SUB, marginTop: '12px', marginBottom: 0, maxWidth: '560px' }}>
@@ -304,7 +304,7 @@ export default function PartnerLanding() {
               <div key={c.badge} style={{ flex: '1 1 min(420px, 100%)', minWidth: 0, border: `1px solid ${RULE}`, borderRadius: '18px', overflow: 'hidden', background: OFFWHITE, boxSizing: 'border-box' }}>
                 <div style={{ padding: '18px 20px 14px' }}>
                   <span style={{ display: 'inline-block', fontSize: '10px', fontWeight: 700, background: c.badgeBg, color: c.badgeColor, padding: '5px 11px', borderRadius: '999px' }}>{c.badge}</span>
-                  <h3 style={{ fontFamily: R.serif, fontSize: '18px', color: R.navy, marginTop: '12px', marginBottom: 0 }}>{c.title}</h3>
+                  <h3 style={{ fontFamily: R.body, fontSize: '18px', color: R.navy, marginTop: '12px', marginBottom: 0 }}>{c.title}</h3>
                   <p style={{ fontSize: '13px', lineHeight: 1.75, color: INK_SUB, marginTop: '8px', marginBottom: 0 }}>{c.body}</p>
                 </div>
                 <div style={{ position: 'relative', height: '260px', margin: '0 20px', borderRadius: '14px 14px 0 0', overflow: 'hidden' }}>
@@ -340,7 +340,7 @@ export default function PartnerLanding() {
       <div style={{ background: PAPER, borderTop: `1px solid ${RULE}` }}>
         <div style={{ padding: `56px ${PADX}`, maxWidth: '1080px', margin: '0 auto', boxSizing: 'border-box' }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'space-between', gap: '12px' }}>
-            <h2 style={{ fontFamily: R.serif, fontSize: '26px', fontWeight: 700, color: R.navy, margin: 0 }}>쓴 만큼만 냅니다</h2>
+            <h2 style={{ fontFamily: R.body, fontSize: '26px', fontWeight: 700, color: R.navy, margin: 0 }}>쓴 만큼만 냅니다</h2>
             <p style={{ fontSize: '13px', color: INK_WEAK, margin: 0 }}>AI 분석 횟수 기준 충전제 · 월 약정 없음</p>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px', marginTop: '26px' }}>
@@ -354,7 +354,7 @@ export default function PartnerLanding() {
                   <span style={{ position: 'absolute', top: '-11px', left: '22px', background: R.gold, color: '#fff', fontSize: '11px', fontWeight: 800, padding: '4px 12px', borderRadius: '999px' }}>추천</span>
                 )}
                 <p style={{ fontSize: '13px', fontWeight: 700, color: t.featured ? R.goldText : INK_SUB, margin: 0 }}>AI 분석 {t.count}회</p>
-                <p style={{ fontFamily: R.serif, fontSize: '26px', fontWeight: 900, color: R.navy, marginTop: '8px', marginBottom: 0 }}>{t.price.toLocaleString()}원</p>
+                <p style={{ fontFamily: R.body, fontSize: '26px', fontWeight: 900, color: R.navy, marginTop: '8px', marginBottom: 0 }}>{t.price.toLocaleString()}원</p>
                 <p style={{ fontSize: '12px', color: INK_WEAK, marginTop: '8px', marginBottom: 0 }}>회당 {t.per}원</p>
               </div>
             ))}
@@ -374,7 +374,7 @@ export default function PartnerLanding() {
             </span>
             <span style={{ fontSize: '12.5px', color: INK_BODY, textAlign: 'left' }}>저희도 매일 이 시스템으로 리포트를 씁니다 — <strong style={{ color: R.navy }}>교현학원</strong></span>
           </div>
-          <h2 style={{ fontFamily: R.serif, fontSize: '30px', fontWeight: 900, color: R.navy, lineHeight: 1.4, marginTop: '22px', marginBottom: 0 }}>
+          <h2 style={{ fontFamily: R.body, fontSize: '30px', fontWeight: 900, color: R.navy, lineHeight: 1.4, marginTop: '22px', marginBottom: 0 }}>
             우리 학원도 오늘부터<br />시작해볼까요
           </h2>
           <p style={{ fontSize: '13.5px', lineHeight: 1.8, color: INK_SUB, marginTop: '14px', marginBottom: 0 }}>신청서를 남겨주시면 검토 후 계정을 열어드립니다.</p>
