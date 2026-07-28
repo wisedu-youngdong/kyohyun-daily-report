@@ -9,6 +9,7 @@ const GrowthStory = lazy(() => import('./GrowthStory.jsx'))
 const GrowthAward = lazy(() => import('./GrowthAward.jsx'))
 const ResetPasswordScreen = lazy(() => import('./views/ResetPasswordScreen.jsx'))
 const SignupRequestScreen = lazy(() => import('./views/SignupRequestScreen.jsx'))
+const PartnerLanding = lazy(() => import('./views/PartnerLanding.jsx'))
 
 const RouteFallback = () => (
   <div style={{
@@ -31,6 +32,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/award/:studentId" element={<GrowthAward />} />
             <Route path="/auth/action" element={<ResetPasswordScreen />} />
             <Route path="/signup" element={<SignupRequestScreen />} />
+            <Route path="/partner" element={<PartnerLanding />} />
             <Route path="/*" element={<App />} />
           </Routes>
         </Suspense>
