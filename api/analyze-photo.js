@@ -164,6 +164,12 @@ ${modeInstruction ? '\n' + modeInstruction : ''}
 - groupSummary: 유형별 {type, total, correct, wrong} 집계
 - weakDetail: 오답 문항만 {number, type, mark, note, confidence}
 
+# 좌표(box_2d)
+wrongItems, problemTypes, weakDetail의 각 항목마다 그 문항 번호와 채점 표시(원/사선)를 함께
+감싸는 영역을 box_2d로 추가하라. 형식은 [ymin, xmin, ymax, xmax], 이미지 전체를 0~1000으로
+정규화한 좌표(왼쪽 위가 0,0). 번호 숫자 하나만이 아니라 그 문항의 채점 표시까지 포함해서
+넉넉히 잡을 것 — 사람이 나중에 이 박스를 보고 실제 사진과 대조 확인하는 용도임.
+
 # 출력 형식
 JSON만 출력하라. 마크다운 코드펜스 없이 JSON 객체 하나만.
 
@@ -176,12 +182,12 @@ JSON만 출력하라. 마크다운 코드펜스 없이 JSON 객체 하나만.
   "pageCutoff": false,
   "pageCutoffNote": "잘린 부분이 있을 때만 간단히 설명 (없으면 빈 문자열)",
   "wrongItems": [
-    { "number": "02", "photoIndex": 1, "type": "두 직육면체 겉넓이 합", "correctRate": "69%", "mark": "빗금", "confidence": "high" }
+    { "number": "02", "photoIndex": 1, "type": "두 직육면체 겉넓이 합", "correctRate": "69%", "mark": "빗금", "confidence": "high", "box_2d": [180, 40, 230, 520] }
   ],
   "sections": [
     { "sectionType": "calculation", "label": "단원명", "photoIndex": 1, "bookSection": "이런 문제가 시험에 나온다", "printedPage": 118, "identifiedNumbers": ["01","02","03","04","05"], "summary": { "total": 0, "correct": 0, "wrong": 0 } },
-    { "sectionType": "concept", "photoIndex": 2, "bookSection": null, "printedPage": null, "identifiedNumbers": ["01","02","03","04","05","06"], "problemTypes": [{ "number": "", "type": "", "mark": "", "result": "잘함"|"약점", "note": "", "confidence": "high"|"low" }] },
-    { "sectionType": "mock_exam", "photoIndex": 3, "bookSection": "중단원 마무리하기", "printedPage": 120, "identifiedNumbers": ["01","02","03"], "groupSummary": [{ "type": "", "total": 0, "correct": 0, "wrong": 0 }], "weakDetail": [{ "number": "", "type": "", "mark": "", "note": "", "confidence": "high"|"low" }] }
+    { "sectionType": "concept", "photoIndex": 2, "bookSection": null, "printedPage": null, "identifiedNumbers": ["01","02","03","04","05","06"], "problemTypes": [{ "number": "", "type": "", "mark": "", "result": "잘함"|"약점", "note": "", "confidence": "high"|"low", "box_2d": [0,0,0,0] }] },
+    { "sectionType": "mock_exam", "photoIndex": 3, "bookSection": "중단원 마무리하기", "printedPage": 120, "identifiedNumbers": ["01","02","03"], "groupSummary": [{ "type": "", "total": 0, "correct": 0, "wrong": 0 }], "weakDetail": [{ "number": "", "type": "", "mark": "", "note": "", "confidence": "high"|"low", "box_2d": [0,0,0,0] }] }
   ]
 }`;
 }
@@ -315,8 +321,11 @@ ${listText}
 - "오답": 번호 옆에 사선(빗금)이 있음(아무리 작아도)
 - "표시없음": 다시 봐도 정말 아무 채점 표시가 없음(못 찾은 게 아니라 확신할 때만)
 
+각 항목에 box_2d([ymin,xmin,ymax,xmax], 이미지 전체를 0~1000으로 정규화, 번호+채점 표시를
+함께 감싸는 영역)도 같이 반환하세요.
+
 JSON만 출력:
-{"results": [{"number": "03", "mark": "정답" | "오답" | "표시없음", "type": "문제 내용 5~10자 키워드(모르면 빈 문자열)"}]}`;
+{"results": [{"number": "03", "mark": "정답" | "오답" | "표시없음", "type": "문제 내용 5~10자 키워드(모르면 빈 문자열)", "box_2d": [0,0,0,0]}]}`;
 
   try {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${process.env.GEMINI_API_KEY}`;
@@ -372,6 +381,7 @@ async function analyzeOneImageWithRecheck(img, mode, hintTextbook, hintUnit, hin
         result: r.mark === '정답' ? '잘함' : '약점',
         note: '',
         confidence: 'low',
+        box_2d: r.box_2d,
       }];
     });
   });

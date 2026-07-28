@@ -251,6 +251,65 @@ function AlertModal({ message, onClose }) {
   );
 }
 
+// 채점 사진 라이트박스 위에 AI가 인식한 문항 위치를 클릭 가능한 박스로 겹쳐 보여줌 — 선생님이
+// 텍스트 카드만 보고 판단하지 않고 실제 사진과 바로 대조 확인할 수 있게 함. box_2d는 Gemini가
+// 돌려주는 0~1000 정규화 좌표라, object-fit:contain으로 렌더된 이미지의 실제 영역(레터박스
+// 보정)을 계산해서 그 안에서 좌표를 환산해야 함 — 컨테이너 전체 기준으로 찍으면 어긋남
+function PhotoBoxOverlay({ src, items, onToggle }) {
+  const imgRef = React.useRef(null);
+  const [rect, setRect] = React.useState(null); // 이미지가 실제로 그려진 영역(레터박스 제외), 컨테이너 기준 px
+
+  const recompute = () => {
+    const img = imgRef.current;
+    if (!img || !img.naturalWidth || !img.clientWidth) return;
+    const cw = img.clientWidth, ch = img.clientHeight;
+    const imgRatio = img.naturalWidth / img.naturalHeight;
+    const containerRatio = cw / ch;
+    let width, height;
+    if (imgRatio > containerRatio) { width = cw; height = cw / imgRatio; }
+    else { height = ch; width = ch * imgRatio; }
+    setRect({ left: (cw - width) / 2, top: (ch - height) / 2, width, height });
+  };
+
+  React.useEffect(() => {
+    recompute();
+    window.addEventListener('resize', recompute);
+    return () => window.removeEventListener('resize', recompute);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [src]);
+
+  return (
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      <img ref={imgRef} src={src} alt="확대된 사진" onLoad={recompute}
+        onClick={e => e.stopPropagation()}
+        style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '4px', display: 'block' }} />
+      {rect && items.map((item) => {
+        const [ymin, xmin, ymax, xmax] = item.box_2d;
+        const boxColor = item.status === 'wrong' ? '#E53E3E' : '#009652';
+        return (
+          <div key={item.key} onClick={(e) => { e.stopPropagation(); onToggle(item); }}
+            title={`${item.number}번 · 클릭하면 ${item.sourceType === 'calculation' ? '결과에서 제외' : '정답⇄오답 전환'}`}
+            style={{
+              position: 'absolute', cursor: 'pointer',
+              left: `${rect.left + (xmin / 1000) * rect.width}px`,
+              top: `${rect.top + (ymin / 1000) * rect.height}px`,
+              width: `${((xmax - xmin) / 1000) * rect.width}px`,
+              height: `${((ymax - ymin) / 1000) * rect.height}px`,
+              border: `2px ${item.confidence === 'low' ? 'dashed' : 'solid'} ${boxColor}`,
+              borderRadius: '4px', background: `${boxColor}1A`,
+              boxSizing: 'border-box',
+            }}>
+            <span style={{
+              position: 'absolute', top: '-20px', left: '-2px', fontSize: '11px', fontWeight: 700,
+              color: '#fff', background: boxColor, padding: '1px 6px', borderRadius: '4px', whiteSpace: 'nowrap',
+            }}>{item.number}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // 학생의 학교 문자열("교현초 5학년")과 현재 월로 커리큘럼 코스 키 추정 ('초5-1' 등)
 // 고등/영어는 학년만으로 코스를 특정할 수 없어 null 반환 — 강사가 코스 칩으로 직접 선택
 function guessCourseKey(subject, school) {
@@ -397,6 +456,66 @@ export default function DiagnosticReportInput({
     setWrongItems(prev => prev.filter(w => !(w.number === number && w.sectionIdx === si)));
   };
 
+  // concept 섹션 문항의 정답⇄오답 토글 — 오답 카드의 버튼과 사진 위 박스 오버레이(클릭) 둘 다
+  // 이 함수 하나만 호출하게 해서, {number, sectionIdx} 매칭 로직이 두 군데로 갈라지는(그래서
+  // 한쪽만 고치고 다른 쪽을 안 고쳐서 다시 버그가 나는) 일을 방지
+  const toggleProblemResult = (si, p) => {
+    let becameWrong = false;
+    setPhotoAnalysis(prev => ({
+      ...prev,
+      sections: prev.sections.map((s, sIdx) =>
+        sIdx === si
+          ? { ...s, problemTypes: s.problemTypes.map((pt) => {
+              if (pt.number !== p.number) return pt;
+              const newResult = pt.result === '잘함' ? '약점' : '잘함';
+              becameWrong = newResult === '약점';
+              return { ...pt, result: newResult };
+            }) }
+          : s
+      )
+    }));
+    setWrongItems(prev => {
+      const exists = prev.some(w => w.number === p.number && w.sectionIdx === si);
+      if (becameWrong && !exists) {
+        return [...prev, { number: p.number, sectionIdx: si, type: p.type, correctRate: '', mark: '수동오답', tags: [], memo: '' }];
+      }
+      if (!becameWrong && exists) {
+        return prev.filter(w => !(w.number === p.number && w.sectionIdx === si));
+      }
+      return prev;
+    });
+  };
+
+  // 사진 위 박스 오버레이용 — box_2d가 있는 항목만 그 사진(photoIndex) 기준으로 모음.
+  // calculation 섹션 오답은 wrongItems에서, concept 섹션은 photoAnalysis.sections에서 옴 —
+  // 두 출처가 서로 다른 배열이라 여기서 한 번에 합쳐서 오버레이가 출처를 신경 안 쓰게 함
+  const getBoxItemsForPhoto = (pi) => {
+    const fromCalculation = wrongItems
+      .filter(w => w.photoIndex === pi && w.box_2d)
+      .map(w => ({
+        key: `calc-${w.sectionIdx ?? 'x'}-${w.number}`, box_2d: w.box_2d,
+        number: w.number, sectionIdx: w.sectionIdx, status: 'wrong',
+        confidence: w.confidence, sourceType: 'calculation',
+      }));
+    const fromConcept = (photoAnalysis?.sections || [])
+      .map((s, si) => ({ s, si }))
+      .filter(({ s }) => s.sectionType === 'concept' && (s.photoIndex ?? 0) === pi)
+      .flatMap(({ s, si }) => (s.problemTypes || [])
+        .filter(p => p.box_2d)
+        .map(p => ({
+          key: `concept-${si}-${p.number}`, box_2d: p.box_2d,
+          number: p.number, sectionIdx: si, status: p.result === '잘함' ? 'correct' : 'wrong',
+          confidence: p.confidence, sourceType: 'concept', p,
+        })));
+    return [...fromCalculation, ...fromConcept];
+  };
+
+  // 박스 클릭 → 출처에 맞는 기존 핸들러 그대로 호출(제외 vs 토글, 로직 중복 없음)
+  const handleBoxToggle = (item) => {
+    if (item.sourceType === 'calculation') removeAnalyzedItem(item.sectionIdx, item.number);
+    else toggleProblemResult(item.sectionIdx, item.p);
+  };
+
   const buildSessionEntry = () => ({
     date: kstDay(Date.now() / 1000),
     attendance, arrivalTime,
@@ -499,7 +618,7 @@ export default function DiagnosticReportInput({
   // 사진 확대 보기 — window.open(dataUrl)로 새 탭을 띄우면 최신 Chrome이 data: URL의
   // 최상위 탐색을 보안상 막아 백지 탭만 뜨는 문제가 있어(팝업 차단 위험도 별개로 있음),
   // 새 탭 대신 앱 안에서 원본 크기로 보여주는 라이트박스로 대체
-  const [zoomedPhoto, setZoomedPhoto] = useState(null);
+  const [zoomedPhoto, setZoomedPhoto] = useState(null); // { src, photoIndex } | null — photoIndex는 박스 오버레이가 그 사진에 해당하는 항목만 골라내는 데 씀
   useEscapeClose(() => setZoomedPhoto(null), !!zoomedPhoto);
   // AI가 문항별로 무엇을 보고 어떻게 판단했는지(rawObservations) — 평소엔 접어두고, 결과가
   // 이상할 때(예: 문항이 빠짐) 펼쳐서 AI가 그 번호를 아예 검토했는지, 왜 뺐는지 바로 확인용
@@ -1033,14 +1152,16 @@ export default function DiagnosticReportInput({
       {/* 중앙 알림 모달 */}
       <AlertModal message={alertMessage} onClose={() => setAlertMessage('')} />
 
-      {/* 사진 확대 보기 — 새 탭 대신 앱 안 라이트박스(위 zoomedPhoto 참고) */}
+      {/* 사진 확대 보기 — 새 탭 대신 앱 안 라이트박스(위 zoomedPhoto 참고). AI가 인식한 문항
+          위치를 박스로 겹쳐 보여줘서, 텍스트 카드 대신 실제 사진과 바로 대조 확인할 수 있게 함 */}
       {zoomedPhoto && (
         <div role="dialog" aria-modal="true" onClick={() => setZoomedPhoto(null)}
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
           {/* width/height:100% + objectFit:contain — maxWidth/maxHeight만 쓰면 원본이 뷰포트보다
               작을 때(예: 압축된 사진) 늘어나지 않고 원래 크기 그대로 작게 떠서 확대한 의미가 없어짐 */}
-          <img src={zoomedPhoto} alt="확대된 사진" onClick={e => e.stopPropagation()}
-            style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '4px' }} />
+          <div style={{ width: '100%', height: '100%' }} onClick={e => e.stopPropagation()}>
+            <PhotoBoxOverlay src={zoomedPhoto.src} items={getBoxItemsForPhoto(zoomedPhoto.photoIndex)} onToggle={handleBoxToggle} />
+          </div>
           <button type="button" onClick={() => setZoomedPhoto(null)} aria-label="닫기"
             style={{ position: 'fixed', top: '16px', right: '16px', width: '40px', height: '40px', borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,0.9)', fontSize: '18px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
         </div>
@@ -1870,36 +1991,7 @@ export default function DiagnosticReportInput({
                               }}>
                                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                 <button type="button"
-                                  onClick={() => {
-                                    let becameWrong = false;
-                                    setPhotoAnalysis(prev => ({
-                                      ...prev,
-                                      // sectionType만으로 골라내면 다른 concept 섹션의 같은 번호까지 같이
-                                      // 바뀌던 버그가 있었음 — sIdx===si로 지금 보고 있는 섹션만 수정
-                                      sections: prev.sections.map((s, sIdx) =>
-                                        sIdx === si
-                                          ? { ...s, problemTypes: s.problemTypes.map((pt) => {
-                                              if (pt.number !== p.number) return pt;
-                                              const newResult = pt.result === '잘함' ? '약점' : '잘함';
-                                              becameWrong = newResult === '약점';
-                                              return { ...pt, result: newResult };
-                                            })}
-                                          : s
-                                      )
-                                    }));
-                                    // wrongItems도 동기화 — prev 기준으로 존재 여부를 확인해 중복 추가/유실 방지.
-                                    // sectionIdx까지 매칭해야 다른 섹션의 같은 번호 항목과 안 섞임
-                                    setWrongItems(prev => {
-                                      const exists = prev.some(w => w.number === p.number && w.sectionIdx === si);
-                                      if (becameWrong && !exists) {
-                                        return [...prev, { number: p.number, sectionIdx: si, type: p.type, correctRate: '', mark: '수동오답', tags: [], memo: '' }];
-                                      }
-                                      if (!becameWrong && exists) {
-                                        return prev.filter(w => !(w.number === p.number && w.sectionIdx === si));
-                                      }
-                                      return prev;
-                                    });
-                                  }}
+                                  onClick={() => toggleProblemResult(si, p)}
                                   style={{
                                     flexShrink: 0, width: '68px', textAlign: 'center', fontWeight: 700, fontSize: '12px', padding: '8px 0', minHeight: '36px', borderRadius: '10px',
                                     background: p.result === '잘함' ? TOKENS.successBg : TOKENS.dangerBg,
@@ -2022,7 +2114,7 @@ export default function DiagnosticReportInput({
                               <div key={`photo-${pi}`} style={{ marginBottom: '14px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', background: TOKENS.bgSoft, border: `1px solid ${TOKENS.border}`, borderRadius: '10px', marginBottom: '8px' }}>
                                   {preview
-                                    ? <img src={preview} alt={`${pi}번째 사진`} onClick={() => setZoomedPhoto(fullRes)}
+                                    ? <img src={preview} alt={`${pi}번째 사진`} onClick={() => setZoomedPhoto({ src: fullRes, photoIndex: pi })}
                                         style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '8px', border: `1px solid ${TOKENS.border}`, cursor: 'zoom-in', flexShrink: 0 }} />
                                     : <div style={{ width: '48px', height: '48px', borderRadius: '8px', background: TOKENS.borderLight, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', flexShrink: 0 }}>📷</div>}
                                   <div style={{ minWidth: 0 }}>
