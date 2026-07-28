@@ -409,6 +409,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
   const [creditMemo, setCreditMemo] = React.useState('');
   const [creditGranting, setCreditGranting] = React.useState(false);
   const [unlimitedToggling, setUnlimitedToggling] = React.useState(null); // 토글 중인 academyId
+  const [excludeStatsToggling, setExcludeStatsToggling] = React.useState(null); // 토글 중인 academyId
 
   // 입금 확인 대기 큐 — 원장이 무통장입금 후 "입금했어요"를 누르면 pending 상태로 쌓이고,
   // 관리자가 실시간으로 안 봐도 나중에(수업 끝나고) 몰아서 승인할 수 있게 함
@@ -543,12 +544,33 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
       setAcademyBilling(prev => ({ ...prev, [targetAcademyId]: {
         balance: billingSnap.exists() ? (billingSnap.data().creditBalance || 0) : 0,
         unlimited: billingSnap.exists() ? (billingSnap.data().unlimited === true) : false,
+        excludeFromStats: billingSnap.exists() ? (billingSnap.data().excludeFromStats === true) : false,
         history, usage, usageCount: usageCountSnap.data().count,
       } }));
     } catch (e) {
       console.error('크레딧 정보 조회 실패:', e);
     }
     setBillingLoading(null);
+  };
+
+  // 사용 내역이 실사용 중 짧은 시간에 같은 단원을 반복 분석(재분석 등)한 항목으로 채워지면
+  // 30건이 거의 똑같은 줄로 나열돼 정작 봐야 할 이상 패턴(오류 급증 등)을 못 찾음 — 같은
+  // 강사·교재·단원 조합이 1시간 이내로 연달아 찍히면 한 줄로 묶어서 개수만 보여줌.
+  // usage는 이미 usedAt desc 정렬로 오므로 앞에서부터 훑으며 직전 그룹과 이어지는지만 확인하면 됨
+  const groupUsageLog = (usage) => {
+    const groups = [];
+    (usage || []).forEach(u => {
+      const key = `${u.teacherUid}|${u.hintTextbook || ''}|${u.hintUnit || ''}`;
+      const t = u.usedAt?.seconds || 0;
+      const last = groups[groups.length - 1];
+      if (last && last.key === key && (last.newestT - t) <= 3600) {
+        last.count += 1;
+        last.oldestT = t;
+      } else {
+        groups.push({ key, count: 1, newestT: t, oldestT: t, sample: u });
+      }
+    });
+    return groups;
   };
 
   const toggleCreditForm = (targetAcademyId) => {
@@ -607,6 +629,23 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
       console.error('무제한 설정 변경 실패:', e);
     }
     setUnlimitedToggling(null);
+  };
+
+  // 통계 제외 — 교현학원처럼 내부 테스트/개발용으로 쓰는 학원의 사용량이 플랫폼 관리자
+  // 대시보드(UsageMonitoring)의 총 분석 횟수 등 헤드라인 지표에 섞여 실제 고객 활동인 것처럼
+  // 보이지 않도록. 사용 내역 자체는 그대로 기록되고 랭킹에도 "(테스트)" 표시로 계속 보임 —
+  // 숨기는 게 아니라 집계에서만 빼는 것
+  const handleToggleExcludeFromStats = async (targetAcademyId, next) => {
+    setExcludeStatsToggling(targetAcademyId);
+    try {
+      await setDoc(doc(db, 'academies', targetAcademyId, 'private', 'billing'), {
+        excludeFromStats: next, updatedAt: serverTimestamp(),
+      }, { merge: true });
+      await loadBilling(targetAcademyId);
+    } catch (e) {
+      console.error('통계 제외 설정 변경 실패:', e);
+    }
+    setExcludeStatsToggling(null);
   };
 
   const loadAcademies = React.useCallback(async () => {
@@ -1583,6 +1622,16 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                             {unlimitedToggling === a.id ? '변경 중...' : '♾️ 무제한 (크레딧 잔액 체크/차감 안 함)'}
                           </span>
                         </label>
+                        {/* 통계 제외 토글 — 교현학원처럼 내부 테스트용으로 쓰는 학원을 플랫폼
+                            대시보드 헤드라인 지표(총 분석 횟수 등)에서 빼되, 사용 내역/랭킹에는
+                            그대로 남겨 완전히 숨기지는 않음 */}
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '10px', padding: '8px 10px', background: billing?.excludeFromStats ? '#F3F0FB' : '#F9FAFB', borderRadius: '8px', cursor: excludeStatsToggling === a.id ? 'wait' : 'pointer' }}>
+                          <input type="checkbox" checked={!!billing?.excludeFromStats} disabled={excludeStatsToggling === a.id}
+                            onChange={e => handleToggleExcludeFromStats(a.id, e.target.checked)} />
+                          <span style={{ fontSize: '11px', fontWeight: 700, color: billing?.excludeFromStats ? '#5B3FA0' : '#374151' }}>
+                            {excludeStatsToggling === a.id ? '변경 중...' : '🧪 통계에서 제외 (내부 테스트용 학원)'}
+                          </span>
+                        </label>
                         <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', opacity: billing?.unlimited ? 0.5 : 1 }}>
                           <select value={creditPackage} onChange={e => { setCreditPackage(e.target.value); setCreditAmount(String(PACKAGE_PRICES[e.target.value])); }}
                             style={{ padding: '7px 8px', fontSize: '12px', border: '1px solid #E5E7EB', borderRadius: '8px', background: '#fff', fontFamily: 'inherit' }}>
@@ -1616,13 +1665,19 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                               {billing.usage.length < billing.usageCount ? ` (최근 ${billing.usage.length}회 표시)` : ''}
                             </p>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                              {billing.usage.map(u => (
-                                <p key={u.id} style={{ fontSize: '10px', color: '#6C7586', margin: 0 }}>
-                                  {u.usedAt?.seconds ? new Date(u.usedAt.seconds * 1000).toLocaleString('ko-KR') : ''} · {u.teacherEmail || u.teacherUid}
-                                  {(u.hintTextbook || u.hintUnit) ? ` · ${[u.hintTextbook, u.hintUnit].filter(Boolean).join(' ')}` : ''}
-                                  {u.unlimited ? ' · 무제한' : ` · 잔액 ${u.balanceAfter}회`}
-                                </p>
-                              ))}
+                              {groupUsageLog(billing.usage).map((g, gi) => {
+                                const u = g.sample;
+                                return (
+                                  <p key={gi} style={{ fontSize: '10px', color: '#6C7586', margin: 0 }}>
+                                    {g.newestT ? new Date(g.newestT * 1000).toLocaleString('ko-KR') : ''}
+                                    {g.count > 1 ? `~${new Date(g.oldestT * 1000).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}` : ''}
+                                    {' · '}{u.teacherEmail || u.teacherUid}
+                                    {(u.hintTextbook || u.hintUnit) ? ` · ${[u.hintTextbook, u.hintUnit].filter(Boolean).join(' ')}` : ''}
+                                    {u.unlimited ? ' · 무제한' : ` · 잔액 ${u.balanceAfter}회`}
+                                    {g.count > 1 && <span style={{ fontWeight: 700, color: '#374151' }}> · {g.count}회 반복</span>}
+                                  </p>
+                                );
+                              })}
                             </div>
                           </div>
                         )}

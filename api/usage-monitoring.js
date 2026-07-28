@@ -59,18 +59,24 @@ export default async function handler(req, res) {
         usedAtList: docs.map(d => d.usedAt).filter(Boolean),
         creditBalance: typeof billing.creditBalance === 'number' ? billing.creditBalance : null,
         unlimited: billing.unlimited === true,
+        excludeFromStats: billing.excludeFromStats === true,
       };
     }));
 
-    const analysisCount = perAcademy.reduce((sum, a) => sum + a.count, 0);
-    const activeAcademyCount = perAcademy.filter(a => a.count > 0).length;
-    const activeTeacherCount = new Set(perAcademy.flatMap(a => a.teacherUids)).size;
-    const lowCreditAcademyCount = perAcademy.filter(
+    // 통계 제외로 표시된 학원(예: 교현학원 자체 테스트용)은 헤드라인 집계·추이 그래프에서만
+    // 빼고, 랭킹 목록에는 계속 남겨서 "(테스트)"로 표시 — 완전히 숨기면 관리자가 실제 사용
+    // 여부 자체를 못 보게 되므로, 집계에서만 배제하고 원자료는 그대로 보여준다.
+    const statsAcademies = perAcademy.filter(a => !a.excludeFromStats);
+
+    const analysisCount = statsAcademies.reduce((sum, a) => sum + a.count, 0);
+    const activeAcademyCount = statsAcademies.filter(a => a.count > 0).length;
+    const activeTeacherCount = new Set(statsAcademies.flatMap(a => a.teacherUids)).size;
+    const lowCreditAcademyCount = statsAcademies.filter(
       a => !a.unlimited && a.creditBalance !== null && a.creditBalance <= LOW_CREDIT_THRESHOLD
     ).length;
 
     const dailyMap = {};
-    perAcademy.forEach(a => {
+    statsAcademies.forEach(a => {
       a.usedAtList.forEach(ts => {
         const dateStr = kstDateStr(new Date(ts.toMillis() + 9 * 3600 * 1000));
         dailyMap[dateStr] = (dailyMap[dateStr] || 0) + 1;
@@ -88,6 +94,7 @@ export default async function handler(req, res) {
         teacherCount: new Set(a.teacherUids).size,
         creditBalance: a.creditBalance,
         unlimited: a.unlimited,
+        excludeFromStats: a.excludeFromStats,
       }))
       .sort((a, b) => b.count - a.count);
 
