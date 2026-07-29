@@ -13,3 +13,7 @@ serviceAccountKey*.json
 *-service-account*.json
 .vercel
 .env*
+
+# 교무실 로비 목업 등 개인 프로토타입 에셋 — 이 앱과 무관하고 용량만 큼(4MB+).
+# 로컬에는 그대로 두고 저장소에서만 제외한다.
+office-assets/
