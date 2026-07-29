@@ -639,10 +639,10 @@ export default function DiagnosticReportInput({
   // 한 번 더 거르므로 여기 값이 잘못돼도 임의 모델이 호출되지는 않음.
   const ANALYZE_MODELS = [
     { id: '', label: '기본값 (서버 설정)' },
-    { id: 'gemini-2.5-pro', label: '2.5 Pro (현재 기본)' },
-    { id: 'gemini-2.5-flash', label: '2.5 Flash' },
+    { id: 'gemini-3.6-flash', label: '3.6 Flash (현재 기본)' },
+    { id: 'gemini-2.5-pro', label: '2.5 Pro (직전 기본)' },
     { id: 'gemini-3.5-flash', label: '3.5 Flash' },
-    { id: 'gemini-3.6-flash', label: '3.6 Flash' },
+    { id: 'gemini-2.5-flash', label: '2.5 Flash' },
     { id: 'gemini-3.1-pro-preview', label: '3.1 Pro (프리뷰)' },
   ];
   const [analyzeModel, setAnalyzeModel] = useState(() => {

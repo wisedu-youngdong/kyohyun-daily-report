@@ -20,15 +20,17 @@ export const config = {
 // 제한한다. 기본값은 환경변수로 바꿀 수 있게 해서, 비교가 끝나 승자가 정해지면 코드 수정 없이
 // Vercel 환경변수만 바꿔 전환하면 된다.
 const ALLOWED_MODELS = [
-  'gemini-2.5-pro',       // 현재 기본값 — 정확도 기준으로 채택돼 있던 모델
+  'gemini-3.6-flash',     // 현재 기본값 (2026-07 전환) — 2.5 Pro 대비 출력 단가가 25% 싸고
+                          // 세대가 두 번 위라 속도·정확도 모두 개선을 기대. 문제가 생기면
+                          // 아래 DEFAULT_MODEL을 'gemini-2.5-pro'로 되돌리면 즉시 복구됨
+  'gemini-2.5-pro',       // 직전 기본값 — 되돌릴 때 쓰는 안전한 기준점
   'gemini-2.5-flash',
   'gemini-3.5-flash',
-  'gemini-3.6-flash',
   'gemini-3.1-pro-preview',
 ];
 const DEFAULT_MODEL = ALLOWED_MODELS.includes(process.env.GEMINI_ANALYZE_MODEL)
   ? process.env.GEMINI_ANALYZE_MODEL
-  : 'gemini-2.5-pro';
+  : 'gemini-3.6-flash';
 const resolveModel = (requested) => (ALLOWED_MODELS.includes(requested) ? requested : DEFAULT_MODEL);
 
 // Gemini가 unreadable:true로 판정한 결과를 기존 실패 경로(ok:false)로 변환한다 — 이렇게 하면
