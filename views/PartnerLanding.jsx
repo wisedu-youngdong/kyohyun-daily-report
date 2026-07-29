@@ -134,11 +134,7 @@ export default function PartnerLanding() {
         padding: `18px ${PADX}`, background: '#fff', borderBottom: `1px solid ${RULE}`,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-          <div style={{
-            width: '26px', height: '26px', borderRadius: '7px', background: R.navy, flexShrink: 0,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#fff', fontSize: '13px', fontWeight: 900, fontFamily: R.body,
-          }}>D</div>
+          <img src="/favicon.png" alt="데일리 리포트 시스템" width="26" height="26" style={{ borderRadius: '7px', flexShrink: 0, display: 'block' }} />
           <span style={{ fontSize: '15px', fontWeight: 700, color: R.navy, whiteSpace: 'nowrap' }}>데일리 리포트 시스템</span>
           <span className="pl-nav-badge" style={{ fontSize: '11px', fontWeight: 600, color: R.goldText, background: GOLD_TINT, padding: '3px 9px', borderRadius: '999px', marginLeft: '4px', whiteSpace: 'nowrap' }}>학원 파트너</span>
         </div>
