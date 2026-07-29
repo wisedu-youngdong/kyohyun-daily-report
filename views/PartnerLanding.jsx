@@ -4,10 +4,15 @@ import { R } from '../tokens.jsx';
 // 학원 파트너 모집 랜딩 페이지(/partner) — 공개, 비로그인 접근.
 // 디자인 근거: design_handoff_partner_landing_2a(Partner-2A.dc.html + README) "안 2A" 확정본.
 // 목표 액션은 하나 — 학원 등록 신청(/signup). 모든 CTA가 그리로 연결된다.
-// 실사 캡처 슬롯(히어로/STEP1~4/두 화면 맛보기)은 가명 캡처가 준비될 때까지 플레이스홀더 —
-// "전부 실제 사용 화면입니다" 카피가 있으므로 캡처를 채우기 전에는 홍보 배포하지 않는 전제.
 // 핸드오프의 요금표(500건 50,000원)는 이후 실제 정책 변경(500회 75,000원, "건"→"회")으로
 // 낡은 값이 됐다 — 여기 숫자는 views/SettingsView.jsx의 PACKAGE_PRICES가 소스.
+//
+// 실사 캡처(가명 처리 완료, public/partner-landing/)는 2026-07-29 반영됨. STEP 2는 오답
+// 카드 화면 하나만 사용 — 그 카드 안에 이미 원본 사진 썸네일이 작게 포함돼 있어 "사진에서
+// 나왔다"는 맥락이 이미 전달되므로, 다른 STEP들과의 레이아웃 일관성(전부 이미지 한 장)을
+// 깨면서까지 원본/결과 전후 비교를 따로 넣지 않기로 함. 학부모용 화면 캡처는 리포트 전체가
+// 아니라 의도적으로 "TEACHER'S NOTE" 이하만 잘라서 씀 — 그래서 카드 문구도 "점수" 언급을
+// 빼고 이미지에 맞춰 조정함.
 
 const INK_STRONG = '#171719';
 const INK_BODY = '#37383C';
@@ -22,8 +27,10 @@ const BLUE_TINT = '#EDF2FB';
 const GOLD_TINT = '#FBF3DA';
 const NAVY_DEEP = '#081D47';
 const PADX = 'clamp(20px, 5vw, 40px)';
+const SHADOW_SOFT = '0 8px 28px rgba(23,23,25,0.10)';
 
-// 실사 캡처가 들어갈 자리 — 가명 캡처 준비 전까지의 임시 표시
+// 실사 캡처가 아직 없을 때의 임시 표시 (지금은 전 슬롯에 캡처가 채워져 안 쓰이지만,
+// 다음 캡처 추가 때를 위해 남겨둠)
 function ShotPlaceholder({ label, radius = 16 }) {
   return (
     <div style={{
@@ -34,6 +41,16 @@ function ShotPlaceholder({ label, radius = 16 }) {
     }}>
       {label}
     </div>
+  );
+}
+
+// 실사 캡처 — 가명 처리된 실제 화면 스크린샷을 슬롯 크기에 맞게 크롭해서 채움
+function ShotImage({ src, alt, radius = 16, position = 'top' }) {
+  return (
+    <img src={src} alt={alt} style={{
+      width: '100%', height: '100%', boxSizing: 'border-box',
+      borderRadius: `${radius}px`, objectFit: 'cover', objectPosition: position, display: 'block',
+    }} />
   );
 }
 
@@ -54,18 +71,19 @@ function CtaButton({ href, children, size = 'md' }) {
   );
 }
 
-function StepRow({ step, roleLabel, roleColor, roleBg, title, body, shotLabel, reverse, first }) {
+function StepRow({ step, roleLabel, roleColor, roleBg, title, body, shotSrc, shotPosition, reverse, first }) {
+  const shot = (
+    <div style={{ flex: '0 1 260px', height: '300px', position: 'relative', overflow: 'hidden', borderRadius: '16px', boxShadow: SHADOW_SOFT }}>
+      <ShotImage src={shotSrc} alt={title} position={shotPosition} />
+    </div>
+  );
   return (
     <div style={{
       display: 'flex', flexWrap: reverse ? 'wrap-reverse' : 'wrap', gap: '32px', alignItems: 'center',
       marginTop: first ? '34px' : '40px',
       ...(first ? {} : { paddingTop: '40px', borderTop: `1px solid ${RULE_SOFT}` }),
     }}>
-      {!reverse && (
-        <div style={{ flex: '0 1 260px', height: '300px', position: 'relative' }}>
-          <ShotPlaceholder label={shotLabel} />
-        </div>
-      )}
+      {!reverse && shot}
       <div style={{ flex: '1 1 320px', minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <p style={{ fontSize: '11px', fontWeight: 800, color: R.gold, letterSpacing: '0.1em', margin: 0 }}>STEP {step}</p>
@@ -74,11 +92,7 @@ function StepRow({ step, roleLabel, roleColor, roleBg, title, body, shotLabel, r
         <h3 style={{ fontFamily: R.body, fontSize: '20px', fontWeight: 700, color: R.navy, marginTop: '8px', marginBottom: 0 }}>{title}</h3>
         <p style={{ fontSize: '14.5px', lineHeight: 1.85, color: INK_SUB, marginTop: '10px', marginBottom: 0, maxWidth: '460px' }}>{body}</p>
       </div>
-      {reverse && (
-        <div style={{ flex: '0 1 260px', height: '300px', position: 'relative' }}>
-          <ShotPlaceholder label={shotLabel} />
-        </div>
-      )}
+      {reverse && shot}
     </div>
   );
 }
@@ -156,7 +170,7 @@ export default function PartnerLanding() {
             boxShadow: '0 30px 60px -18px rgba(13,45,107,0.55)', animation: 'plFadeUp 0.5s ease both', boxSizing: 'border-box',
           }}>
             <div style={{ position: 'relative', width: '100%', height: '400px', borderRadius: '24px', overflow: 'hidden', background: PAPER }}>
-              <ShotPlaceholder label={'실제 리포트 화면 캡처\n(가명 · 고해상도 준비 중)'} radius={0} />
+              <ShotImage src="/partner-landing/hero.png" alt="데일리 리포트 시스템 실제 리포트 화면" radius={0} position="top" />
               <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '90px', background: 'linear-gradient(180deg, rgba(245,245,240,0), rgba(245,245,240,0.96))', pointerEvents: 'none' }} />
               <span style={{
                 position: 'absolute', left: '50%', bottom: '14px', transform: 'translateX(-50%)',
@@ -235,16 +249,16 @@ export default function PartnerLanding() {
             <p style={{ fontSize: '13px', color: INK_WEAK, margin: 0 }}>아래 네 장면은 전부 실제 사용 화면입니다</p>
           </div>
           <StepRow first step={1} roleLabel="선생님" roleColor={R.navy} roleBg={BLUE_TINT}
-            title="수업 기록" shotLabel={'STEP 1 · 수업 기록 화면 캡처\n(준비 중)'}
+            title="수업 기록" shotSrc="/partner-landing/step1.png" shotPosition="left top"
             body={<>오늘 나간 범위와 이해도를 남깁니다.<br />사진이 없어도 메모만으로 리포트가 만들어집니다.</>} />
           <StepRow reverse step={2} roleLabel="AI 자동" roleColor={R.goldText} roleBg={GOLD_TINT}
-            title="시험지 사진 업로드 · AI 채점 분석" shotLabel={'STEP 2 · 시험지 업로드/채점 화면 캡처\n(준비 중)'}
+            title="시험지 사진 업로드 · AI 채점 분석" shotSrc="/partner-landing/step2.png" shotPosition="top"
             body={<>채점한 시험지를 최대 5장까지 올리면, AI가 오답을 유형으로 묶어 정리합니다.<br />어긋난 부분은 선생님이 바로 고칠 수 있습니다.</>} />
           <StepRow step={3} roleLabel="선생님" roleColor={R.navy} roleBg={BLUE_TINT}
-            title="선생님 노트 다듬기" shotLabel={'STEP 3 · 코멘트 작성 화면 캡처\n(준비 중)'}
+            title="선생님 노트 다듬기" shotSrc="/partner-landing/step3.png" shotPosition="top"
             body={<>AI 초안 위에 그날의 장면을 얹습니다.<br />아이를 본 사람만 쓸 수 있는 문장이 리포트의 핵심입니다.</>} />
           <StepRow reverse step={4} roleLabel="학부모" roleColor="#00873A" roleBg="#E5F5EA"
-            title="카카오톡으로 전달" shotLabel={'STEP 4 · 실제 카카오톡 발송 화면 캡처\n(준비 중)'}
+            title="카카오톡으로 전달" shotSrc="/partner-landing/step4.png" shotPosition="top"
             body={<>보낸 그대로, 학부모 카카오톡으로 도착합니다.<br />학부모는 설치도 로그인도 없이 링크만 열면 됩니다.</>} />
         </div>
       </div>
@@ -304,13 +318,13 @@ export default function PartnerLanding() {
                 badge: '원장 · 강사용', badgeColor: R.navy, badgeBg: BLUE_TINT,
                 title: '학원 안에서만 보는 관리 화면',
                 body: <>누가 아직 리포트를 안 썼는지, 이 학생이 어떤 유형에서 반복해 걸리는지<br />— 상담 전에 열어두면 할 말이 정리됩니다.</>,
-                shot: '선생님 화면 캡처 (준비 중)',
+                shotSrc: '/partner-landing/teacher-view.png',
               },
               {
                 badge: '학부모용', badgeColor: R.goldText, badgeBg: GOLD_TINT,
                 title: '링크로 열어보는 오늘의 리포트',
-                body: <>점수와 선생님 노트, 채점된 시험지 사진까지 한 화면에.<br />궁금한 점은 아래 입력창으로 바로 물어봅니다.</>,
-                shot: '학부모 화면 캡처 (준비 중)',
+                body: <>선생님이 남긴 코멘트를 그대로 볼 수 있어요.<br />궁금한 점은 아래 입력창으로 바로 물어봅니다.</>,
+                shotSrc: '/partner-landing/parent-view.png',
               },
             ].map((c) => (
               <div key={c.badge} style={{ flex: '1 1 min(420px, 100%)', minWidth: 0, border: `1px solid ${RULE}`, borderRadius: '18px', overflow: 'hidden', background: OFFWHITE, boxSizing: 'border-box' }}>
@@ -320,7 +334,7 @@ export default function PartnerLanding() {
                   <p style={{ fontSize: '13px', lineHeight: 1.75, color: INK_SUB, marginTop: '8px', marginBottom: 0 }}>{c.body}</p>
                 </div>
                 <div style={{ position: 'relative', height: '260px', margin: '0 20px', borderRadius: '14px 14px 0 0', overflow: 'hidden' }}>
-                  <ShotPlaceholder label={c.shot} radius={0} />
+                  <ShotImage src={c.shotSrc} alt={c.title} radius={0} position="top" />
                   <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '70px', background: `linear-gradient(180deg, rgba(251,251,249,0), ${OFFWHITE})`, pointerEvents: 'none' }} />
                 </div>
               </div>
