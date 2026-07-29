@@ -15,6 +15,22 @@ export const config = {
   maxDuration: 60,
 };
 
+// 채점 판정에 쓸 수 있는 모델 목록. A/B 비교용으로 요청마다 바꿔 낄 수 있지만, 클라이언트가
+// 보낸 문자열을 그대로 URL에 넣으면 임의의(=훨씬 비싼) 모델을 호출당할 수 있어 화이트리스트로
+// 제한한다. 기본값은 환경변수로 바꿀 수 있게 해서, 비교가 끝나 승자가 정해지면 코드 수정 없이
+// Vercel 환경변수만 바꿔 전환하면 된다.
+const ALLOWED_MODELS = [
+  'gemini-2.5-pro',       // 현재 기본값 — 정확도 기준으로 채택돼 있던 모델
+  'gemini-2.5-flash',
+  'gemini-3.5-flash',
+  'gemini-3.6-flash',
+  'gemini-3.1-pro-preview',
+];
+const DEFAULT_MODEL = ALLOWED_MODELS.includes(process.env.GEMINI_ANALYZE_MODEL)
+  ? process.env.GEMINI_ANALYZE_MODEL
+  : 'gemini-2.5-pro';
+const resolveModel = (requested) => (ALLOWED_MODELS.includes(requested) ? requested : DEFAULT_MODEL);
+
 // Gemini가 unreadable:true로 판정한 결과를 기존 실패 경로(ok:false)로 변환한다 — 이렇게 하면
 // 아래 handler의 "한 장이라도 실패하면 전체 미차감" 로직을 그대로 재사용할 수 있어 별도
 // 크레딧 처리 코드가 필요 없다. 사진 품질 문제로 판독 자체가 안 되는 경우 크레딧을 받고
@@ -28,8 +44,8 @@ function finalizeParsed(parsed) {
 }
 
 // 이미지 한 장에 대해 Gemini를 호출하고 정제된 JSON을 돌려준다. 실패 시 { ok:false, error }.
-async function analyzeOneImage(img, mode, hintTextbook, hintUnit, hintSubject) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${process.env.GEMINI_API_KEY}`;
+async function analyzeOneImage(img, mode, hintTextbook, hintUnit, hintSubject, model = DEFAULT_MODEL) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
   // pageCount는 항상 1 — 이 함수는 사진 한 장만 본다(아래 handler의 사진별 분리 호출 설계 참고)
   const prompt = buildPrompt(mode || 'auto', hintTextbook, hintUnit, 1, hintSubject);
 
@@ -52,6 +68,16 @@ async function analyzeOneImage(img, mode, hintTextbook, hintUnit, hintSubject) {
   });
 
   const data = await response.json();
+
+  // 토큰 사용량 — 모델 비교 시 "얼마나 더 비싼가"를 추정이 아니라 실측으로 보기 위해 같이 올려보냄.
+  // thoughts(내부 추론) 토큰은 별도 필드로 오는데 과금은 출력 토큰과 같은 단가라 합산한다.
+  const um = data.usageMetadata || {};
+  const usage = {
+    promptTokens: um.promptTokenCount || 0,
+    outputTokens: (um.candidatesTokenCount || 0) + (um.thoughtsTokenCount || 0),
+    cachedTokens: um.cachedContentTokenCount || 0,
+  };
+  const withUsage = (result) => ({ ...result, usage });
 
   // Gemini API 레벨 에러(쿼터초과 429, 키 오류 400 등) 먼저 체크 — 원인 그대로 노출
   if (data.error) {
@@ -84,7 +110,7 @@ async function analyzeOneImage(img, mode, hintTextbook, hintUnit, hintSubject) {
   const cleaned = rawText.replace(/```json|```/g, '').trim();
 
   try {
-    return finalizeParsed(JSON.parse(cleaned));
+    return withUsage(finalizeParsed(JSON.parse(cleaned)));
   } catch {
     if (finishReason === 'MAX_TOKENS') {
       console.error('MAX_TOKENS로 응답 잘림. 길이:', cleaned.length);
@@ -95,7 +121,7 @@ async function analyzeOneImage(img, mode, hintTextbook, hintUnit, hintSubject) {
     const end = cleaned.lastIndexOf('}');
     if (start !== -1 && end !== -1 && end > start) {
       try {
-        return finalizeParsed(JSON.parse(cleaned.slice(start, end + 1)));
+        return withUsage(finalizeParsed(JSON.parse(cleaned.slice(start, end + 1))));
       } catch {
         console.error('JSON 파싱 2차 실패:', cleaned);
         return { ok: false, error: 'AI 응답을 정리하지 못했습니다. 다시 시도하거나 직접 입력해주세요.' };
@@ -129,7 +155,7 @@ function findMissingNumbers(sections) {
 
 // 놓친 번호만 짚어 다시 확인시키고 { number, mark, type }[] 를 돌려준다. 실패해도 그냥 빈
 // 배열을 돌려줘 1차 결과는 그대로 살아있게 한다(재확인은 "있으면 좋은 보강"이지 필수 단계가 아님).
-async function recheckMissingNumbers(img, missingGroups) {
+async function recheckMissingNumbers(img, missingGroups, model = DEFAULT_MODEL) {
   const listText = missingGroups.map(g =>
     `- ${g.bookSection ? `"${g.bookSection}" 섹션의 ` : ''}문항 번호: ${g.numbers.join(', ')}`
   ).join('\n');
@@ -151,7 +177,7 @@ JSON만 출력:
 {"results": [{"number": "03", "mark": "정답" | "오답" | "표시없음", "type": "문제 내용 5~10자 키워드(모르면 빈 문자열)", "box_2d": [0,0,0,0]}]}`;
 
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${process.env.GEMINI_API_KEY}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -166,14 +192,31 @@ JSON만 출력:
       })
     });
     const data = await response.json();
+    const um = data.usageMetadata || {};
+    const usage = {
+      promptTokens: um.promptTokenCount || 0,
+      outputTokens: (um.candidatesTokenCount || 0) + (um.thoughtsTokenCount || 0),
+      cachedTokens: um.cachedContentTokenCount || 0,
+    };
     const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     const cleaned = rawText.replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(cleaned);
-    return Array.isArray(parsed.results) ? parsed.results : [];
+    return { results: Array.isArray(parsed.results) ? parsed.results : [], usage };
   } catch (e) {
     console.error('재확인 호출 실패(1차 결과 그대로 사용):', e.message);
-    return [];
+    return { results: [], usage: null };
   }
+}
+
+// 두 호출의 토큰 사용량을 합산 — 한 장을 처리하는 데 실제로 들어간 총량
+function addUsage(a, b) {
+  if (!b) return a;
+  if (!a) return b;
+  return {
+    promptTokens: a.promptTokens + b.promptTokens,
+    outputTokens: a.outputTokens + b.outputTokens,
+    cachedTokens: a.cachedTokens + b.cachedTokens,
+  };
 }
 
 // 재확인 호출 한 번에 잡아두는 시간. 이만큼도 안 남았으면 시작조차 하지 않는다.
@@ -188,8 +231,8 @@ const RECHECK_BUDGET_MS = 20000;
 // 걸려 함수가 통째로 죽으면 멀쩡히 끝난 1차 결과까지 같이 날아가고 사용자는 타임아웃만 본다.
 // 재확인은 코드 주석대로 "있으면 좋은 보강"이지 필수 단계가 아니므로, 시간이 모자라면
 // 건너뛰고 1차 결과를 살려서 돌려주는 쪽이 항상 낫다.
-async function analyzeOneImageWithRecheck(img, mode, hintTextbook, hintUnit, hintSubject, deadlineAt) {
-  const first = await analyzeOneImage(img, mode, hintTextbook, hintUnit, hintSubject);
+async function analyzeOneImageWithRecheck(img, mode, hintTextbook, hintUnit, hintSubject, deadlineAt, model) {
+  const first = await analyzeOneImage(img, mode, hintTextbook, hintUnit, hintSubject, model);
   if (!first.ok) return first;
 
   const sections = first.data.sections || [];
@@ -201,8 +244,9 @@ async function analyzeOneImageWithRecheck(img, mode, hintTextbook, hintUnit, hin
     return first;
   }
 
-  const recheckResults = await recheckMissingNumbers(img, missingGroups);
-  if (recheckResults.length === 0) return first;
+  const { results: recheckResults, usage: recheckUsage } = await recheckMissingNumbers(img, missingGroups, model);
+  const usage = addUsage(first.usage, recheckUsage);
+  if (recheckResults.length === 0) return { ...first, usage };
 
   const byNumber = new Map(recheckResults.map(r => [r.number, r]));
   missingGroups.forEach(g => {
@@ -223,7 +267,7 @@ async function analyzeOneImageWithRecheck(img, mode, hintTextbook, hintUnit, hin
     });
   });
 
-  return { ok: true, data: { ...first.data, sections } };
+  return { ok: true, data: { ...first.data, sections }, usage };
 }
 
 export default async function handler(req, res) {
@@ -237,7 +281,7 @@ export default async function handler(req, res) {
   if (!decoded) return res.status(401).json({ error: '로그인이 필요합니다.' });
 
   try {
-    const { images, imageBase64, mimeType, hintTextbook, hintUnit, hintSubject, mode } = req.body;
+    const { images, imageBase64, mimeType, hintTextbook, hintUnit, hintSubject, mode, model: requestedModel } = req.body;
     // images: [{ imageBase64, mimeType }] 배열 (신규, 다중 업로드). 없으면 구버전 단일 imageBase64로 fallback.
     const imageList = Array.isArray(images) && images.length > 0
       ? images
@@ -252,6 +296,12 @@ export default async function handler(req, res) {
     const userSnap = await db.collection('users').doc(decoded.uid).get();
     const academyId = userSnap.exists ? userSnap.data().academyId : null;
     if (!academyId) return res.status(403).json({ error: '학원 정보를 확인할 수 없습니다.' });
+
+    // 모델 교체는 A/B 비교용이라 플랫폼 관리자만 허용 — 일반 학원 계정이 임의로 더 비싼 모델을
+    // 고르면 서비스가 비용을 그대로 떠안는다(크레딧은 모델과 무관하게 1회만 차감되므로).
+    // 이미 읽어둔 userSnap을 그대로 써서 추가 조회 비용은 없음.
+    const isPlatformAdmin = userSnap.data().isPlatformAdmin === true;
+    const model = isPlatformAdmin ? resolveModel(requestedModel) : DEFAULT_MODEL;
     const billingRef = db.collection('academies').doc(academyId).collection('private').doc('billing');
     const billingSnap = await billingRef.get();
     const billingData = billingSnap.exists ? billingSnap.data() : {};
@@ -269,9 +319,12 @@ export default async function handler(req, res) {
     // 흡수(가격 정책상 결정됨). 한 장이라도 실패하면 전체를 실패로 처리해 크레딧을 안 뗌 —
     // 일부만 성공한 결과를 그대로 돌려주면 "표시가 있는데도 빠진" 문제를 또 만드는 셈이라
     // 절반의 결과보다는 명확한 재시도 요청이 안전함.
+    const geminiStartedAt = Date.now();
     const results = await Promise.all(
-      imageList.map(img => analyzeOneImageWithRecheck(img, mode, hintTextbook, hintUnit, hintSubject, geminiDeadline))
+      imageList.map(img => analyzeOneImageWithRecheck(img, mode, hintTextbook, hintUnit, hintSubject, geminiDeadline, model))
     );
+    // 모델별 속도 비교의 근거 — Vercel 로그에서 바로 확인할 수 있게 남긴다
+    console.log(`[분석완료] model=${model} 사진=${imageList.length}장 Gemini=${Date.now() - geminiStartedAt}ms 전체=${Date.now() - startedAt}ms`);
     const failIdx = results.findIndex(r => !r.ok);
     if (failIdx !== -1) {
       const prefix = imageList.length > 1 ? `${failIdx + 1}번째 사진 분석 실패 — ` : '';
@@ -286,6 +339,13 @@ export default async function handler(req, res) {
       bookOrTest: '', unit: '', pageRange: '', pageType: 'concept',
       pageCutoff: false, pageCutoffNote: '',
       wrongItems: [], sections: [],
+      // 모델 비교용 측정값 — 어떤 모델이 얼마나 걸렸고 토큰을 얼마나 썼는지.
+      // 관리자 화면에 그대로 표시해 속도·비용을 실측으로 비교한다.
+      meta: {
+        model,
+        elapsedMs: 0,
+        usage: results.reduce((acc, r) => addUsage(acc, r.usage), null),
+      },
     };
     results.forEach((r, i) => {
       const pi = i + 1;
@@ -322,10 +382,12 @@ export default async function handler(req, res) {
       hintTextbook: hintTextbook || null,
       hintUnit: hintUnit || null,
       photoCount: imageList.length,
+      model, // 비교 기간에 어떤 모델로 처리된 건인지 사용 내역에서 구분할 수 있게 함께 남김
       balanceAfter: isUnlimited ? null : creditBalance - 1,
       unlimited: isUnlimited,
       usedAt: FieldValue.serverTimestamp(),
     }).catch(e => console.error('크레딧 사용 로그 기록 실패(과금엔 영향 없음):', e.message));
+    merged.meta.elapsedMs = Date.now() - startedAt;
     res.status(200).json(merged);
   } catch (e) {
     console.error('사진분석 에러:', e.message);

@@ -906,6 +906,7 @@ export default function App() {
                 academySubjects={academySubjects}
                 academyPhone={academyPhone}
                 academyReportMode={academyReportMode}
+                isPlatformAdmin={isPlatformAdmin}
               />
             </React.Suspense>
           </>

@@ -347,6 +347,7 @@ export default function DiagnosticReportInput({
   academyPhone = null,
   academySubjects = null,
   academyReportMode = 'daily',
+  isPlatformAdmin = false,
 }) {
   const isWide = useMediaQuery('(min-width: 901px)');
   const [showStudentModal, setShowStudentModal] = useState(false);
@@ -633,6 +634,38 @@ export default function DiagnosticReportInput({
   // 사진 분석 결과 화면의 "이 화면 사용법" 패널 — 처음엔 펼쳐서 보여주고, 한 번이라도
   // 접으면 그 브라우저에서는 계속 접힌 채로 시작(다시 펼치는 건 언제든 가능, 완전히
   // 숨기진 않음 — 매번 스쳐 지나가는 게 익숙해진 선생님한텐 방해될 수 있어서)
+  // 채점 모델 A/B 비교용 — 플랫폼 관리자에게만 노출되는 실험 장치. 빈 문자열이면 서버 기본값
+  // (환경변수 GEMINI_ANALYZE_MODEL, 미설정 시 gemini-2.5-pro)을 그대로 쓴다. 서버도 화이트리스트로
+  // 한 번 더 거르므로 여기 값이 잘못돼도 임의 모델이 호출되지는 않음.
+  const ANALYZE_MODELS = [
+    { id: '', label: '기본값 (서버 설정)' },
+    { id: 'gemini-2.5-pro', label: '2.5 Pro (현재 기본)' },
+    { id: 'gemini-2.5-flash', label: '2.5 Flash' },
+    { id: 'gemini-3.5-flash', label: '3.5 Flash' },
+    { id: 'gemini-3.6-flash', label: '3.6 Flash' },
+    { id: 'gemini-3.1-pro-preview', label: '3.1 Pro (프리뷰)' },
+  ];
+  const [analyzeModel, setAnalyzeModel] = useState(() => {
+    try { return localStorage.getItem('analyzeModelOverride') || ''; } catch { return ''; }
+  });
+  const [lastAnalyzeMeta, setLastAnalyzeMeta] = useState(null); // { model, elapsedMs, usage }
+  // 1M 토큰당 USD (200k 토큰 이하 구간). 캐시된 입력은 훨씬 싼 단가로 따로 계산 —
+  // 우리 프롬프트는 대부분이 매 호출 동일한 프리픽스라 캐시 적중률이 높아서, 이걸 무시하면
+  // 비용이 실제보다 크게 부풀려 보인다.
+  const MODEL_PRICING = {
+    'gemini-2.5-pro': { in: 1.25, cached: 0.125, out: 10.00 },
+    'gemini-2.5-flash': { in: 0.30, cached: 0.03, out: 2.50 },
+    'gemini-3.5-flash': { in: 1.50, cached: 0.15, out: 9.00 },
+    'gemini-3.6-flash': { in: 1.50, cached: 0.15, out: 7.50 },
+    'gemini-3.1-pro-preview': { in: 2.00, cached: 0.20, out: 12.00 },
+  };
+  const estimateCostUsd = (meta) => {
+    const p = MODEL_PRICING[meta?.model];
+    const u = meta?.usage;
+    if (!p || !u) return null;
+    const fresh = Math.max(0, u.promptTokens - u.cachedTokens);
+    return (fresh * p.in + u.cachedTokens * p.cached + u.outputTokens * p.out) / 1e6;
+  };
   const [photoGuideOpen, setPhotoGuideOpen] = useState(() => localStorage.getItem('photoGuideCollapsed') !== '1');
   const togglePhotoGuide = () => setPhotoGuideOpen(prev => {
     const next = !prev;
@@ -964,6 +997,8 @@ export default function DiagnosticReportInput({
           images,
           hintTextbook: textbook, hintUnit: unit, hintSubject: subject,
           mode: modeOverride || 'auto',
+          // 관리자만 유효 — 서버가 플랫폼 관리자 여부를 다시 확인하고 아니면 기본값을 쓴다
+          ...(analyzeModel ? { model: analyzeModel } : {}),
         }),
         // 서버(api/analyze-photo.js)의 maxDuration이 60초인데 여기까지 60초로 잡으면, 업로드
         // (사진 5장이면 base64로 8MB에 육박)와 응답 수신까지 그 안에 다 들어가야 해서 느린
@@ -978,6 +1013,7 @@ export default function DiagnosticReportInput({
         setPhotoError(data.error);
       } else {
         setHasChargedAnalysis(true);
+        setLastAnalyzeMeta(data.meta || null);
         // 책 섹션 확정(쪽번호 정렬 → 번호 퍼즐 → 순서 상속)을 섹션에 주입 — photoAnalysis에
         // 같이 저장되므로 리포트 문서에도 따라가고, 수정 모드에서 다시 열어도 유지됨
         const resolvedList = resolveBookSections(data.sections || []);
@@ -1649,6 +1685,23 @@ export default function DiagnosticReportInput({
                   채점 표시가 선명하고 그림자·빛반사 없이 촬영할수록 AI가 더 정확하게 읽어요.
                 </p>
 
+                {/* 모델 A/B 비교 — 플랫폼 관리자 전용 실험 장치. 같은 사진으로 모델만 바꿔가며
+                    정확도·속도·비용을 비교하기 위한 것이라, 일반 학원 계정에는 아예 안 보임 */}
+                {isPlatformAdmin && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '10px', padding: '8px 10px', background: TOKENS.brandBg, border: `1px solid ${TOKENS.brandLight}`, borderRadius: '8px' }}>
+                    <span style={{ fontSize: '10px', fontWeight: 800, color: TOKENS.brand, letterSpacing: '0.04em' }}>관리자 · 채점 모델</span>
+                    <select value={analyzeModel}
+                      onChange={(e) => {
+                        setAnalyzeModel(e.target.value);
+                        try { localStorage.setItem('analyzeModelOverride', e.target.value); } catch { /* 저장 실패해도 이번 세션엔 적용됨 */ }
+                      }}
+                      style={{ fontSize: '12px', fontWeight: 600, padding: '5px 8px', borderRadius: '6px', border: `1px solid ${TOKENS.border}`, background: '#fff', color: TOKENS.text, fontFamily: 'inherit' }}>
+                      {ANALYZE_MODELS.map(m => <option key={m.id || 'default'} value={m.id}>{m.label}</option>)}
+                    </select>
+                    <span style={{ fontSize: '10px', color: TOKENS.textMute }}>같은 사진으로 모델만 바꿔 비교해보세요</span>
+                  </div>
+                )}
+
                 {/* 이 사진이 뭔지 태그 — AI 코멘트 문장이 "숙제를 보니", "오늘 테스트에서"처럼
                     자연스럽게 시작하도록 반영됨 (선택 안 해도 분석/코멘트 생성엔 지장 없음) */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px', flexWrap: 'wrap' }}>
@@ -1840,6 +1893,28 @@ export default function DiagnosticReportInput({
                       };
                       return (
                       <div style={{ background: TOKENS.bgSoft, border: `1px solid ${TOKENS.borderLight}`, borderRadius: '12px', padding: '12px', marginTop: '4px' }}>
+                        {/* 모델 비교 실측값 — 관리자 전용. 속도(초)와 이번 분석에 실제로 들어간
+                            토큰 기준 비용을 보여줘, 정확도와 함께 3축으로 비교할 수 있게 함 */}
+                        {isPlatformAdmin && lastAnalyzeMeta && (() => {
+                          const cost = estimateCostUsd(lastAnalyzeMeta);
+                          const photoCount = photos.filter(p => p.base64).length || 1;
+                          return (
+                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '10px', padding: '8px 10px', background: '#fff', border: `1px solid ${TOKENS.brandLight}`, borderRadius: '8px' }}>
+                              <span style={{ fontSize: '10px', fontWeight: 800, color: TOKENS.brand }}>{lastAnalyzeMeta.model}</span>
+                              <span style={{ fontSize: '10px', color: TOKENS.textSub }}>· {(lastAnalyzeMeta.elapsedMs / 1000).toFixed(1)}초</span>
+                              {lastAnalyzeMeta.usage && (
+                                <span style={{ fontSize: '10px', color: TOKENS.textSub }}>
+                                  · 입력 {lastAnalyzeMeta.usage.promptTokens.toLocaleString()}(캐시 {lastAnalyzeMeta.usage.cachedTokens.toLocaleString()}) / 출력 {lastAnalyzeMeta.usage.outputTokens.toLocaleString()} 토큰
+                                </span>
+                              )}
+                              {cost != null && (
+                                <span style={{ fontSize: '10px', fontWeight: 700, color: TOKENS.warn }}>
+                                  · 약 ${cost.toFixed(4)} (사진 {photoCount}장 · 장당 ${(cost / photoCount).toFixed(4)})
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()}
                         {/* "이 화면 사용법" 패널 — 제외/놓친 오답 추가/재분석/책 섹션 태그, 4개 기능을
                             한 곳에서 설명. 개별 버튼마다 물음표 아이콘을 붙이는 안(A)도 검토했는데,
                             발견을 사용자에게 맡기게 돼서 여기서는 진입 시 한 번에 보여주는 쪽(B)으로 감 */}
