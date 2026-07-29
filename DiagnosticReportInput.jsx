@@ -1633,6 +1633,9 @@ export default function DiagnosticReportInput({
                 <p style={{ fontSize: '11px', color: TOKENS.warn, margin: '0 0 10px' }}>
                   <AlertTriangle size={11} style={{ verticalAlign: '-1px' }} /> AI 분석 결과가 실제 채점과 다를 수 있어요 — 아래 정답/오답 표시를 눌러 직접 수정할 수 있습니다.
                 </p>
+                <p style={{ fontSize: '11px', color: TOKENS.textMute, margin: '0 0 10px' }}>
+                  채점 표시가 선명하고 그림자·빛반사 없이 촬영할수록 AI가 더 정확하게 읽어요.
+                </p>
 
                 {/* 이 사진이 뭔지 태그 — AI 코멘트 문장이 "숙제를 보니", "오늘 테스트에서"처럼
                     자연스럽게 시작하도록 반영됨 (선택 안 해도 분석/코멘트 생성엔 지장 없음) */}
@@ -1840,6 +1843,7 @@ export default function DiagnosticReportInput({
                           {photoGuideOpen && (
                             <div style={{ padding: '0 12px 12px' }}>
                               {[
+                                { mark: '✓/✕', title: '정답⇄오답 직접 수정', desc: 'AI가 빗금·동그라미를 놓치는 경우가 있어요. 발송 전에 카드의 표시를 한 번 훑어보고, 다르면 눌러서 바로 바꿔주세요.' },
                                 { mark: '✕', title: '결과에서 제외', desc: '교재 예제, 선생님과 같이 푼 문제처럼 채점 대상이 아니면 완전히 빼요.' },
                                 { mark: '＋', title: '놓친 오답 추가', desc: 'AI가 못 찾은 오답을 문항 번호만 입력해서 직접 넣어요.' },
                                 { mark: '🔄', title: '재분석', desc: '결과가 실제 채점과 다르면 다시 시도할 수 있어요 — 분석 1회가 더 나가요.' },
