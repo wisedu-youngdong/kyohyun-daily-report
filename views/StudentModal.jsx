@@ -181,6 +181,93 @@ export function StudentModal({ student, onClose, onSubmit, teachers = [], classe
             </div>
           </div>
 
+          {/* 캐릭터 아바타 + 리포트 스킨 — 수정 모드에서만. 예전엔 폼 맨 아래에 있어서
+              스크롤 안 하면 존재 자체를 못 찾는 문제가 있었음(실사용 중 발견) — 이름/학교
+              바로 다음, 반/담당강사 같은 관리용 필드보다 앞으로 끌어올림 */}
+          {isEdit && (
+            <>
+              <div style={{ marginBottom: '12px' }}>
+                <FieldLabel>캐릭터 아바타</FieldLabel>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                  {AVATARS.map(av => (
+                    <div
+                      key={av.key}
+                      role="button" tabIndex={0} aria-pressed={avatar === av.key}
+                      onClick={() => setAvatar(av.key)}
+                      onKeyDown={onKeyActivate(() => setAvatar(av.key))}
+                      style={{
+                        border: avatar === av.key ? `2.5px solid ${C.info}` : '2px solid #E5E7EB',
+                        borderRadius: '12px', padding: '8px 6px',
+                        cursor: 'pointer', textAlign: 'center',
+                        background: avatar === av.key ? C.infoBg : '#F9FAFB',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      <img src={av.url} alt={av.label} style={{ width: '48px', height: '48px', objectFit: 'contain', marginBottom: '4px' }} />
+                      <p style={{ fontSize: '10px', fontWeight: 600, color: avatar === av.key ? C.infoDark : '#6B7280', margin: 0, lineHeight: 1.3 }}>{av.label}</p>
+                      {avatar === av.key && (
+                        <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: C.info, margin: '4px auto 0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <span style={{ color: '#fff', fontSize: '10px', fontWeight: 900 }}>✓</span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <FieldLabel>리포트 스킨</FieldLabel>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '11px', color: '#6B7280', fontWeight: 500 }}>개별 설정</span>
+                    <div
+                      role="switch" tabIndex={0} aria-checked={useCustomSkin} aria-label="개별 설정"
+                      onClick={() => setUseCustomSkin(!useCustomSkin)}
+                      onKeyDown={onKeyActivate(() => setUseCustomSkin(!useCustomSkin))}
+                      style={{ width: '36px', height: '20px', borderRadius: '20px', background: useCustomSkin ? C.info : '#D1D5DB', cursor: 'pointer', position: 'relative', transition: 'background 0.2s' }}
+                    >
+                      <div style={{ position: 'absolute', top: '2px', left: useCustomSkin ? '18px' : '2px', width: '16px', height: '16px', borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }}></div>
+                    </div>
+                  </div>
+                </div>
+
+                {!useCustomSkin && (
+                  <div style={{ background: '#F9FAFB', borderRadius: '10px', padding: '10px 12px', fontSize: '11px', color: '#6C7586', fontWeight: 500 }}>
+                    학원 기본 스킨을 사용합니다
+                  </div>
+                )}
+
+                {useCustomSkin && (
+                  <div>
+                    {/* 프리셋 */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', marginBottom: '10px' }}>
+                      {PRESET_SKINS.map(sk => (
+                        <div key={sk.key} role="button" tabIndex={0} aria-pressed={skinColor === sk.main} onClick={() => setSkinColor(sk.main)} onKeyDown={onKeyActivate(() => setSkinColor(sk.main))}
+                          style={{ borderRadius: '8px', overflow: 'hidden', cursor: 'pointer', border: skinColor === sk.main ? `2.5px solid ${C.info}` : '2px solid #E5E7EB' }}>
+                          <div style={{ height: '24px', background: sk.main }}></div>
+                          <div style={{ padding: '3px', background: '#F9FAFB', textAlign: 'center' }}>
+                            <span style={{ fontSize: '10px', fontWeight: 700, color: skinColor === sk.main ? C.infoDark : '#6B7280' }}>{sk.name}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {/* 커스텀 */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#F9FAFB', borderRadius: '10px', padding: '10px' }}>
+                      <div style={{ position: 'relative', width: '36px', height: '36px', borderRadius: '10px', background: skinColor || C.primary, border: '2px solid rgba(0,0,0,0.08)', overflow: 'hidden', flexShrink: 0 }}>
+                        <input type="color" value={skinColor || C.primary} onChange={(e) => setSkinColor(e.target.value)}
+                          style={{ position: 'absolute', inset: '-4px', width: 'calc(100% + 8px)', height: 'calc(100% + 8px)', border: 'none', cursor: 'pointer', opacity: 0 }} />
+                      </div>
+                      <div>
+                        <p style={{ fontSize: '11px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>직접 색상 선택</p>
+                        <p style={{ fontSize: '10px', color: '#6C7586', margin: '1px 0 0', fontFamily: 'monospace' }}>{skinColor || C.primary}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
           {/* 반 */}
           {showClassPicker && (
             <div style={{ marginBottom: '12px' }}>
@@ -276,91 +363,6 @@ export function StudentModal({ student, onClose, onSubmit, teachers = [], classe
             <FieldLabel>관리 메모 (선택, 학원 내부용)</FieldLabel>
             <textarea value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="예: 서술형 대비 필요, 어머님이 카톡 선호" rows={2} style={{ ...inputStyle, fontFamily: 'inherit', resize: 'vertical' }} />
           </div>
-
-          {/* 캐릭터 아바타 + 리포트 스킨 — 수정 모드에서만 */}
-          {isEdit && (
-            <>
-              <div style={{ marginBottom: '12px' }}>
-                <FieldLabel>캐릭터 아바타</FieldLabel>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
-                  {AVATARS.map(av => (
-                    <div
-                      key={av.key}
-                      role="button" tabIndex={0} aria-pressed={avatar === av.key}
-                      onClick={() => setAvatar(av.key)}
-                      onKeyDown={onKeyActivate(() => setAvatar(av.key))}
-                      style={{
-                        border: avatar === av.key ? `2.5px solid ${C.info}` : '2px solid #E5E7EB',
-                        borderRadius: '12px', padding: '8px 6px',
-                        cursor: 'pointer', textAlign: 'center',
-                        background: avatar === av.key ? C.infoBg : '#F9FAFB',
-                        transition: 'all 0.15s',
-                      }}
-                    >
-                      <img src={av.url} alt={av.label} style={{ width: '48px', height: '48px', objectFit: 'contain', marginBottom: '4px' }} />
-                      <p style={{ fontSize: '10px', fontWeight: 600, color: avatar === av.key ? C.infoDark : '#6B7280', margin: 0, lineHeight: 1.3 }}>{av.label}</p>
-                      {avatar === av.key && (
-                        <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: C.info, margin: '4px auto 0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <span style={{ color: '#fff', fontSize: '10px', fontWeight: 900 }}>✓</span>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <FieldLabel>리포트 스킨</FieldLabel>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ fontSize: '11px', color: '#6B7280', fontWeight: 500 }}>개별 설정</span>
-                    <div
-                      role="switch" tabIndex={0} aria-checked={useCustomSkin} aria-label="개별 설정"
-                      onClick={() => setUseCustomSkin(!useCustomSkin)}
-                      onKeyDown={onKeyActivate(() => setUseCustomSkin(!useCustomSkin))}
-                      style={{ width: '36px', height: '20px', borderRadius: '20px', background: useCustomSkin ? C.info : '#D1D5DB', cursor: 'pointer', position: 'relative', transition: 'background 0.2s' }}
-                    >
-                      <div style={{ position: 'absolute', top: '2px', left: useCustomSkin ? '18px' : '2px', width: '16px', height: '16px', borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }}></div>
-                    </div>
-                  </div>
-                </div>
-
-                {!useCustomSkin && (
-                  <div style={{ background: '#F9FAFB', borderRadius: '10px', padding: '10px 12px', fontSize: '11px', color: '#6C7586', fontWeight: 500 }}>
-                    학원 기본 스킨을 사용합니다
-                  </div>
-                )}
-
-                {useCustomSkin && (
-                  <div>
-                    {/* 프리셋 */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', marginBottom: '10px' }}>
-                      {PRESET_SKINS.map(sk => (
-                        <div key={sk.key} role="button" tabIndex={0} aria-pressed={skinColor === sk.main} onClick={() => setSkinColor(sk.main)} onKeyDown={onKeyActivate(() => setSkinColor(sk.main))}
-                          style={{ borderRadius: '8px', overflow: 'hidden', cursor: 'pointer', border: skinColor === sk.main ? `2.5px solid ${C.info}` : '2px solid #E5E7EB' }}>
-                          <div style={{ height: '24px', background: sk.main }}></div>
-                          <div style={{ padding: '3px', background: '#F9FAFB', textAlign: 'center' }}>
-                            <span style={{ fontSize: '10px', fontWeight: 700, color: skinColor === sk.main ? C.infoDark : '#6B7280' }}>{sk.name}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    {/* 커스텀 */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#F9FAFB', borderRadius: '10px', padding: '10px' }}>
-                      <div style={{ position: 'relative', width: '36px', height: '36px', borderRadius: '10px', background: skinColor || C.primary, border: '2px solid rgba(0,0,0,0.08)', overflow: 'hidden', flexShrink: 0 }}>
-                        <input type="color" value={skinColor || C.primary} onChange={(e) => setSkinColor(e.target.value)}
-                          style={{ position: 'absolute', inset: '-4px', width: 'calc(100% + 8px)', height: 'calc(100% + 8px)', border: 'none', cursor: 'pointer', opacity: 0 }} />
-                      </div>
-                      <div>
-                        <p style={{ fontSize: '11px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>직접 색상 선택</p>
-                        <p style={{ fontSize: '10px', color: '#6C7586', margin: '1px 0 0', fontFamily: 'monospace' }}>{skinColor || C.primary}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
         </div>
 
         <div style={{ padding: '12px 22px', borderTop: '1px solid #E5E7EB', display: 'flex', gap: '8px', justifyContent: isEdit ? 'center' : 'flex-end', background: '#F9FAFB', borderRadius: '0 0 18px 18px' }}>
