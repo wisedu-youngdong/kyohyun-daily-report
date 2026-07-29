@@ -100,7 +100,12 @@ export default function PartnerLanding() {
 
   return (
     <div style={{ background: '#fff', color: INK_STRONG, fontFamily: R.body, WebkitFontSmoothing: 'antialiased' }}>
-      <style>{`@keyframes plFadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }`}</style>
+      <style>{`
+        @keyframes plFadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+        html { scroll-behavior: smooth; }
+        /* 360px급 좁은 화면에서 브랜드명+배지+CTA가 한 줄에 다 안 들어가 배지가 버튼과 겹침 — 배지만 숨김 */
+        @media (max-width: 430px) { .pl-nav-badge { display: none; } }
+      `}</style>
 
       {/* ── 상단 네비게이션 ── */}
       <div style={{
@@ -114,7 +119,7 @@ export default function PartnerLanding() {
             color: '#fff', fontSize: '13px', fontWeight: 900, fontFamily: R.body,
           }}>D</div>
           <span style={{ fontSize: '15px', fontWeight: 700, color: R.navy, whiteSpace: 'nowrap' }}>데일리 리포트 시스템</span>
-          <span style={{ fontSize: '11px', fontWeight: 600, color: R.goldText, background: GOLD_TINT, padding: '3px 9px', borderRadius: '999px', marginLeft: '4px', whiteSpace: 'nowrap' }}>학원 파트너</span>
+          <span className="pl-nav-badge" style={{ fontSize: '11px', fontWeight: 600, color: R.goldText, background: GOLD_TINT, padding: '3px 9px', borderRadius: '999px', marginLeft: '4px', whiteSpace: 'nowrap' }}>학원 파트너</span>
         </div>
         <CtaButton href="/signup" size="sm">학원 등록 신청</CtaButton>
       </div>
