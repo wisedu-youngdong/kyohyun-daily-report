@@ -965,7 +965,12 @@ export default function DiagnosticReportInput({
           hintTextbook: textbook, hintUnit: unit, hintSubject: subject,
           mode: modeOverride || 'auto',
         }),
-        signal: AbortSignal.timeout(60000),
+        // 서버(api/analyze-photo.js)의 maxDuration이 60초인데 여기까지 60초로 잡으면, 업로드
+        // (사진 5장이면 base64로 8MB에 육박)와 응답 수신까지 그 안에 다 들어가야 해서 느린
+        // 분석에서는 클라이언트가 항상 먼저 포기한다 — 서버가 결과나 안내 메시지를 정상적으로
+        // 만들어 보내도 사용자에겐 "시간 초과"만 뜨던 원인. 서버 한도보다 넉넉히 크게 잡아
+        // 서버가 내려주는 응답(성공이든 실패 안내든)을 실제로 받아볼 수 있게 함.
+        signal: AbortSignal.timeout(90000),
       });
       if (!response.ok) throw new Error(`서버 오류 (${response.status})`);
       const data = await response.json();
@@ -1011,7 +1016,7 @@ export default function DiagnosticReportInput({
       }
     } catch (e) {
       console.error('사진 분석 오류:', e);
-      setPhotoError(e.name === 'TimeoutError' ? '분석 시간이 초과됐습니다. 사진 수를 줄여 다시 시도해주세요.' : 'AI 분석에 실패했습니다. 잠시 후 다시 시도해주세요.');
+      setPhotoError(e.name === 'TimeoutError' ? '분석 시간이 초과됐습니다. 사진을 2~3장씩 나눠서 다시 시도해주세요. (크레딧은 차감되지 않았어요)' : 'AI 분석에 실패했습니다. 잠시 후 다시 시도해주세요.');
     }
     setAnalyzingPhoto(false);
   };

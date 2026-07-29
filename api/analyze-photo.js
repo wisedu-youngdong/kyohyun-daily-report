@@ -176,16 +176,30 @@ JSON만 출력:
   }
 }
 
+// 재확인 호출 한 번에 잡아두는 시간. 이만큼도 안 남았으면 시작조차 하지 않는다.
+const RECHECK_BUDGET_MS = 20000;
+
 // analyzeOneImage + 놓친 번호 재확인을 한 세트로 묶은 함수. concept 섹션(유형별 문항, 이
 // 서비스에서 가장 흔한 형태)만 병합 지원 — mock_exam은 원래 오답만 기록하는 구조(weakDetail)라
 // "정답으로 재확인됨"을 끼워 넣을 자리가 없고, calculation은 문항별 상세가 아예 없어 해당 없음.
-async function analyzeOneImageWithRecheck(img, mode, hintTextbook, hintUnit, hintSubject) {
+//
+// deadlineAt: 이 시각까지는 결과를 돌려줘야 한다(handler가 maxDuration에서 역산해 넘겨줌).
+// 재확인은 2차 Gemini 호출이라 1차와 합치면 한 장에 60초를 넘길 수 있는데, maxDuration에
+// 걸려 함수가 통째로 죽으면 멀쩡히 끝난 1차 결과까지 같이 날아가고 사용자는 타임아웃만 본다.
+// 재확인은 코드 주석대로 "있으면 좋은 보강"이지 필수 단계가 아니므로, 시간이 모자라면
+// 건너뛰고 1차 결과를 살려서 돌려주는 쪽이 항상 낫다.
+async function analyzeOneImageWithRecheck(img, mode, hintTextbook, hintUnit, hintSubject, deadlineAt) {
   const first = await analyzeOneImage(img, mode, hintTextbook, hintUnit, hintSubject);
   if (!first.ok) return first;
 
   const sections = first.data.sections || [];
   const missingGroups = findMissingNumbers(sections);
   if (missingGroups.length === 0) return first;
+
+  if (deadlineAt && deadlineAt - Date.now() < RECHECK_BUDGET_MS) {
+    console.warn(`남은 시간 부족 — 놓친 번호 재확인 건너뜀 (남은 ${Math.max(0, deadlineAt - Date.now())}ms)`);
+    return first;
+  }
 
   const recheckResults = await recheckMissingNumbers(img, missingGroups);
   if (recheckResults.length === 0) return first;
@@ -214,6 +228,11 @@ async function analyzeOneImageWithRecheck(img, mode, hintTextbook, hintUnit, hin
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
+  // maxDuration(60초)에 걸려 함수가 강제 종료되면 응답 자체가 없어서 클라이언트는 원인도 모른 채
+  // 타임아웃만 본다. 여기서 시작 시각을 잡아 "Gemini 작업은 언제까지"라는 마감을 만들고,
+  // 남은 여유(아래 상수)는 크레딧 차감·응답 직렬화 같은 마무리 작업 몫으로 남겨둔다.
+  const startedAt = Date.now();
+  const geminiDeadline = startedAt + 52000;
   const decoded = await verifyIdTokenHeader(req);
   if (!decoded) return res.status(401).json({ error: '로그인이 필요합니다.' });
 
@@ -251,7 +270,7 @@ export default async function handler(req, res) {
     // 일부만 성공한 결과를 그대로 돌려주면 "표시가 있는데도 빠진" 문제를 또 만드는 셈이라
     // 절반의 결과보다는 명확한 재시도 요청이 안전함.
     const results = await Promise.all(
-      imageList.map(img => analyzeOneImageWithRecheck(img, mode, hintTextbook, hintUnit, hintSubject))
+      imageList.map(img => analyzeOneImageWithRecheck(img, mode, hintTextbook, hintUnit, hintSubject, geminiDeadline))
     );
     const failIdx = results.findIndex(r => !r.ok);
     if (failIdx !== -1) {
