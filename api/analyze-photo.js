@@ -157,7 +157,7 @@ function findMissingNumbers(sections) {
 
 // 놓친 번호만 짚어 다시 확인시키고 { number, mark, type }[] 를 돌려준다. 실패해도 그냥 빈
 // 배열을 돌려줘 1차 결과는 그대로 살아있게 한다(재확인은 "있으면 좋은 보강"이지 필수 단계가 아님).
-async function recheckMissingNumbers(img, missingGroups, model = DEFAULT_MODEL) {
+async function recheckMissingNumbers(img, missingGroups, model = DEFAULT_MODEL, deadlineAt) {
   const listText = missingGroups.map(g =>
     `- ${g.bookSection ? `"${g.bookSection}" 섹션의 ` : ''}문항 번호: ${g.numbers.join(', ')}`
   ).join('\n');
@@ -191,7 +191,12 @@ JSON만 출력:
           ]
         }],
         generationConfig: { temperature: 0, responseMimeType: 'application/json', maxOutputTokens: 4096 }
-      })
+      }),
+      // 마감을 실제로 강제한다 — 아래 호출부의 "20초 남았으면 시작"은 예상치일 뿐이라,
+      // 이 호출이 예상보다 오래 끌면 maxDuration에 걸려 함수가 통째로 죽고 1차 결과까지
+      // 날아간다(이 파일이 막으려던 바로 그 증상). 여기서 끊기면 catch가 빈 결과를
+      // 돌려주므로 1차 분석 결과는 그대로 살아남는다.
+      ...(deadlineAt ? { signal: AbortSignal.timeout(Math.max(1000, deadlineAt - Date.now())) } : {}),
     });
     const data = await response.json();
     const um = data.usageMetadata || {};
@@ -246,7 +251,7 @@ async function analyzeOneImageWithRecheck(img, mode, hintTextbook, hintUnit, hin
     return first;
   }
 
-  const { results: recheckResults, usage: recheckUsage } = await recheckMissingNumbers(img, missingGroups, model);
+  const { results: recheckResults, usage: recheckUsage } = await recheckMissingNumbers(img, missingGroups, model, deadlineAt);
   const usage = addUsage(first.usage, recheckUsage);
   if (recheckResults.length === 0) return { ...first, usage };
 

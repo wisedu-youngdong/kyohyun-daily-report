@@ -635,8 +635,9 @@ export default function DiagnosticReportInput({
   // 접으면 그 브라우저에서는 계속 접힌 채로 시작(다시 펼치는 건 언제든 가능, 완전히
   // 숨기진 않음 — 매번 스쳐 지나가는 게 익숙해진 선생님한텐 방해될 수 있어서)
   // 채점 모델 A/B 비교용 — 플랫폼 관리자에게만 노출되는 실험 장치. 빈 문자열이면 서버 기본값
-  // (환경변수 GEMINI_ANALYZE_MODEL, 미설정 시 gemini-2.5-pro)을 그대로 쓴다. 서버도 화이트리스트로
-  // 한 번 더 거르므로 여기 값이 잘못돼도 임의 모델이 호출되지는 않음.
+  // (환경변수 GEMINI_ANALYZE_MODEL, 미설정 시 api/analyze-photo.js의 DEFAULT_MODEL)을 그대로 쓴다.
+  // 기본값을 여기 적어두면 서버만 바뀌었을 때 조용히 거짓말이 되므로 파일 이름만 가리킨다.
+  // 서버도 화이트리스트로 한 번 더 거르므로 여기 값이 잘못돼도 임의 모델이 호출되지는 않음.
   const ANALYZE_MODELS = [
     { id: '', label: '기본값 (서버 설정)' },
     { id: 'gemini-3.6-flash', label: '3.6 Flash (현재 기본)' },
@@ -649,9 +650,9 @@ export default function DiagnosticReportInput({
     try { return localStorage.getItem('analyzeModelOverride') || ''; } catch { return ''; }
   });
   const [lastAnalyzeMeta, setLastAnalyzeMeta] = useState(null); // { model, elapsedMs, usage }
-  // 1M 토큰당 USD (200k 토큰 이하 구간). 캐시된 입력은 훨씬 싼 단가로 따로 계산 —
-  // 우리 프롬프트는 대부분이 매 호출 동일한 프리픽스라 캐시 적중률이 높아서, 이걸 무시하면
-  // 비용이 실제보다 크게 부풀려 보인다.
+  // 1M 토큰당 USD (200k 토큰 이하 구간). 캐시된 입력은 단가가 달라서 따로 계산하지만,
+  // 실측상 실사용에서는 캐시가 거의 안 잡힌다(측정값 전부 "캐시 0" — CLAUDE.md "실측 원가" 참고).
+  // 그래도 분기를 남겨두는 건, 나중에 명시적 캐싱을 붙이면 이 계산이 바로 맞아떨어지기 때문.
   const MODEL_PRICING = {
     'gemini-2.5-pro': { in: 1.25, cached: 0.125, out: 10.00 },
     'gemini-2.5-flash': { in: 0.30, cached: 0.03, out: 2.50 },
@@ -1011,6 +1012,9 @@ export default function DiagnosticReportInput({
       const data = await response.json();
       if (data.error) {
         setPhotoError(data.error);
+        // 직전 성공의 측정값을 남겨두면 모델 A 성공 → 모델 B 실패 시 화면엔 여전히 A의
+        // 속도·비용이 떠 있어서, A/B 비교를 엉뚱한 숫자로 하게 된다
+        setLastAnalyzeMeta(null);
       } else {
         setHasChargedAnalysis(true);
         setLastAnalyzeMeta(data.meta || null);
@@ -1056,7 +1060,9 @@ export default function DiagnosticReportInput({
       // 한 장"에 수렴 — 실측: 5장 11.0초 vs 1장 12.9초). 그래서 "장수를 줄이라"를 1순위 조치로
       // 안내하지 않고, 일시적 지연일 가능성이 높으니 재시도를 먼저 권한다. 다만 업로드 용량은
       // 장수에 비례하므로(5장이면 8MB 육박) 느린 회선에서 반복 실패할 때의 차선책으로는 남겨둠
-      setPhotoError(e.name === 'TimeoutError' ? '분석 시간이 초과됐습니다. 잠시 후 다시 시도해주세요. 계속 실패하면 사진을 나눠서 올려보세요. (크레딧은 차감되지 않았어요)' : 'AI 분석에 실패했습니다. 잠시 후 다시 시도해주세요.');
+      // "차감 안 됨"을 단정하지 않는 이유: 서버는 분석을 다 끝내고 차감까지 한 뒤 응답만
+      // 전달되지 못했을 수도 있다(드물지만 가능). 돈에 관한 문구라 확신 대신 확인 경로를 안내함
+      setPhotoError(e.name === 'TimeoutError' ? '분석 시간이 초과됐습니다. 잠시 후 다시 시도해주세요. 계속 실패하면 사진을 나눠서 올려보세요. (대부분 크레딧이 차감되지 않지만, 설정 화면에서 잔여 횟수를 확인하실 수 있어요)' : 'AI 분석에 실패했습니다. 잠시 후 다시 시도해주세요.');
     }
     setAnalyzingPhoto(false);
   };

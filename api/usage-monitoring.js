@@ -57,10 +57,13 @@ export default async function handler(req, res) {
         db.collection('academies').doc(a.id).collection('creditUsage')
           .where('usedAt', '>=', rangeStart).where('usedAt', '<', rangeEnd).get(),
         db.collection('academies').doc(a.id).collection('private').doc('billing').get(),
-        // isDraft:true(자동저장 초안)는 실제 발송이 아니므로 제외 — SettingsView.jsx
-        // loadAcademies()와 동일하게, isDraft 필드가 없는 예전 리포트까지 놓치지 않도록
-        // where 쿼리 대신 전체를 받아 클라이언트(서버) 쪽에서 걸러낸다.
-        db.collection('academies').doc(a.id).collection('reports').get(),
+        // isDraft:true(자동저장 초안)는 실제 발송이 아니므로 제외하는데, isDraft 필드가 아예
+        // 없는 예전 리포트까지 놓치지 않으려면 그 조건만은 서버 메모리에서 걸러야 한다.
+        // 다만 기간 조건은 쿼리로 내릴 수 있다 — 아래 filter가 어차피 createdAt 없는 문서를
+        // 제외하므로 결과가 동일하다. 이걸 안 걸면 학원마다 "전 기간 리포트 전체"를 매번
+        // 읽어와서, 리포트가 쌓일수록 이 화면이 느려지고 Firestore 읽기 비용도 계속 늘어난다.
+        db.collection('academies').doc(a.id).collection('reports')
+          .where('createdAt', '>=', rangeStart).where('createdAt', '<', rangeEnd).get(),
       ]);
       const docs = usageSnap.docs.map(d => d.data());
       const billing = billingSnap.exists ? billingSnap.data() : {};
