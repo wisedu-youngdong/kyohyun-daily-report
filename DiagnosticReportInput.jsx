@@ -488,10 +488,17 @@ export default function DiagnosticReportInput({
 
   // 사진 위 박스 오버레이용 — box_2d가 있는 항목만 그 사진(photoIndex) 기준으로 모음.
   // calculation 섹션 오답은 wrongItems에서, concept 섹션은 photoAnalysis.sections에서 옴 —
-  // 두 출처가 서로 다른 배열이라 여기서 한 번에 합쳐서 오버레이가 출처를 신경 안 쓰게 함
+  // 두 출처가 서로 다른 배열이라 여기서 한 번에 합쳐서 오버레이가 출처를 신경 안 쓰게 함.
+  //
+  // box_2d는 Gemini 응답을 서버에서 검증 없이 그대로 통과시킨 값이라 형태를 신뢰할 수 없다 —
+  // 숫자 4개 배열이 아니라 객체({ymin:...})나 문자열, 길이가 다른 배열로 오는 경우가 실제로
+  // 있었고, 그러면 오버레이의 [ymin,xmin,ymax,xmax] 구조분해가 TypeError를 던져 사진 확대
+  // 순간 화면 전체가 크래시했다(에러 경계까지 올라감). 형태 검증을 이 한 곳에서만 하고,
+  // 통과 못 한 항목은 박스만 조용히 생략한다 — 판정 자체는 텍스트 카드로 그대로 확인 가능.
+  const isValidBox = (b) => Array.isArray(b) && b.length === 4 && b.every(n => Number.isFinite(n));
   const getBoxItemsForPhoto = (pi) => {
     const fromCalculation = wrongItems
-      .filter(w => w.photoIndex === pi && w.box_2d)
+      .filter(w => w.photoIndex === pi && isValidBox(w.box_2d))
       .map(w => ({
         key: `calc-${w.sectionIdx ?? 'x'}-${w.number}`, box_2d: w.box_2d,
         number: w.number, sectionIdx: w.sectionIdx, status: 'wrong',
@@ -501,7 +508,7 @@ export default function DiagnosticReportInput({
       .map((s, si) => ({ s, si }))
       .filter(({ s }) => s.sectionType === 'concept' && (s.photoIndex ?? 0) === pi)
       .flatMap(({ s, si }) => (s.problemTypes || [])
-        .filter(p => p.box_2d)
+        .filter(p => isValidBox(p.box_2d))
         .map(p => ({
           key: `concept-${si}-${p.number}`, box_2d: p.box_2d,
           number: p.number, sectionIdx: si, status: p.result === '잘함' ? 'correct' : 'wrong',
