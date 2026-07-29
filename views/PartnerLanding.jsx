@@ -384,7 +384,7 @@ export default function PartnerLanding() {
             <span style={{ width: '26px', height: '26px', borderRadius: '50%', background: R.navy, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={R.gold} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 12 10 18 20 6" /></svg>
             </span>
-            <span style={{ fontSize: '12.5px', color: INK_BODY, textAlign: 'left' }}>저희도 매일 이 시스템으로 리포트를 씁니다 — <strong style={{ color: R.navy }}>교현학원</strong></span>
+            <span style={{ fontSize: '12.5px', color: INK_BODY, textAlign: 'left' }}>실제 운영 중인 학원에서 <strong style={{ color: R.navy }}>매일 쓰고 있는 시스템</strong>입니다</span>
           </div>
           <h2 style={{ fontFamily: R.body, fontSize: '30px', fontWeight: 900, color: R.navy, lineHeight: 1.4, marginTop: '22px', marginBottom: 0 }}>
             우리 학원도 오늘부터<br />시작해볼까요
@@ -400,7 +400,7 @@ export default function PartnerLanding() {
           </div>
           <p style={{ fontSize: '12.5px', color: INK_SUB, marginTop: '16px', marginBottom: 0 }}>궁금한 점은 신청 폼에 함께 남겨주세요.</p>
           <p style={{ fontSize: '11px', color: INK_FAINT, marginTop: '34px', marginBottom: 0, paddingTop: '20px', borderTop: `1px solid ${RULE}` }}>
-            데일리 리포트 시스템 · 와이즈에듀 교현학원
+            데일리 리포트 시스템
           </p>
         </div>
       </div>
