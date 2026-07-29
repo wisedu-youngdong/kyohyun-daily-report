@@ -317,6 +317,7 @@ export default function PartnerLanding() {
                 title: '학원 안에서만 보는 관리 화면',
                 body: <>누가 아직 리포트를 안 썼는지, 이 학생이 어떤 유형에서 반복해 걸리는지<br />— 상담 전에 열어두면 할 말이 정리됩니다.</>,
                 shotSrc: '/partner-landing/teacher-view.png',
+                shotFit: 'contain',
               },
               {
                 badge: '학부모용', badgeColor: R.goldText, badgeBg: GOLD_TINT,
@@ -332,7 +333,7 @@ export default function PartnerLanding() {
                   <p style={{ fontSize: '13px', lineHeight: 1.75, color: INK_SUB, marginTop: '8px', marginBottom: 0 }}>{c.body}</p>
                 </div>
                 <div style={{ position: 'relative', height: '260px', margin: '0 20px', borderRadius: '14px 14px 0 0', overflow: 'hidden' }}>
-                  <ShotImage src={c.shotSrc} alt={c.title} radius={0} position="top" />
+                  <ShotImage src={c.shotSrc} alt={c.title} radius={0} position="top" fit={c.shotFit} />
                   <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '70px', background: `linear-gradient(180deg, rgba(251,251,249,0), ${OFFWHITE})`, pointerEvents: 'none' }} />
                 </div>
               </div>
