@@ -116,7 +116,7 @@ export default function PartnerLanding() {
           <span style={{ fontSize: '15px', fontWeight: 700, color: R.navy, whiteSpace: 'nowrap' }}>데일리 리포트 시스템</span>
           <span style={{ fontSize: '11px', fontWeight: 600, color: R.goldText, background: GOLD_TINT, padding: '3px 9px', borderRadius: '999px', marginLeft: '4px', whiteSpace: 'nowrap' }}>학원 파트너</span>
         </div>
-        <CtaButton href="/signup" size="sm">무료 체험 신청</CtaButton>
+        <CtaButton href="/signup" size="sm">학원 등록 신청</CtaButton>
       </div>
 
       {/* ── 히어로 ── */}
@@ -131,7 +131,7 @@ export default function PartnerLanding() {
             오늘 무엇을 알았고 어디서 걸렸는지, 채점한 시험지까지 그대로. 오른쪽은 편집 없는 실제 발송 화면입니다.
           </p>
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '14px', marginTop: '30px' }}>
-            <CtaButton href="/signup">무료 체험 시작하기 →</CtaButton>
+            <CtaButton href="/signup">무료로 시작하기 →</CtaButton>
             <a href="#howitworks" style={{
               display: 'inline-flex', alignItems: 'center', gap: '8px', border: '1px solid #D6D3CB',
               color: INK_BODY, fontSize: '14px', fontWeight: 600, padding: '14px 24px',
@@ -286,7 +286,7 @@ export default function PartnerLanding() {
             선생님이 보는 화면과<br />학부모가 보는 화면은 다릅니다
           </h2>
           <p style={{ fontSize: '14px', lineHeight: 1.8, color: INK_SUB, marginTop: '12px', marginBottom: 0, maxWidth: '560px' }}>
-            맛보기로 일부만 보여드립니다. 전체 화면은 체험 계정에서 직접 눌러보세요.
+            맛보기로 일부만 보여드립니다. 전체 화면은 등록 후 직접 확인하실 수 있어요.
           </p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', marginTop: '28px' }}>
             {[

@@ -1477,6 +1477,11 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                         <p style={{ fontSize: '11px', color: '#374151', margin: 0 }}><strong>주소</strong> {req.address} {req.addressDetail}</p>
                         <p style={{ fontSize: '11px', color: '#374151', margin: 0 }}><strong>대표전화</strong> {req.academyPhone} · <strong>이메일</strong> {req.email}</p>
                         <p style={{ fontSize: '11px', color: '#374151', margin: 0 }}><strong>희망 리포트 방식</strong> {req.reportMode === 'weekly' ? '주간형' : '매일형'}</p>
+                        {req.inquiry && (
+                          <p style={{ fontSize: '11px', color: '#374151', margin: 0, background: '#FFF8EC', borderRadius: '6px', padding: '6px 8px', lineHeight: 1.6 }}>
+                            <strong>문의사항</strong> {req.inquiry}
+                          </p>
+                        )}
 
                         {req.status === 'pending' && (
                           <>

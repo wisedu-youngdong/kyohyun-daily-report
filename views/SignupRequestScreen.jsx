@@ -27,6 +27,7 @@ export default function SignupRequestScreen() {
   const [academyPhone, setAcademyPhone] = useState('');
   const [directorName, setDirectorName] = useState('');
   const [reportMode, setReportMode] = useState('daily');
+  const [inquiry, setInquiry] = useState('');
   const [agreed, setAgreed] = useState(false);
 
   const isValid = email.trim() && password.length >= 6 && password === confirmPassword
@@ -79,6 +80,7 @@ export default function SignupRequestScreen() {
         address: address.trim(), addressDetail: addressDetail.trim(),
         academyPhone: academyPhone.trim(), directorName: directorName.trim(),
         reportMode, // 승인 시 academies/{id}.reportMode 초기값으로 그대로 반영 — 설정에서 언제든 변경 가능
+        inquiry: inquiry.trim(),
         status: 'pending', createdAt: serverTimestamp(),
       });
       // 관리자 알림 — 신청 접수 자체를 막으면 안 되므로 실패해도 무시(fire-and-forget)
@@ -249,6 +251,13 @@ export default function SignupRequestScreen() {
                     );
                   })}
                 </div>
+              </div>
+
+              <div style={fieldWrap}>
+                <label style={labelStyle}>궁금한 점 (선택)</label>
+                <textarea value={inquiry} onChange={e => setInquiry(e.target.value)}
+                  onFocus={focusInput} onBlur={blurInput} placeholder="요금, 기존 데이터 이전 등 궁금하신 점을 편하게 남겨주세요."
+                  rows={3} style={{ ...inputStyle, resize: 'vertical', fontFamily: R.body }} />
               </div>
 
               <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '12px', color: R.inkSub, margin: '18px 0 16px', cursor: 'pointer', lineHeight: 1.6 }}>
