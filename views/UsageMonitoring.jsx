@@ -98,14 +98,19 @@ export default function UsageMonitoring({ month, onMonthChange }) {
 
       <p style={{ fontSize: '12px', fontWeight: 700, color: T.text, margin: '0 0 4px' }}>학원별 사용량 랭킹</p>
       {(data?.ranking || []).some(a => a.excludeFromStats) && (
-        <p style={{ fontSize: '10px', color: T.textMute, margin: '0 0 8px' }}>🧪 표시된 학원은 통계에서 제외돼 위 총계·그래프에는 반영되지 않았어요.</p>
+        <p style={{ fontSize: '10px', color: T.textMute, margin: '0 0 4px' }}>🧪 표시된 학원은 통계에서 제외돼 위 총계·그래프에는 반영되지 않았어요.</p>
+      )}
+      {(data?.ranking || []).some(a => a.textOnlyFlag) && (
+        <p style={{ fontSize: '10px', color: T.textMute, margin: '0 0 8px' }}>🟡 표시된 학원은 리포트는 활발히 보내지만 사진 분석은 이번 달 0회예요 — 관찰 대상일 뿐 정책이 바뀐 건 아니에요.</p>
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
         {(data?.ranking || []).map((a, i) => (
-          <div key={a.academyId} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: a.excludeFromStats ? '#F8F7FC' : '#F9FAFB', borderRadius: '10px', padding: '10px 12px' }}>
+          <div key={a.academyId} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: a.excludeFromStats ? '#F8F7FC' : (a.textOnlyFlag ? '#FFFCF2' : '#F9FAFB'), borderRadius: '10px', padding: '10px 12px' }}>
             <span style={{ fontSize: '11px', fontWeight: 700, color: T.textMute, width: '18px', flexShrink: 0 }}>{i + 1}</span>
             <span style={{ fontSize: '12px', fontWeight: 600, color: T.text, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {a.academyName}{a.excludeFromStats && <span style={{ fontSize: '10px', fontWeight: 700, color: '#8A6FD4', marginLeft: '5px' }}>🧪 테스트</span>}
+              {a.academyName}
+              {a.excludeFromStats && <span style={{ fontSize: '10px', fontWeight: 700, color: '#8A6FD4', marginLeft: '5px' }}>🧪 테스트</span>}
+              {a.textOnlyFlag && <span style={{ fontSize: '10px', fontWeight: 700, color: C.warning, marginLeft: '5px' }}>🟡 텍스트 전용 (리포트 {a.reportsThisMonth}건)</span>}
             </span>
             <span style={{ fontSize: '11px', color: T.textSub, flexShrink: 0 }}>분석 {a.count}회</span>
             <span style={{ fontSize: '11px', color: T.textSub, flexShrink: 0 }}>강사 {a.teacherCount}명</span>

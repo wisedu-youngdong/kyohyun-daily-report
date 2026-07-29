@@ -13,6 +13,15 @@ function kstDateStr(d) { return d.toISOString().split('T')[0]; }
 
 const LOW_CREDIT_THRESHOLD = 5;
 
+// "텍스트만 쓰는 학원" 관찰 기준선 — 2026-07-29 정책 논의 결론(정책 변경 없음, 데이터로
+// 감시, 기준선 넘으면 그때 대응). 사진 분석 없이도 원가는 있지만(코멘트 다듬기/서사 생성/
+// 저장·이메일 등, 학생 30명 매일형 기준 대략 월 1,000~2,000원) 무시 가능한 수준이라 이
+// 자체로 정책을 바꿀 이유는 아니다 — 이 학원은 손실이 아니라 "핵심 유료 기능(사진 채점)을
+// 아직 안 써본 잠재 고객"에 가깝다. 다만 월 발송량이 크면서 분석을 정말 한 번도 안 쓰는
+// 패턴이 몇 달째 이어지면 그때 직접 대화하거나 가벼운 기본 플랜을 검토하기로 함 —
+// 그 판단을 위한 관찰 지표일 뿐, 이 임계값을 넘었다고 자동으로 뭔가 바뀌진 않는다.
+const TEXT_ONLY_REPORT_THRESHOLD = 50;
+
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).end();
 
@@ -44,13 +53,21 @@ export default async function handler(req, res) {
 
     const academiesSnap = await db.collection('academies').get();
     const perAcademy = await Promise.all(academiesSnap.docs.map(async (a) => {
-      const [usageSnap, billingSnap] = await Promise.all([
+      const [usageSnap, billingSnap, reportsSnap] = await Promise.all([
         db.collection('academies').doc(a.id).collection('creditUsage')
           .where('usedAt', '>=', rangeStart).where('usedAt', '<', rangeEnd).get(),
         db.collection('academies').doc(a.id).collection('private').doc('billing').get(),
+        // isDraft:true(자동저장 초안)는 실제 발송이 아니므로 제외 — SettingsView.jsx
+        // loadAcademies()와 동일하게, isDraft 필드가 없는 예전 리포트까지 놓치지 않도록
+        // where 쿼리 대신 전체를 받아 클라이언트(서버) 쪽에서 걸러낸다.
+        db.collection('academies').doc(a.id).collection('reports').get(),
       ]);
       const docs = usageSnap.docs.map(d => d.data());
       const billing = billingSnap.exists ? billingSnap.data() : {};
+      const reportsThisMonth = reportsSnap.docs
+        .map(d => d.data())
+        .filter(r => r.isDraft !== true && r.createdAt && r.createdAt.toMillis() >= rangeStart.toMillis() && r.createdAt.toMillis() < rangeEnd.toMillis())
+        .length;
       return {
         id: a.id,
         academyName: a.data().academyName || a.id,
@@ -60,6 +77,7 @@ export default async function handler(req, res) {
         creditBalance: typeof billing.creditBalance === 'number' ? billing.creditBalance : null,
         unlimited: billing.unlimited === true,
         excludeFromStats: billing.excludeFromStats === true,
+        reportsThisMonth,
       };
     }));
 
@@ -73,6 +91,11 @@ export default async function handler(req, res) {
     const activeTeacherCount = new Set(statsAcademies.flatMap(a => a.teacherUids)).size;
     const lowCreditAcademyCount = statsAcademies.filter(
       a => !a.unlimited && a.creditBalance !== null && a.creditBalance <= LOW_CREDIT_THRESHOLD
+    ).length;
+    // 리포트는 활발히 보내는데(기준선 이상) 사진 분석은 이번 달 0회 — "텍스트만 쓰는 학원"
+    // 관찰 대상. 위 TEXT_ONLY_REPORT_THRESHOLD 주석 참고, 자동 조치는 없음
+    const textOnlyAcademyCount = statsAcademies.filter(
+      a => a.reportsThisMonth >= TEXT_ONLY_REPORT_THRESHOLD && a.count === 0
     ).length;
 
     const dailyMap = {};
@@ -95,12 +118,14 @@ export default async function handler(req, res) {
         creditBalance: a.creditBalance,
         unlimited: a.unlimited,
         excludeFromStats: a.excludeFromStats,
+        reportsThisMonth: a.reportsThisMonth,
+        textOnlyFlag: a.reportsThisMonth >= TEXT_ONLY_REPORT_THRESHOLD && a.count === 0,
       }))
       .sort((a, b) => b.count - a.count);
 
     res.status(200).json({
       month: `${year}-${String(month + 1).padStart(2, '0')}`,
-      totals: { analysisCount, activeAcademyCount, activeTeacherCount, lowCreditAcademyCount },
+      totals: { analysisCount, activeAcademyCount, activeTeacherCount, lowCreditAcademyCount, textOnlyAcademyCount },
       dailyTrend,
       ranking,
     });
