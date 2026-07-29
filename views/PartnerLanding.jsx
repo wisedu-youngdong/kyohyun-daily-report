@@ -45,12 +45,14 @@ function ShotPlaceholder({ label, radius = 16 }) {
 }
 
 // 실사 캡처 — 가명 처리된 실제 화면 스크린샷을 슬롯 크기에 맞게 크롭해서 채움
-function ShotImage({ src, alt, radius = 16, position = 'top' }) {
+function ShotImage({ src, alt, radius = 16, position = 'top', fit = 'cover' }) {
   return (
-    <img src={src} alt={alt} style={{
-      width: '100%', height: '100%', boxSizing: 'border-box',
-      borderRadius: `${radius}px`, objectFit: 'cover', objectPosition: position, display: 'block',
-    }} />
+    <div style={{ width: '100%', height: '100%', background: '#F3F1EC', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <img src={src} alt={alt} style={{
+        width: '100%', height: '100%', boxSizing: 'border-box',
+        borderRadius: `${radius}px`, objectFit: fit, objectPosition: position, display: 'block',
+      }} />
+    </div>
   );
 }
 
@@ -71,10 +73,10 @@ function CtaButton({ href, children, size = 'md' }) {
   );
 }
 
-function StepRow({ step, roleLabel, roleColor, roleBg, title, body, shotSrc, shotPosition, reverse, first }) {
+function StepRow({ step, roleLabel, roleColor, roleBg, title, body, shotSrc, shotPosition, shotFit, reverse, first }) {
   const shot = (
     <div style={{ flex: '0 1 448px', width: '448px', maxWidth: '100%', height: '260px', position: 'relative', overflow: 'hidden', borderRadius: '16px', boxShadow: SHADOW_SOFT }}>
-      <ShotImage src={shotSrc} alt={title} position={shotPosition} />
+      <ShotImage src={shotSrc} alt={title} position={shotPosition} fit={shotFit} />
     </div>
   );
   return (
@@ -258,7 +260,7 @@ export default function PartnerLanding() {
             title="선생님 노트 다듬기" shotSrc="/partner-landing/step3.png" shotPosition="top"
             body={<>AI 초안 위에 그날의 장면을 얹습니다.<br />아이를 본 사람만 쓸 수 있는 문장이 리포트의 핵심입니다.</>} />
           <StepRow reverse step={4} roleLabel="학부모" roleColor="#00873A" roleBg="#E5F5EA"
-            title="카카오톡으로 전달" shotSrc="/partner-landing/step4.png" shotPosition="top"
+            title="카카오톡으로 전달" shotSrc="/partner-landing/step4.png" shotFit="contain"
             body={<>보낸 그대로, 학부모 카카오톡으로 도착합니다.<br />학부모는 설치도 로그인도 없이 링크만 열면 됩니다.</>} />
         </div>
       </div>
