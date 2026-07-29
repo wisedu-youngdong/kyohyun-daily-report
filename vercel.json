@@ -34,6 +34,17 @@
       ]
     },
     {
+      "source": "/partner",
+      "destination": "/api/og-preview?kind=partner",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(facebookexternalhit|twitterbot|LinkedInBot|Slackbot|TelegramBot|WhatsApp|Naverbot|Yeti|DaumMoaBot|Googlebot|bingbot|[Kk]akaotalk-scrap|crawler|spider|bot).*"
+        }
+      ]
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

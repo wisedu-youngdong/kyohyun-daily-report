@@ -159,8 +159,8 @@ export default function LoginScreen() {
             </button>
           </p>
           <p style={{ textAlign: 'center', margin: '12px 0 0' }}>
-            <a href="/signup" style={{ fontSize: '12px', fontWeight: 600, color: R.inkMute, textDecoration: 'underline' }}>
-              처음이신가요? 학원 등록 신청
+            <a href="/partner" style={{ fontSize: '12px', fontWeight: 600, color: R.inkMute, textDecoration: 'underline' }}>
+              처음이신가요? 학원 파트너 안내 보기
             </a>
           </p>
           <p style={{ fontSize: '11px', fontWeight: 500, color: R.inkMute, textAlign: 'center', margin: '18px 0 0', paddingTop: '18px', borderTop: `1px dashed ${R.rule}`, letterSpacing: '0.02em' }}>

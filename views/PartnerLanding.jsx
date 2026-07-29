@@ -73,7 +73,7 @@ function CtaButton({ href, children, size = 'md' }) {
 
 function StepRow({ step, roleLabel, roleColor, roleBg, title, body, shotSrc, shotPosition, reverse, first }) {
   const shot = (
-    <div style={{ flex: '0 1 260px', height: '300px', position: 'relative', overflow: 'hidden', borderRadius: '16px', boxShadow: SHADOW_SOFT }}>
+    <div style={{ flex: '0 1 448px', width: '448px', maxWidth: '100%', height: '260px', position: 'relative', overflow: 'hidden', borderRadius: '16px', boxShadow: SHADOW_SOFT }}>
       <ShotImage src={shotSrc} alt={title} position={shotPosition} />
     </div>
   );

@@ -57,8 +57,23 @@ async function loadStudentNamePreview(id, { title, ogTitleSuffix, ogSub, redirec
   };
 }
 
+// 파트너 랜딩(/partner)은 학생/리포트별 데이터가 없는 정적 마케팅 페이지라 Firestore 조회
+// 없이 고정 문구만 반환 — 아래 KIND_LOADERS 시그니처(id 인자 하나)를 맞추기 위해 인자는 받되 씀
+async function loadPartnerPreview() {
+  return {
+    academyName: null,
+    title: '데일리 리포트 시스템 — 학원 파트너',
+    desc: '아이의 하루를 이만큼 자세히 적어주는 학원은 흔치 않습니다. 학원 등록은 무료, 쓴 만큼만 냅니다.',
+    ogTitle: '학원 파트너 모집',
+    ogSub: '쓴 만큼만 냅니다 · 월 약정 없음',
+    redirectPath: '/partner',
+    loadingText: '학원 파트너 페이지로 이동 중...',
+  };
+}
+
 const KIND_LOADERS = {
   report: (id) => loadReportPreview(id),
+  partner: () => loadPartnerPreview(),
   story: (id) => loadStudentNamePreview(id, {
     title: (name) => `${name}의 성장 포트폴리오`,
     ogTitleSuffix: ' 성장 포트폴리오',
@@ -78,7 +93,8 @@ const KIND_LOADERS = {
 export default async function handler(req, res) {
   const { kind, id } = req.query;
   const loader = KIND_LOADERS[kind];
-  if (!loader || !id) return res.status(400).send('Bad Request');
+  // partner는 id 없이 정적 문구만 쓰므로 id 필수 체크에서 예외
+  if (!loader || (!id && kind !== 'partner')) return res.status(400).send('Bad Request');
 
   let preview;
   try {
