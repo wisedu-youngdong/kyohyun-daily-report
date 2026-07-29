@@ -99,7 +99,12 @@ export default function PartnerLanding() {
   ];
 
   return (
-    <div style={{ background: '#fff', color: INK_STRONG, fontFamily: R.body, WebkitFontSmoothing: 'antialiased' }}>
+    <div style={{
+      background: '#fff', color: INK_STRONG, fontFamily: R.body, WebkitFontSmoothing: 'antialiased',
+      // 한글은 기본값이 글자 단위 줄바꿈이라 "편집"이 "편/집"으로 잘리는 등 읽는 흐름이 끊김 —
+      // 단어 단위로만 줄바꿈(keep-all)하되, 컨테이너보다 긴 단어는 안전하게 강제 줄바꿈
+      wordBreak: 'keep-all', overflowWrap: 'break-word',
+    }}>
       <style>{`
         @keyframes plFadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
         html { scroll-behavior: smooth; }
