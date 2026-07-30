@@ -108,6 +108,31 @@ export function textSafeColor(hex, bg = '#ffffff', target = 4.5) {
   return '#000000';
 }
 
+// RGB 선형 보간 — 스킨 파생색 계산에서 "흰색/검정색을 N% 섞기" 용도로 씀
+function mixHex(hexA, hexB, t) {
+  const pa = [1, 3, 5].map(i => parseInt(hexA.slice(i, i + 2), 16));
+  const pb = [1, 3, 5].map(i => parseInt(hexB.slice(i, i + 2), 16));
+  return '#' + pa.map((v, i) => Math.round(v + (pb[i] - v) * t).toString(16).padStart(2, '0')).join('');
+}
+
+// 리포트 스킨 파생색 — 저장돼 있는 건 주조색(primary)·포인트색(accent) 2개뿐인 리포트(학생별
+// 커스텀 색, 예전 리포트의 skin.main/accent)를 6값 스킨(second/tint/track/bannerLabel까지)으로
+// 확장한다. "리포트 스킨 우측 패널" 개선 핸드오프(2026-07-30)의 자동 생성 규칙을 그대로 옮김 —
+// 사전 정의된 7종 프리셋 스킨은 이 함수를 안 거치고 손으로 고른 값을 그대로 쓴다(디자인 확정본).
+export function deriveSkinColors(primaryIn, accentIn) {
+  // primary/second/bannerLabel은 흰 글자가 위에 얹히므로 textSafeColor를 "배경 자신이
+  // 대비 기준을 넘을 때까지 어둡게"용으로 재사용(대비 계산은 순서 무관이라 그대로 맞음)
+  const primary = textSafeColor(primaryIn, '#ffffff', 4.5);
+  return {
+    primary,
+    second: textSafeColor(mixHex(primary, '#ffffff', 0.2), '#ffffff', 4.5),
+    accent: accentIn,
+    tint: mixHex(accentIn, '#ffffff', 0.86),
+    track: mixHex(primary, '#ffffff', 0.88),
+    bannerLabel: textSafeColor(mixHex(accentIn, '#000000', 0.45), '#ffffff', 4.5),
+  };
+}
+
 // 학부모 리포트 공용 카드 래퍼 — 연한 배경 위 중앙 정렬된 흰 카드
 export function ReportCard({ children, maxWidth = '390px', fontFamily = R.body }) {
   return (

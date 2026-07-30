@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { db } from './firebase';
-import { doc, getDoc, collection, addDoc, serverTimestamp, getDocs, query, where, limit } from 'firebase/firestore';
-import { R, ReportCard, textSafeColor } from './tokens.jsx';
+import { doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { R, ReportCard, deriveSkinColors } from './tokens.jsx';
 import { toPct, ratingLabel, fetchAcademyBranding } from './growth.js';
+import { WRONG_TAG_LABELS } from './diagnosis.js';
 const SkeletonReport = () => (
   <div style={{ background: '#F5F5F0', minHeight: '100dvh', padding: '24px 16px', display: 'flex', justifyContent: 'center', fontFamily: 'Pretendard, sans-serif' }}>
     <style>{`@keyframes reportPulse { 0%,100% { opacity: 0.5; } 50% { opacity: 0.9; } }`}</style>
@@ -34,7 +35,7 @@ export default function PublicReport() {
   const [brokenPhotos, setBrokenPhotos] = useState({});
   const [academyName, setAcademyName] = useState(null);
   const [academyId, setAcademyId] = useState(null);
-  const [prevReport, setPrevReport] = useState(null); // 지난 리포트 — 과제/개념 점수 추세(▲▼) 표시용
+  const [noteOpen, setNoteOpen] = useState(false); // 선생님 노트 "자세히 보기" 접기/펼침
   const [questions, setQuestions] = useState([]);
   const [questionText, setQuestionText] = useState('');
   const [questionSubmitting, setQuestionSubmitting] = useState(false);
@@ -61,21 +62,6 @@ export default function PublicReport() {
         setLoading(false);
         setAcademyId(academyId);
         fetchAcademyBranding(academyId).then(b => setAcademyName(b.academyName || null));
-
-        // 지난 리포트 조회 — 과제/개념 점수 추세(▲▼) 표시용. studentId 단일 조건만 걸고
-        // (createdAt과 함께 걸면 복합 색인이 필요해짐) 클라이언트에서 정렬/필터
-        // — GrowthAward.jsx가 같은 이유로 쓰는 것과 동일한 패턴
-        if (r.studentId && r.createdAt?.seconds) {
-          getDocs(query(collection(db, 'academies', academyId, 'reports'), where('studentId', '==', r.studentId), limit(200)))
-            .then(snap => {
-              const candidates = snap.docs
-                .map(d => ({ id: d.id, ...d.data() }))
-                .filter(pr => pr.id !== r.id && pr.isDraft !== true && pr.createdAt?.seconds && pr.createdAt.seconds < r.createdAt.seconds)
-                .sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
-              if (candidates[0]) setPrevReport(candidates[0]);
-            })
-            .catch(() => {}); // 추세 표시는 부가 기능 — 실패해도 리포트 본문엔 영향 없음
-        }
 
         // 이 리포트에 남긴 질문/답변 — Firestore 직접 list는 전체 학원 질문 열람으로 이어질 수 있어
         // 막혀 있고(firestore.rules), reportId로 스코프된 결과만 서버(Admin SDK)를 통해 받아온다.
@@ -204,228 +190,249 @@ export default function PublicReport() {
   const conceptPct = toPct(r.conceptRating);
   const teacherSuffix = /선생님?$/.test(r.teacherName || '') ? '' : ' 선생님';
 
-  // 지난 리포트 대비 추세 — 둘 다 값이 있을 때만 계산(한쪽이 미입력이면 비교 자체가 의미 없음)
-  const homeworkTrend = (r.homeworkRating != null && prevReport?.homeworkRating != null)
-    ? homeworkPct - toPct(prevReport.homeworkRating) : null;
-  const conceptTrend = (r.conceptRating != null && prevReport?.conceptRating != null)
-    ? conceptPct - toPct(prevReport.conceptRating) : null;
+  // 스킨 6색 — 저장된 건 주조색/포인트색 2개(skin.main/accent)뿐이라 나머지(second/tint/track/
+  // bannerLabel)는 여기서 파생 계산한다. 스킨 없는 기존 리포트는 기본 네이비+골드로 계산됨.
+  const sk = deriveSkinColors(r.skin?.main || R.navy, r.skin?.accent || R.gold);
+  const { body } = R;
+  // "리포트 스킨 우측 패널" 개선(2026-07-30) 디자인 확정 토큰 — 이 카드 전용, 앱 전역 R 토큰과는
+  // 별개(디자인 핸드오프가 지정한 값을 그대로 씀)
+  const INK = '#171719';
+  const INK_SOFT = 'rgba(55,56,60,0.75)';
+  const CARD_BORDER = '#E4E6EB';
 
-  // DS 토큰 — 주조색(navy)/포인트색(gold)은 리포트에 저장된 스킨이 있으면 그 색으로 교체.
-  // 스킨 없는 기존 리포트는 그대로 기본 네이비+골드 (작성 화면 픽커에서 저장한 skin.main/accent)
-  const { rule, inkMute, inkSub, ink, positive, serif, body } = R;
-  const navy = r.skin?.main || R.navy;
-  const gold = r.skin?.accent || R.gold;
-  // 텍스트 색으로 쓸 땐 gold를 그대로 쓰지 않는다 — 학생이 고른 스킨의 accent가
-  // 배경/테두리용 옅은 톤(예: '#EDEBE6')일 수도 있어서, 그대로 쓰면 흰 배경 위에서 안 보임
-  const goldText = r.skin?.accent ? textSafeColor(gold) : R.goldText;
-
-  // 추세 배지 — 지난 리포트 대비 ▲/▼N%p, 변화 없으면 "동일"
-  const TrendBadge = ({ trend }) => {
-    if (trend == null) return null;
-    const color = trend > 0 ? positive : trend < 0 ? R.negative : inkMute;
-    const text = trend > 0 ? `▲${trend}` : trend < 0 ? `▼${Math.abs(trend)}` : '동일';
-    return <span style={{ fontSize: '11px', fontWeight: 700, color, marginLeft: '5px' }}>{text}</span>;
-  };
+  // 선생님 노트 — 첫 문단을 결론으로 상단에 크게, 나머지는 200자 넘으면 접어서 "자세히 보기"로.
+  // 오늘 눈에 띈 문항은 자유 텍스트에서 추출하지 않고, 이미 구조화돼 저장된 wrongItems를 그대로 씀
+  const noteParagraphs = (r.teacherNote || '').split('\n').filter(Boolean);
+  const noteLead = noteParagraphs[0] || '';
+  const noteRest = noteParagraphs.slice(1);
+  const noteCollapsible = noteRest.join(' ').length > 200;
+  const noteRestVisible = noteCollapsible ? noteOpen : true;
 
   return (
     <>
     <ReportCard maxWidth="390px" fontFamily={body}>
 
-          {/* 헤더 */}
-          <div style={{ background: navy, padding: '20px 22px 18px', position: 'relative' }}>
-            {/* 브랜드 */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-              <div style={{ width: '4px', height: '20px', background: gold, borderRadius: '1px', flexShrink: 0 }} />
-              <span style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.15em' }}>{academyName || '데일리 리포트 시스템'}</span>
+          {/* 헤더 — 학생 메타 줄에 출결까지 포함(핵심 지표에서 이동) */}
+          <div style={{ background: sk.primary, padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 600, color: sk.accent }}>
+                <span style={{ width: '4px', height: '12px', background: sk.accent, display: 'inline-block', flexShrink: 0 }} />
+                {academyName || '데일리 리포트 시스템'}
+              </span>
+              {dateStr && <span style={{ fontSize: '12px', fontWeight: 500, color: 'rgba(255,255,255,0.82)', flexShrink: 0 }}>{dateStr}</span>}
             </div>
-            <div style={{ height: '1px', background: `${gold}4D`, marginBottom: '14px' }} />
-            {/* 학생 정보 */}
-            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-              <div>
-                <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.45)', letterSpacing: '0.15em', margin: '0 0 4px', fontWeight: 600 }}>LEARNING REPORT</p>
-                <p style={{ fontFamily: serif, fontSize: '26px', fontWeight: 700, color: '#fff', margin: '0 0 4px', letterSpacing: '-0.5px' }}>{r.studentName}</p>
-                <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.75)', margin: 0 }}>{dateStr} · {r.teacherName}{teacherSuffix}</p>
+            <div style={{ height: '1px', background: 'rgba(255,255,255,0.16)' }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '2.2px', color: sk.accent }}>LEARNING REPORT</span>
+              <span style={{ fontSize: '28px', fontWeight: 700, letterSpacing: '-0.5px', lineHeight: 1.1, color: '#fff' }}>{r.studentName}</span>
+              <span style={{ fontSize: '12px', fontWeight: 500, color: 'rgba(255,255,255,0.82)' }}>
+                {r.teacherName}{teacherSuffix}
+                {r.attendance === '결석' ? ` · ${r.attendance}` : ` · ${r.arrivalTime} ${r.attendance} 등원`}
+              </span>
+            </div>
+          </div>
+
+          {/* 오늘의 한 줄 — AI가 코멘트 다듬기와 함께 생성, 선생님이 수정 가능. 없으면 배너 자체를 숨김 */}
+          {r.summary && (
+            <div style={{ background: sk.tint, padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.6px', color: sk.bannerLabel }}>오늘의 한 줄</span>
+              <span style={{ fontSize: '19px', fontWeight: 700, lineHeight: 1.6, letterSpacing: '-0.3px', color: INK, textWrap: 'pretty' }}>{r.summary}</span>
+            </div>
+          )}
+
+          {/* 핵심 지표 — 과제/개념 막대 2개만(출결은 헤더로 이동) */}
+          <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '12px' }}>
+                <span style={{ fontSize: '14px', fontWeight: 600, color: INK }}>과제 수행</span>
+                <span style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                  <span style={{ fontSize: '22px', fontWeight: 700, lineHeight: 1, color: sk.primary }}>
+                    {r.homeworkRating != null ? homeworkPct : '-'}<span style={{ fontSize: '12px', fontWeight: 600 }}>%</span>
+                  </span>
+                  {r.homeworkRating != null && <span style={{ fontSize: '12px', fontWeight: 600, color: INK_SOFT }}>{ratingLabel(homeworkPct)}</span>}
+                </span>
+              </div>
+              <div style={{ height: '8px', borderRadius: '6px', background: sk.track, overflow: 'hidden', display: 'flex' }}>
+                <div style={{ width: `${r.homeworkRating != null ? homeworkPct : 0}%`, background: sk.primary }} />
+              </div>
+            </div>
+            <div style={{ height: '1px', background: '#EEF0F3' }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '12px' }}>
+                <span style={{ fontSize: '14px', fontWeight: 600, color: INK }}>개념 이해</span>
+                <span style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                  <span style={{ fontSize: '22px', fontWeight: 700, lineHeight: 1, color: sk.second }}>
+                    {r.conceptRating != null ? conceptPct : '-'}<span style={{ fontSize: '12px', fontWeight: 600 }}>%</span>
+                  </span>
+                  {r.conceptRating != null && <span style={{ fontSize: '12px', fontWeight: 600, color: INK_SOFT }}>{ratingLabel(conceptPct)}</span>}
+                </span>
+              </div>
+              <div style={{ height: '8px', borderRadius: '6px', background: sk.track, overflow: 'hidden', display: 'flex' }}>
+                <div style={{ width: `${r.conceptRating != null ? conceptPct : 0}%`, background: sk.second }} />
               </div>
             </div>
           </div>
 
-          {/* 바디 */}
-          <div style={{ padding: '18px 20px' }}>
-
-            {/* 핵심 지표 — B안: SUMMARY 제거, 수치 → TEACHER'S NOTE 바로 연결 */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', marginBottom: '18px' }}>
-              <div style={{ borderRight: `1px solid ${rule}`, padding: '0 8px', textAlign: 'center' }}>
-                <p style={{ fontSize: '10px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 4px' }}>과제 수행</p>
-                <p style={{ fontSize: '24px', fontWeight: 800, color: navy, margin: 0, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
-                  {r.homeworkRating != null ? homeworkPct : '-'}<span style={{ fontSize: '12px', fontWeight: 500, color: inkMute }}>%</span>
-                </p>
-                <p style={{ fontSize: '12px', fontWeight: 600, color: inkSub, margin: '3px 0 0' }}>
-                  {r.homeworkRating != null ? ratingLabel(homeworkPct) : ''}
-                  <TrendBadge trend={homeworkTrend} />
-                </p>
-              </div>
-              <div style={{ borderRight: `1px solid ${rule}`, padding: '0 8px', textAlign: 'center' }}>
-                <p style={{ fontSize: '10px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 4px' }}>개념 이해</p>
-                <p style={{ fontSize: '24px', fontWeight: 800, color: navy, margin: 0, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
-                  {r.conceptRating != null ? conceptPct : '-'}<span style={{ fontSize: '12px', fontWeight: 500, color: inkMute }}>%</span>
-                </p>
-                <p style={{ fontSize: '12px', fontWeight: 600, color: inkSub, margin: '3px 0 0' }}>
-                  {r.conceptRating != null ? ratingLabel(conceptPct) : ''}
-                  <TrendBadge trend={conceptTrend} />
-                </p>
-              </div>
-              <div style={{ padding: '0 8px', textAlign: 'center' }}>
-                <p style={{ fontSize: '10px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 4px' }}>출결</p>
-                <p style={{ fontSize: '16px', fontWeight: 800, color: r.attendance === '정시' ? positive : navy, margin: 0, lineHeight: '24px' }}>{r.attendance}</p>
-                {/* 결석은 등원 자체가 없었으니 등원 시각을 보여주면 "결석 / 15:30 등원"처럼 모순돼 보임 */}
-                {r.attendance !== '결석' && <p style={{ fontSize: '12px', fontWeight: 600, color: inkSub, margin: '3px 0 0' }}>{r.arrivalTime} 등원</p>}
+          {/* 학습 범위 — 카드화 */}
+          {(r.textbook || r.unit || r.pages) && (
+            <div style={{ padding: '0 24px 24px' }}>
+              <div style={{ border: `1px solid ${CARD_BORDER}`, borderRadius: '14px', overflow: 'hidden' }}>
+                <div style={{ height: '4px', background: sk.primary }} />
+                <div style={{ padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: 0 }}>
+                    <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.6px', color: INK_SOFT }}>오늘 학습 범위</span>
+                    {r.textbook && <span style={{ fontSize: '18px', fontWeight: 700, letterSpacing: '-0.3px', color: INK, wordBreak: 'keep-all' }}>{r.textbook}</span>}
+                    {r.unit && <span style={{ alignSelf: 'flex-start', background: sk.tint, color: sk.primary, fontSize: '12px', fontWeight: 700, padding: '5px 10px', borderRadius: '6px' }}>{r.unit}</span>}
+                  </div>
+                  {r.pages && <span style={{ fontSize: '24px', fontWeight: 700, lineHeight: 1.1, letterSpacing: '-0.5px', color: sk.primary, flexShrink: 0 }}>{r.pages}</span>}
+                </div>
               </div>
             </div>
+          )}
 
-            <div style={{ height: '1px', background: rule, marginBottom: '18px' }} />
+          {/* TEST RESULT — 진단 배지는 2026-07-30 결정으로 학부모 화면에서 비노출
+              (진단은 내부 기록·코멘트/다음 계획의 근거로만 사용, 원장 보고서·종합 프로필에는 계속 표시) */}
+          {r.hasTest && r.testName && (
+            <div style={{ padding: '0 24px 24px' }}>
+              <p style={{ fontSize: '10px', fontWeight: 700, color: INK_SOFT, letterSpacing: '1.6px', margin: '0 0 8px' }}>TEST RESULT</p>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap' }}>
+                <p style={{ fontSize: '28px', fontWeight: 800, color: sk.primary, margin: 0, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{r.testScore}<span style={{ fontSize: '13px', fontWeight: 600, color: INK_SOFT, marginLeft: '2px' }}>점</span></p>
+                <p style={{ fontSize: '12px', color: INK_SOFT, margin: 0 }}>{r.testName}</p>
+              </div>
+            </div>
+          )}
 
-            {/* 학습 범위 */}
-            {(r.textbook || r.unit || r.pages) && (
-              <>
-                <div style={{ marginBottom: '18px' }}>
-                  <p style={{ fontSize: '10px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 6px' }}>학습 범위</p>
-                  {r.textbook && <p style={{ fontSize: '12px', fontWeight: 700, color: navy, margin: '0 0 2px', wordBreak: 'keep-all' }}>{r.textbook}</p>}
-                  {r.unit && <p style={{ fontSize: '12px', color: inkSub, margin: '0 0 1px' }}>{r.unit}</p>}
-                  {r.pages && <p style={{ fontSize: '12px', color: inkMute, margin: 0 }}>{r.pages}</p>}
-                </div>
-                <div style={{ height: '1px', background: rule, marginBottom: '18px' }} />
-              </>
-            )}
+          {/* 선생님 노트 — 결론 문장 → 오늘 눈에 띈 문항(wrongItems) → 나머지는 200자 넘으면 접기 */}
+          {r.teacherNote && (
+            <div style={{ padding: '0 24px 24px' }}>
+              <div style={{ background: sk.tint, borderRadius: '14px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.6px', color: sk.primary }}>선생님 노트</span>
+                {noteLead && <span style={{ fontSize: '15px', fontWeight: 700, lineHeight: 1.6, color: INK, textWrap: 'pretty' }}>{noteLead}</span>}
 
-            {/* TEST RESULT — 진단 배지는 2026-07-30 결정으로 학부모 화면에서 비노출
-                (진단은 내부 기록·코멘트/다음 계획의 근거로만 사용, 원장 보고서·종합 프로필에는 계속 표시) */}
-            {r.hasTest && r.testName && (
-              <>
-                <div style={{ marginBottom: '18px' }}>
-                  <p style={{ fontSize: '10px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 8px' }}>TEST RESULT</p>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap' }}>
-                    <p style={{ fontSize: '28px', fontWeight: 800, color: navy, margin: 0, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{r.testScore}<span style={{ fontSize: '13px', fontWeight: 600, color: inkMute, marginLeft: '2px' }}>점</span></p>
-                    <p style={{ fontSize: '12px', color: inkSub, margin: 0 }}>{r.testName}</p>
-                  </div>
-                </div>
-                <div style={{ height: '1px', background: rule, marginBottom: '18px' }} />
-              </>
-            )}
-
-            {/* TEACHER'S NOTE */}
-            {r.teacherNote && (
-              <>
-                <div style={{ borderLeft: `3px solid ${gold}`, paddingLeft: '13px', marginBottom: '18px' }}>
-                  <p style={{ fontSize: '9px', fontWeight: 700, color: goldText, letterSpacing: '0.12em', margin: '0 0 7px' }}>TEACHER'S NOTE</p>
-                  {r.teacherNote.split('\n').filter(Boolean).map((para, i, arr) => (
-                    <p key={i} style={{ fontSize: '13px', color: ink, margin: i === arr.length - 1 ? '0' : '0 0 10px', lineHeight: 1.9, fontWeight: 500 }}>{para}</p>
-                  ))}
-                </div>
-                <div style={{ height: '1px', background: rule, marginBottom: '18px' }} />
-              </>
-            )}
-
-            {/* 이번 주 수업 기록 — 주간형(reportType:'weekly') 리포트에만 존재. 그룹수업 학원은
-                하루치 리포트 대신 한 주를 모아 보내므로, 위 TEACHER'S NOTE(원장이 다듬은 총평)
-                아래에 실제 수업마다의 기록을 날짜별로 펼쳐서 "묶음 요약"이 아니라는 걸 보여줌 */}
-            {r.sessions?.length > 0 && (
-              <>
-                <div style={{ marginBottom: '18px' }}>
-                  <p style={{ fontSize: '10px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 10px' }}>THIS WEEK'S SESSIONS</p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {[...r.sessions].sort((a, b) => a.date.localeCompare(b.date)).map((s, i) => (
-                      <div key={i} style={{ borderLeft: `2px solid ${rule}`, paddingLeft: '10px' }}>
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '3px', flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: '11px', fontWeight: 700, color: navy }}>{s.date}</span>
-                          <span style={{ fontSize: '11px', color: inkSub }}>{s.attendance}</span>
-                          {(s.homeworkRating != null || s.conceptRating != null) && (
-                            <span style={{ fontSize: '11px', color: inkMute }}>
-                              {s.homeworkRating != null ? `과제 ${toPct(s.homeworkRating)}%` : ''}
-                              {s.homeworkRating != null && s.conceptRating != null ? ' · ' : ''}
-                              {s.conceptRating != null ? `개념 ${toPct(s.conceptRating)}%` : ''}
-                            </span>
-                          )}
+                {r.wrongItems?.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: INK_SOFT }}>오늘 눈에 띈 문항</span>
+                    {r.wrongItems.map((w, i) => {
+                      const extra = w.memo?.trim() || (w.tags?.length ? w.tags.map(t => WRONG_TAG_LABELS[t]).filter(Boolean).join(', ') : '');
+                      return (
+                        <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'baseline' }}>
+                          <span style={{ minWidth: '38px', fontSize: '12px', fontWeight: 700, color: sk.primary, flexShrink: 0 }}>{w.number}번</span>
+                          <span style={{ fontSize: '13px', fontWeight: 500, lineHeight: 1.6, color: INK, textWrap: 'pretty' }}>{w.type}{extra ? ` — ${extra}` : ''}</span>
                         </div>
-                        {/* 진단 배지 — 2026-07-30 결정으로 학부모 화면 비노출 (내부 기록 전용) */}
-                        {s.teacherNote && <p style={{ fontSize: '12px', color: ink, margin: 0, lineHeight: 1.7 }}>{s.teacherNote}</p>}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
-                </div>
-                <div style={{ height: '1px', background: rule, marginBottom: '18px' }} />
-              </>
-            )}
+                )}
 
-            {/* 문제집 사진 — 2장/4장은 꽉 채워지는 2열, 그 외(1/3/5장)는 3열이라 마지막 줄에
-                사진 하나만 어중간하게 남는 걸 피함 */}
-            {r.photoUrls?.filter((_, i) => !brokenPhotos[i]).length > 0 && (
-              <>
-                <div style={{ marginBottom: '18px' }}>
-                  <p style={{ fontSize: '10px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 8px' }}>TODAY'S WORK</p>
-                  <div style={{ display: 'grid', gridTemplateColumns: `repeat(${r.photoUrls.length === 1 ? 1 : (r.photoUrls.length === 2 || r.photoUrls.length === 4) ? 2 : 3}, 1fr)`, gap: '6px' }}>
-                    {r.photoUrls.map((url, i) => !brokenPhotos[i] && (
-                      <img key={i} src={url} alt={`문제집 ${i+1}`} loading="lazy"
-                        onClick={() => setLightboxIndex(i)}
-                        onError={() => setBrokenPhotos(prev => ({ ...prev, [i]: true }))}
-                        style={{ width: '100%', aspectRatio: '3/4', objectFit: 'cover', borderRadius: '4px', border: `1px solid ${rule}`, cursor: 'pointer' }} />
-                    ))}
+                {noteRestVisible && noteRest.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', ...(noteCollapsible ? { borderTop: '1px solid rgba(23,23,25,0.10)', paddingTop: '14px' } : {}) }}>
+                    {noteRest.map((p, i) => <p key={i} style={{ fontSize: '13px', fontWeight: 500, lineHeight: 1.75, color: INK, margin: 0, textWrap: 'pretty' }}>{p}</p>)}
                   </div>
-                </div>
-                <div style={{ height: '1px', background: rule, marginBottom: '18px' }} />
-              </>
-            )}
-
-            {/* 다음 수업 */}
-            {r.nextPlan && (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div>
-                  <p style={{ fontSize: '10px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 4px' }}>NEXT CLASS</p>
-                  <p style={{ fontSize: '13px', fontWeight: 700, color: navy, margin: 0 }}>{r.nextPlan}</p>
-                  {r.nextPlanDetail && <p style={{ fontSize: '12px', color: inkSub, margin: '2px 0 0' }}>{r.nextPlanDetail}</p>}
-                </div>
-                <div style={{ width: '28px', height: '28px', background: `${navy}14`, borderRadius: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: navy, fontSize: '14px', flexShrink: 0 }}>→</div>
+                )}
+                {noteCollapsible && (
+                  <button onClick={() => setNoteOpen(v => !v)} style={{ alignSelf: 'flex-start', border: `1px solid ${sk.primary}`, borderRadius: '20px', background: 'transparent', color: sk.primary, fontSize: '12px', fontWeight: 700, padding: '8px 14px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    {noteOpen ? '접기' : '선생님 노트 자세히 보기'}
+                  </button>
+                )}
               </div>
-            )}
-
-            {/* 학부모 질문하기 */}
-            <div style={{ height: '1px', background: rule, margin: '18px 0' }} />
-            <div>
-              <p style={{ fontSize: '10px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 10px' }}>궁금한 점이 있으신가요?</p>
-              {questions.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '12px' }}>
-                  {questions.map(q => (
-                    <div key={q.id} style={newAnswerIds.has(q.id) ? { background: '#FDF8EC', border: '1px solid #F0D584', borderRadius: '8px', padding: '8px 10px' } : undefined}>
-                      <p style={{ fontSize: '12px', color: ink, margin: '0 0 4px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        Q. {q.questionText}
-                        {newAnswerIds.has(q.id) && (
-                          <span style={{ fontSize: '9px', fontWeight: 700, color: '#8A5A00', background: '#FFF3D6', padding: '2px 7px', borderRadius: '10px', flexShrink: 0 }}>답변 도착</span>
-                        )}
-                      </p>
-                      {q.answerText
-                        ? <p style={{ fontSize: '12px', color: inkSub, margin: 0, lineHeight: 1.7 }}>A. {q.answerText}</p>
-                        : <p style={{ fontSize: '11px', color: inkMute, margin: 0, fontStyle: 'italic' }}>답변 대기 중이에요</p>}
-                    </div>
-                  ))}
-                </div>
-              )}
-              {questionSubmitted && (
-                <p style={{ fontSize: '12px', color: positive, margin: '0 0 8px' }}>질문이 전달됐어요. 선생님이 확인 후 답변드릴게요.</p>
-              )}
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <textarea
-                  value={questionText} onChange={e => setQuestionText(e.target.value)}
-                  placeholder="선생님께 궁금한 점을 남겨주세요" rows={2}
-                  style={{ flex: 1, padding: '8px 10px', fontSize: '16px', border: `1px solid ${rule}`, borderRadius: '8px', fontFamily: 'inherit', resize: 'vertical', lineHeight: 1.6, boxSizing: 'border-box' }}
-                />
-                <button onClick={handleAskQuestion} disabled={questionSubmitting || !questionText.trim()}
-                  style={{ padding: '12px 16px', minHeight: '44px', fontSize: '13px', fontWeight: 700, background: questionSubmitting || !questionText.trim() ? '#D1D5DB' : navy, color: '#fff', border: 'none', borderRadius: '8px', cursor: questionSubmitting || !questionText.trim() ? 'not-allowed' : 'pointer', fontFamily: 'inherit', alignSelf: 'flex-start', whiteSpace: 'nowrap' }}>
-                  {questionSubmitting ? '전송 중...' : '질문하기'}
-                </button>
-              </div>
-              {questionError && (
-                <p style={{ fontSize: '11px', color: R.negative, margin: '6px 0 0' }}>{questionError}</p>
-              )}
             </div>
+          )}
+
+          {/* 이번 주 수업 기록 — 주간형(reportType:'weekly') 리포트에만 존재. 그룹수업 학원은
+              하루치 리포트 대신 한 주를 모아 보내므로, 위 선생님 노트(원장이 다듬은 총평)
+              아래에 실제 수업마다의 기록을 날짜별로 펼쳐서 "묶음 요약"이 아니라는 걸 보여줌 */}
+          {r.sessions?.length > 0 && (
+            <div style={{ padding: '0 24px 24px' }}>
+              <p style={{ fontSize: '10px', fontWeight: 700, color: INK_SOFT, letterSpacing: '1.6px', margin: '0 0 10px' }}>THIS WEEK'S SESSIONS</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {[...r.sessions].sort((a, b) => a.date.localeCompare(b.date)).map((s, i) => (
+                  <div key={i} style={{ borderLeft: `2px solid ${CARD_BORDER}`, paddingLeft: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '3px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: sk.primary }}>{s.date}</span>
+                      <span style={{ fontSize: '11px', color: INK_SOFT }}>{s.attendance}</span>
+                      {(s.homeworkRating != null || s.conceptRating != null) && (
+                        <span style={{ fontSize: '11px', color: INK_SOFT }}>
+                          {s.homeworkRating != null ? `과제 ${toPct(s.homeworkRating)}%` : ''}
+                          {s.homeworkRating != null && s.conceptRating != null ? ' · ' : ''}
+                          {s.conceptRating != null ? `개념 ${toPct(s.conceptRating)}%` : ''}
+                        </span>
+                      )}
+                    </div>
+                    {/* 진단 배지 — 2026-07-30 결정으로 학부모 화면 비노출 (내부 기록 전용) */}
+                    {s.teacherNote && <p style={{ fontSize: '12px', color: INK, margin: 0, lineHeight: 1.7 }}>{s.teacherNote}</p>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 문제집 사진 — 2장/4장은 꽉 채워지는 2열, 그 외(1/3/5장)는 3열이라 마지막 줄에
+              사진 하나만 어중간하게 남는 걸 피함 */}
+          {r.photoUrls?.filter((_, i) => !brokenPhotos[i]).length > 0 && (
+            <div style={{ padding: '0 24px 24px' }}>
+              <p style={{ fontSize: '10px', fontWeight: 700, color: INK_SOFT, letterSpacing: '1.6px', margin: '0 0 8px' }}>TODAY'S WORK</p>
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${r.photoUrls.length === 1 ? 1 : (r.photoUrls.length === 2 || r.photoUrls.length === 4) ? 2 : 3}, 1fr)`, gap: '6px' }}>
+                {r.photoUrls.map((url, i) => !brokenPhotos[i] && (
+                  <img key={i} src={url} alt={`문제집 ${i+1}`} loading="lazy"
+                    onClick={() => setLightboxIndex(i)}
+                    onError={() => setBrokenPhotos(prev => ({ ...prev, [i]: true }))}
+                    style={{ width: '100%', aspectRatio: '3/4', objectFit: 'cover', borderRadius: '4px', border: `1px solid ${CARD_BORDER}`, cursor: 'pointer' }} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 다음 수업 */}
+          {r.nextPlan && (
+            <div style={{ padding: '0 24px 24px' }}>
+              <div style={{ border: `1px solid ${CARD_BORDER}`, borderRadius: '14px', padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.6px', color: INK_SOFT }}>NEXT CLASS</span>
+                  <span style={{ fontSize: '15px', fontWeight: 700, lineHeight: 1.5, color: INK }}>{r.nextPlan}</span>
+                  {r.nextPlanDetail && <span style={{ fontSize: '12px', fontWeight: 500, color: INK_SOFT }}>{r.nextPlanDetail}</span>}
+                </div>
+                <span style={{ width: '36px', height: '36px', borderRadius: '50%', background: sk.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <span style={{ width: 0, height: 0, borderLeft: '8px solid #fff', borderTop: '5px solid transparent', borderBottom: '5px solid transparent', marginLeft: '2px', display: 'block' }} />
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* 학부모 질문하기 — 풀폭 버튼으로 존재감을 키움 */}
+          <div style={{ padding: '20px 24px 24px', background: '#F7F8FA', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {questions.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {questions.map(q => (
+                  <div key={q.id} style={newAnswerIds.has(q.id) ? { background: '#FDF8EC', border: '1px solid #F0D584', borderRadius: '8px', padding: '8px 10px' } : undefined}>
+                    <p style={{ fontSize: '12px', color: INK, margin: '0 0 4px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      Q. {q.questionText}
+                      {newAnswerIds.has(q.id) && (
+                        <span style={{ fontSize: '9px', fontWeight: 700, color: '#8A5A00', background: '#FFF3D6', padding: '2px 7px', borderRadius: '10px', flexShrink: 0 }}>답변 도착</span>
+                      )}
+                    </p>
+                    {q.answerText
+                      ? <p style={{ fontSize: '12px', color: INK_SOFT, margin: 0, lineHeight: 1.7 }}>A. {q.answerText}</p>
+                      : <p style={{ fontSize: '11px', color: INK_SOFT, margin: 0, fontStyle: 'italic' }}>답변 대기 중이에요</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+            {questionSubmitted && (
+              <p style={{ fontSize: '12px', color: '#00963C', margin: 0 }}>질문이 전달됐어요. 선생님이 확인 후 답변드릴게요.</p>
+            )}
+            <span style={{ fontSize: '12px', fontWeight: 500, color: INK_SOFT }}>궁금한 점이 있으신가요? 선생님이 직접 답변드립니다.</span>
+            <textarea
+              value={questionText} onChange={e => setQuestionText(e.target.value)}
+              placeholder="선생님께 궁금한 점을 남겨주세요" rows={2}
+              style={{ width: '100%', padding: '10px 12px', fontSize: '16px', border: `1px solid ${CARD_BORDER}`, borderRadius: '12px', fontFamily: 'inherit', resize: 'vertical', lineHeight: 1.6, boxSizing: 'border-box', background: '#fff' }}
+            />
+            <button onClick={handleAskQuestion} disabled={questionSubmitting || !questionText.trim()}
+              style={{ width: '100%', border: 'none', borderRadius: '12px', background: questionSubmitting || !questionText.trim() ? '#D1D5DB' : sk.primary, color: '#fff', fontSize: '14px', fontWeight: 700, padding: '16px', cursor: questionSubmitting || !questionText.trim() ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+              {questionSubmitting ? '전송 중...' : '질문 남기기'}
+            </button>
+            {questionError && (
+              <p style={{ fontSize: '11px', color: R.negative, margin: 0 }}>{questionError}</p>
+            )}
           </div>
 
     </ReportCard>

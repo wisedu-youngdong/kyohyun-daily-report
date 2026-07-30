@@ -53,7 +53,10 @@ ${photoContext ? '- "O번, O번을 틀렸습니다"처럼 문항 번호만 나�
 
 [분량 및 형식]
 - 인사말("안녕하세요, 학부모님")이나 맺음말 없이, 핵심 피드백만 간결하게 작성하세요. 오답 항목이 적으면(1~3개) 2~3문장이면 충분하지만, 많으면(4개 이상) 위 [오답 항목 누락 금지] 규칙을 지키기 위해 5~6문장까지 늘려도 됩니다 — 짧게 쓰겠다고 항목을 누락하지 마세요.
-- 과장이나 근거 없는 칭찬 없이 팩트 기반으로, 본문만 출력하세요 (따옴표·제목·부가설명 없이).`;
+- 과장이나 근거 없는 칭찬 없이 팩트 기반으로, 본문만 출력하세요 (따옴표·제목·부가설명 없이).
+
+[한 줄 요약 — 마지막에 추가로]
+본문을 다 쓴 뒤, 새 줄에 구분자 \`///SUMMARY///\` 를 쓰고 그 다음 줄에 이 리포트 전체를 관통하는 핵심을 15~30자 한 문장으로 요약하세요. 학부모가 이 한 줄만 읽어도 오늘 수업의 결론을 알 수 있어야 합니다(예: "평행선과 선분의 길이의 비, 개념은 잡혔고 응용에서 아직 시간이 걸립니다."). 본문의 첫 문장을 그대로 복사하지 말고 더 압축하세요. 과장 표현 금지.`;
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
 
@@ -96,10 +99,17 @@ ${photoContext ? '- "O번, O번을 틀렸습니다"처럼 문항 번호만 나�
       return res.status(502).json({ error: '응답을 가져오지 못했습니다. 다시 시도해주세요.' });
     }
 
+    // 한 줄 요약을 구분자로 분리 — JSON 응답 모드 대신 구분자를 쓰는 이유: 이 함수는 이미
+    // thinking 파트 추출, MAX_TOKENS 폴백 등 plain text 기준 파싱이 얽혀 있어, JSON 모드로
+    // 바꾸면 그 파싱 로직을 통째로 다시 짜야 함. 구분자가 없으면(모델이 규칙을 안 지킨 드문
+    // 경우) summary는 빈 문자열로 두고 본문만 정상 반환 — 요약 배너는 PublicReport.jsx가
+    // 빈 값일 때 숨기므로 사용자에게 보이는 실패로 이어지지 않음.
+    const [bodyPart, summaryPart] = result.split('///SUMMARY///');
     // 프롬프트에서 인사말을 빼라고 지시해도 가끔 붙여서 응답하는 경우가 있어 안전망으로 한 번 더 제거
-    const cleanedResult = result.trim().replace(/^안녕하세요[,.!]?\s*(학부모님[,.!]?)?\s*\n*/, '');
+    const cleanedResult = bodyPart.trim().replace(/^안녕하세요[,.!]?\s*(학부모님[,.!]?)?\s*\n*/, '');
+    const summary = (summaryPart || '').trim().replace(/^["']|["']$/g, '');
 
-    res.status(200).json({ result: cleanedResult });
+    res.status(200).json({ result: cleanedResult, summary });
 
   } catch (e) {
     res.status(500).json({ error: '오류: ' + e.message });

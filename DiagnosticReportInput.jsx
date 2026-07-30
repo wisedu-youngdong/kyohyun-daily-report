@@ -380,6 +380,11 @@ export default function DiagnosticReportInput({
   const [selectedTags, setSelectedTags] = useState([]);
   const [teacherNote, setTeacherNote] = useState('');
   const [aiPolishedNote, setAiPolishedNote] = useState('');
+  // 학부모 리포트 상단 "오늘의 한 줄" 배너 — AI가 다듬기 단계에서 코멘트와 함께 생성(같은 호출,
+  // 추가 비용 없음), 선생님이 발송 전 그대로 수정 가능. 빈 값이면 PublicReport.jsx가 배너를 숨김.
+  // 초기값은 ''로 두고 아래 "수정 모드 pre-fill" useEffect에서 editingReport 값으로 채움
+  // (다른 폼 필드들과 동일한 패턴 — 학생 전환 시 리셋되는 흐름과 맞추기 위함)
+  const [summary, setSummary] = useState('');
   const [polishing, setPolishing] = useState(false);
   const [generatingComment, setGeneratingComment] = useState(false);
   const [nextPlan, setNextPlan] = useState('');
@@ -729,6 +734,7 @@ export default function DiagnosticReportInput({
     setSelectedTags(editingReport.diagnosis || []);
     setTeacherNote(editingReport.teacherNote || '');
     setAiPolishedNote('');
+    setSummary(editingReport.summary || '');
     setNextPlan(editingReport.nextPlan || '');
     setNextPlanDetail(editingReport.nextPlanDetail || '');
     setPhotoAnalysis(editingReport.photoAnalysis || null);
@@ -898,6 +904,9 @@ export default function DiagnosticReportInput({
       const data = await response.json();
       if (!data.result) throw new Error('응답에 결과가 없습니다.');
       setAiPolishedNote(data.result);
+      // "오늘의 한 줄" 배너용 요약 — 같은 호출에서 같이 옴(구분자로 분리, 서버 참고). 모델이
+      // 구분자를 안 지킨 드문 경우 data.summary가 빈 문자열이라 배너는 자연스럽게 숨겨짐
+      if (data.summary) setSummary(data.summary);
     } catch (e) {
       console.error('AI 오류:', e);
       showToast(e.name === 'TimeoutError' ? '응답 시간이 초과됐습니다. 다시 시도해주세요.' : 'AI 연결에 실패했습니다.', 'error');
@@ -1202,6 +1211,7 @@ export default function DiagnosticReportInput({
         unitKey: findUnitKey(subject, unit, curriculumCourseOverride || guessCourseKey(subject, student?.school)),
         diagnosis: selectedTags,
         teacherNote: aiPolishedNote || teacherNote,
+        summary: summary.trim() || null,
         nextPlan, nextPlanDetail,
         photoUrls,
         photoAnalysis: photoAnalysis || null,
@@ -1224,7 +1234,7 @@ export default function DiagnosticReportInput({
       setHomeworkRating(null); setConceptRating(null);
       setHasTest(false); setTestName(''); setTestScore(''); setTestRound('');
       setCurriculumCourseOverride(null); setUnitPickerOpen(false); setUnitPickerCourse(null);
-      setSelectedTags([]); setTeacherNote(''); setAiPolishedNote('');
+      setSelectedTags([]); setTeacherNote(''); setAiPolishedNote(''); setSummary('');
       setNextPlan(''); setNextPlanDetail('');
       removeAllPhotos();
       setLastSaved(null);
@@ -1289,7 +1299,7 @@ export default function DiagnosticReportInput({
       setTextbook(''); setSubject('수학'); setUnit(''); setPages('');
       setCurriculumCourseOverride(null); setUnitPickerOpen(false); setUnitPickerCourse(null);
       setTeacherNote(''); setSelectedTags([]);
-      setAiPolishedNote('');
+      setAiPolishedNote(''); setSummary('');
       setNextPlan(''); setNextPlanDetail('');
       setPhotos([]); setPhotoAnalysis(null);
       setWrongItems([]);
@@ -1896,7 +1906,7 @@ export default function DiagnosticReportInput({
                   {(teacherNote || aiPolishedNote) && (
                     <button type="button" onClick={() => {
                       if (!window.confirm('강사 메모와 AI 다듬기 결과를 모두 지우고 새로 시작할까요?')) return;
-                      setTeacherNote(''); setAiPolishedNote('');
+                      setTeacherNote(''); setAiPolishedNote(''); setSummary('');
                     }} style={{ background: 'none', border: 'none', color: '#6C7586', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', padding: '2px 4px', display: 'flex', alignItems: 'center', gap: '3px' }}>
                       <X size={11} /> 새로 시작
                     </button>
@@ -1971,6 +1981,14 @@ export default function DiagnosticReportInput({
                     <p style={{ fontSize: '10px', color: TOKENS.textMute, margin: '6px 0 0', lineHeight: 1.4 }}>
                       <Info size={11} style={{ verticalAlign: '-2px' }} /> 여기서 수정하면 아래 학부모 발송 미리보기에도 그대로 반영돼요
                     </p>
+                    {/* 리포트 최상단 "오늘의 한 줄" 배너 — 다듬기와 같은 호출에서 같이 왔지만
+                        따로 보여줘야 학부모 화면에서 뭐가 배너에 실리는지 헷갈리지 않음 */}
+                    <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: `1px solid ${TOKENS.success}30` }}>
+                      <p style={{ fontSize: '11px', color: TOKENS.success, fontWeight: 700, margin: '0 0 6px' }}>오늘의 한 줄 (리포트 상단 배너, 수정 가능)</p>
+                      <input value={summary} onChange={(e) => setSummary(e.target.value)}
+                        placeholder="비워두면 배너가 안 보여요" maxLength={60}
+                        style={{ ...inputStyle, background: '#fff', fontFamily: 'inherit' }} />
+                    </div>
                   </div>
                 )}
               </FieldRow>
