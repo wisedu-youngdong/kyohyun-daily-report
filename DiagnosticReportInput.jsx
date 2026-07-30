@@ -1723,6 +1723,15 @@ export default function DiagnosticReportInput({
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                   <ScoreGrid wide={isWide} label="과제" value={homeworkRating} onChange={setHomeworkRating} />
                   <ScoreGrid wide={isWide} label="개념" value={conceptRating} onChange={setConceptRating} />
+                  {/* 이 % 숫자가 "정확히 측정된 값"처럼 보여서 학부모가 "왜 이 점수?"를 궁금해하는
+                      문제 — 구조화된 근거 입력을 매번 강제하는 대신(주간형처럼 세션이 잦은 선생님께
+                      특히 부담), 숫자의 정체성이 "종합 체감"이라는 걸 양쪽 화면에서 짧게 알려주는
+                      것으로 대응 (2026-07-30 결정) */}
+                  {!isAbsent && (
+                    <p style={{ fontSize: '11px', color: TOKENS.warnText, background: TOKENS.warnBg, borderRadius: '6px', padding: '4px 8px', margin: 0 }}>
+                      선생님이 오늘 느낀 종합 체감이에요. 구체적인 내용은 아래 코멘트에 적어주세요.
+                    </p>
+                  )}
                 </div>
               </FieldRow>
 
@@ -3165,6 +3174,10 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
             <div style={{ width: `${conceptRating != null ? conceptPct : 0}%`, background: sk.second }} />
           </div>
         </div>
+        {/* PublicReport.jsx와 동일한 안내 — 미리보기도 실제 발송 화면과 같아야 함(2026-07-30 결정) */}
+        {(homeworkRating != null || conceptRating != null) && (
+          <p style={{ fontSize: '11px', color: INK_SOFT, margin: 0 }}>선생님의 종합 체감이에요. 자세한 내용은 아래 노트를 봐주세요.</p>
+        )}
       </div>
 
       {/* 학습 범위 — 카드화 */}

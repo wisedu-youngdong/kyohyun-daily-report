@@ -271,6 +271,11 @@ export default function PublicReport() {
                 <div style={{ width: `${r.conceptRating != null ? conceptPct : 0}%`, background: sk.second }} />
               </div>
             </div>
+            {/* 정확히 측정된 점수가 아니라 선생님의 종합 체감이라는 걸 짧게 알려줌 — 숫자만 보고
+                "왜 이 점수?"에서 멈추지 않고 아래 선생님 노트로 자연스럽게 이어지도록(2026-07-30 결정) */}
+            {(r.homeworkRating != null || r.conceptRating != null) && (
+              <p style={{ fontSize: '11px', color: INK_SOFT, margin: 0 }}>선생님의 종합 체감이에요. 자세한 내용은 아래 노트를 봐주세요.</p>
+            )}
           </div>
 
           {/* 학습 범위 — 카드화 */}
