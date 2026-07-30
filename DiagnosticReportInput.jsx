@@ -615,6 +615,27 @@ export default function DiagnosticReportInput({
   // 리포트 시작(편집 대상이 바뀔 때)에만 리셋됨.
   const [hasChargedAnalysis, setHasChargedAnalysis] = useState(false);
   const [photoContentType, setPhotoContentType] = useState(''); // '숙제' | '테스트' | '기타' — AI 코멘트 문장 시작을 이 사진이 뭔지에 맞춰 자연스럽게 만들기 위함
+
+  // 1d 선택 그룹(사진 분석/진단/테스트) 접기 상태 — 기본 접힘, 접힌 줄에는 상태 텍스트만 표시
+  const [optOpen, setOptOpen] = useState({ photo: false, diag: false, test: false });
+  // 학생을 바꾸면 다시 접힘 — 단, 수정 모드 진입은 editingReport 설정 후 한 사이클 뒤에
+  // studentId가 따라 바뀌는 순서라, 여기서 무조건 접으면 아래 자동 펼침을 도로 덮어씀.
+  // 수정 모드일 땐 리셋을 건너뛴다(수정 종료 후 학생을 새로 고르면 editingReport가 null이라 정상 리셋)
+  useEffect(() => {
+    if (editingReport) return;
+    setOptOpen({ photo: false, diag: false, test: false });
+  }, [studentId]);
+  // 수정 모드로 열면 내용이 이미 있는 섹션만 자동으로 펼침
+  useEffect(() => {
+    if (!editingReport) return;
+    setOptOpen({
+      photo: (editingReport.photoUrls || []).length > 0 || !!editingReport.photoAnalysis,
+      diag: (editingReport.diagnosis || []).length > 0,
+      test: !!editingReport.hasTest,
+    });
+  }, [editingReport]);
+  // 자동저장 draft 복원 등으로 분석 결과가 생기면 사진 섹션을 펼쳐서 바로 보이게
+  useEffect(() => { if (photoAnalysis) setOptOpen(p => (p.photo ? p : { ...p, photo: true })); }, [photoAnalysis]);
   const [wrongItems, setWrongItems] = useState([]);
   const [alertMessage, setAlertMessage] = useState('');
   const [photoError, setPhotoError] = useState('');
@@ -1842,7 +1863,10 @@ export default function DiagnosticReportInput({
 
               {/* 5-1. 교재/시험지 사진 분석 (선택) — 결석 시 비활성(결석이면 채점 사진 자체가 없음) */}
               <div style={{ opacity: isAbsent ? 0.45 : 1, pointerEvents: isAbsent ? 'none' : 'auto' }}>
-              <FormSection number="5+" title="교재·시험지 사진 분석 (선택)" badge={photoAnalysis ? '분석완료' : (photos.length > 0 ? `${photos.length}장 선택됨` : undefined)} badgeTone={photoAnalysis ? 'success' : 'info'}>
+              <FoldSection title="교재·시험지 사진 분석" hint="채점 사진을 올리면 AI가 오답을 유형별로 정리해요"
+                state={photoAnalysis ? '분석완료' : (photos.length > 0 ? `${photos.length}장 선택됨` : '사진 없음')}
+                stateColor={photoAnalysis ? TOKENS.successDark : (photos.length > 0 ? R.navy : undefined)}
+                open={optOpen.photo} onToggle={() => setOptOpen(p => ({ ...p, photo: !p.photo }))}>
                 <p style={{ fontSize: '11px', color: TOKENS.textMute, margin: '0 0 6px' }}>
                   채점(O/△/빗금) 완료된 페이지를 촬영하면, AI가 표시만 그대로 읽어 유형별 코멘트 초안을 만들어줍니다. 여러 장(최대 {MAX_PHOTOS}장) 한 번에 올려서 페이지별 결과를 통합 분석할 수 있습니다. 점수는 반영되지 않습니다.
                 </p>
@@ -2520,11 +2544,14 @@ export default function DiagnosticReportInput({
                     })()}
                   </div>
                 )}
-              </FormSection>
+              </FoldSection>
               </div>
 
               {/* 6. 진단 */}
-              <FormSection number="6" title="오늘의 진단" badge={`${selectedTags.length}개 선택`} badgeTone={selectedTags.length > 0 ? 'info' : 'neutral'}>
+              <FoldSection title="오늘의 진단" hint="오늘 수업에서 보인 약점을 태그로 기록 — 학부모에겐 안 보여요"
+                state={selectedTags.length > 0 ? `${selectedTags.length}개 선택` : '선택 안 함'}
+                stateColor={selectedTags.length > 0 ? R.navy : undefined}
+                open={optOpen.diag} onToggle={() => setOptOpen(p => ({ ...p, diag: !p.diag }))}>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: '12px' }}>
                   {DIAGNOSIS_TAGS.map(tag => {
                     const active = selectedTags.some(t => t.key === tag.key);
@@ -2563,10 +2590,13 @@ export default function DiagnosticReportInput({
                     })}
                   </div>
                 )}
-              </FormSection>
+              </FoldSection>
 
               {/* 테스트 — 1d 재배열로 선택 그룹 맨 뒤로 이동 (사진분석 → 진단 → 테스트) */}
-              <FormSection number="7" title="테스트" badge={hasTest ? '진행함' : '진행 안 함'} badgeTone={hasTest ? 'info' : 'neutral'}>
+              <FoldSection title="테스트" hint="단원평가·모의고사를 봤다면 점수를 기록해요"
+                state={hasTest ? '진행함' : '진행 안 함'}
+                stateColor={hasTest ? R.navy : undefined}
+                open={optOpen.test} onToggle={() => setOptOpen(p => ({ ...p, test: !p.test }))}>
                 <div style={{ display: 'flex', gap: '3px', background: TOKENS.borderLight, borderRadius: '10px', padding: '3px', marginBottom: hasTest ? '12px' : '0' }}>
                   <button onClick={() => setHasTest(true)}  style={toggleStyle(hasTest)}>진행함</button>
                   <button onClick={() => setHasTest(false)} style={toggleStyle(!hasTest)}>진행 안 함</button>
@@ -2598,7 +2628,7 @@ export default function DiagnosticReportInput({
                     </div>
                   </>
                 )}
-              </FormSection>
+              </FoldSection>
 
               <GroupDivider num="3" title="마무리" />
 
@@ -2926,6 +2956,36 @@ function FieldRow({ wide, label, sub, disabled, children }) {
         {sub && <span style={{ fontSize: '11px', fontWeight: 500, lineHeight: 1.5, color: 'rgba(55,56,60,0.75)', display: 'block', marginTop: '4px' }}>{sub}</span>}
       </div>
       <div style={{ minWidth: 0 }}>{children}</div>
+    </div>
+  );
+}
+
+// 1d 선택 그룹 접기 카드 — 기본 접힘, 접힌 줄에 제목/힌트/상태 텍스트만 표시.
+// 접혀 있으면 children을 아예 렌더하지 않음(상태는 전부 부모에 있어 유실 없음)
+function FoldSection({ title, hint, state, stateColor, open, onToggle, children }) {
+  return (
+    <div style={{ border: '1px solid #E4E6EB', borderRadius: '12px', background: TOKENS.bg, overflow: 'hidden' }}>
+      <button type="button" onClick={onToggle} aria-expanded={open}
+        style={{
+          width: '100%', border: 'none', background: TOKENS.bg, padding: '14px 16px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px',
+          textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit',
+        }}>
+        <span style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0 }}>
+          <span style={{ fontSize: '13px', fontWeight: 700, color: TOKENS.text }}>{title}</span>
+          <span style={{ fontSize: '11px', fontWeight: 500, color: 'rgba(55,56,60,0.75)' }}>{hint}</span>
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+          <span style={{ fontSize: '11px', fontWeight: 700, color: stateColor || 'rgba(55,56,60,0.75)' }}>{state}</span>
+          <span aria-hidden="true" style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(55,56,60,0.75)' }}>{open ? '▲' : '▼'}</span>
+        </span>
+      </button>
+      {open && (
+        <div style={{ padding: '0 16px 16px' }}>
+          <div style={{ height: '1px', background: '#F1F1F4', marginBottom: '14px' }} />
+          {children}
+        </div>
+      )}
     </div>
   );
 }
