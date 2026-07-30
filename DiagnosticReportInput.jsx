@@ -16,7 +16,7 @@ import {
   FileText, Sparkles, Send, Plus, X, Check,
   UserPlus, GraduationCap, Info, Star, AlertTriangle, Palette
 } from 'lucide-react';
-import { C, R, RADIUS2, TYPE, SHADOW, textSafeColor } from './tokens.jsx';
+import { C, R, RADIUS2, TYPE, SHADOW, textSafeColor, deriveSkinColors } from './tokens.jsx';
 import { resolveBookSections } from './photoSections.js';
 import { calculateReportPoints, toPct, ratingLabel, kstDay, kstWeekday, getKstWeekRange, isReportSent } from './growth.js';
 import { DIAG_LABELS as diagLabels, WRONG_TAGS, WRONG_TAG_LABELS } from './diagnosis.js';
@@ -2822,8 +2822,10 @@ export default function DiagnosticReportInput({
         }>
           <p style={{ fontSize: '11px', color: TOKENS.textMute, fontWeight: 700, marginBottom: '8px' }}>학부모 발송 미리보기</p>
 
-          {/* 스킨 표시 — 학생 개별 스킨 or 선택 스킨 */}
-          <div style={{ background: TOKENS.bg, borderRadius: `${RADIUS2.card}px`, border: `1px solid ${TOKENS.border}`, padding: '10px 14px', marginBottom: '10px' }}>
+          {/* 스킨 표시 — 학생 개별 스킨 or 선택 스킨. 좌측 입력 폼 전체를 스킨 색으로 물들이지는
+              않음(매일 반복해서 보는 작업 도구라 학생마다 색이 바뀌면 오히려 피로해짐) — 대신
+              이 카드 상단에 지금 고른 색을 얇은 선으로만 보여줘서 "이 색으로 나간다"는 힌트만 줌 */}
+          <div style={{ background: TOKENS.bg, borderRadius: `${RADIUS2.card}px`, border: `1px solid ${TOKENS.border}`, borderTop: `3px solid ${student?.skinColor || (selectedSkin === 'global' && globalSkin ? globalSkin.main : SKINS[selectedSkin]?.main) || SKINS.navy.main}`, padding: '10px 14px', marginBottom: '10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
               <FieldLabel><Palette size={10} style={{ verticalAlign: '-1px', marginRight: '3px' }} />리포트 스킨</FieldLabel>
               {student?.skinColor && (
@@ -2866,6 +2868,8 @@ export default function DiagnosticReportInput({
             textbook={textbook} unit={unit} pages={pages}
             diagnosis={selectedTags}
             teacherNote={aiPolishedNote || teacherNote}
+            summary={summary}
+            wrongItems={wrongItems}
             nextPlan={nextPlan} nextPlanDetail={nextPlanDetail}
             skin={selectedSkin === 'global' && globalSkin ? globalSkin : SKINS[selectedSkin] || SKINS.navy}
             academyName={academyName} academyPhone={academyPhone}
@@ -2922,7 +2926,8 @@ export function deriveColorsToSkin(mainHex) {
 // 레이아웃은 무관) — 지금은 PublicReport와 동일한 레터헤드 구조에 skin.main/accent로 색만
 // 입힌다. PublicReport에 없는 기능(아바타 등)은 미리보기에서도 뺐다 — 안 그러면 반대로
 // "미리보기엔 있는데 실제론 없는" 거짓말이 생김.
-function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating, conceptRating, hasTest, testName, testScore, textbook, unit, pages, diagnosis, teacherNote, nextPlan, nextPlanDetail, skin, academyName = null, academyPhone = null }) {
+function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating, conceptRating, hasTest, testName, testScore, textbook, unit, pages, diagnosis, teacherNote, summary, wrongItems, nextPlan, nextPlanDetail, skin, academyName = null, academyPhone = null }) {
+  const [noteOpen, setNoteOpen] = React.useState(false);
   const today = new Date();
   const dateStr = `${today.getMonth() + 1}월 ${today.getDate()}일 (${'일월화수목금토'[today.getDay()]})`;
   const homeworkPct = toPct(homeworkRating);
@@ -2935,120 +2940,171 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
     </div>
   );
 
-  // PublicReport.jsx와 동일한 우선순위: 학생 개별 색 > 픽커에서 고른 스킨 > 기본 네이비/골드
-  const { rule, inkMute, inkSub, ink, positive, serif, body } = R;
-  const navy = student?.skinColor || skin?.main || R.navy;
-  const gold = (!student?.skinColor && skin?.accent) || R.gold;
-  // 텍스트 색으로 쓸 땐 gold를 그대로 쓰지 않는다 — PublicReport.jsx와 동일한 이유
-  // (학생이 고른 스킨의 accent가 배경/테두리용 옅은 톤일 수도 있음)
-  const goldText = (!student?.skinColor && skin?.accent) ? textSafeColor(gold) : R.goldText;
-
+  // PublicReport.jsx와 동일한 우선순위: 학생 개별 색 > 픽커에서 고른 스킨 > 기본 네이비/골드.
+  // 이 미리보기가 실제 발송 결과와 어긋나지 않도록 PublicReport.jsx의 body 구조를 그대로 미러링함
+  // — 둘 중 하나만 고치고 잊어버리면 "미리보기 따로, 실물 따로"가 재발하니 수정 시 함께 볼 것.
+  const sk = deriveSkinColors(student?.skinColor || skin?.main || R.navy, (!student?.skinColor && skin?.accent) || R.gold);
+  const { body } = R;
+  const INK = '#171719';
+  const INK_SOFT = 'rgba(55,56,60,0.75)';
+  const CARD_BORDER = '#E4E6EB';
   const teacherSuffix = /선생님?$/.test(teacher?.name || '') ? '' : ' 선생님';
+
+  const noteParagraphs = (teacherNote || '').split('\n').filter(Boolean);
+  const noteLead = noteParagraphs[0] || '';
+  const noteRest = noteParagraphs.slice(1);
+  const noteCollapsible = noteRest.join(' ').length > 200;
+  const noteRestVisible = noteCollapsible ? noteOpen : true;
 
   return (
     <div style={{ background: '#fff', borderRadius: '4px', overflow: 'hidden', boxShadow: '0 2px 20px rgba(0,0,0,0.10)', fontFamily: body }}>
 
-      {/* 헤더 — PublicReport와 동일 구조(브랜드 스트립 + 골드 구분선 + 세리프 학생명) */}
-      <div style={{ background: navy, padding: '20px 22px 18px', position: 'relative' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-          <div style={{ width: '4px', height: '20px', background: gold, borderRadius: '1px', flexShrink: 0 }} />
-          <span style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.15em' }}>{academyName || '데일리 리포트 시스템'}</span>
+      {/* 헤더 */}
+      <div style={{ background: sk.primary, padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 600, color: sk.accent }}>
+            <span style={{ width: '4px', height: '12px', background: sk.accent, display: 'inline-block', flexShrink: 0 }} />
+            {academyName || '데일리 리포트 시스템'}
+          </span>
+          <span style={{ fontSize: '12px', fontWeight: 500, color: 'rgba(255,255,255,0.82)', flexShrink: 0 }}>{dateStr}</span>
         </div>
-        <div style={{ height: '1px', background: `${gold}4D`, marginBottom: '14px' }} />
-        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-          <div>
-            <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.45)', letterSpacing: '0.15em', margin: '0 0 4px', fontWeight: 600 }}>LEARNING REPORT</p>
-            <p style={{ fontFamily: serif, fontSize: '26px', fontWeight: 700, color: '#fff', margin: '0 0 4px', letterSpacing: '-0.5px' }}>{student.name}</p>
-            <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.75)', margin: 0 }}>{dateStr} · {teacher?.name || '선생님'}{teacherSuffix}</p>
+        <div style={{ height: '1px', background: 'rgba(255,255,255,0.16)' }} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '2.2px', color: sk.accent }}>LEARNING REPORT</span>
+          <span style={{ fontSize: '28px', fontWeight: 700, letterSpacing: '-0.5px', lineHeight: 1.1, color: '#fff' }}>{student.name}</span>
+          <span style={{ fontSize: '12px', fontWeight: 500, color: 'rgba(255,255,255,0.82)' }}>
+            {teacher?.name || '선생님'}{teacherSuffix}
+            {attendance === '결석' ? ` · ${attendance}` : ` · ${arrivalTime} ${attendance} 등원`}
+          </span>
+        </div>
+      </div>
+
+      {/* 오늘의 한 줄 */}
+      {summary && (
+        <div style={{ background: sk.tint, padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.6px', color: sk.bannerLabel }}>오늘의 한 줄</span>
+          <span style={{ fontSize: '19px', fontWeight: 700, lineHeight: 1.6, letterSpacing: '-0.3px', color: INK, textWrap: 'pretty' }}>{summary}</span>
+        </div>
+      )}
+
+      {/* 핵심 지표 — 과제/개념 막대 2개만 */}
+      <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '12px' }}>
+            <span style={{ fontSize: '14px', fontWeight: 600, color: INK }}>과제 수행</span>
+            <span style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+              <span style={{ fontSize: '22px', fontWeight: 700, lineHeight: 1, color: sk.primary }}>
+                {homeworkRating != null ? homeworkPct : '-'}<span style={{ fontSize: '12px', fontWeight: 600 }}>%</span>
+              </span>
+              {homeworkRating != null && <span style={{ fontSize: '12px', fontWeight: 600, color: INK_SOFT }}>{ratingLabel(homeworkPct)}</span>}
+            </span>
+          </div>
+          <div style={{ height: '8px', borderRadius: '6px', background: sk.track, overflow: 'hidden', display: 'flex' }}>
+            <div style={{ width: `${homeworkRating != null ? homeworkPct : 0}%`, background: sk.primary }} />
+          </div>
+        </div>
+        <div style={{ height: '1px', background: '#EEF0F3' }} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '12px' }}>
+            <span style={{ fontSize: '14px', fontWeight: 600, color: INK }}>개념 이해</span>
+            <span style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+              <span style={{ fontSize: '22px', fontWeight: 700, lineHeight: 1, color: sk.second }}>
+                {conceptRating != null ? conceptPct : '-'}<span style={{ fontSize: '12px', fontWeight: 600 }}>%</span>
+              </span>
+              {conceptRating != null && <span style={{ fontSize: '12px', fontWeight: 600, color: INK_SOFT }}>{ratingLabel(conceptPct)}</span>}
+            </span>
+          </div>
+          <div style={{ height: '8px', borderRadius: '6px', background: sk.track, overflow: 'hidden', display: 'flex' }}>
+            <div style={{ width: `${conceptRating != null ? conceptPct : 0}%`, background: sk.second }} />
           </div>
         </div>
       </div>
 
-      {/* 바디 */}
-      <div style={{ padding: '18px 20px' }}>
-
-        {/* 핵심 지표 3열 */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', marginBottom: '18px' }}>
-          <div style={{ borderRight: `1px solid ${rule}`, padding: '0 8px', textAlign: 'center' }}>
-            <p style={{ fontSize: '10px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 4px' }}>과제 수행</p>
-            <p style={{ fontSize: '24px', fontWeight: 800, color: navy, margin: 0, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
-              {homeworkRating != null ? homeworkPct : '-'}<span style={{ fontSize: '12px', fontWeight: 500, color: inkMute }}>%</span>
-            </p>
-            <p style={{ fontSize: '12px', fontWeight: 600, color: inkSub, margin: '3px 0 0' }}>{homeworkRating != null ? ratingLabel(homeworkPct) : ''}</p>
-          </div>
-          <div style={{ borderRight: `1px solid ${rule}`, padding: '0 8px', textAlign: 'center' }}>
-            <p style={{ fontSize: '10px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 4px' }}>개념 이해</p>
-            <p style={{ fontSize: '24px', fontWeight: 800, color: navy, margin: 0, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
-              {conceptRating != null ? conceptPct : '-'}<span style={{ fontSize: '12px', fontWeight: 500, color: inkMute }}>%</span>
-            </p>
-            <p style={{ fontSize: '12px', fontWeight: 600, color: inkSub, margin: '3px 0 0' }}>{conceptRating != null ? ratingLabel(conceptPct) : ''}</p>
-          </div>
-          <div style={{ padding: '0 8px', textAlign: 'center' }}>
-            <p style={{ fontSize: '10px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 4px' }}>출결</p>
-            <p style={{ fontSize: '16px', fontWeight: 800, color: attendance === '정시' ? positive : navy, margin: 0, lineHeight: '24px' }}>{attendance}</p>
-            {attendance !== '결석' && <p style={{ fontSize: '12px', fontWeight: 600, color: inkSub, margin: '3px 0 0' }}>{arrivalTime} 등원</p>}
+      {/* 학습 범위 — 카드화 */}
+      {(textbook || unit || pages) && (
+        <div style={{ padding: '0 24px 24px' }}>
+          <div style={{ border: `1px solid ${CARD_BORDER}`, borderRadius: '14px', overflow: 'hidden' }}>
+            <div style={{ height: '4px', background: sk.primary }} />
+            <div style={{ padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: 0 }}>
+                <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.6px', color: INK_SOFT }}>오늘 학습 범위</span>
+                {textbook && <span style={{ fontSize: '18px', fontWeight: 700, letterSpacing: '-0.3px', color: INK, wordBreak: 'keep-all' }}>{textbook}</span>}
+                {unit && <span style={{ alignSelf: 'flex-start', background: sk.tint, color: sk.primary, fontSize: '12px', fontWeight: 700, padding: '5px 10px', borderRadius: '6px' }}>{unit}</span>}
+              </div>
+              {pages && <span style={{ fontSize: '24px', fontWeight: 700, lineHeight: 1.1, letterSpacing: '-0.5px', color: sk.primary, flexShrink: 0 }}>{pages}</span>}
+            </div>
           </div>
         </div>
+      )}
 
-        <div style={{ height: '1px', background: rule, marginBottom: '18px' }} />
-
-        {/* 학습 범위 */}
-        {(textbook || unit || pages) && (
-          <>
-            <div style={{ marginBottom: '18px' }}>
-              <p style={{ fontSize: '10px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 6px' }}>학습 범위</p>
-              {textbook && <p style={{ fontSize: '12px', fontWeight: 700, color: navy, margin: '0 0 2px', wordBreak: 'keep-all' }}>{textbook}</p>}
-              {unit && <p style={{ fontSize: '12px', color: inkSub, margin: '0 0 1px' }}>{unit}</p>}
-              {pages && <p style={{ fontSize: '12px', color: inkMute, margin: 0 }}>{pages}</p>}
-            </div>
-            <div style={{ height: '1px', background: rule, marginBottom: '18px' }} />
-          </>
-        )}
-
-        {/* 시험 결과 — 진단 배지는 2026-07-30 결정으로 학부모 화면(미리보기 포함) 비노출 */}
-        {hasTest && testName && (
-          <>
-            <div style={{ marginBottom: '18px' }}>
-              <p style={{ fontSize: '10px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 8px' }}>TEST RESULT</p>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap' }}>
-                <p style={{ fontSize: '28px', fontWeight: 800, color: navy, margin: 0, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{testScore || '-'}<span style={{ fontSize: '13px', fontWeight: 600, color: inkMute, marginLeft: '2px' }}>점</span></p>
-                <p style={{ fontSize: '12px', color: inkSub, margin: 0 }}>{testName}</p>
-              </div>
-            </div>
-            <div style={{ height: '1px', background: rule, marginBottom: '18px' }} />
-          </>
-        )}
-
-        {/* TEACHER'S NOTE */}
-        {teacherNote && (
-          <>
-            <div style={{ borderLeft: `3px solid ${gold}`, paddingLeft: '13px', marginBottom: '18px' }}>
-              <p style={{ fontSize: '9px', fontWeight: 700, color: goldText, letterSpacing: '0.12em', margin: '0 0 7px' }}>TEACHER'S NOTE</p>
-              {teacherNote.split('\n').filter(Boolean).map((para, i, arr) => (
-                <p key={i} style={{ fontSize: '13px', color: ink, margin: i === arr.length - 1 ? '0' : '0 0 10px', lineHeight: 1.9, fontWeight: 500 }}>{para}</p>
-              ))}
-            </div>
-            <div style={{ height: '1px', background: rule, marginBottom: '18px' }} />
-          </>
-        )}
-
-        {/* 다음 수업 */}
-        {nextPlan && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <p style={{ fontSize: '10px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 4px' }}>NEXT CLASS</p>
-              <p style={{ fontSize: '13px', fontWeight: 700, color: navy, margin: 0 }}>{nextPlan}</p>
-              {nextPlanDetail && <p style={{ fontSize: '12px', color: inkSub, margin: '2px 0 0' }}>{nextPlanDetail}</p>}
-            </div>
-            <div style={{ width: '28px', height: '28px', background: `${navy}14`, borderRadius: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: navy, fontSize: '14px', flexShrink: 0 }}>→</div>
+      {/* 시험 결과 — 진단 배지는 2026-07-30 결정으로 학부모 화면(미리보기 포함) 비노출 */}
+      {hasTest && testName && (
+        <div style={{ padding: '0 24px 24px' }}>
+          <p style={{ fontSize: '10px', fontWeight: 700, color: INK_SOFT, letterSpacing: '1.6px', margin: '0 0 8px' }}>TEST RESULT</p>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap' }}>
+            <p style={{ fontSize: '28px', fontWeight: 800, color: sk.primary, margin: 0, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{testScore || '-'}<span style={{ fontSize: '13px', fontWeight: 600, color: INK_SOFT, marginLeft: '2px' }}>점</span></p>
+            <p style={{ fontSize: '12px', color: INK_SOFT, margin: 0 }}>{testName}</p>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* 학부모 질문하기 — PublicReport엔 항상 있는 섹션이라 미리보기에서도 보여줌(안내용, 비활성) */}
-        <div style={{ height: '1px', background: rule, margin: '18px 0' }} />
-        <div>
-          <p style={{ fontSize: '10px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 10px' }}>궁금한 점이 있으신가요?</p>
-          <p style={{ fontSize: '11px', color: inkMute, margin: 0, fontStyle: 'italic' }}>학부모가 리포트 페이지에서 직접 질문을 남길 수 있어요</p>
+      {/* 선생님 노트 — 결론 문장 → 오늘 눈에 띈 문항(wrongItems) → 나머지는 200자 넘으면 접기 */}
+      {teacherNote && (
+        <div style={{ padding: '0 24px 24px' }}>
+          <div style={{ background: sk.tint, borderRadius: '14px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.6px', color: sk.primary }}>선생님 노트</span>
+            {noteLead && <span style={{ fontSize: '15px', fontWeight: 700, lineHeight: 1.6, color: INK, textWrap: 'pretty' }}>{noteLead}</span>}
+
+            {wrongItems?.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: INK_SOFT }}>오늘 눈에 띈 문항</span>
+                {wrongItems.map((w, i) => {
+                  const extra = w.memo?.trim() || (w.tags?.length ? w.tags.map(t => WRONG_TAG_LABELS[t]).filter(Boolean).join(', ') : '');
+                  return (
+                    <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'baseline' }}>
+                      <span style={{ minWidth: '38px', fontSize: '12px', fontWeight: 700, color: sk.primary, flexShrink: 0 }}>{w.number}번</span>
+                      <span style={{ fontSize: '13px', fontWeight: 500, lineHeight: 1.6, color: INK, textWrap: 'pretty' }}>{w.type}{extra ? ` — ${extra}` : ''}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {noteRestVisible && noteRest.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', ...(noteCollapsible ? { borderTop: '1px solid rgba(23,23,25,0.10)', paddingTop: '14px' } : {}) }}>
+                {noteRest.map((p, i) => <p key={i} style={{ fontSize: '13px', fontWeight: 500, lineHeight: 1.75, color: INK, margin: 0, textWrap: 'pretty' }}>{p}</p>)}
+              </div>
+            )}
+            {noteCollapsible && (
+              <button type="button" onClick={() => setNoteOpen(v => !v)} style={{ alignSelf: 'flex-start', border: `1px solid ${sk.primary}`, borderRadius: '20px', background: 'transparent', color: sk.primary, fontSize: '12px', fontWeight: 700, padding: '8px 14px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                {noteOpen ? '접기' : '선생님 노트 자세히 보기'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 다음 수업 */}
+      {nextPlan && (
+        <div style={{ padding: '0 24px 24px' }}>
+          <div style={{ border: `1px solid ${CARD_BORDER}`, borderRadius: '14px', padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.6px', color: INK_SOFT }}>NEXT CLASS</span>
+              <span style={{ fontSize: '15px', fontWeight: 700, lineHeight: 1.5, color: INK }}>{nextPlan}</span>
+              {nextPlanDetail && <span style={{ fontSize: '12px', fontWeight: 500, color: INK_SOFT }}>{nextPlanDetail}</span>}
+            </div>
+            <span style={{ width: '36px', height: '36px', borderRadius: '50%', background: sk.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <span style={{ width: 0, height: 0, borderLeft: '8px solid #fff', borderTop: '5px solid transparent', borderBottom: '5px solid transparent', marginLeft: '2px', display: 'block' }} />
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* 학부모 질문하기 — PublicReport엔 항상 있는 섹션이라 미리보기에서도 보여줌(안내용, 비활성) */}
+      <div style={{ padding: '20px 24px 24px', background: '#F7F8FA', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <span style={{ fontSize: '12px', fontWeight: 500, color: INK_SOFT }}>궁금한 점이 있으신가요? 선생님이 직접 답변드립니다.</span>
+        <div style={{ width: '100%', border: 'none', borderRadius: '12px', background: sk.primary, color: '#fff', fontSize: '14px', fontWeight: 700, padding: '16px', textAlign: 'center', boxSizing: 'border-box', opacity: 0.6 }}>
+          질문 남기기
         </div>
       </div>
     </div>
