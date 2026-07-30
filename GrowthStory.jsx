@@ -411,12 +411,6 @@ export default function GrowthStory() {
         ? cleanNote.slice(0, 50) + '...'
         : cleanNote;
 
-      // 이전 PHASE 대비 평점 변화 (PHASE 2 이상) — 둘 다 실제로 평가된 경우만 계산
-      const prevR = pi > 0 ? sorted[idx[pi - 1]] : null;
-      const hwDelta = (prevR && r.homeworkRating != null && prevR.homeworkRating != null)
-        ? r.homeworkRating - prevR.homeworkRating
-        : null;
-
       milestones.push({
         ...phaseConfigs[pi],
         date: fmtDate(r),
@@ -430,7 +424,6 @@ export default function GrowthStory() {
           testScore: r.hasTest ? r.testScore : null,
           diagTags,
           notePreview,
-          hwDelta,
           photoUrl: r.photoUrls?.[0] || null,
         },
       });
@@ -534,7 +527,7 @@ export default function GrowthStory() {
   if (loading) return (
     <div style={{ background: '#F5F5F0', minHeight: '100dvh', padding: '24px 16px', display: 'flex', justifyContent: 'center', fontFamily: "'Pretendard Variable', Pretendard, -apple-system, sans-serif" }}>
       <style>{`@keyframes storyPulse { 0%,100% { opacity: 0.5; } 50% { opacity: 0.9; } }`}</style>
-      <div style={{ width: '100%', maxWidth: '420px' }}>
+      <div style={{ width: '100%', maxWidth: '680px' }}>
         <div style={{ borderRadius: '4px', overflow: 'hidden', boxShadow: '0 2px 20px rgba(0,0,0,0.10)' }}>
           <div style={{ background: R.navy, padding: '32px 24px 28px' }}>
             <div style={{ width: '55%', height: '20px', background: 'rgba(255,255,255,0.2)', borderRadius: '4px', marginBottom: '10px', animation: 'storyPulse 1.4s ease-in-out infinite' }} />
@@ -566,14 +559,26 @@ export default function GrowthStory() {
   const teacherName = sorted[sorted.length - 1]?.teacherName || '';
   const teacherDisplay = teacherName ? teacherName.replace(/선생님?$/, '').trim() + ' 선생님' : '담당 교사';
 
+  // 카드 폭 420→680px 확대(2026-07-31 성장 포트폴리오 개선) — 개별 섹션이 크림 배경(#F5F5F0)
+  // 위에 떠 있는 흰 카드로 바뀌어 "인쇄된 한 장" 느낌에서 "앨범" 느낌으로. 흰 배경 위 골드
+  // 텍스트는 기존 R.goldText(#8A6500) 재사용 — 제안서 §5의 #8A6A22는 육안 차이가 없는
+  // 중복값이라 새로 안 만듦.
   const S = {
-    header: { background: R.navy, padding: '32px 24px 28px', position: 'relative', overflow: 'hidden' },
-    section: { background: '#fff', padding: '22px', borderBottom: '1px solid #EEECEA' },
+    header: { background: R.navy, padding: '26px 32px 22px', position: 'relative', overflow: 'hidden' },
+    section: { background: '#fff', border: '1px solid #EEECEA', borderRadius: '14px', padding: '22px' },
     label: { fontSize: '10px', fontWeight: 700, color: R.navy, letterSpacing: '0.14em', marginBottom: '16px' },
   };
+  // 구분 라벨(예: GROWTH MILESTONE, KEY METRICS) — 골드 라벨 + 옆으로 뻗는 옅은 선.
+  // 여러 페이지에서 재사용하려고 함수로 뺌(2/3단계에서도 씀).
+  const sectionDivider = (text) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '1.8px', color: R.goldText }}>{text}</span>
+      <span style={{ flex: 1, height: '1px', background: '#E2DFD9', display: 'block' }} />
+    </div>
+  );
 
   return (
-    <ReportCard maxWidth="420px">
+    <ReportCard maxWidth="680px">
       <style>{FONT_STYLE}</style>
 
       {/* 헤더 */}
@@ -622,32 +627,73 @@ export default function GrowthStory() {
       {(() => {
         // AI 서사 생성 버튼 (강사 전용, ?edit=1) — 1페이지(마일스톤) 맨 위에 포함
         const aiGenButtonContent = !isEditor ? null : (
-      <div style={{ padding: '12px 22px 0' }}>
         <button onClick={handleGenNarrative} disabled={narLoading}
-          style={{ width: '100%', padding: '11px', background: narLoading ? '#E5E7EB' : narrative ? '#F0FAF5' : R.navy, color: narLoading ? '#6C7586' : narrative ? R.positive : '#fff', border: narrative ? `1px solid ${R.positive}40` : 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: narLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+          style={{ width: '100%', padding: '13px', background: narLoading ? '#E5E7EB' : narrative ? '#F0FAF5' : R.navy, color: narLoading ? '#6C7586' : narrative ? R.positive : '#fff', border: narrative ? `1px solid ${R.positive}40` : 'none', borderRadius: '10px', fontSize: '12px', fontWeight: 700, cursor: narLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
           {narLoading ? '⏳ AI 서사 생성 중...' : narrative ? '🔄 전체 서사 다시 만들기 (4개 항목 모두)' : '✨ AI 서사 자동 생성'}
         </button>
-      </div>
+        );
+
+        // '처음과 지금' 히어로(2026-07-31 신규) — 개념 이해도 기준으로 고정(결정 ①).
+        // 시험 점수는 hasTest인 날만 있어 듬성듬성하지만 개념 이해도는 결석 아니면 거의 매
+        // 리포트에 기록되므로 히어로가 항상 뜬다. 하락이어도 숨기지 않고(과장 금지 원칙,
+        // 복습 효과 블록과 같은 태도) 델타 색만 상승=초록/하락=빨강/변화없음=회색으로 반영.
+        // 기간 토글은 이미 sorted 자체가 필터링돼 있어(결정 ⑥) 별도 처리 불필요.
+        const conceptReports = sorted.filter(r => r.conceptRating != null);
+        const heroFirst = conceptReports[0];
+        const heroLast = conceptReports[conceptReports.length - 1];
+        const heroDelta = heroFirst && heroLast ? heroLast.conceptRating - heroFirst.conceptRating : 0;
+        const heroDeltaStyle = heroDelta > 0
+          ? { bg: '#E8F1EC', color: R.positive, text: `+${heroDelta}%p` }
+          : heroDelta < 0
+          ? { bg: '#FBEDED', color: R.negative, text: `${heroDelta}%p` }
+          : { bg: '#F3F4F6', color: '#6B7280', text: '변화 없음' };
+        // 사진 없는 마일스톤/히어로는 접지 않고 네이비 단색 블록으로 대체(결정 ③) — 레이아웃이
+        // 데이터 유무에 따라 들쭉날쭉해지는 걸 방지
+        const heroContent = conceptReports.length < 2 ? null : (
+          <div style={{ background: '#fff', border: '1px solid #EEECEA', borderRadius: '14px', overflow: 'hidden', display: 'flex' }}>
+            <div style={{ width: '186px', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+              {[heroFirst, heroLast].map((r, i) => {
+                const url = r.photoUrls?.[0];
+                return url ? (
+                  <img key={i} src={url} alt="수업 사진" style={{ flex: 1, minHeight: 0, width: '100%', objectFit: 'cover', display: 'block' }} />
+                ) : (
+                  <div key={i} style={{ flex: 1, minHeight: 0, background: R.navy }} />
+                );
+              })}
+            </div>
+            <div style={{ flex: 1, minWidth: 0, padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: '15px', justifyContent: 'center' }}>
+              <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '1.6px', color: R.goldText }}>처음과 지금</span>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '14px', flexWrap: 'wrap' }}>
+                <span style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(55,56,60,0.75)' }}>{fmtDate(heroFirst)}</span>
+                  <span style={{ fontSize: '26px', fontWeight: 600, lineHeight: 1, color: 'rgba(55,56,60,0.75)' }}>{heroFirst.conceptRating}<span style={{ fontSize: '12px', fontWeight: 600 }}>%</span></span>
+                </span>
+                <span style={{ fontSize: '18px', color: '#B0B5BD', marginBottom: '4px' }}>→</span>
+                <span style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(55,56,60,0.75)' }}>{fmtDate(heroLast)}</span>
+                  <span style={{ fontSize: '40px', fontWeight: 700, lineHeight: 1, letterSpacing: '-1px', color: R.navy }}>{heroLast.conceptRating}<span style={{ fontSize: '14px', fontWeight: 600 }}>%</span></span>
+                </span>
+                <span style={{ background: heroDeltaStyle.bg, color: heroDeltaStyle.color, fontSize: '13px', fontWeight: 700, padding: '7px 12px', borderRadius: '8px', marginBottom: '5px' }}>{heroDeltaStyle.text}</span>
+              </div>
+              <span style={{ fontSize: '13px', fontWeight: 500, lineHeight: 1.7, color: 'rgba(55,56,60,0.9)' }}>개념 이해 평가 기준. {sorted.length}회 수업을 쌓은 결과입니다.</span>
+            </div>
+          </div>
         );
 
         // 1페이지 — GROWTH MILESTONE (항상 존재, 데이터 없을 때 안내 문구)
-        const milestoneContent = (
-      <div style={S.section}>
-        <p style={S.label}>GROWTH MILESTONE</p>
-        {milestones.length > 0 && sorted.length > milestones.length && (
-          <p style={{ fontSize: '11px', color: '#6C7586', margin: '-10px 0 16px', lineHeight: 1.6 }}>
-            총 {sorted.length}회 수업 중 의미 있었던 {milestones.length}개의 순간을 모았어요
-          </p>
-        )}
-        {milestones.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '24px 0', color: '#6C7586', fontSize: '13px' }}>
-            리포트가 쌓이면 성장 마일스톤이 자동으로 생성됩니다
+        const milestoneContent = milestones.length === 0 ? (
+          <div style={S.section}>
+            <p style={S.label}>GROWTH MILESTONE</p>
+            <div style={{ textAlign: 'center', padding: '24px 0', color: '#6C7586', fontSize: '13px' }}>
+              리포트가 쌓이면 성장 마일스톤이 자동으로 생성됩니다
+            </div>
           </div>
         ) : (
         <>
+        {heroContent}
         {/* 핵심 숫자 3개 — 타임라인을 읽기 전에 결과부터 한눈에. 전부 위에서 이미 계산해둔
             실데이터(avgScore/attendanceRate)만 쓰고 새 지표는 지어내지 않음 */}
-        <div style={{ display: 'flex', gap: '10px', margin: '0 0 22px' }}>
+        <div style={{ display: 'flex', gap: '10px' }}>
           {[
             { value: `${sorted.length}회`, label: '수업' },
             { value: avgScore != null ? `${avgScore}점` : (hwAvg != null ? `${hwAvg}%` : '-'), label: avgScore != null ? '평균 점수' : '평균 과제' },
@@ -659,130 +705,147 @@ export default function GrowthStory() {
             </div>
           ))}
         </div>
-        <div style={{ position: 'relative', paddingLeft: '28px' }}>
-          <div style={{ position: 'absolute', left: '7px', top: '8px', bottom: '8px', width: '2px', background: `linear-gradient(to bottom, ${R.navy}, ${R.gold})`, borderRadius: '2px' }} />
+        {sectionDivider('GROWTH MILESTONE')}
+        {sorted.length > milestones.length && (
+          <p style={{ fontSize: '11px', color: '#6C7586', margin: '-6px 0 0', lineHeight: 1.6 }}>
+            총 {sorted.length}회 수업 중 의미 있었던 {milestones.length}개의 순간을 모았어요
+          </p>
+        )}
+
+        {/* 마일스톤 카드 — narrative 유무로 주(첫·마지막)/보조(중간) 2등급 파생(승인된 결정 ②,
+            추가 승격 규칙 없음). 예전 세로 타임라인(선+점)은 카드 자체가 이제 앨범 사진 카드라서
+            제거 — 1d 시안에 맞춤. 사진 없는 주 마일스톤은 접지 않고 네이비 단색으로 대체(결정 ③) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {milestones.map((m, i) => {
             const isChapter1 = i === 0;
             const isChapter2 = i === milestones.length - 1;
+            const isMajor = isChapter1 || isChapter2;
             const chapterField = isChapter1 ? 'chapter1' : isChapter2 ? 'chapter2' : null;
             const chapterText = narrative
               ? (isChapter1 ? narrative.chapter1 : isChapter2 ? narrative.chapter2 : m.desc)
               : m.desc;
+            const rd = m.realData;
+            const range = [rd.textbook, rd.unit, rd.pages && fmtPages(rd.pages)].filter(Boolean).join(' · ');
+            const figures = [
+              rd.homeworkRating != null && { label: '과제', value: `${rd.homeworkRating}%`, color: R.navy },
+              rd.conceptRating != null && { label: '개념', value: `${rd.conceptRating}%`, color: R.navy },
+              rd.testScore && { label: '시험', value: `${rd.testScore}점`, color: R.goldText },
+            ].filter(Boolean);
 
-            return (
-            <div key={i} style={{ position: 'relative', marginBottom: i < milestones.length - 1 ? '28px' : 0 }}>
-              <div style={{ position: 'absolute', left: '-24px', top: '4px', width: '16px', height: '16px', borderRadius: '50%', border: `2px solid ${m.active ? R.gold : R.navy}`, background: m.active ? R.gold : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: m.active ? '0 0 0 3px rgba(201,162,39,0.2)' : 'none' }}>
-                {m.active
-                  ? <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M1.5 4L3 5.5L6.5 2" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  : <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><circle cx="4" cy="4" r="2" fill={R.navy}/></svg>
-                }
-              </div>
-              {/* 카드 맨 위에 분류 태그(m.badge)부터 — 서사 읽기 전에 "이게 어떤 종류의 순간인지" 먼저 보이게 */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '6px', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '10px', fontWeight: 700, color: m.active ? '#8A6500' : R.navy, background: m.active ? 'rgba(201,162,39,0.12)' : '#EAF0F9', padding: '3px 9px', borderRadius: '20px' }}>{m.badge}</span>
-                <p style={{ fontSize: '10px', fontWeight: 700, color: R.goldText, letterSpacing: '0.14em', margin: 0 }}>{m.phase}</p>
-              </div>
-              <span style={{ fontSize: '11px', color: '#757575', fontWeight: 500, marginBottom: '5px', display: 'block' }}>{m.date}</span>
-              <p style={{ fontSize: '13px', fontWeight: 700, color: R.navy, margin: '0 0 8px' }}>{m.title}</p>
-
-              {/* 실데이터 카드 */}
-              {m.realData && (
-                <div style={{ background: '#F8F9FC', border: '0.5px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px', marginBottom: '8px' }}>
-                  {/* 교재/단원 */}
-                  {(m.realData.textbook || m.realData.unit) && (
-                    <p style={{ fontSize: '12px', color: '#6B7280', margin: '0 0 5px', fontWeight: 500 }}>
-                      📚 {[m.realData.textbook, m.realData.unit, m.realData.pages && fmtPages(m.realData.pages)].filter(Boolean).join(' · ')}
-                    </p>
+            if (!isMajor) {
+              // 보조 마일스톤 — 사진·코멘트·서사 없이 한 줄 행만(길이 절감의 핵심)
+              return (
+                <div key={i} style={{ background: '#fff', border: '1px solid #EEECEA', borderRadius: '12px', padding: '15px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '18px' }}>
+                  <span style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 }}>
+                    <span style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
+                      <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.4px', color: R.goldText }}>{m.phase.split(' · ')[0]}</span>
+                      <span style={{ fontSize: '10.5px', fontWeight: 600, color: 'rgba(55,56,60,0.75)' }}>{m.date}</span>
+                    </span>
+                    <span style={{ fontSize: '14px', fontWeight: 700, lineHeight: 1.5, color: '#171719' }}>{m.title}</span>
+                    {range && <span style={{ fontSize: '11px', fontWeight: 500, color: 'rgba(55,56,60,0.75)' }}>{range}</span>}
+                  </span>
+                  {figures.length > 0 && (
+                    <span style={{ display: 'flex', gap: '7px', flexShrink: 0 }}>
+                      {figures.map((f, fi) => (
+                        <span key={fi} style={{ background: '#F5F5F0', borderRadius: '7px', padding: '7px 10px', display: 'flex', flexDirection: 'column', gap: '3px', alignItems: 'center' }}>
+                          <span style={{ fontSize: '9.5px', fontWeight: 600, color: 'rgba(55,56,60,0.75)' }}>{f.label}</span>
+                          <span style={{ fontSize: '13px', fontWeight: 700, color: f.color }}>{f.value}</span>
+                        </span>
+                      ))}
+                    </span>
                   )}
-                  {/* 평점 */}
-                  <div style={{ display: 'flex', gap: '10px', marginBottom: m.realData.diagTags.length > 0 || m.realData.testScore || m.realData.notePreview ? '5px' : 0 }}>
-                    {m.realData.homeworkRating != null && (
-                      <span style={{ fontSize: '12px', color: '#374151' }}>
-                        과제 <strong style={{ color: R.navy }}>{m.realData.homeworkRating}%</strong>
-                        {m.realData.hwDelta !== null && m.realData.hwDelta !== 0 && (
-                          <span style={{ color: m.realData.hwDelta > 0 ? R.positive : R.negative, marginLeft: '3px' }}>
-                            {m.realData.hwDelta > 0 ? `+${m.realData.hwDelta}` : m.realData.hwDelta}
+                </div>
+              );
+            }
+
+            // 주 마일스톤 — 196px 사진 + 기록 띠 + 코멘트 + 서사(첫·마지막 카드만)
+            const hasFigureRow = !!range || figures.length > 0 || rd.diagTags.length > 0;
+            return (
+              <div key={i} style={{ background: '#fff', border: '1px solid #EEECEA', borderRadius: '14px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ position: 'relative', height: '196px' }}>
+                  {rd.photoUrl ? (
+                    <img src={rd.photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  ) : (
+                    <div style={{ width: '100%', height: '100%', background: R.navy }} />
+                  )}
+                  <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '14px 18px', background: 'rgba(13,45,107,0.84)', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '14px' }}>
+                    <span style={{ display: 'flex', flexDirection: 'column', gap: '5px', minWidth: 0 }}>
+                      <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.6px', color: '#E4C978' }}>{m.phase}</span>
+                      <span style={{ fontSize: '18px', fontWeight: 700, letterSpacing: '-0.3px', color: '#fff' }}>{m.title}</span>
+                    </span>
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.86)', whiteSpace: 'nowrap' }}>{m.date}</span>
+                  </div>
+                </div>
+
+                {hasFigureRow && (
+                  <div style={{ padding: '14px 18px', borderBottom: (rd.notePreview || chapterField) ? '1px solid #F1EFEC' : 'none', display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                    {range && <span style={{ fontSize: '12px', fontWeight: 600, color: '#171719' }}>{range}</span>}
+                    {range && (figures.length > 0 || rd.diagTags.length > 0) && <span style={{ width: '1px', height: '11px', background: '#E2DFD9', display: 'block' }} />}
+                    {figures.map((f, fi) => (
+                      <span key={fi} style={{ display: 'flex', alignItems: 'baseline', gap: '5px' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(55,56,60,0.75)' }}>{f.label}</span>
+                        <span style={{ fontSize: '14px', fontWeight: 700, color: f.color }}>{f.value}</span>
+                      </span>
+                    ))}
+                    {rd.diagTags.map((tag, ti) => (
+                      <span key={ti} style={{ background: '#FBEDED', color: R.negative, fontSize: '10px', fontWeight: 700, padding: '4px 9px', borderRadius: '6px' }}>{tag}</span>
+                    ))}
+                  </div>
+                )}
+
+                {rd.notePreview && (
+                  <div style={{ padding: '13px 18px', borderBottom: chapterField ? '1px solid #F1EFEC' : 'none', display: 'flex', gap: '9px', alignItems: 'baseline' }}>
+                    <span style={{ fontSize: '10px', fontWeight: 700, color: R.goldText, whiteSpace: 'nowrap' }}>코멘트</span>
+                    <span style={{ fontSize: '12.5px', fontWeight: 500, lineHeight: 1.65, color: 'rgba(55,56,60,0.9)' }}>{rd.notePreview}</span>
+                  </div>
+                )}
+
+                {chapterField && (
+                  <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {editing === chapterField ? (
+                      <div>
+                        <textarea value={editText} onChange={e => setEditText(e.target.value.slice(0, NARRATIVE_MAX_LEN))} maxLength={NARRATIVE_MAX_LEN}
+                          style={{ width: '100%', minHeight: '70px', padding: '10px', border: '1px solid #E5E5E5', borderRadius: '8px', color: '#2C2C2C', fontSize: '16px', lineHeight: 1.8, fontFamily: 'inherit', resize: 'vertical', outline: 'none' }} />
+                        <EditCharCount text={editText} />
+                        <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                          <button onClick={saveEdit} style={{ flex: 1, padding: '7px', background: R.navy, border: 'none', borderRadius: '6px', color: '#fff', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>저장</button>
+                          <button onClick={cancelEdit} style={{ flex: 1, padding: '7px', background: '#F3F4F6', border: 'none', borderRadius: '6px', color: '#6B7280', fontSize: '11px', cursor: 'pointer' }}>취소</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <span style={{ fontSize: '15px', fontWeight: 600, lineHeight: 1.75, color: '#171719' }}>{chapterText}</span>
+                        {isEditor && narrative && (
+                          <span style={{ display: 'flex', gap: '7px' }}>
+                            <button onClick={() => startEdit(chapterField)}
+                              style={{ border: '1px solid #DCDFE4', borderRadius: '7px', background: '#fff', color: R.navy, fontSize: '11px', fontWeight: 700, padding: '7px 12px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                              편집
+                            </button>
+                            <button onClick={() => handleRegenField(chapterField)} disabled={!!regenField}
+                              title="이 항목만 AI로 다시 생성 (다른 항목은 그대로)"
+                              style={{ border: '1px solid #DCDFE4', borderRadius: '7px', background: '#fff', color: R.navy, fontSize: '11px', fontWeight: 700, padding: '7px 12px', cursor: regenField ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: regenField && regenField !== chapterField ? 0.5 : 1 }}>
+                              {regenField === chapterField ? '⏳ 생성 중' : '이 항목만 재생성'}
+                            </button>
                           </span>
                         )}
-                      </span>
-                    )}
-                    {m.realData.conceptRating != null && (
-                      <span style={{ fontSize: '12px', color: '#374151' }}>
-                        개념 <strong style={{ color: R.navy }}>{m.realData.conceptRating}%</strong>
-                      </span>
-                    )}
-                    {m.realData.testScore && (
-                      <span style={{ fontSize: '12px', color: '#374151' }}>
-                        시험 <strong style={{ color: R.goldText }}>{m.realData.testScore}점</strong>
-                      </span>
+                      </>
                     )}
                   </div>
-                  {/* 진단 태그 */}
-                  {m.realData.diagTags.length > 0 && (
-                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: m.realData.notePreview ? '5px' : 0 }}>
-                      {m.realData.diagTags.map((tag, ti) => (
-                        <span key={ti} style={{ fontSize: '11px', fontWeight: 600, padding: '2px 6px', borderRadius: '8px', background: '#FDF0F0', color: R.negative }}>{tag}</span>
-                      ))}
-                    </div>
-                  )}
-                  {/* 코멘트 미리보기 */}
-                  {m.realData.notePreview && (
-                    <p style={{ fontSize: '12px', color: '#6B7280', margin: m.realData.photoUrl ? '0 0 6px' : '0', lineHeight: 1.6, fontStyle: 'italic' }}>
-                      "{m.realData.notePreview}"
-                    </p>
-                  )}
-                  {/* 그 순간의 사진 — 있으면 한 장만 대표로 보여줌 */}
-                  {m.realData.photoUrl && (
-                    <a href={m.realData.photoUrl} target="_blank" rel="noopener noreferrer">
-                      <img src={m.realData.photoUrl} alt="수업 사진"
-                        style={{ width: '64px', height: '64px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #E5E7EB', display: 'block' }} />
-                    </a>
-                  )}
-                </div>
-              )}
-
-              {chapterField && editing === chapterField ? (
-                <div style={{ marginBottom: '6px' }}>
-                  <textarea value={editText} onChange={e => setEditText(e.target.value.slice(0, NARRATIVE_MAX_LEN))} maxLength={NARRATIVE_MAX_LEN}
-                    style={{ width: '100%', minHeight: '70px', padding: '10px', border: '1px solid #E5E5E5', borderRadius: '8px', color: '#2C2C2C', fontSize: '16px', lineHeight: 1.8, fontFamily: 'inherit', resize: 'vertical', outline: 'none' }} />
-                  <EditCharCount text={editText} />
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
-                    <button onClick={saveEdit} style={{ flex: 1, padding: '7px', background: R.navy, border: 'none', borderRadius: '6px', color: '#fff', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>저장</button>
-                    <button onClick={cancelEdit} style={{ flex: 1, padding: '7px', background: '#F3F4F6', border: 'none', borderRadius: '6px', color: '#6B7280', fontSize: '11px', cursor: 'pointer' }}>취소</button>
-                  </div>
-                </div>
-              ) : (
-                <p style={{ fontSize: '12px', color: '#4A4A4A', lineHeight: 1.8, wordBreak: 'keep-all', marginBottom: '6px' }}>
-                  {chapterText}
-                  {isEditor && narrative && chapterField && (
-                    <>
-                      <button onClick={() => startEdit(chapterField)}
-                        style={{ marginLeft: '6px', background: '#F0EDE8', border: 'none', color: '#757575', fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '6px', cursor: 'pointer', verticalAlign: 'middle' }}>
-                        ✏️ 편집
-                      </button>
-                      <button onClick={() => handleRegenField(chapterField)} disabled={!!regenField}
-                        title="이 항목만 AI로 다시 생성 (다른 항목은 그대로)"
-                        style={{ marginLeft: '4px', background: '#EAF0F9', border: 'none', color: R.navy, fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '6px', cursor: regenField ? 'wait' : 'pointer', verticalAlign: 'middle', opacity: regenField && regenField !== chapterField ? 0.5 : 1 }}>
-                        {regenField === chapterField ? '⏳ 생성 중' : '🔄 이 항목만'}
-                      </button>
-                    </>
-                  )}
-                </p>
-              )}
-            </div>
+                )}
+              </div>
             );
           })}
         </div>
 
-        {/* 요약에 안 들어간 나머지 회차를 원하는 학부모를 위한 전체 목록 — 스토리는 깔끔하게 두고 여기서만 펼침 */}
+        {/* 요약에 안 들어간 나머지 회차를 원하는 학부모를 위한 전체 목록 */}
         {sorted.length > milestones.length && (
-          <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px dashed #E5E7EB' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <button onClick={() => setShowAllSessions(v => !v)}
-              style={{ width: '100%', padding: '9px', fontSize: '11px', fontWeight: 700, color: R.navy, background: '#F0F7FC', border: '1px solid #E6F1FB', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit' }}>
+              style={{ width: '100%', border: '1px solid #DCD8D0', borderRadius: '10px', background: '#fff', color: R.navy, fontSize: '13px', fontWeight: 700, padding: '14px', cursor: 'pointer', fontFamily: 'inherit' }}>
               {showAllSessions ? '접기' : `전체 ${sorted.length}회 리포트 보기`}
             </button>
             {showAllSessions && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '10px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {sorted.map((r, ri) => {
                   const cleanNote = (r.teacherNote || '').replace(/\[([^\]]+)\]\s*/g, '').trim();
                   return (
@@ -806,8 +869,6 @@ export default function GrowthStory() {
           </div>
         )}
         </>
-        )}
-      </div>
         );
 
         // 2페이지 — 성적 추이(라인차트) + 단원별 평가 추이 + 자주 나온 약점 유형 (셋 다 없으면 페이지 자체가 생략됨)
@@ -983,10 +1044,8 @@ export default function GrowthStory() {
         );
         })();
 
-        // 자주 나온 약점 유형 — 이미 로드된 sorted(이 학생 전체 리포트)로 집계, 새 조회 없음.
-        // recharts는 여기선 안 씀 — 공개 페이지 번들에 375KB 차트 라이브러리가 딸려오는 걸 피하려고
-        // 단원별 평가 추이와 같은 hand-rolled div 막대 방식 유지.
-        // 어느 단원에서 나온 건지도 같이 집계 — nextChapterContent의 "다음 목표"에도 재사용
+        // 자주 나온 약점 유형 — 페이지 2 독립 차트는 제거하고 4페이지 '다음 목표' 한 줄
+        // 요약으로 흡수(승인된 결정, 정보량 절감). 집계 자체는 이미 로드된 sorted로, 새 조회 없음.
         const diagCount = {};
         const diagUnitMap = {}; // key -> { 단원명: 횟수 }
         sorted.forEach(r => (r.diagnosis || []).forEach(d => {
@@ -999,223 +1058,125 @@ export default function GrowthStory() {
           }
         }));
         const diagList = Object.entries(diagCount).sort((a, b) => b[1] - a[1]);
-        const topWeakLabel = diagList.length > 0 ? (DIAG_COLORS[diagList[0][0]]?.label || diagList[0][0]) : null;
-
-        const weakTypeContent = (() => {
-        if (diagList.length === 0) return null;
-        const maxCount = diagList[0][1];
-        return (
-          <div style={S.section}>
-            <p style={S.label}>자주 나온 약점 유형</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {diagList.map(([key, count]) => {
-                const info = DIAG_COLORS[key] || { label: key, color: '#757575' };
-                const topUnits = diagUnitMap[key]
-                  ? Object.entries(diagUnitMap[key]).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([u]) => u)
-                  : [];
-                return (
-                  <div key={key}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-                      <span style={{ fontSize: '12px', color: '#2C2C2C', fontWeight: 600 }}>{info.label}</span>
-                      <span style={{ fontSize: '11px', color: '#757575' }}>{count}회</span>
-                    </div>
-                    <div style={{ height: '6px', background: '#F3F4F6', borderRadius: '6px', overflow: 'hidden' }}>
-                      <div style={{ width: `${Math.round(count / maxCount * 100)}%`, height: '100%', background: info.color, borderRadius: '6px' }} />
-                    </div>
-                    {topUnits.length > 0 && (
-                      <p style={{ fontSize: '12px', color: '#2C2C2C', margin: '4px 0 0' }}>주로 {topUnits.join(', ')}에서 나왔어요</p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        );
-        })();
+        const topWeak = diagList[0]; // [key, count] | undefined
+        const topWeakLabel = topWeak ? (DIAG_COLORS[topWeak[0]]?.label || topWeak[0]) : null;
+        const topWeakUnits = topWeak && diagUnitMap[topWeak[0]]
+          ? Object.entries(diagUnitMap[topWeak[0]]).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([u]) => u)
+          : [];
 
         // 3페이지 — 복습 효과(있을 때만) + 핵심 지표(항상 존재)
         const reviewEffectContent = reviewProof.length === 0 ? null : (
       <div style={S.section}>
-          <p style={S.label}>복습 효과</p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', background: '#F7F5F1', borderRadius: '4px', borderLeft: `2px solid ${R.gold}`, marginBottom: '14px' }}>
-            <span style={{ fontSize: '11px', color: '#757575', fontWeight: 600 }}>복습 완료</span>
-            <span style={{ fontSize: '16px', fontWeight: 800, color: R.navy }}>{reviewProof.length}건</span>
-            {reviewProofImproved > 0 && (
-              <span style={{ fontSize: '11px', color: R.positive, fontWeight: 700, marginLeft: 'auto' }}>{reviewProofImproved}건 점수 향상</span>
-            )}
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '14px' }}>
+            <span style={{ fontSize: '14px', fontWeight: 700, color: '#171719' }}>복습 효과</span>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(55,56,60,0.75)' }}>
+              완료 {reviewProof.length}건{reviewProofImproved > 0 ? ` · 향상 ${reviewProofImproved}건` : ''}
+            </span>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {reviewProof.slice(0, 5).map(p => {
-              const delta = p.after - p.before;
-              return (
-                <div key={p.id}>
-                  <p style={{ fontSize: '11px', fontWeight: 700, color: '#2C2C2C', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {p.unit || '복습'}
+          {reviewProof.slice(0, 5).map((p, pi) => {
+            const delta = p.after - p.before;
+            // 또래 비교 없이 이 학생 자신의 전/후만 — 낮은 점수까지 회색으로 채우고 그 위로
+            // 변화폭만큼 델타 색(향상=초록/하락=빨강)을 이어 채움. 하락도 숨기지 않음(히어로와 같은 원칙)
+            const beforePct = Math.max(0, Math.min(100, p.before));
+            const afterPct = Math.max(0, Math.min(100, p.after));
+            const lo = Math.min(beforePct, afterPct);
+            const hi = Math.max(beforePct, afterPct);
+            const deltaColor = delta > 0 ? R.positive : delta < 0 ? R.negative : '#8A8F98';
+            return (
+              <div key={p.id} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: pi > 0 ? '16px' : '16px', paddingTop: '16px', borderTop: '1px solid #F1EFEC' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap' }}>
+                  <span style={{ display: 'flex', alignItems: 'baseline', gap: '8px', minWidth: 0 }}>
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: '#171719' }}>{p.unit || '복습'}</span>
                     {p.weakLabel && (
-                      <span style={{ fontSize: '9px', color: R.navy, background: '#EAF0F9', padding: '2px 7px', borderRadius: '3px', fontWeight: 600 }}>{p.weakLabel}</span>
+                      <span style={{ background: '#EAF0F9', color: R.navy, fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '5px' }}>{p.weakLabel}</span>
                     )}
-                  </p>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                    {/* 4칸 모두 "캡션 줄(9px, 고정) + 값 줄(20px 고정 높이, 세로 중앙정렬)" 구조로
-                        통일 — 폰트 크기가 13/16/12/11px로 제각각이라 lineHeight 차이로 살짝
-                        어긋나 보이던 걸, 값 줄 자체를 고정 높이 박스로 만들어 완전히 맞춤 */}
-                    <div style={{ textAlign: 'center' }}>
-                      <p style={{ fontSize: '9px', color: '#757575', fontWeight: 600, margin: '0 0 2px' }}>복습 전</p>
-                      <div style={{ height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <span style={{ fontSize: '13px', fontWeight: 700, color: '#757575', lineHeight: 1 }}>{p.before}점</span>
-                      </div>
-                    </div>
-                    <div style={{ textAlign: 'center' }}>
-                      <p style={{ fontSize: '9px', margin: '0 0 2px', visibility: 'hidden' }}>·</p>
-                      <div style={{ height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <span style={{ fontSize: '12px', color: R.gold, lineHeight: 1 }}>→</span>
-                      </div>
-                    </div>
-                    <div style={{ textAlign: 'center' }}>
-                      <p style={{ fontSize: '9px', color: '#757575', fontWeight: 600, margin: '0 0 2px' }}>복습 후</p>
-                      <div style={{ height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <span style={{ fontSize: '16px', fontWeight: 800, color: delta > 0 ? R.navy : '#2C2C2C', lineHeight: 1 }}>{p.after}점</span>
-                      </div>
-                    </div>
-                    <div style={{ textAlign: 'center' }}>
-                      <p style={{ fontSize: '9px', margin: '0 0 2px', visibility: 'hidden' }}>·</p>
-                      <div style={{ height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <span style={{ fontSize: '11px', fontWeight: 700, color: delta > 0 ? R.positive : delta < 0 ? R.negative : '#757575', lineHeight: 1 }}>
-                          {delta === 0 ? '동일' : delta > 0 ? `+${delta}` : `${delta}`}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  {(() => {
-                    // 복습 전/후를 한 눈에 — 또래 비교 없이 이 학생 자신의 전/후만 표시.
-                    // 낮은 점수까지 회색으로 채우고, 그 위로 변화폭만큼 델타 색(향상=초록/하락=빨강)을 이어 채움
-                    const beforePct = Math.max(0, Math.min(100, p.before));
-                    const afterPct = Math.max(0, Math.min(100, p.after));
-                    const lo = Math.min(beforePct, afterPct);
-                    const hi = Math.max(beforePct, afterPct);
-                    const deltaColor = delta > 0 ? R.positive : delta < 0 ? R.negative : '#B0B0B0';
-                    return (
-                      <div style={{ height: '6px', background: '#F3F4F6', borderRadius: '6px', overflow: 'hidden', marginTop: '8px', position: 'relative' }}>
-                        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${lo}%`, background: '#B0B0B0', borderRadius: '6px' }} />
-                        <div style={{ position: 'absolute', left: `${lo}%`, top: 0, bottom: 0, width: `${hi - lo}%`, background: deltaColor }} />
-                      </div>
-                    );
-                  })()}
-                  {p.note && <p style={{ fontSize: '12px', color: '#2C2C2C', margin: '5px 0 0', lineHeight: 1.5 }}>{p.note}</p>}
+                  </span>
+                  <span style={{ display: 'flex', alignItems: 'baseline', gap: '8px', whiteSpace: 'nowrap' }}>
+                    <span style={{ fontSize: '14px', fontWeight: 600, color: 'rgba(55,56,60,0.75)' }}>{p.before}</span>
+                    <span style={{ fontSize: '12px', color: '#B0B5BD' }}>→</span>
+                    <span style={{ fontSize: '20px', fontWeight: 700, color: '#171719' }}>{p.after}</span>
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: deltaColor }}>{delta === 0 ? '동일' : delta > 0 ? `+${delta}` : `${delta}`}</span>
+                  </span>
                 </div>
-              );
-            })}
-          </div>
+                <div style={{ height: '8px', borderRadius: '5px', background: '#E9E6E0', overflow: 'hidden', position: 'relative' }}>
+                  <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${lo}%`, background: '#C7C3BB' }} />
+                  <div style={{ position: 'absolute', left: `${lo}%`, top: 0, bottom: 0, width: `${hi - lo}%`, background: deltaColor }} />
+                </div>
+                {p.note && <span style={{ fontSize: '11.5px', fontWeight: 500, color: 'rgba(55,56,60,0.75)' }}>{p.note}</span>}
+              </div>
+            );
+          })}
           {reviewProof.length > 5 && (
-            <p style={{ fontSize: '10px', color: '#757575', marginTop: '10px', textAlign: 'center' }}>외 {reviewProof.length - 5}건 더</p>
+            <p style={{ fontSize: '10px', color: '#757575', marginTop: '14px', textAlign: 'center' }}>외 {reviewProof.length - 5}건 더</p>
           )}
         </div>
         );
 
         const keyMetricsContent = (() => {
-        // 세로 리스트 — 예전엔 2x2 타일이었는데, 프레임 높이가 마일스톤 페이지 기준으로
-        // 고정돼 있어서 짧은 통계 4개만으로는 위아래에 빈 여백이 크게 남았음. 한 줄짜리
-        // 카드 4개로 바꾸면 그 높이를 자연스럽게 채우고, 맨 아래 출석 카드도 더 크게 보여줄 수 있음.
-        const tileStyle = { background: '#F7F5F1', borderRadius: '4px', padding: '13px 14px', borderLeft: `2px solid ${R.gold}` };
-        const rowStyle = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' };
-        const labelStyle = { fontSize: '12px', fontWeight: 600, color: '#2C2C2C', margin: '0 0 3px' };
-        const captionStyle = { fontSize: '12px', color: '#2C2C2C', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' };
-        const numStyle = { fontSize: '22px', fontWeight: 800, color: R.navy, flexShrink: 0, lineHeight: 1 };
-        const unitStyle = { fontSize: '11px', color: '#5C5C5C', fontWeight: 600 };
+        // 2열 그리드 — 각 타일이 개별 흰 카드(마일스톤/히어로와 같은 카드 체계), 출석은
+        // 네이비 강조 카드. 결석/지각 유무에 따라 막대 폭만 달라질 뿐 항상 같은 3색 막대
+        // 하나로 통일(예전 3분기 로직 제거 — flex:0.0001 트릭으로 0건도 안전하게 렌더).
+        const cardTile = { background: '#fff', border: '1px solid #EEECEA', borderRadius: '12px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '8px', minWidth: 0 };
+        const tileLabel = { fontSize: '12px', fontWeight: 600, color: 'rgba(55,56,60,0.75)' };
+        const tileValue = { fontSize: '30px', fontWeight: 700, lineHeight: 1, letterSpacing: '-0.6px', color: R.navy };
+        const tileUnit = { fontSize: '13px', fontWeight: 600, marginLeft: '2px' };
+        const tileSub = { fontSize: '11.5px', fontWeight: 500, color: 'rgba(55,56,60,0.75)' };
 
         return (
-      <div style={S.section}>
-        <p style={S.label}>KEY METRICS</p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      <>
+        {sectionDivider('KEY METRICS')}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: '14px' }}>
           {maxScore && (
-            <div style={tileStyle}>
-              <div style={rowStyle}>
-                <div style={{ minWidth: 0 }}>
-                  <p style={labelStyle}>최고 단원평가</p>
-                  <p style={captionStyle}>
-                    {maxScoreReport && <span style={{ color: '#8A6412', fontWeight: 700 }}>{fmtDate(maxScoreReport)}</span>}
-                    {maxScoreReport && (maxScoreReport.unit || maxScoreReport.textbook) ? ' · ' : ''}
-                    {maxScoreReport?.unit || maxScoreReport?.textbook || '100점 만점'}
-                  </p>
-                </div>
-                <span style={numStyle}>{maxScore}<span style={unitStyle}>점</span></span>
-              </div>
+            <div style={cardTile}>
+              <span style={tileLabel}>최고 단원평가</span>
+              <span style={tileValue}>{maxScore}<span style={tileUnit}>점</span></span>
+              <span style={tileSub}>
+                {maxScoreReport && <b style={{ color: R.goldText, fontWeight: 700 }}>{fmtDate(maxScoreReport)}</b>}
+                {maxScoreReport && (maxScoreReport.unit || maxScoreReport.textbook) ? ' · ' : ''}
+                {maxScoreReport?.unit || maxScoreReport?.textbook || '100점 만점'}
+              </span>
             </div>
           )}
           {hwAvg && (
-            <div style={tileStyle}>
-              <div style={rowStyle}>
-                <div style={{ minWidth: 0 }}>
-                  <p style={labelStyle}>과제 수행 평균</p>
-                  <p style={captionStyle}>{hwRated.length}회 평균 · 담당교사 관찰</p>
-                </div>
-                <span style={numStyle}>{hwAvg}<span style={unitStyle}>%</span></span>
-              </div>
+            <div style={cardTile}>
+              <span style={tileLabel}>과제 수행 평균</span>
+              <span style={tileValue}>{hwAvg}<span style={tileUnit}>%</span></span>
+              <span style={tileSub}>{hwRated.length}회 평균 · 담당교사 관찰</span>
             </div>
           )}
           {avgScore && (
-            <div style={tileStyle}>
-              <div style={rowStyle}>
-                <div style={{ minWidth: 0 }}>
-                  <p style={labelStyle}>전체 시험 평균</p>
-                  <p style={captionStyle}>{allScores.length}회 시험 평균</p>
-                </div>
-                <span style={numStyle}>{avgScore}<span style={unitStyle}>점</span></span>
-              </div>
+            <div style={cardTile}>
+              <span style={tileLabel}>전체 시험 평균</span>
+              <span style={tileValue}>{avgScore}<span style={tileUnit}>점</span></span>
+              <span style={tileSub}>{allScores.length}회 시험 평균</span>
             </div>
           )}
 
-          {/* 출석 카드 — 결석 있으면 3색 비율 막대, 지각만 있으면 출석/지각 필, 개근이면 칭찬 문구 */}
-          <div style={tileStyle}>
-            {absentCount > 0 ? (
-              <>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: R.navy, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#fff', fontSize: '16px', fontWeight: 800 }}>{sorted.length}</div>
-                  <div style={{ minWidth: 0 }}>
-                    <p style={labelStyle}>총 {sorted.length}회 수업 · 출석률 {attendanceRate}%</p>
-                    <p style={captionStyle}>{fmtDate(sorted[0])} – {fmtDate(sorted[sorted.length - 1])} 기준</p>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', height: '6px', borderRadius: '5px', overflow: 'hidden', gap: '2px', marginTop: '10px' }}>
-                  <div style={{ flex: onTimeCount || 0.0001, background: R.navy }} />
-                  <div style={{ flex: lateCount || 0.0001, background: R.gold }} />
-                  <div style={{ flex: absentCount, background: R.negative }} />
-                </div>
-                <div style={{ display: 'flex', gap: '12px', marginTop: '7px', fontSize: '10px', fontWeight: 600 }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '3px', color: R.navy }}><i style={{ width: '6px', height: '6px', borderRadius: '50%', background: R.navy, display: 'inline-block' }} />출석 {onTimeCount}</span>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '3px', color: '#8A6412' }}><i style={{ width: '6px', height: '6px', borderRadius: '50%', background: R.gold, display: 'inline-block' }} />지각 {lateCount}</span>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '3px', color: R.negative }}><i style={{ width: '6px', height: '6px', borderRadius: '50%', background: R.negative, display: 'inline-block' }} />결석 {absentCount}</span>
-                </div>
-              </>
-            ) : lateCount > 0 ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: R.navy, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#fff', fontSize: '16px', fontWeight: 800 }}>{sorted.length}</div>
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <p style={labelStyle}>총 {sorted.length}회 수업 · 출석 {onTimeCount}</p>
-                  <div style={{ display: 'flex', gap: '6px', marginTop: '6px' }}>
-                    <span style={{ fontSize: '10px', fontWeight: 700, color: R.navy, background: '#E8EEFA', padding: '2px 8px', borderRadius: '20px' }}>출석 {onTimeCount}</span>
-                    <span style={{ fontSize: '10px', fontWeight: 700, color: '#8A6412', background: '#FBF1DE', padding: '2px 8px', borderRadius: '20px' }}>지각 {lateCount}</span>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: R.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#fff', fontSize: '16px', fontWeight: 800 }}>{sorted.length}</div>
-                <div style={{ minWidth: 0 }}>
-                  <p style={labelStyle}>총 {sorted.length}회 수업 · 개근</p>
-                  <p style={{ fontSize: '11px', color: '#8A6412', fontWeight: 700, margin: 0 }}>지각 한 번도 없어요!</p>
-                </div>
-              </div>
-            )}
+          {/* 출석 — 제안서 §5 출석 3색 토큰(출석/지각/결석) 그대로 사용 */}
+          <div style={{ background: R.navy, borderRadius: '12px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '11px' }}>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.8)' }}>정시 출석률</span>
+            <span style={{ fontSize: '30px', fontWeight: 700, lineHeight: 1, letterSpacing: '-0.6px', color: '#fff' }}>{attendanceRate}<span style={{ fontSize: '13px', fontWeight: 600, marginLeft: '2px' }}>%</span></span>
+            <div style={{ display: 'flex', height: '7px', borderRadius: '4px', overflow: 'hidden', gap: '2px' }}>
+              <div style={{ flex: onTimeCount || 0.0001, background: '#5A8BD8' }} />
+              <div style={{ flex: lateCount || 0.0001, background: R.gold }} />
+              <div style={{ flex: absentCount || 0.0001, background: '#D46A6A' }} />
+            </div>
+            <span style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+              {[['출석', onTimeCount, '#5A8BD8'], ['지각', lateCount, R.gold], ['결석', absentCount, '#D46A6A']].map(([label, count, color]) => (
+                <span key={label} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '10.5px', fontWeight: 600, color: 'rgba(255,255,255,0.86)' }}>
+                  <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: color, display: 'inline-block' }} />{label} {count}
+                </span>
+              ))}
+            </span>
           </div>
         </div>
-      </div>
+      </>
         );
         })();
 
         // 4페이지 — 선생님 한마디 + 다음 목표 (둘 다 항상 존재, fallback 문구 있음)
         const teacherWordContent = (
-      <div style={{ background: R.navy, padding: '24px 22px' }}>
+      <div style={{ background: R.navy, borderRadius: '14px', padding: '26px 28px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
           <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.6)', letterSpacing: '0.14em', fontWeight: 600 }}>TEACHER'S WORD</p>
           {isEditor && narrative && (
@@ -1288,18 +1249,27 @@ export default function GrowthStory() {
             {narrative?.nextChapter || '판단 기준을 세우는 힘이 생기기 시작했습니다. 이제는 그 힘을 더 단단하게 만들 차례입니다.'}
           </p>
         )}
-        <div style={{ padding: '14px 16px', background: '#F7F5F1', borderRadius: '4px', borderLeft: `2px solid ${R.gold}` }}>
-          <p style={{ fontSize: '11px', color: '#757575', fontWeight: 600, marginBottom: '3px' }}>다음 목표</p>
-          <p style={{ fontSize: '13px', fontWeight: 700, color: R.navy }}>{topWeakLabel ? `${topWeakLabel} 집중 보완` : '다음 단원 준비'}</p>
+        <div style={{ borderTop: '1px solid #F1EFEC', paddingTop: '16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <span style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(55,56,60,0.75)', whiteSpace: 'nowrap' }}>다음 목표</span>
+          <span style={{ background: '#FBEDED', color: R.negative, fontSize: '13px', fontWeight: 700, padding: '9px 14px', borderRadius: '8px' }}>
+            {topWeakLabel ? `${topWeakLabel} 집중 보완` : '다음 단원 준비'}
+          </span>
         </div>
+        {/* 페이지 2에서 옮겨온 요약 — 약점 유형별 막대 대신 가장 잦은 유형 하나만 문장으로 */}
+        {topWeak && (
+          <p style={{ fontSize: '11.5px', fontWeight: 500, lineHeight: 1.7, color: 'rgba(55,56,60,0.75)', margin: '10px 0 0' }}>
+            이번 기간 &lsquo;{topWeakLabel}&rsquo;이 {topWeak[1]}회로 가장 많이 나왔어요{topWeakUnits.length > 0 ? ` · 주로 ${topWeakUnits.join(', ')}에서 나왔습니다.` : '.'}
+          </p>
+        )}
       </div>
         );
 
-        // 4개 페이지 구성 — 2페이지(평가 추이)는 시험 점수도 약점 태그도 없는 학생이면
-        // 통째로 비어(unitTrendContent/weakTypeContent 둘 다 null) 아래 filter(Boolean)로 걸러짐
+        // 4개 페이지 구성 — 2페이지(평가 추이)는 시험 점수도 단원 평가도 없는 학생이면
+        // 통째로 비어(scoreTrendContent/unitTrendContent 둘 다 null) 아래 filter(Boolean)로 걸러짐.
+        // 약점 유형은 더 이상 이 페이지에 없음(4페이지 '다음 목표'로 흡수)
         const pages = [
           { key: 'milestone', label: '성장 마일스톤', content: (<>{aiGenButtonContent}{milestoneContent}</>) },
-          (scoreTrendContent || unitTrendContent || weakTypeContent) && { key: 'trend', label: '평가 추이', content: (<>{scoreTrendContent}{unitTrendContent}{weakTypeContent}</>) },
+          (scoreTrendContent || unitTrendContent) && { key: 'trend', label: '평가 추이', content: (<>{scoreTrendContent}{unitTrendContent}</>) },
           { key: 'metrics', label: '핵심 지표', content: (<>{reviewEffectContent}{keyMetricsContent}</>) },
           { key: 'closing', label: '선생님 한마디', content: (<>{teacherWordContent}{nextChapterContent}</>) },
         ].filter(Boolean);
@@ -1334,9 +1304,10 @@ export default function GrowthStory() {
               style={{
                 animation: `${slideDir > 0 ? 'pageSlideNext' : 'pageSlidePrev'} 0.25s ease`,
                 minHeight: '480px', maxHeight: '65vh', overflowY: 'auto',
+                background: '#F5F5F0', padding: '26px 32px 22px',
                 display: 'flex', flexDirection: 'column',
               }}>
-              <div style={{ margin: 'auto 0' }}>
+              <div style={{ margin: 'auto 0', display: 'flex', flexDirection: 'column', gap: '22px' }}>
                 {pages[curPage].content}
               </div>
             </div>
