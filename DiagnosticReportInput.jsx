@@ -157,6 +157,30 @@ const ATTENDANCE = ['정시', '지각', '결석', '조퇴', '보강', '자율학
 // ============================================================
 // 스킨 팔레트
 // ============================================================
+// HSV↔hex — 커스텀 스킨 색상표(색상 사각형 + 색조 슬라이더) 계산용.
+// "리포트 스킨 우측 패널" 핸드오프의 Report Right Panel.dc.html 로직을 그대로 옮김.
+function hsvToHex({ h, s, v }) {
+  const c = (n) => {
+    const k = (n + h / 60) % 6;
+    const x = v - v * s * Math.max(0, Math.min(k, 4 - k, 1));
+    return Math.round(x * 255).toString(16).padStart(2, '0');
+  };
+  return '#' + c(5) + c(3) + c(1);
+}
+// 저장돼 있는 건 최종 hex뿐이라, 수정 모드에서 색상표 마커 위치를 복원하려면 역변환이 필요
+function hexToHsv(hex) {
+  const r = parseInt(hex.slice(1, 3), 16) / 255, g = parseInt(hex.slice(3, 5), 16) / 255, b = parseInt(hex.slice(5, 7), 16) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+  let h = 0;
+  if (d !== 0) {
+    if (max === r) h = ((g - b) / d) % 6;
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h *= 60; if (h < 0) h += 360;
+  }
+  return { h, s: max === 0 ? 0 : d / max, v: max };
+}
+
 // 메인 컬러 → SKIN 객체 자동 생성
 function buildSkin(key, name, mainHex, accentHex) {
   const r = parseInt(mainHex.slice(1,3),16);
@@ -355,6 +379,11 @@ export default function DiagnosticReportInput({
     return c ? { ...deriveColorsToSkin(c), key: 'global', name: '학원 기본', main: c, accent: null, dots: [c] } : null;
   }, []);
   const [selectedSkin, setSelectedSkin] = useState(globalSkin ? 'global' : 'navy');
+  // 커스텀 스킨 색상표 — 주조색/포인트색 2개만 HSV로 고르고 나머지(second/tint/track/
+  // bannerLabel)는 PublicReport.jsx가 deriveSkinColors로 읽는 시점에 계산하므로 여기선
+  // 최종 hex 2개만 다루면 됨
+  const [customHsv, setCustomHsv] = useState({ primary: { h: 220, s: 0.6, v: 0.35 }, accent: { h: 30, s: 0.5, v: 0.9 } });
+  const [customTarget, setCustomTarget] = useState('primary'); // 'primary' | 'accent' — 지금 색상표가 어느 값을 조정 중인지
   const autoSaveTimer = React.useRef(null);
   const [lastSaved, setLastSaved] = useState(null);
   const [autoSaveError, setAutoSaveError] = useState(false);
@@ -743,9 +772,18 @@ export default function DiagnosticReportInput({
     setPhotoAnalysis(editingReport.photoAnalysis || null);
     setWrongItems(editingReport.wrongItems || []);
     setHasChargedAnalysis(false);
-    // 저장돼 있던 스킨 복원 — 안 하면 수정 후 재저장 때 픽커 기본값(navy)으로 덮여 스킨이 날아감
-    setSelectedSkin(editingReport.skin?.key && SKINS[editingReport.skin.key] ? editingReport.skin.key
-      : editingReport.skin?.key === 'global' && globalSkin ? 'global' : 'navy');
+    // 저장돼 있던 스킨 복원 — 안 하면 수정 후 재저장 때 픽커 기본값(navy)으로 덮여 스킨이 날아감.
+    // 커스텀 스킨은 최종 hex만 저장돼 있어서, 색상표 마커 위치를 되살리려면 HSV로 역변환해야 함
+    if (editingReport.skin?.key === 'custom' && editingReport.skin?.main) {
+      setCustomHsv({
+        primary: hexToHsv(editingReport.skin.main),
+        accent: editingReport.skin.accent ? hexToHsv(editingReport.skin.accent) : { h: 30, s: 0.5, v: 0.9 },
+      });
+      setSelectedSkin('custom');
+    } else {
+      setSelectedSkin(editingReport.skin?.key && SKINS[editingReport.skin.key] ? editingReport.skin.key
+        : editingReport.skin?.key === 'global' && globalSkin ? 'global' : 'navy');
+    }
 
     // 기존 사진 유지 — photoUrls → photos 변환
     // photosRef도 함께 동기화해야 함 — MAX_PHOTOS 체크가 ref 기준이라, 안 하면
@@ -1224,6 +1262,7 @@ export default function DiagnosticReportInput({
         // 기본값(navy)은 저장 안 함 → 기존 리포트와 똑같이 PublicReport 기본색 사용
         skin: (() => {
           if (student?.skinColor) return { key: 'custom', main: student.skinColor, accent: null };
+          if (selectedSkin === 'custom') return { key: 'custom', main: hsvToHex(customHsv.primary), accent: hsvToHex(customHsv.accent) };
           const sk = selectedSkin === 'global' && globalSkin ? globalSkin : SKINS[selectedSkin];
           if (!sk || sk.key === 'navy') return null;
           return { key: sk.key, main: sk.main || null, accent: sk.accent || null };
@@ -1390,6 +1429,27 @@ export default function DiagnosticReportInput({
       setTextbook(lastValuesSnapshot.textbook); setUnit(lastValuesSnapshot.unit); setPages(lastValuesSnapshot.pages);
       setLastValuesApplied(true);
     }
+  };
+
+  // 커스텀 스킨 색상표 — 지금 조정 중인 값(primary/accent)의 hex, HSV 마커 위치 계산
+  const customPrimaryHex = hsvToHex(customHsv.primary);
+  const customAccentHex = hsvToHex(customHsv.accent);
+  const customActiveHsv = customHsv[customTarget];
+  const customHueHex = hsvToHex({ h: customActiveHsv.h, s: 1, v: 1 });
+  // 사각형/슬라이더 공용 좌표 계산 — Pointer Events라 마우스·터치 둘 다 이 한 핸들러로 처리됨
+  const customFromPointer = (e, axis) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const x = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+    const y = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height));
+    return axis === 'hue' ? { h: x * 360 } : { s: x, v: 1 - y };
+  };
+  const customPickSv = (e) => {
+    const patch = customFromPointer(e, 'sv');
+    setCustomHsv(prev => ({ ...prev, [customTarget]: { ...prev[customTarget], ...patch } }));
+  };
+  const customPickHue = (e) => {
+    const patch = customFromPointer(e, 'hue');
+    setCustomHsv(prev => ({ ...prev, [customTarget]: { ...prev[customTarget], ...patch } }));
   };
 
   // 토스트 색상 — 화면 전역에서 쓰는 TOKENS 성공/실패/경고 어휘와 통일
@@ -2825,7 +2885,7 @@ export default function DiagnosticReportInput({
           {/* 스킨 표시 — 학생 개별 스킨 or 선택 스킨. 좌측 입력 폼 전체를 스킨 색으로 물들이지는
               않음(매일 반복해서 보는 작업 도구라 학생마다 색이 바뀌면 오히려 피로해짐) — 대신
               이 카드 상단에 지금 고른 색을 얇은 선으로만 보여줘서 "이 색으로 나간다"는 힌트만 줌 */}
-          <div style={{ background: TOKENS.bg, borderRadius: `${RADIUS2.card}px`, border: `1px solid ${TOKENS.border}`, borderTop: `3px solid ${student?.skinColor || (selectedSkin === 'global' && globalSkin ? globalSkin.main : SKINS[selectedSkin]?.main) || SKINS.navy.main}`, padding: '10px 14px', marginBottom: '10px' }}>
+          <div style={{ background: TOKENS.bg, borderRadius: `${RADIUS2.card}px`, border: `1px solid ${TOKENS.border}`, borderTop: `3px solid ${student?.skinColor || (selectedSkin === 'custom' ? customPrimaryHex : selectedSkin === 'global' && globalSkin ? globalSkin.main : SKINS[selectedSkin]?.main) || SKINS.navy.main}`, padding: '10px 14px', marginBottom: '10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
               <FieldLabel><Palette size={10} style={{ verticalAlign: '-1px', marginRight: '3px' }} />리포트 스킨</FieldLabel>
               {student?.skinColor && (
@@ -2856,6 +2916,85 @@ export default function DiagnosticReportInput({
                     <span style={{ fontSize: '10px', fontWeight: 700, color: selectedSkin === sk.key ? TOKENS.infoDark : TOKENS.textSub, textAlign: 'center', lineHeight: 1.3 }}>{sk.name}</span>
                   </button>
                 ))}
+                {/* 커스텀 — 주조색/포인트색을 직접 골라서 만드는 8번째 슬롯 */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedSkin('custom')}
+                  style={{
+                    border: `2px solid ${selectedSkin === 'custom' ? TOKENS.info : TOKENS.border}`,
+                    borderRadius: `${RADIUS2.input}px`, padding: '7px 4px', cursor: 'pointer',
+                    background: selectedSkin === 'custom' ? TOKENS.infoBg : TOKENS.bgSoft,
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px',
+                    fontFamily: 'inherit', transition: 'all 0.15s',
+                  }}
+                >
+                  <div style={{ width: '100%', height: '18px', borderRadius: '5px', overflow: 'hidden', display: 'flex', marginBottom: '2px' }}>
+                    <div style={{ flex: 2, background: customPrimaryHex }} />
+                    <div style={{ flex: 1, background: customAccentHex }} />
+                  </div>
+                  <span style={{ fontSize: '10px', fontWeight: 700, color: selectedSkin === 'custom' ? TOKENS.infoDark : TOKENS.textSub, textAlign: 'center', lineHeight: 1.3 }}>커스텀</span>
+                </button>
+              </div>
+            )}
+
+            {/* 커스텀 선택 시 색상표 노출 — 주조색/포인트색 탭 전환 → HSV 사각형(채도·명도) →
+                색조 슬라이더. 여기서 고른 2색으로 나머지(second/tint/track/bannerLabel)는
+                PublicReport.jsx가 발송 시 deriveSkinColors로 자동 계산함(§2 자동 생성 규칙) */}
+            {!student?.skinColor && selectedSkin === 'custom' && (
+              <div style={{ borderTop: `1px solid ${TOKENS.border}`, marginTop: '10px', paddingTop: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  {['primary', 'accent'].map(t => (
+                    <button key={t} type="button" onClick={() => setCustomTarget(t)}
+                      style={{
+                        border: `1px solid ${customTarget === t ? TOKENS.text : TOKENS.border}`,
+                        borderRadius: '8px', background: customTarget === t ? TOKENS.text : '#fff',
+                        color: customTarget === t ? '#fff' : TOKENS.textSub,
+                        fontSize: '11px', fontWeight: 700, padding: '6px 10px',
+                        display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontFamily: 'inherit',
+                      }}>
+                      <span style={{ width: '12px', height: '12px', borderRadius: '4px', background: t === 'primary' ? customPrimaryHex : customAccentHex, border: '1px solid rgba(0,0,0,0.15)', display: 'block' }} />
+                      {t === 'primary' ? '주조색' : '포인트색'}
+                    </button>
+                  ))}
+                  <span style={{ marginLeft: 'auto', fontSize: '11px', fontWeight: 700, color: TOKENS.text }}>
+                    {customTarget === 'primary' ? customPrimaryHex : customAccentHex}
+                  </span>
+                </div>
+
+                <div
+                  onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); customPickSv(e); }}
+                  onPointerMove={(e) => { if (e.buttons === 1) customPickSv(e); }}
+                  style={{
+                    position: 'relative', width: '100%', height: '132px', borderRadius: '10px', cursor: 'crosshair',
+                    backgroundColor: customHueHex,
+                    backgroundImage: 'linear-gradient(to top, #000, rgba(0,0,0,0)), linear-gradient(to right, #fff, rgba(255,255,255,0))',
+                    touchAction: 'none',
+                  }}>
+                  <span style={{
+                    position: 'absolute', left: `${customActiveHsv.s * 100}%`, top: `${(1 - customActiveHsv.v) * 100}%`,
+                    width: '14px', height: '14px', margin: '-7px 0 0 -7px', borderRadius: '50%',
+                    border: '2px solid #fff', boxShadow: '0 0 0 1px rgba(0,0,0,0.35)', display: 'block', pointerEvents: 'none',
+                  }} />
+                </div>
+
+                <div
+                  onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); customPickHue(e); }}
+                  onPointerMove={(e) => { if (e.buttons === 1) customPickHue(e); }}
+                  style={{
+                    position: 'relative', width: '100%', height: '16px', borderRadius: '8px', cursor: 'pointer',
+                    background: 'linear-gradient(to right, #f00 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00 100%)',
+                    touchAction: 'none',
+                  }}>
+                  <span style={{
+                    position: 'absolute', left: `${customActiveHsv.h / 360 * 100}%`, top: '50%',
+                    width: '16px', height: '16px', margin: '-8px 0 0 -8px', borderRadius: '50%',
+                    background: customHueHex, border: '2px solid #fff', boxShadow: '0 0 0 1px rgba(0,0,0,0.35)', display: 'block', pointerEvents: 'none',
+                  }} />
+                </div>
+
+                <p style={{ fontSize: '10px', color: TOKENS.textMute, margin: 0, lineHeight: 1.5 }}>
+                  색을 고르면 배너·노트·막대·라벨 색이 자동 생성돼요. 주조색이 밝으면 흰 글자 대비를 위해 발송 시 자동으로 어둡게 조정돼요.
+                </p>
               </div>
             )}
           </div>
@@ -2871,7 +3010,8 @@ export default function DiagnosticReportInput({
             summary={summary}
             wrongItems={wrongItems}
             nextPlan={nextPlan} nextPlanDetail={nextPlanDetail}
-            skin={selectedSkin === 'global' && globalSkin ? globalSkin : SKINS[selectedSkin] || SKINS.navy}
+            skin={selectedSkin === 'custom' ? { key: 'custom', main: customPrimaryHex, accent: customAccentHex }
+              : selectedSkin === 'global' && globalSkin ? globalSkin : SKINS[selectedSkin] || SKINS.navy}
             academyName={academyName} academyPhone={academyPhone}
           />
         </div>
