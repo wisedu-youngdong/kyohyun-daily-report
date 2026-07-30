@@ -4,12 +4,6 @@ import { db } from './firebase';
 import { doc, getDoc, collection, addDoc, serverTimestamp, getDocs, query, where, limit } from 'firebase/firestore';
 import { R, ReportCard, textSafeColor } from './tokens.jsx';
 import { toPct, ratingLabel, fetchAcademyBranding } from './growth.js';
-import { DIAG_BADGE } from './diagnosis.js';
-
-const DIAG_BADGES = Object.fromEntries(
-  Object.entries(DIAG_BADGE).map(([key, v]) => [key, { label: `${v.prefix} ${v.label}`, bg: v.bg }])
-);
-
 const SkeletonReport = () => (
   <div style={{ background: '#F5F5F0', minHeight: '100dvh', padding: '24px 16px', display: 'flex', justifyContent: 'center', fontFamily: 'Pretendard, sans-serif' }}>
     <style>{`@keyframes reportPulse { 0%,100% { opacity: 0.5; } 50% { opacity: 0.9; } }`}</style>
@@ -303,48 +297,15 @@ export default function PublicReport() {
               </>
             )}
 
-            {/* TEST RESULT + 진단 배지 (시험 있는 경우) */}
+            {/* TEST RESULT — 진단 배지는 2026-07-30 결정으로 학부모 화면에서 비노출
+                (진단은 내부 기록·코멘트/다음 계획의 근거로만 사용, 원장 보고서·종합 프로필에는 계속 표시) */}
             {r.hasTest && r.testName && (
               <>
                 <div style={{ marginBottom: '18px' }}>
                   <p style={{ fontSize: '10px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 8px' }}>TEST RESULT</p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap' }}>
-                      <p style={{ fontSize: '28px', fontWeight: 800, color: navy, margin: 0, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{r.testScore}<span style={{ fontSize: '13px', fontWeight: 600, color: inkMute, marginLeft: '2px' }}>점</span></p>
-                      <p style={{ fontSize: '12px', color: inkSub, margin: 0 }}>{r.testName}</p>
-                    </div>
-                    {r.diagnosis?.length > 0 && (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
-                        {r.diagnosis.map((d, i) => {
-                          const tag = DIAG_BADGES[d.key] || { label: d.key, bg: '#8A5A00' };
-                          return (
-                            <span key={i} style={{ display: 'inline-block', background: tag.bg, color: '#fff', fontSize: '12px', fontWeight: 700, padding: '4px 11px', borderRadius: '20px' }}>
-                              {tag.label}{d.unit ? ` · ${d.unit}` : ''}{d.pages ? ` ${d.pages}` : ''}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div style={{ height: '1px', background: rule, marginBottom: '18px' }} />
-              </>
-            )}
-
-            {/* 진단 배지 (시험 없는 경우 — 독립 섹션) */}
-            {(!r.hasTest || !r.testName) && r.diagnosis?.length > 0 && (
-              <>
-                <div style={{ marginBottom: '18px' }}>
-                  <p style={{ fontSize: '10px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 8px' }}>진단</p>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                    {r.diagnosis.map((d, i) => {
-                      const tag = DIAG_BADGES[d.key] || { label: d.key, bg: '#8A5A00' };
-                      return (
-                        <span key={i} style={{ display: 'inline-block', background: tag.bg, color: '#fff', fontSize: '12px', fontWeight: 700, padding: '4px 11px', borderRadius: '20px' }}>
-                          {tag.label}{d.unit ? ` · ${d.unit}` : ''}{d.pages ? ` ${d.pages}` : ''}
-                        </span>
-                      );
-                    })}
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap' }}>
+                    <p style={{ fontSize: '28px', fontWeight: 800, color: navy, margin: 0, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{r.testScore}<span style={{ fontSize: '13px', fontWeight: 600, color: inkMute, marginLeft: '2px' }}>점</span></p>
+                    <p style={{ fontSize: '12px', color: inkSub, margin: 0 }}>{r.testName}</p>
                   </div>
                 </div>
                 <div style={{ height: '1px', background: rule, marginBottom: '18px' }} />
@@ -385,15 +346,7 @@ export default function PublicReport() {
                             </span>
                           )}
                         </div>
-                        {(s.diagnosis || []).length > 0 && (
-                          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: '3px' }}>
-                            {s.diagnosis.map((d, di) => {
-                              const badge = DIAG_BADGES[d.key];
-                              if (!badge) return null;
-                              return <span key={di} style={{ fontSize: '9px', fontWeight: 700, color: '#fff', background: badge.bg, padding: '2px 7px', borderRadius: '20px' }}>{badge.label}</span>;
-                            })}
-                          </div>
-                        )}
+                        {/* 진단 배지 — 2026-07-30 결정으로 학부모 화면 비노출 (내부 기록 전용) */}
                         {s.teacherNote && <p style={{ fontSize: '12px', color: ink, margin: 0, lineHeight: 1.7 }}>{s.teacherNote}</p>}
                       </div>
                     ))}
