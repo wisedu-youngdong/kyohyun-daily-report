@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { C, R, RADIUS2, TYPE, SHADOW, textSafeColor } from './tokens.jsx';
 import { resolveBookSections } from './photoSections.js';
-import { calculateReportPoints, toPct, ratingLabel, kstDay, getKstWeekRange } from './growth.js';
+import { calculateReportPoints, toPct, ratingLabel, kstDay, kstWeekday, getKstWeekRange, isReportSent } from './growth.js';
 import { DIAG_LABELS as diagLabels, WRONG_TAGS, WRONG_TAG_LABELS } from './diagnosis.js';
 import { findUnitKey, getUnits, getCourses } from './curriculum.js';
 import { storage, auth } from './firebase.js';
@@ -616,6 +616,12 @@ export default function DiagnosticReportInput({
   const [hasChargedAnalysis, setHasChargedAnalysis] = useState(false);
   const [photoContentType, setPhotoContentType] = useState(''); // '숙제' | '테스트' | '기타' — AI 코멘트 문장 시작을 이 사진이 뭔지에 맞춰 자연스럽게 만들기 위함
 
+  // "지난 수업 값 불러옴" — 학생 선택 시 자동 적용되는 프리필의 스냅샷 + on/off 상태.
+  // 배지 클릭으로 해제/재적용 토글(결정 5: 버튼이 아니라 상태 배지). 스냅샷이 null이면
+  // 그 학생의 첫 수업이라는 뜻이라 배지 자체를 숨김
+  const [lastValuesSnapshot, setLastValuesSnapshot] = useState(null); // { textbook, unit, pages } | null
+  const [lastValuesApplied, setLastValuesApplied] = useState(true);
+
   // 1d 선택 그룹(사진 분석/진단/테스트) 접기 상태 — 기본 접힘, 접힌 줄에는 상태 텍스트만 표시
   const [optOpen, setOptOpen] = useState({ photo: false, diag: false, test: false });
   // 학생을 바꾸면 다시 접힘 — 단, 수정 모드 진입은 editingReport 설정 후 한 사이클 뒤에
@@ -1157,15 +1163,25 @@ export default function DiagnosticReportInput({
         await onSave(reportPayload);
         weeklyDraftIdRef.current = null;
         setWeeklySessions([]); setStaleWeeklyDraft(null);
-        setStudentId(''); setHomeworkRating(null); setConceptRating(null);
+        setHomeworkRating(null); setConceptRating(null);
         setHasTest(false); setTestName(''); setTestScore(''); setTestRound('');
-        setTextbook(''); setSubject('수학'); setUnit(''); setPages('');
         setCurriculumCourseOverride(null); setUnitPickerOpen(false); setUnitPickerCourse(null);
         setSelectedTags([]); setTeacherNote(''); setAiPolishedNote('');
         setAttendance('정시'); setArrivalTime('15:30');
         removeAllPhotos();
         setLastSaved(null);
-        showToast('오늘 수업 기록이 저장됐어요. 원장님이 이번 주 리포트를 모아서 발송해요.', 'success');
+        // 4단계: 학생 큐에 다음 미완료 학생이 있으면 자동 전환("저장하고 다음 학생")
+        {
+          const nextStudent = findNextQueueStudent(studentId);
+          if (nextStudent) {
+            setStudentId(nextStudent.id);
+            initStudentContext(nextStudent.id);
+            showToast(`오늘 수업 기록이 저장됐어요. 다음 학생 · ${nextStudent.name}(으)로 이동했어요.`, 'success');
+          } else {
+            setStudentId(''); setTextbook(''); setSubject('수학'); setUnit(''); setPages('');
+            showToast('오늘 수업 기록이 저장됐어요. 원장님이 이번 주 리포트를 모아서 발송해요.', 'success');
+          }
+        }
         setSaving(false);
         setUploadProgress(null);
         return;
@@ -1203,22 +1219,33 @@ export default function DiagnosticReportInput({
       };
       reportPayload.points = calculateReportPoints(reportPayload);
       const savedId = await onSave(reportPayload);
+      const savedStudentId = studentId;
       draftIdRef.current = null;
-      setStudentId(''); setHomeworkRating(null); setConceptRating(null);
+      setHomeworkRating(null); setConceptRating(null);
       setHasTest(false); setTestName(''); setTestScore(''); setTestRound('');
-      setTextbook(''); setSubject('수학'); setUnit(''); setPages('');
       setCurriculumCourseOverride(null); setUnitPickerOpen(false); setUnitPickerCourse(null);
       setSelectedTags([]); setTeacherNote(''); setAiPolishedNote('');
       setNextPlan(''); setNextPlanDetail('');
       removeAllPhotos();
       setLastSaved(null);
       if (editingReport) {
+        setTextbook(''); setSubject('수학'); setUnit(''); setPages('');
+        setStudentId('');
         onEditDone();
         showToast('리포트가 수정됐습니다!', 'success');
       } else {
-        setStudentId(''); // 완료 후 학생 선택 초기화
         setAttendance('정시'); setArrivalTime('15:30');
-        showToast('저장 완료! 링크를 복사해서 카카오톡으로 전송하세요.', 'success', savedId);
+        // 4단계: 학생 큐에 다음 미완료 학생이 있으면 자동 전환("저장하고 다음 학생")
+        const nextStudent = findNextQueueStudent(savedStudentId);
+        if (nextStudent) {
+          setStudentId(nextStudent.id);
+          initStudentContext(nextStudent.id);
+          showToast(`저장 완료! 다음 학생 · ${nextStudent.name}(으)로 이동했어요.`, 'success', savedId);
+        } else {
+          setTextbook(''); setSubject('수학'); setUnit(''); setPages('');
+          setStudentId(''); // 완료 후 학생 선택 초기화
+          showToast('저장 완료! 링크를 복사해서 카카오톡으로 전송하세요.', 'success', savedId);
+        }
       }
     } catch (e) {
       console.error('리포트 저장 오류:', e);
@@ -1226,6 +1253,130 @@ export default function DiagnosticReportInput({
     }
     setUploadProgress(null);
     setSaving(false);
+  };
+
+  // 오늘 수업 대상 학생 큐 — DashboardView.jsx의 "오늘 학생 현황"과 동일 기준(scheduleDays
+  // 미설정이면 매일 대상, 이미 완료된 학생은 스케줄과 무관하게 계속 표시)을 그대로 재사용.
+  // 별도 API 없이 이미 내려오는 students/reports prop만으로 계산
+  const todayKstStr = kstDay(Date.now() / 1000);
+  const isScheduledToday = (s) => !s.scheduleDays || s.scheduleDays.length === 0 || s.scheduleDays.includes(kstWeekday(Date.now() / 1000));
+  const isHandledToday = (r) => isReportSent(r) || (r.attendance === '결석' && r.isDraft !== true);
+  const todayReportsAll = reports.filter(r => r.createdAt?.seconds && isHandledToday(r) && kstDay(r.createdAt.seconds) === todayKstStr);
+  const hasWeeklySessionToday = (r) => r.reportType === 'weekly' && (r.sessions || []).some(s => s.date === todayKstStr);
+  const doneOfStudent = (s) => todayReportsAll.some(r => r.studentId === s.id) || reports.some(r => r.studentId === s.id && hasWeeklySessionToday(r));
+  const queueStudents = [...students]
+    .filter(s => isScheduledToday(s) || doneOfStudent(s))
+    .sort((a, b) => (doneOfStudent(a) === doneOfStudent(b) ? (a.name || '').localeCompare(b.name || '') : (doneOfStudent(a) ? 1 : -1)));
+  const queueDoneCount = queueStudents.filter(doneOfStudent).length;
+  // 저장 직후 "다음 학생" 자동 전환 대상 — 방금 저장한 학생 제외, 아직 완료 안 된 첫 학생.
+  // handleSubmit이 이 컴포넌트 body보다 위에서 선언돼 있지만, 실제 호출은 저장 버튼 클릭
+  // 시점(렌더 완료 후)이라 클로저에 이 값이 이미 채워져 있어 문제없음
+  const findNextQueueStudent = (savedId) => queueStudents.find(qs => qs.id !== savedId && !doneOfStudent(qs));
+
+  // 학생 선택 로직 — <select>와 학생 큐 칩 양쪽에서 재사용(중복 매칭 로직 금지, CLAUDE.md
+  // 인덱스 매칭 버그 패턴과 같은 이유로 한 곳에만 둠)
+  // 새 학생으로 폼을 초기화 + 지난 값 이어받기 — selectStudent(수동 전환)와 handleSubmit의
+  // "저장하고 다음 학생"(4단계) 양쪽에서 재사용. 후자는 방금 저장을 마친 직후라 자동저장을
+  // 또 걸면 안 되므로, 그 앞단(자동저장 여부 판단)은 selectStudent에만 두고 이 함수는 순수
+  // 초기화만 담당한다
+  const initStudentContext = (newId) => {
+    if (newId && !editingReport) {
+      draftIdRef.current = null; // 이전 학생 draft에 이어쓰지 않도록
+      weeklyDraftIdRef.current = null;
+      setWeeklySessions([]); setStaleWeeklyDraft(null);
+      setHomeworkRating(null); setConceptRating(null);
+      setHasTest(false); setTestScore(''); setTestName(''); setTestRound('');
+      setTextbook(''); setSubject('수학'); setUnit(''); setPages('');
+      setCurriculumCourseOverride(null); setUnitPickerOpen(false); setUnitPickerCourse(null);
+      setTeacherNote(''); setSelectedTags([]);
+      setAiPolishedNote('');
+      setNextPlan(''); setNextPlanDetail('');
+      setPhotos([]); setPhotoAnalysis(null);
+      setWrongItems([]);
+      setHasChargedAnalysis(false);
+      setLastSaved(null);
+      setAutoSaveError(false);
+      setLastValuesSnapshot(null); setLastValuesApplied(true);
+
+      const newStudent = students.find(s => s.id === newId);
+      const newMode = newStudent?.reportMode || classes.find(c => c.id === newStudent?.classId)?.reportMode || academyReportMode || 'daily';
+
+      if (newMode === 'weekly') {
+        // 이번 주 범위에 세션 날짜가 걸리는, 아직 발송 안 된(draft) 주간 리포트를 찾음 —
+        // 없으면 오늘이 이번 주 첫 세션이라는 뜻. 지난주 이전 열린 draft가 남아있으면
+        // 이번 주 draft와 섞이지 않도록 별도로 골라내서 배너로만 안내
+        const week = getKstWeekRange(0);
+        const openDrafts = reports.filter(r => r.studentId === newId && r.reportType === 'weekly' && r.isDraft === true);
+        const currentWeekDraft = openDrafts.find(r => (r.sessions || []).some(s => s.date >= week.startStr && s.date <= week.endStr));
+        const stale = openDrafts.find(r => r.id !== currentWeekDraft?.id);
+        weeklyDraftIdRef.current = currentWeekDraft?.id || null;
+        setWeeklySessions(currentWeekDraft?.sessions || []);
+        setStaleWeeklyDraft(stale || null);
+
+        // 오늘 세션을 이미 저장해뒀으면(같은 날 다시 들어온 경우) 그 내용을 불러와 수정,
+        // 없으면 방금 초기화한 빈 폼 그대로 새 세션 입력
+        const todayStr = kstDay(Date.now() / 1000);
+        const todaySession = currentWeekDraft?.sessions?.find(s => s.date === todayStr);
+        if (todaySession) {
+          setAttendance(todaySession.attendance || '정시');
+          setArrivalTime(todaySession.arrivalTime || '15:30');
+          setHomeworkRating(todaySession.homeworkRating ?? null);
+          setConceptRating(todaySession.conceptRating ?? null);
+          setHasTest(!!todaySession.hasTest);
+          setTestName(todaySession.testName || ''); setTestScore(todaySession.testScore || ''); setTestRound(todaySession.testRound || '');
+          setTextbook(todaySession.textbook || ''); setSubject(todaySession.subject || '수학'); setUnit(todaySession.unit || ''); setPages(todaySession.pages || '');
+          setSelectedTags(todaySession.diagnosis || []);
+          setTeacherNote(todaySession.teacherNote || '');
+          setWrongItems(todaySession.wrongItems || []);
+          return; // 최근 리포트 자동 불러오기(교재/단원)는 이미 세션 값으로 채워졌으니 건너뜀
+        }
+      }
+
+      // 지난 수업 값 불러오기(결정 5) — 교재/과목/단원은 지난 리포트에서, 학습 범위는 지난
+      // "다음 수업 계획"(교재 및 범위)에서 이어받음. 점수·코멘트·사진은 절대 안 물려받음.
+      // 초기화 이후에 덮어써야 실제로 반영됨
+      const lastReport = [...reports]
+        .filter(r => r.studentId === newId)
+        .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))[0];
+      if (lastReport) {
+        const inherited = {
+          textbook: lastReport.textbook || '',
+          unit: lastReport.unit || '',
+          pages: lastReport.nextPlanDetail || '',
+        };
+        if (lastReport.subject) setSubject(lastReport.subject);
+        if (inherited.textbook) setTextbook(inherited.textbook);
+        if (inherited.unit) setUnit(inherited.unit);
+        if (inherited.pages) setPages(inherited.pages);
+        setLastValuesSnapshot(inherited);
+        setLastValuesApplied(true);
+      } else {
+        setLastValuesSnapshot(null); // 첫 수업 — 배지 자체를 숨김
+      }
+    }
+  };
+
+  const selectStudent = async (newId) => {
+    // 이미 학생이 선택된 상태에서 전환 시 → 자동저장 먼저
+    if (studentId && newId !== studentId && !editingReport) {
+      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+      await handleAutoSave();
+    }
+    setStudentId(newId);
+    initStudentContext(newId);
+  };
+
+  // "지난 수업 값 불러옴" 배지 토글 — 해제 시 이어받았던 교재/단원/범위만 비움(과목 칩은
+  // 선택형이라 비우는 게 의미 없어 건드리지 않음), 재적용 시 스냅샷을 그대로 되돌림
+  const toggleLastValues = () => {
+    if (!lastValuesSnapshot) return;
+    if (lastValuesApplied) {
+      setTextbook(''); setUnit(''); setPages('');
+      setLastValuesApplied(false);
+    } else {
+      setTextbook(lastValuesSnapshot.textbook); setUnit(lastValuesSnapshot.unit); setPages(lastValuesSnapshot.pages);
+      setLastValuesApplied(true);
+    }
   };
 
   // 토스트 색상 — 화면 전역에서 쓰는 TOKENS 성공/실패/경고 어휘와 통일
@@ -1358,80 +1509,7 @@ export default function DiagnosticReportInput({
 
           {/* 1. 학생 선택 */}
           <FormSection number="1" title="대상 학생">
-            <select value={studentId} onChange={async (e) => {
-              const newId = e.target.value;
-
-              // 이미 학생이 선택된 상태에서 전환 시 → 자동저장 먼저
-              if (studentId && newId !== studentId && !editingReport) {
-                if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
-                await handleAutoSave();
-              }
-
-              setStudentId(newId);
-
-              // 새 학생 전환 시 입력 초기화
-              if (newId && !editingReport) {
-                draftIdRef.current = null; // 이전 학생 draft에 이어쓰지 않도록
-                weeklyDraftIdRef.current = null;
-                setWeeklySessions([]); setStaleWeeklyDraft(null);
-                setHomeworkRating(null); setConceptRating(null);
-                setHasTest(false); setTestScore(''); setTestName(''); setTestRound('');
-                setTextbook(''); setSubject('수학'); setUnit(''); setPages('');
-                setCurriculumCourseOverride(null); setUnitPickerOpen(false); setUnitPickerCourse(null);
-                setTeacherNote(''); setSelectedTags([]);
-                setAiPolishedNote('');
-                setNextPlan(''); setNextPlanDetail('');
-                setPhotos([]); setPhotoAnalysis(null);
-                setWrongItems([]);
-                setHasChargedAnalysis(false);
-                setLastSaved(null);
-                setAutoSaveError(false);
-
-                const newStudent = students.find(s => s.id === newId);
-                const newMode = newStudent?.reportMode || classes.find(c => c.id === newStudent?.classId)?.reportMode || academyReportMode || 'daily';
-
-                if (newMode === 'weekly') {
-                  // 이번 주 범위에 세션 날짜가 걸리는, 아직 발송 안 된(draft) 주간 리포트를 찾음 —
-                  // 없으면 오늘이 이번 주 첫 세션이라는 뜻. 지난주 이전 열린 draft가 남아있으면
-                  // 이번 주 draft와 섞이지 않도록 별도로 골라내서 배너로만 안내
-                  const week = getKstWeekRange(0);
-                  const openDrafts = reports.filter(r => r.studentId === newId && r.reportType === 'weekly' && r.isDraft === true);
-                  const currentWeekDraft = openDrafts.find(r => (r.sessions || []).some(s => s.date >= week.startStr && s.date <= week.endStr));
-                  const stale = openDrafts.find(r => r.id !== currentWeekDraft?.id);
-                  weeklyDraftIdRef.current = currentWeekDraft?.id || null;
-                  setWeeklySessions(currentWeekDraft?.sessions || []);
-                  setStaleWeeklyDraft(stale || null);
-
-                  // 오늘 세션을 이미 저장해뒀으면(같은 날 다시 들어온 경우) 그 내용을 불러와 수정,
-                  // 없으면 방금 초기화한 빈 폼 그대로 새 세션 입력
-                  const todayStr = kstDay(Date.now() / 1000);
-                  const todaySession = currentWeekDraft?.sessions?.find(s => s.date === todayStr);
-                  if (todaySession) {
-                    setAttendance(todaySession.attendance || '정시');
-                    setArrivalTime(todaySession.arrivalTime || '15:30');
-                    setHomeworkRating(todaySession.homeworkRating ?? null);
-                    setConceptRating(todaySession.conceptRating ?? null);
-                    setHasTest(!!todaySession.hasTest);
-                    setTestName(todaySession.testName || ''); setTestScore(todaySession.testScore || ''); setTestRound(todaySession.testRound || '');
-                    setTextbook(todaySession.textbook || ''); setSubject(todaySession.subject || '수학'); setUnit(todaySession.unit || ''); setPages(todaySession.pages || '');
-                    setSelectedTags(todaySession.diagnosis || []);
-                    setTeacherNote(todaySession.teacherNote || '');
-                    setWrongItems(todaySession.wrongItems || []);
-                    return; // 최근 리포트 자동 불러오기(교재/단원)는 이미 세션 값으로 채워졌으니 건너뜀
-                  }
-                }
-
-                // 최근 리포트 자동 불러오기 — 초기화 이후에 덮어써야 실제로 반영됨
-                const lastReport = [...reports]
-                  .filter(r => r.studentId === newId)
-                  .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))[0];
-                if (lastReport) {
-                  if (lastReport.textbook) setTextbook(lastReport.textbook);
-                  if (lastReport.subject) setSubject(lastReport.subject);
-                  if (lastReport.unit) setUnit(lastReport.unit);
-                }
-              }
-            }} style={selectStyle}>
+            <select value={studentId} onChange={(e) => selectStudent(e.target.value)} style={selectStyle}>
               <option value="">학생을 선택해주세요</option>
               {classes.map(cls => {
                 const inClass = students.filter(s => s.classId === cls.id);
@@ -1460,22 +1538,63 @@ export default function DiagnosticReportInput({
 
           {studentId && (
             <>
-              {/* 1d 네이비 헤더 — 학생 컨텍스트 + 기본 항목 진행 바. 학생 큐/완료 카운트는 4단계에서 추가 */}
+              {/* 1d 네이비 헤더 — 학생 컨텍스트 + 학생 큐 + 기본 항목 진행 바 */}
               {(() => {
                 const today = new Date();
                 const headerDate = `${today.getMonth() + 1}월 ${today.getDate()}일 (${'일월화수목금토'[today.getDay()]})`;
                 const teacherName = teachers.find(t => t.id === teacherId)?.name;
                 return (
                   <div style={{ background: R.navy, borderRadius: '16px', padding: '16px 20px 18px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', minWidth: 0 }}>
-                      <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.4px', color: R.gold }}>{academyName || '데일리 리포트'}</span>
-                      <span style={{ fontSize: '22px', fontWeight: 700, letterSpacing: '-0.4px', color: '#fff' }}>
-                        {student?.name}{student?.school ? ` · ${student.school}` : ''}
-                      </span>
-                      <span style={{ fontSize: '12px', fontWeight: 500, color: 'rgba(255,255,255,0.82)' }}>
-                        {headerDate} · {arrivalTime}{teacherName ? ` · ${teacherName} 선생` : ''}
-                      </span>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', minWidth: 0 }}>
+                        <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.4px', color: R.gold }}>
+                          {academyName || '데일리 리포트'}{queueStudents.length > 0 ? ` · 오늘 ${queueDoneCount} / ${queueStudents.length}명 완료` : ''}
+                        </span>
+                        <span style={{ fontSize: '22px', fontWeight: 700, letterSpacing: '-0.4px', color: '#fff' }}>
+                          {student?.name}{student?.school ? ` · ${student.school}` : ''}
+                        </span>
+                        <span style={{ fontSize: '12px', fontWeight: 500, color: 'rgba(255,255,255,0.82)' }}>
+                          {headerDate} · {arrivalTime}{teacherName ? ` · ${teacherName} 선생` : ''}
+                        </span>
+                      </div>
+                      {/* 지난 수업 값 불러옴 — 결정 5: 버튼이 아니라 상태 배지(누르면 해제/재적용
+                          토글). 첫 수업(스냅샷 없음)이면 배지 자체를 숨김 */}
+                      {lastValuesSnapshot && (
+                        <button type="button" onClick={toggleLastValues}
+                          style={{
+                            flexShrink: 0, border: '1px solid rgba(255,255,255,0.3)', borderRadius: '16px',
+                            background: lastValuesApplied ? 'rgba(255,255,255,0.12)' : 'transparent',
+                            color: '#fff', fontSize: '11px', fontWeight: 700, padding: '8px 12px',
+                            whiteSpace: 'nowrap', cursor: 'pointer', fontFamily: 'inherit',
+                          }}>
+                          {lastValuesApplied ? '✓ 지난 수업 값 불러옴' : '지난 수업 값 해제됨'}
+                        </button>
+                      )}
                     </div>
+
+                    {/* 학생 큐 — 가로 스크롤, 오늘 대상 학생을 완료 여부 순으로. 클릭하면 그
+                        학생으로 즉시 전환(자동저장 후) — <select>와 같은 selectStudent 재사용 */}
+                    {queueStudents.length > 1 && (
+                      <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '2px' }}>
+                        {queueStudents.map(qs => {
+                          const active = qs.id === studentId;
+                          const done = doneOfStudent(qs);
+                          return (
+                            <button type="button" key={qs.id} onClick={() => selectStudent(qs.id)}
+                              style={{
+                                border: active ? `1.5px solid ${R.gold}` : 'none', borderRadius: '8px',
+                                background: active ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.08)',
+                                padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: '2px',
+                                textAlign: 'left', flexShrink: 0, cursor: 'pointer', fontFamily: 'inherit',
+                              }}>
+                              <span style={{ fontSize: '12px', fontWeight: 700, color: active ? '#fff' : 'rgba(255,255,255,0.9)', whiteSpace: 'nowrap' }}>{qs.name}</span>
+                              <span style={{ fontSize: '10px', fontWeight: 600, color: done ? '#F0D480' : 'rgba(255,255,255,0.6)', whiteSpace: 'nowrap' }}>{done ? '완료' : '대기'}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '12px' }}>
                         <span style={{ fontSize: '12px', fontWeight: 600, color: '#fff' }}>기본 항목 {requiredDone} / 4</span>
