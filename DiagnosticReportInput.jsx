@@ -18,8 +18,8 @@ import {
 } from 'lucide-react';
 import { C, R, RADIUS2, TYPE, SHADOW, textSafeColor } from './tokens.jsx';
 import { resolveBookSections } from './photoSections.js';
-import { calculateReportPoints, toPct, ratingLabel, kstDay, getKstWeekRange } from './growth.js';
-import { DIAG_LABELS as diagLabels, DIAG_BADGE, WRONG_TAGS, WRONG_TAG_LABELS } from './diagnosis.js';
+import { calculateReportPoints, toPct, ratingLabel, kstDay, kstWeekday, getKstWeekRange, isReportSent } from './growth.js';
+import { DIAG_LABELS as diagLabels, WRONG_TAGS, WRONG_TAG_LABELS } from './diagnosis.js';
 import { findUnitKey, getUnits, getCourses } from './curriculum.js';
 import { storage, auth } from './firebase.js';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -151,11 +151,6 @@ const DIAGNOSIS_TAGS = [
   { key: 'perfect', label: diagLabels.perfect, color: 'success' },
 ];
 
-
-// 학부모 발송 미리보기용 진단 배지(prefix+라벨을 한 문자열로) — PublicReport.jsx의 파생 방식과 동일
-const DIAG_PREVIEW_BADGE = Object.fromEntries(
-  Object.entries(DIAG_BADGE).map(([key, v]) => [key, { label: `${v.prefix} ${v.label}`, bg: v.bg }])
-);
 
 const ATTENDANCE = ['정시', '지각', '결석', '조퇴', '보강', '자율학습'];
 
@@ -620,6 +615,33 @@ export default function DiagnosticReportInput({
   // 리포트 시작(편집 대상이 바뀔 때)에만 리셋됨.
   const [hasChargedAnalysis, setHasChargedAnalysis] = useState(false);
   const [photoContentType, setPhotoContentType] = useState(''); // '숙제' | '테스트' | '기타' — AI 코멘트 문장 시작을 이 사진이 뭔지에 맞춰 자연스럽게 만들기 위함
+
+  // "지난 수업 값 불러옴" — 학생 선택 시 자동 적용되는 프리필의 스냅샷 + on/off 상태.
+  // 배지 클릭으로 해제/재적용 토글(결정 5: 버튼이 아니라 상태 배지). 스냅샷이 null이면
+  // 그 학생의 첫 수업이라는 뜻이라 배지 자체를 숨김
+  const [lastValuesSnapshot, setLastValuesSnapshot] = useState(null); // { textbook, unit, pages } | null
+  const [lastValuesApplied, setLastValuesApplied] = useState(true);
+
+  // 1d 선택 그룹(사진 분석/진단/테스트) 접기 상태 — 기본 접힘, 접힌 줄에는 상태 텍스트만 표시
+  const [optOpen, setOptOpen] = useState({ photo: false, diag: false, test: false });
+  // 학생을 바꾸면 다시 접힘 — 단, 수정 모드 진입은 editingReport 설정 후 한 사이클 뒤에
+  // studentId가 따라 바뀌는 순서라, 여기서 무조건 접으면 아래 자동 펼침을 도로 덮어씀.
+  // 수정 모드일 땐 리셋을 건너뛴다(수정 종료 후 학생을 새로 고르면 editingReport가 null이라 정상 리셋)
+  useEffect(() => {
+    if (editingReport) return;
+    setOptOpen({ photo: false, diag: false, test: false });
+  }, [studentId]);
+  // 수정 모드로 열면 내용이 이미 있는 섹션만 자동으로 펼침
+  useEffect(() => {
+    if (!editingReport) return;
+    setOptOpen({
+      photo: (editingReport.photoUrls || []).length > 0 || !!editingReport.photoAnalysis,
+      diag: (editingReport.diagnosis || []).length > 0,
+      test: !!editingReport.hasTest,
+    });
+  }, [editingReport]);
+  // 자동저장 draft 복원 등으로 분석 결과가 생기면 사진 섹션을 펼쳐서 바로 보이게
+  useEffect(() => { if (photoAnalysis) setOptOpen(p => (p.photo ? p : { ...p, photo: true })); }, [photoAnalysis]);
   const [wrongItems, setWrongItems] = useState([]);
   const [alertMessage, setAlertMessage] = useState('');
   const [photoError, setPhotoError] = useState('');
@@ -781,7 +803,22 @@ export default function DiagnosticReportInput({
     }
     return list;
   }, [reports, studentId]);
-  const isValid = studentId && homeworkRating != null && conceptRating != null && teacherId;
+  // 결석이면 평가·오늘 학습·사진 분석을 비활성화하고 저장 필수 조건에서 평가를 제외
+  // (1d 결정사항 6 — 결석인데 개념 이해도 입력을 요구하던 기존 동작이 오히려 이상했음)
+  const isAbsent = attendance === '결석';
+  // teacherNote는 handleSubmit의 기존 검증("선생님 코멘트를 입력해주세요")이 이미 필수로
+  // 막고 있었음 — 버튼 활성 색(isValid)과 실제 차단 조건이 어긋나지 않게 여기도 포함
+  const isValid = studentId && teacherId && teacherNote.trim() && (isAbsent || (homeworkRating != null && conceptRating != null));
+
+  // 1d 네이비 헤더의 "기본 항목 4칸" 진행 바 — 표시용이며 저장 차단 조건은 handleSubmit 검증이 전부
+  // (결정사항 1 확정: 오늘 학습만 저장 비차단, 등원·평가·한 마디는 기존대로 저장 필수)
+  const requiredSteps = [
+    { label: '등원', done: !!attendance },
+    { label: '평가', done: isAbsent || (homeworkRating != null && conceptRating != null) },
+    { label: '오늘 학습', done: isAbsent || !!(textbook.trim() && pages.trim()) },
+    { label: '한 마디', done: !!teacherNote.trim() },
+  ];
+  const requiredDone = requiredSteps.filter(s => s.done).length;
 
   // 학생 등록 — Firebase에 저장
   const handleAddStudent = async (newStudent) => {
@@ -1087,7 +1124,7 @@ export default function DiagnosticReportInput({
     // 단계별 검증
     if (!studentId) return setAlertMessage('학생을 먼저 선택해주세요.');
     if (!teacherId) return setAlertMessage('담당 강사를 선택해주세요.');
-    if (homeworkRating == null || conceptRating == null) return setAlertMessage('과제 수행과 개념 이해 평가를 입력해주세요.');
+    if (!isAbsent && (homeworkRating == null || conceptRating == null)) return setAlertMessage('과제 수행과 개념 이해 평가를 입력해주세요.');
     if (polishing) return setAlertMessage('AI가 코멘트를 다듬는 중입니다. 완료 후 다시 저장해주세요.');
     if (!teacherNote.trim() && !aiPolishedNote.trim()) return setAlertMessage('선생님 코멘트를 입력해주세요.\n학부모에게 전달되는 핵심 내용입니다.');
 
@@ -1126,15 +1163,25 @@ export default function DiagnosticReportInput({
         await onSave(reportPayload);
         weeklyDraftIdRef.current = null;
         setWeeklySessions([]); setStaleWeeklyDraft(null);
-        setStudentId(''); setHomeworkRating(null); setConceptRating(null);
+        setHomeworkRating(null); setConceptRating(null);
         setHasTest(false); setTestName(''); setTestScore(''); setTestRound('');
-        setTextbook(''); setSubject('수학'); setUnit(''); setPages('');
         setCurriculumCourseOverride(null); setUnitPickerOpen(false); setUnitPickerCourse(null);
         setSelectedTags([]); setTeacherNote(''); setAiPolishedNote('');
         setAttendance('정시'); setArrivalTime('15:30');
         removeAllPhotos();
         setLastSaved(null);
-        showToast('오늘 수업 기록이 저장됐어요. 원장님이 이번 주 리포트를 모아서 발송해요.', 'success');
+        // 4단계: 학생 큐에 다음 미완료 학생이 있으면 자동 전환("저장하고 다음 학생")
+        {
+          const nextStudent = findNextQueueStudent(studentId);
+          if (nextStudent) {
+            setStudentId(nextStudent.id);
+            initStudentContext(nextStudent.id);
+            showToast(`오늘 수업 기록이 저장됐어요. 다음 학생 · ${nextStudent.name}(으)로 이동했어요.`, 'success');
+          } else {
+            setStudentId(''); setTextbook(''); setSubject('수학'); setUnit(''); setPages('');
+            showToast('오늘 수업 기록이 저장됐어요. 원장님이 이번 주 리포트를 모아서 발송해요.', 'success');
+          }
+        }
         setSaving(false);
         setUploadProgress(null);
         return;
@@ -1172,22 +1219,33 @@ export default function DiagnosticReportInput({
       };
       reportPayload.points = calculateReportPoints(reportPayload);
       const savedId = await onSave(reportPayload);
+      const savedStudentId = studentId;
       draftIdRef.current = null;
-      setStudentId(''); setHomeworkRating(null); setConceptRating(null);
+      setHomeworkRating(null); setConceptRating(null);
       setHasTest(false); setTestName(''); setTestScore(''); setTestRound('');
-      setTextbook(''); setSubject('수학'); setUnit(''); setPages('');
       setCurriculumCourseOverride(null); setUnitPickerOpen(false); setUnitPickerCourse(null);
       setSelectedTags([]); setTeacherNote(''); setAiPolishedNote('');
       setNextPlan(''); setNextPlanDetail('');
       removeAllPhotos();
       setLastSaved(null);
       if (editingReport) {
+        setTextbook(''); setSubject('수학'); setUnit(''); setPages('');
+        setStudentId('');
         onEditDone();
         showToast('리포트가 수정됐습니다!', 'success');
       } else {
-        setStudentId(''); // 완료 후 학생 선택 초기화
         setAttendance('정시'); setArrivalTime('15:30');
-        showToast('저장 완료! 링크를 복사해서 카카오톡으로 전송하세요.', 'success', savedId);
+        // 4단계: 학생 큐에 다음 미완료 학생이 있으면 자동 전환("저장하고 다음 학생")
+        const nextStudent = findNextQueueStudent(savedStudentId);
+        if (nextStudent) {
+          setStudentId(nextStudent.id);
+          initStudentContext(nextStudent.id);
+          showToast(`저장 완료! 다음 학생 · ${nextStudent.name}(으)로 이동했어요.`, 'success', savedId);
+        } else {
+          setTextbook(''); setSubject('수학'); setUnit(''); setPages('');
+          setStudentId(''); // 완료 후 학생 선택 초기화
+          showToast('저장 완료! 링크를 복사해서 카카오톡으로 전송하세요.', 'success', savedId);
+        }
       }
     } catch (e) {
       console.error('리포트 저장 오류:', e);
@@ -1195,6 +1253,130 @@ export default function DiagnosticReportInput({
     }
     setUploadProgress(null);
     setSaving(false);
+  };
+
+  // 오늘 수업 대상 학생 큐 — DashboardView.jsx의 "오늘 학생 현황"과 동일 기준(scheduleDays
+  // 미설정이면 매일 대상, 이미 완료된 학생은 스케줄과 무관하게 계속 표시)을 그대로 재사용.
+  // 별도 API 없이 이미 내려오는 students/reports prop만으로 계산
+  const todayKstStr = kstDay(Date.now() / 1000);
+  const isScheduledToday = (s) => !s.scheduleDays || s.scheduleDays.length === 0 || s.scheduleDays.includes(kstWeekday(Date.now() / 1000));
+  const isHandledToday = (r) => isReportSent(r) || (r.attendance === '결석' && r.isDraft !== true);
+  const todayReportsAll = reports.filter(r => r.createdAt?.seconds && isHandledToday(r) && kstDay(r.createdAt.seconds) === todayKstStr);
+  const hasWeeklySessionToday = (r) => r.reportType === 'weekly' && (r.sessions || []).some(s => s.date === todayKstStr);
+  const doneOfStudent = (s) => todayReportsAll.some(r => r.studentId === s.id) || reports.some(r => r.studentId === s.id && hasWeeklySessionToday(r));
+  const queueStudents = [...students]
+    .filter(s => isScheduledToday(s) || doneOfStudent(s))
+    .sort((a, b) => (doneOfStudent(a) === doneOfStudent(b) ? (a.name || '').localeCompare(b.name || '') : (doneOfStudent(a) ? 1 : -1)));
+  const queueDoneCount = queueStudents.filter(doneOfStudent).length;
+  // 저장 직후 "다음 학생" 자동 전환 대상 — 방금 저장한 학생 제외, 아직 완료 안 된 첫 학생.
+  // handleSubmit이 이 컴포넌트 body보다 위에서 선언돼 있지만, 실제 호출은 저장 버튼 클릭
+  // 시점(렌더 완료 후)이라 클로저에 이 값이 이미 채워져 있어 문제없음
+  const findNextQueueStudent = (savedId) => queueStudents.find(qs => qs.id !== savedId && !doneOfStudent(qs));
+
+  // 학생 선택 로직 — <select>와 학생 큐 칩 양쪽에서 재사용(중복 매칭 로직 금지, CLAUDE.md
+  // 인덱스 매칭 버그 패턴과 같은 이유로 한 곳에만 둠)
+  // 새 학생으로 폼을 초기화 + 지난 값 이어받기 — selectStudent(수동 전환)와 handleSubmit의
+  // "저장하고 다음 학생"(4단계) 양쪽에서 재사용. 후자는 방금 저장을 마친 직후라 자동저장을
+  // 또 걸면 안 되므로, 그 앞단(자동저장 여부 판단)은 selectStudent에만 두고 이 함수는 순수
+  // 초기화만 담당한다
+  const initStudentContext = (newId) => {
+    if (newId && !editingReport) {
+      draftIdRef.current = null; // 이전 학생 draft에 이어쓰지 않도록
+      weeklyDraftIdRef.current = null;
+      setWeeklySessions([]); setStaleWeeklyDraft(null);
+      setHomeworkRating(null); setConceptRating(null);
+      setHasTest(false); setTestScore(''); setTestName(''); setTestRound('');
+      setTextbook(''); setSubject('수학'); setUnit(''); setPages('');
+      setCurriculumCourseOverride(null); setUnitPickerOpen(false); setUnitPickerCourse(null);
+      setTeacherNote(''); setSelectedTags([]);
+      setAiPolishedNote('');
+      setNextPlan(''); setNextPlanDetail('');
+      setPhotos([]); setPhotoAnalysis(null);
+      setWrongItems([]);
+      setHasChargedAnalysis(false);
+      setLastSaved(null);
+      setAutoSaveError(false);
+      setLastValuesSnapshot(null); setLastValuesApplied(true);
+
+      const newStudent = students.find(s => s.id === newId);
+      const newMode = newStudent?.reportMode || classes.find(c => c.id === newStudent?.classId)?.reportMode || academyReportMode || 'daily';
+
+      if (newMode === 'weekly') {
+        // 이번 주 범위에 세션 날짜가 걸리는, 아직 발송 안 된(draft) 주간 리포트를 찾음 —
+        // 없으면 오늘이 이번 주 첫 세션이라는 뜻. 지난주 이전 열린 draft가 남아있으면
+        // 이번 주 draft와 섞이지 않도록 별도로 골라내서 배너로만 안내
+        const week = getKstWeekRange(0);
+        const openDrafts = reports.filter(r => r.studentId === newId && r.reportType === 'weekly' && r.isDraft === true);
+        const currentWeekDraft = openDrafts.find(r => (r.sessions || []).some(s => s.date >= week.startStr && s.date <= week.endStr));
+        const stale = openDrafts.find(r => r.id !== currentWeekDraft?.id);
+        weeklyDraftIdRef.current = currentWeekDraft?.id || null;
+        setWeeklySessions(currentWeekDraft?.sessions || []);
+        setStaleWeeklyDraft(stale || null);
+
+        // 오늘 세션을 이미 저장해뒀으면(같은 날 다시 들어온 경우) 그 내용을 불러와 수정,
+        // 없으면 방금 초기화한 빈 폼 그대로 새 세션 입력
+        const todayStr = kstDay(Date.now() / 1000);
+        const todaySession = currentWeekDraft?.sessions?.find(s => s.date === todayStr);
+        if (todaySession) {
+          setAttendance(todaySession.attendance || '정시');
+          setArrivalTime(todaySession.arrivalTime || '15:30');
+          setHomeworkRating(todaySession.homeworkRating ?? null);
+          setConceptRating(todaySession.conceptRating ?? null);
+          setHasTest(!!todaySession.hasTest);
+          setTestName(todaySession.testName || ''); setTestScore(todaySession.testScore || ''); setTestRound(todaySession.testRound || '');
+          setTextbook(todaySession.textbook || ''); setSubject(todaySession.subject || '수학'); setUnit(todaySession.unit || ''); setPages(todaySession.pages || '');
+          setSelectedTags(todaySession.diagnosis || []);
+          setTeacherNote(todaySession.teacherNote || '');
+          setWrongItems(todaySession.wrongItems || []);
+          return; // 최근 리포트 자동 불러오기(교재/단원)는 이미 세션 값으로 채워졌으니 건너뜀
+        }
+      }
+
+      // 지난 수업 값 불러오기(결정 5) — 교재/과목/단원은 지난 리포트에서, 학습 범위는 지난
+      // "다음 수업 계획"(교재 및 범위)에서 이어받음. 점수·코멘트·사진은 절대 안 물려받음.
+      // 초기화 이후에 덮어써야 실제로 반영됨
+      const lastReport = [...reports]
+        .filter(r => r.studentId === newId)
+        .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))[0];
+      if (lastReport) {
+        const inherited = {
+          textbook: lastReport.textbook || '',
+          unit: lastReport.unit || '',
+          pages: lastReport.nextPlanDetail || '',
+        };
+        if (lastReport.subject) setSubject(lastReport.subject);
+        if (inherited.textbook) setTextbook(inherited.textbook);
+        if (inherited.unit) setUnit(inherited.unit);
+        if (inherited.pages) setPages(inherited.pages);
+        setLastValuesSnapshot(inherited);
+        setLastValuesApplied(true);
+      } else {
+        setLastValuesSnapshot(null); // 첫 수업 — 배지 자체를 숨김
+      }
+    }
+  };
+
+  const selectStudent = async (newId) => {
+    // 이미 학생이 선택된 상태에서 전환 시 → 자동저장 먼저
+    if (studentId && newId !== studentId && !editingReport) {
+      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+      await handleAutoSave();
+    }
+    setStudentId(newId);
+    initStudentContext(newId);
+  };
+
+  // "지난 수업 값 불러옴" 배지 토글 — 해제 시 이어받았던 교재/단원/범위만 비움(과목 칩은
+  // 선택형이라 비우는 게 의미 없어 건드리지 않음), 재적용 시 스냅샷을 그대로 되돌림
+  const toggleLastValues = () => {
+    if (!lastValuesSnapshot) return;
+    if (lastValuesApplied) {
+      setTextbook(''); setUnit(''); setPages('');
+      setLastValuesApplied(false);
+    } else {
+      setTextbook(lastValuesSnapshot.textbook); setUnit(lastValuesSnapshot.unit); setPages(lastValuesSnapshot.pages);
+      setLastValuesApplied(true);
+    }
   };
 
   // 토스트 색상 — 화면 전역에서 쓰는 TOKENS 성공/실패/경고 어휘와 통일
@@ -1327,80 +1509,7 @@ export default function DiagnosticReportInput({
 
           {/* 1. 학생 선택 */}
           <FormSection number="1" title="대상 학생">
-            <select value={studentId} onChange={async (e) => {
-              const newId = e.target.value;
-
-              // 이미 학생이 선택된 상태에서 전환 시 → 자동저장 먼저
-              if (studentId && newId !== studentId && !editingReport) {
-                if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
-                await handleAutoSave();
-              }
-
-              setStudentId(newId);
-
-              // 새 학생 전환 시 입력 초기화
-              if (newId && !editingReport) {
-                draftIdRef.current = null; // 이전 학생 draft에 이어쓰지 않도록
-                weeklyDraftIdRef.current = null;
-                setWeeklySessions([]); setStaleWeeklyDraft(null);
-                setHomeworkRating(null); setConceptRating(null);
-                setHasTest(false); setTestScore(''); setTestName(''); setTestRound('');
-                setTextbook(''); setSubject('수학'); setUnit(''); setPages('');
-                setCurriculumCourseOverride(null); setUnitPickerOpen(false); setUnitPickerCourse(null);
-                setTeacherNote(''); setSelectedTags([]);
-                setAiPolishedNote('');
-                setNextPlan(''); setNextPlanDetail('');
-                setPhotos([]); setPhotoAnalysis(null);
-                setWrongItems([]);
-                setHasChargedAnalysis(false);
-                setLastSaved(null);
-                setAutoSaveError(false);
-
-                const newStudent = students.find(s => s.id === newId);
-                const newMode = newStudent?.reportMode || classes.find(c => c.id === newStudent?.classId)?.reportMode || academyReportMode || 'daily';
-
-                if (newMode === 'weekly') {
-                  // 이번 주 범위에 세션 날짜가 걸리는, 아직 발송 안 된(draft) 주간 리포트를 찾음 —
-                  // 없으면 오늘이 이번 주 첫 세션이라는 뜻. 지난주 이전 열린 draft가 남아있으면
-                  // 이번 주 draft와 섞이지 않도록 별도로 골라내서 배너로만 안내
-                  const week = getKstWeekRange(0);
-                  const openDrafts = reports.filter(r => r.studentId === newId && r.reportType === 'weekly' && r.isDraft === true);
-                  const currentWeekDraft = openDrafts.find(r => (r.sessions || []).some(s => s.date >= week.startStr && s.date <= week.endStr));
-                  const stale = openDrafts.find(r => r.id !== currentWeekDraft?.id);
-                  weeklyDraftIdRef.current = currentWeekDraft?.id || null;
-                  setWeeklySessions(currentWeekDraft?.sessions || []);
-                  setStaleWeeklyDraft(stale || null);
-
-                  // 오늘 세션을 이미 저장해뒀으면(같은 날 다시 들어온 경우) 그 내용을 불러와 수정,
-                  // 없으면 방금 초기화한 빈 폼 그대로 새 세션 입력
-                  const todayStr = kstDay(Date.now() / 1000);
-                  const todaySession = currentWeekDraft?.sessions?.find(s => s.date === todayStr);
-                  if (todaySession) {
-                    setAttendance(todaySession.attendance || '정시');
-                    setArrivalTime(todaySession.arrivalTime || '15:30');
-                    setHomeworkRating(todaySession.homeworkRating ?? null);
-                    setConceptRating(todaySession.conceptRating ?? null);
-                    setHasTest(!!todaySession.hasTest);
-                    setTestName(todaySession.testName || ''); setTestScore(todaySession.testScore || ''); setTestRound(todaySession.testRound || '');
-                    setTextbook(todaySession.textbook || ''); setSubject(todaySession.subject || '수학'); setUnit(todaySession.unit || ''); setPages(todaySession.pages || '');
-                    setSelectedTags(todaySession.diagnosis || []);
-                    setTeacherNote(todaySession.teacherNote || '');
-                    setWrongItems(todaySession.wrongItems || []);
-                    return; // 최근 리포트 자동 불러오기(교재/단원)는 이미 세션 값으로 채워졌으니 건너뜀
-                  }
-                }
-
-                // 최근 리포트 자동 불러오기 — 초기화 이후에 덮어써야 실제로 반영됨
-                const lastReport = [...reports]
-                  .filter(r => r.studentId === newId)
-                  .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))[0];
-                if (lastReport) {
-                  if (lastReport.textbook) setTextbook(lastReport.textbook);
-                  if (lastReport.subject) setSubject(lastReport.subject);
-                  if (lastReport.unit) setUnit(lastReport.unit);
-                }
-              }
-            }} style={selectStyle}>
+            <select value={studentId} onChange={(e) => selectStudent(e.target.value)} style={selectStyle}>
               <option value="">학생을 선택해주세요</option>
               {classes.map(cls => {
                 const inClass = students.filter(s => s.classId === cls.id);
@@ -1427,77 +1536,127 @@ export default function DiagnosticReportInput({
             </button>
           </FormSection>
 
-          {studentId && effectiveReportMode === 'weekly' && !editingReport && (
-            <div style={{ margin: '0 20px 12px', padding: '10px 14px', borderRadius: '10px', background: '#EAF0F9', border: '1px solid #C5D5F0', fontSize: '12px', color: '#0D2D6B', fontWeight: 600 }}>
-              📋 이번 주 세션 {weeklySessions.length}개 저장됨 — 오늘 작성한 내용은 원장님이 모아서 주 1회 발송해요.
-              {staleWeeklyDraft && (
-                <p style={{ margin: '6px 0 0', fontSize: '11px', color: C.warningText, fontWeight: 700 }}>
-                  ⚠ 지난주 이전 리포트가 아직 발송되지 않았어요 — 원장님께 "주간 리포트 검토" 화면 확인을 요청해주세요.
-                </p>
-              )}
-            </div>
-          )}
-
           {studentId && (
             <>
-              {/* 2. 등원 */}
-              <FormSection number="2" title="등원">
-                <div style={{ display: 'flex', gap: '6px', marginBottom: '10px', flexWrap: 'wrap' }}>
+              {/* 1d 네이비 헤더 — 학생 컨텍스트 + 학생 큐 + 기본 항목 진행 바 */}
+              {(() => {
+                const today = new Date();
+                const headerDate = `${today.getMonth() + 1}월 ${today.getDate()}일 (${'일월화수목금토'[today.getDay()]})`;
+                const teacherName = teachers.find(t => t.id === teacherId)?.name;
+                return (
+                  <div style={{ background: R.navy, borderRadius: '16px', padding: '16px 20px 18px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', minWidth: 0 }}>
+                        <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.4px', color: R.gold }}>
+                          {academyName || '데일리 리포트'}{queueStudents.length > 0 ? ` · 오늘 ${queueDoneCount} / ${queueStudents.length}명 완료` : ''}
+                        </span>
+                        <span style={{ fontSize: '22px', fontWeight: 700, letterSpacing: '-0.4px', color: '#fff' }}>
+                          {student?.name}{student?.school ? ` · ${student.school}` : ''}
+                        </span>
+                        <span style={{ fontSize: '12px', fontWeight: 500, color: 'rgba(255,255,255,0.82)' }}>
+                          {headerDate} · {arrivalTime}{teacherName ? ` · ${teacherName} 선생` : ''}
+                        </span>
+                      </div>
+                      {/* 지난 수업 값 불러옴 — 결정 5: 버튼이 아니라 상태 배지(누르면 해제/재적용
+                          토글). 첫 수업(스냅샷 없음)이면 배지 자체를 숨김 */}
+                      {lastValuesSnapshot && (
+                        <button type="button" onClick={toggleLastValues}
+                          style={{
+                            flexShrink: 0, border: '1px solid rgba(255,255,255,0.3)', borderRadius: '16px',
+                            background: lastValuesApplied ? 'rgba(255,255,255,0.12)' : 'transparent',
+                            color: '#fff', fontSize: '11px', fontWeight: 700, padding: '8px 12px',
+                            whiteSpace: 'nowrap', cursor: 'pointer', fontFamily: 'inherit',
+                          }}>
+                          {lastValuesApplied ? '✓ 지난 수업 값 불러옴' : '지난 수업 값 해제됨'}
+                        </button>
+                      )}
+                    </div>
+
+                    {/* 학생 큐 — 가로 스크롤, 오늘 대상 학생을 완료 여부 순으로. 클릭하면 그
+                        학생으로 즉시 전환(자동저장 후) — <select>와 같은 selectStudent 재사용 */}
+                    {queueStudents.length > 1 && (
+                      <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '2px' }}>
+                        {queueStudents.map(qs => {
+                          const active = qs.id === studentId;
+                          const done = doneOfStudent(qs);
+                          return (
+                            <button type="button" key={qs.id} onClick={() => selectStudent(qs.id)}
+                              style={{
+                                border: active ? `1.5px solid ${R.gold}` : 'none', borderRadius: '8px',
+                                background: active ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.08)',
+                                padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: '2px',
+                                textAlign: 'left', flexShrink: 0, cursor: 'pointer', fontFamily: 'inherit',
+                              }}>
+                              <span style={{ fontSize: '12px', fontWeight: 700, color: active ? '#fff' : 'rgba(255,255,255,0.9)', whiteSpace: 'nowrap' }}>{qs.name}</span>
+                              <span style={{ fontSize: '10px', fontWeight: 600, color: done ? '#F0D480' : 'rgba(255,255,255,0.6)', whiteSpace: 'nowrap' }}>{done ? '완료' : '대기'}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '12px' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 600, color: '#fff' }}>기본 항목 {requiredDone} / 4</span>
+                        <span style={{ fontSize: '11px', fontWeight: 500, color: 'rgba(255,255,255,0.82)' }}>
+                          {requiredDone === 4 ? '기본 항목이 모두 채워졌어요' : '저장엔 등원 · 평가 · 한 마디가 필요해요'}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        {requiredSteps.map(st => (
+                          <div key={st.label} style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            <div style={{ width: '100%', height: '4px', borderRadius: '2px', background: st.done ? R.gold : 'rgba(255,255,255,0.22)' }} />
+                            <span style={{ fontSize: '11px', fontWeight: 600, color: st.done ? '#F0D480' : 'rgba(255,255,255,0.6)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{st.label}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {effectiveReportMode === 'weekly' && !editingReport && (
+                <div style={{ padding: '10px 14px', borderRadius: '10px', background: '#EAF0F9', border: '1px solid #C5D5F0', fontSize: '12px', color: '#0D2D6B', fontWeight: 600 }}>
+                  📋 이번 주 세션 {weeklySessions.length}개 저장됨 — 오늘 작성한 내용은 원장님이 모아서 주 1회 발송해요.
+                  {staleWeeklyDraft && (
+                    <p style={{ margin: '6px 0 0', fontSize: '11px', color: C.warningText, fontWeight: 700 }}>
+                      ⚠ 지난주 이전 리포트가 아직 발송되지 않았어요 — 원장님께 "주간 리포트 검토" 화면 확인을 요청해주세요.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* 1그룹 · 필수 — 1d 확정안: 한 카드 안에 100px 라벨 행 4개 (등원/평가/오늘 학습/한 마디) */}
+              <div style={{ background: TOKENS.bg, borderRadius: '16px', border: `1px solid ${TOKENS.border}`, overflow: 'hidden' }}>
+              <div style={{ padding: '18px 20px 6px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '1.4px', color: R.navy, whiteSpace: 'nowrap' }}>1 · 필수</span>
+                <div style={{ flex: 1, height: '1px', background: '#E4E6EB' }} />
+                <span style={{ fontSize: '11px', fontWeight: 500, color: 'rgba(55,56,60,0.75)', whiteSpace: 'nowrap' }}>여기까지만 채우면 저장 가능</span>
+              </div>
+              <div style={{ padding: '14px 20px 20px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+
+              <FieldRow wide={isWide} label="등원">
+                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px' }}>
                   {ATTENDANCE.map(a => (
                     <button key={a} onClick={() => setAttendance(a)} style={chipStyle(attendance === a)}>{a}</button>
                   ))}
-                </div>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <Clock size={13} style={{ color: TOKENS.textMute, flexShrink: 0 }} />
                   <input type="time" value={arrivalTime} onChange={(e) => setArrivalTime(e.target.value)}
-                    style={{ ...inputStyle, width: '160px', minWidth: '160px' }} />
+                    style={{ ...inputStyle, width: '130px', minWidth: '130px' }} />
                 </div>
-              </FormSection>
+              </FieldRow>
 
-              {/* 3. 평가 */}
-              <FormSection number="3" title="오늘의 평가">
-                <RatingPicker label="과제 수행" value={homeworkRating} onChange={setHomeworkRating} />
-                <div style={{ height: '10px' }} />
-                <RatingPicker label="개념 이해" value={conceptRating} onChange={setConceptRating} />
-              </FormSection>
+              <div style={{ height: '1px', background: '#F1F1F4' }} />
 
-              {/* 4. 테스트 */}
-              <FormSection number="4" title="테스트">
-                <div style={{ display: 'flex', gap: '3px', background: TOKENS.borderLight, borderRadius: '10px', padding: '3px', marginBottom: hasTest ? '12px' : '0' }}>
-                  <button onClick={() => setHasTest(true)}  style={toggleStyle(hasTest)}>진행함</button>
-                  <button onClick={() => setHasTest(false)} style={toggleStyle(!hasTest)}>진행 안 함</button>
+              <FieldRow wide={isWide} label="오늘의 평가" sub={isAbsent ? '결석 — 평가 생략' : '10% 단위 · 키보드 1~9, 0은 100%'} disabled={isAbsent}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <ScoreGrid wide={isWide} label="과제" value={homeworkRating} onChange={setHomeworkRating} />
+                  <ScoreGrid wide={isWide} label="개념" value={conceptRating} onChange={setConceptRating} />
                 </div>
-                {hasTest && (
-                  <>
-                    <FieldLabel>테스트 명칭</FieldLabel>
-                    <input value={testName} onChange={(e) => setTestName(e.target.value)} placeholder="예: 1학기 중간 대비 모의고사 2회차" style={inputStyle} />
-                    <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', margin: '6px 0 12px' }}>
-                      {['단원평가', '주간 테스트', '중간 대비', '기말 대비'].map(n => (
-                        <button key={n} onClick={() => setTestName(n)} style={suggestionStyle}>{n}</button>
-                      ))}
-                    </div>
-                    <FieldLabel>차수</FieldLabel>
-                    <div style={{ display: 'flex', gap: '5px', marginBottom: '12px' }}>
-                      {['1차', '2차', '3차'].map(r => (
-                        <button key={r} onClick={() => setTestRound(prev => prev === r ? '' : r)}
-                          style={{ ...suggestionStyle, background: testRound === r ? TOKENS.info : undefined, color: testRound === r ? '#fff' : undefined, borderColor: testRound === r ? TOKENS.info : undefined }}>
-                          {r}
-                        </button>
-                      ))}
-                    </div>
-                    <FieldLabel>점수</FieldLabel>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <input type="number" value={testScore} onChange={(e) => setTestScore(e.target.value)} placeholder="84"
-                        style={{ ...inputStyle, width: '90px', textAlign: 'center' }} />
-                      <span style={{ fontSize: '12px', color: TOKENS.textSub, fontWeight: 500 }}>점 / 100점</span>
-                      {testRound && <span style={{ fontSize: '11px', fontWeight: 700, color: TOKENS.infoDark, background: TOKENS.infoBg, padding: '3px 8px', borderRadius: '4px' }}>{testRound}</span>}
-                    </div>
-                  </>
-                )}
-              </FormSection>
+              </FieldRow>
 
-              {/* 5. 오늘 학습 */}
-              <FormSection number="5" title="오늘 학습">
+              <div style={{ height: '1px', background: '#F1F1F4' }} />
+
+              <FieldRow wide={isWide} label="오늘 학습" disabled={isAbsent}>
 
                 {/* 과목 선택 — 학원마다 운영 과목이 달라(수학/영어만 있는 곳도, 국어·과학까지
                     있는 곳도) academies/{id}.subjects로 커스터마이즈 가능. 미설정 학원은 기존과
@@ -1681,10 +1840,152 @@ export default function DiagnosticReportInput({
                 <div style={{ height: '8px' }} />
                 <FieldLabel>학습 범위</FieldLabel>
                 <input value={pages} onChange={(e) => setPages(e.target.value)} placeholder="예: 111, 114, 124쪽 / 24~32쪽" style={inputStyle} />
-              </FormSection>
+              </FieldRow>
 
-              {/* 5-1. 교재/시험지 사진 분석 (선택) */}
-              <FormSection number="5+" title="교재·시험지 사진 분석 (선택)" badge={photoAnalysis ? '분석완료' : (photos.length > 0 ? `${photos.length}장 선택됨` : undefined)} badgeTone={photoAnalysis ? 'success' : 'info'}>
+              <div style={{ height: '1px', background: '#F1F1F4' }} />
+
+              {/* 필수 4/4 · 선생님 한 마디 — 1d 재배열로 필수 그룹 마지막 줄로 이동 */}
+              <FieldRow wide={isWide} label="선생님 한 마디">
+
+                {/* 과목별 퀵 태그 */}
+                {(() => {
+                  const QUICK_TAGS = {
+                    수학: ['연산 실수 주의', '응용 연습 필요', '개념 완성', '계산 속도 향상 중', '문제 이해력 우수', '집중력 우수'],
+                    영어: ['어휘 암기 우수', '독해 속도 향상 중', '문법 주의', '받아쓰기 정확도 높음', '발음 교정 필요', '집중력 우수'],
+                    국어: ['독해력 우수', '어휘 확장 필요', '글쓰기 향상 중', '문학 이해도 높음', '비문학 연습 필요', '집중력 우수'],
+                    과학: ['실험 이해 우수', '개념 암기 필요', '응용 연습 필요', '탐구력 우수', '계산 연습 필요', '집중력 우수'],
+                    사회: ['시사 연계 우수', '암기 보완 필요', '이해력 향상 중', '서술 연습 필요', '핵심 개념 정리 필요', '집중력 우수'],
+                    역사: ['흐름 파악 우수', '연대 암기 필요', '서술 연습 필요', '인과관계 이해 우수', '암기 보완 필요', '집중력 우수'],
+                    기타: ['집중력 우수', '과제 완성도 높음', '복습 권장', '이해력 향상 중', '참여도 우수', '개념 정리 필요'],
+                  };
+                  const tags = QUICK_TAGS[subject] || QUICK_TAGS['기타'];
+                  return (
+                    <div style={{ marginBottom: '10px' }}>
+                      <p style={{ fontSize: '10px', color: '#6C7586', fontWeight: 600, margin: '0 0 6px', letterSpacing: '0.06em' }}>
+                        {subject} 퀵 태그 — 클릭하면 코멘트에 추가돼요
+                      </p>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                        {tags.map(tag => (
+                          <button key={tag} onClick={() => {
+                            const prefix = `[${tag}]`;
+                            setTeacherNote(prev => prev ? `${prev} ${prefix} ` : `${prefix} `);
+                            // 퀵 태그 클릭 시 즉시 자동저장 예약 (3초 후)
+                            if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+                            autoSaveTimer.current = setTimeout(() => {
+                              handleAutoSave();
+                              setLastSaved(new Date());
+                            }, 3000);
+                          }}
+                          style={{
+                            padding: '4px 10px', borderRadius: '12px', border: '0.5px solid #E5E7EB',
+                            background: '#F9FAFB', color: '#374151', fontSize: '11px', fontWeight: 500,
+                            cursor: 'pointer', fontFamily: 'inherit',
+                          }}>
+                            {tag}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <FieldLabel>강사 메모 (평소 카톡 톤으로 자유롭게)</FieldLabel>
+                  {/* 새로고침 후 이어쓰기(자동저장 draft 복원)나 오답 분석 코멘트 생성으로 메모에
+                      AI 문장이 이미 섞여 들어간 상태에서, 처음부터 다시 쓰고 싶을 때 한 번에 비우는 버튼.
+                      자동저장 draft 자체는 건드리지 않음 — 다음 자동저장 때 빈 값으로 덮어써짐 */}
+                  {(teacherNote || aiPolishedNote) && (
+                    <button type="button" onClick={() => {
+                      if (!window.confirm('강사 메모와 AI 다듬기 결과를 모두 지우고 새로 시작할까요?')) return;
+                      setTeacherNote(''); setAiPolishedNote('');
+                    }} style={{ background: 'none', border: 'none', color: '#6C7586', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', padding: '2px 4px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      <X size={11} /> 새로 시작
+                    </button>
+                  )}
+                </div>
+
+                {/* 코멘트 즐겨찾기 — 학원 공용, 탭하면 메모에 이어붙임.
+                    오늘 선택한 진단 태그와 겹치는 즐겨찾기(저장 당시 태그 기록해둔 것)를
+                    앞으로 정렬 + "추천" 표시 — 목록이 늘어날수록 원하는 걸 찾기 어려워지는 걸 방지 */}
+                {commentTemplates.length > 0 && (() => {
+                  const currentTagKeys = new Set(selectedTags.map(t => t.key));
+                  const scored = commentTemplates.map(t => ({
+                    t, score: (t.tags || []).filter(k => currentTagKeys.has(k)).length,
+                  }));
+                  const sorted = currentTagKeys.size > 0
+                    ? [...scored].sort((a, b) => b.score - a.score)
+                    : scored;
+                  return (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: '8px' }}>
+                      {sorted.map(({ t, score }) => {
+                        const recommended = score > 0;
+                        return (
+                          <span key={t.id} style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '4px',
+                            background: recommended ? '#FFF0D6' : '#FFF8E7', border: `1px solid ${recommended ? C.accent : '#F5D76E'}`, borderRadius: '20px',
+                            padding: '4px 6px 4px 12px', fontSize: '11px', color: C.warningText, fontWeight: 500,
+                          }}>
+                            <Star size={10} fill={C.accent} color={C.accent} style={{ flexShrink: 0 }} />
+                            <button type="button" onClick={() => setTeacherNote(prev => prev ? `${prev}\n${t.text}` : t.text)}
+                              style={{ background: 'none', border: 'none', color: C.warningText, fontWeight: recommended ? 800 : 700, cursor: 'pointer', fontFamily: 'inherit', padding: 0, maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {recommended && '👍 '}{t.label}
+                            </button>
+                            <button type="button" onClick={() => { if (window.confirm(`"${t.label}" 즐겨찾기를 삭제할까요?`)) onDeleteCommentTemplate(t.id); }}
+                              style={{ background: 'none', border: 'none', color: '#B08900', cursor: 'pointer', padding: '2px', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                              <X size={11} />
+                            </button>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+
+                <textarea value={teacherNote} onChange={(e) => setTeacherNote(e.target.value)}
+                  placeholder="예: 3단원 자릿수 실수 2번, 응용은 시간 부족으로 못 풂. 개념은 알고 있음"
+                  rows={3} style={{ ...inputStyle, fontFamily: 'inherit', resize: 'vertical' }} />
+                <button type="button" onClick={() => {
+                  if (!teacherNote.trim()) return;
+                  const label = window.prompt('즐겨찾기 이름을 입력해주세요 (예: 계산실수 안내)', teacherNote.trim().slice(0, 12));
+                  if (label && label.trim()) onSaveCommentTemplate(label.trim(), teacherNote.trim(), selectedTags.map(t => t.key));
+                }} disabled={!teacherNote.trim()} style={{
+                  marginTop: '6px', width: '100%', padding: '7px', fontSize: '11px', fontWeight: 700, borderRadius: '8px',
+                  border: `1px solid ${teacherNote.trim() ? '#C9A227' : '#E5E7EB'}`, background: '#fff',
+                  color: teacherNote.trim() ? C.warningText : '#6C7586', cursor: teacherNote.trim() ? 'pointer' : 'not-allowed', fontFamily: 'inherit',
+                }}>
+                  <Star size={11} style={{ verticalAlign: '-2px', marginRight: '3px' }} />현재 메모 즐겨찾기에 저장
+                </button>
+                <button onClick={handleAIPolish} disabled={!teacherNote.trim() || polishing} style={aiButtonStyle(!teacherNote.trim() || polishing)}>
+                  <Sparkles size={13} /> {polishing ? '다듬는 중...' : 'AI로 학부모 톤으로 다듬기'}
+                </button>
+                {polishing && (
+                  <div style={{ background: TOKENS.successBg, borderRadius: '12px', padding: '14px', marginTop: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ display: 'inline-block', width: 14, height: 14, border: `2px solid ${TOKENS.success}40`, borderTopColor: TOKENS.success, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                    <span style={{ fontSize: '12px', color: TOKENS.success, fontWeight: 600 }}>AI가 학부모 톤으로 다듬는 중이에요...</span>
+                  </div>
+                )}
+                {!polishing && aiPolishedNote && (
+                  <div style={{ background: TOKENS.successBg, borderRadius: '12px', padding: '10px', marginTop: '10px' }}>
+                    <p style={{ fontSize: '11px', color: TOKENS.success, fontWeight: 700, margin: '0 0 6px' }}>학부모 발송 버전 (수정 가능)</p>
+                    <textarea value={aiPolishedNote} onChange={(e) => setAiPolishedNote(e.target.value)}
+                      rows={3} style={{ ...inputStyle, background: '#fff', fontFamily: 'inherit', resize: 'vertical' }} />
+                    <p style={{ fontSize: '10px', color: TOKENS.textMute, margin: '6px 0 0', lineHeight: 1.4 }}>
+                      <Info size={11} style={{ verticalAlign: '-2px' }} /> 여기서 수정하면 아래 학부모 발송 미리보기에도 그대로 반영돼요
+                    </p>
+                  </div>
+                )}
+              </FieldRow>
+              </div>
+              </div>
+
+              <GroupDivider num="2" title="선택" hint="시간 있을 때만" />
+
+              {/* 5-1. 교재/시험지 사진 분석 (선택) — 결석 시 비활성(결석이면 채점 사진 자체가 없음) */}
+              <div style={{ opacity: isAbsent ? 0.45 : 1, pointerEvents: isAbsent ? 'none' : 'auto' }}>
+              <FoldSection title="교재·시험지 사진 분석" hint="채점 사진을 올리면 AI가 오답을 유형별로 정리해요"
+                state={photoAnalysis ? '분석완료' : (photos.length > 0 ? `${photos.length}장 선택됨` : '사진 없음')}
+                stateColor={photoAnalysis ? TOKENS.successDark : (photos.length > 0 ? R.navy : undefined)}
+                open={optOpen.photo} onToggle={() => setOptOpen(p => ({ ...p, photo: !p.photo }))}>
                 <p style={{ fontSize: '11px', color: TOKENS.textMute, margin: '0 0 6px' }}>
                   채점(O/△/빗금) 완료된 페이지를 촬영하면, AI가 표시만 그대로 읽어 유형별 코멘트 초안을 만들어줍니다. 여러 장(최대 {MAX_PHOTOS}장) 한 번에 올려서 페이지별 결과를 통합 분석할 수 있습니다. 점수는 반영되지 않습니다.
                 </p>
@@ -2362,10 +2663,14 @@ export default function DiagnosticReportInput({
                     })()}
                   </div>
                 )}
-              </FormSection>
+              </FoldSection>
+              </div>
 
               {/* 6. 진단 */}
-              <FormSection number="6" title="오늘의 진단" badge={`${selectedTags.length}개 선택`} badgeTone={selectedTags.length > 0 ? 'info' : 'neutral'}>
+              <FoldSection title="오늘의 진단" hint="오늘 수업에서 보인 약점을 태그로 기록 — 학부모에겐 안 보여요"
+                state={selectedTags.length > 0 ? `${selectedTags.length}개 선택` : '선택 안 함'}
+                stateColor={selectedTags.length > 0 ? R.navy : undefined}
+                open={optOpen.diag} onToggle={() => setOptOpen(p => ({ ...p, diag: !p.diag }))}>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: '12px' }}>
                   {DIAGNOSIS_TAGS.map(tag => {
                     const active = selectedTags.some(t => t.key === tag.key);
@@ -2404,139 +2709,47 @@ export default function DiagnosticReportInput({
                     })}
                   </div>
                 )}
-              </FormSection>
+              </FoldSection>
 
-              {/* 7. 선생님 한 마디 */}
-              <FormSection number="7" title="선생님 한 마디">
-
-                {/* 과목별 퀵 태그 */}
-                {(() => {
-                  const QUICK_TAGS = {
-                    수학: ['연산 실수 주의', '응용 연습 필요', '개념 완성', '계산 속도 향상 중', '문제 이해력 우수', '집중력 우수'],
-                    영어: ['어휘 암기 우수', '독해 속도 향상 중', '문법 주의', '받아쓰기 정확도 높음', '발음 교정 필요', '집중력 우수'],
-                    국어: ['독해력 우수', '어휘 확장 필요', '글쓰기 향상 중', '문학 이해도 높음', '비문학 연습 필요', '집중력 우수'],
-                    과학: ['실험 이해 우수', '개념 암기 필요', '응용 연습 필요', '탐구력 우수', '계산 연습 필요', '집중력 우수'],
-                    사회: ['시사 연계 우수', '암기 보완 필요', '이해력 향상 중', '서술 연습 필요', '핵심 개념 정리 필요', '집중력 우수'],
-                    역사: ['흐름 파악 우수', '연대 암기 필요', '서술 연습 필요', '인과관계 이해 우수', '암기 보완 필요', '집중력 우수'],
-                    기타: ['집중력 우수', '과제 완성도 높음', '복습 권장', '이해력 향상 중', '참여도 우수', '개념 정리 필요'],
-                  };
-                  const tags = QUICK_TAGS[subject] || QUICK_TAGS['기타'];
-                  return (
-                    <div style={{ marginBottom: '10px' }}>
-                      <p style={{ fontSize: '10px', color: '#6C7586', fontWeight: 600, margin: '0 0 6px', letterSpacing: '0.06em' }}>
-                        {subject} 퀵 태그 — 클릭하면 코멘트에 추가돼요
-                      </p>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
-                        {tags.map(tag => (
-                          <button key={tag} onClick={() => {
-                            const prefix = `[${tag}]`;
-                            setTeacherNote(prev => prev ? `${prev} ${prefix} ` : `${prefix} `);
-                            // 퀵 태그 클릭 시 즉시 자동저장 예약 (3초 후)
-                            if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
-                            autoSaveTimer.current = setTimeout(() => {
-                              handleAutoSave();
-                              setLastSaved(new Date());
-                            }, 3000);
-                          }}
-                          style={{
-                            padding: '4px 10px', borderRadius: '12px', border: '0.5px solid #E5E7EB',
-                            background: '#F9FAFB', color: '#374151', fontSize: '11px', fontWeight: 500,
-                            cursor: 'pointer', fontFamily: 'inherit',
-                          }}>
-                            {tag}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <FieldLabel>강사 메모 (평소 카톡 톤으로 자유롭게)</FieldLabel>
-                  {/* 새로고침 후 이어쓰기(자동저장 draft 복원)나 오답 분석 코멘트 생성으로 메모에
-                      AI 문장이 이미 섞여 들어간 상태에서, 처음부터 다시 쓰고 싶을 때 한 번에 비우는 버튼.
-                      자동저장 draft 자체는 건드리지 않음 — 다음 자동저장 때 빈 값으로 덮어써짐 */}
-                  {(teacherNote || aiPolishedNote) && (
-                    <button type="button" onClick={() => {
-                      if (!window.confirm('강사 메모와 AI 다듬기 결과를 모두 지우고 새로 시작할까요?')) return;
-                      setTeacherNote(''); setAiPolishedNote('');
-                    }} style={{ background: 'none', border: 'none', color: '#6C7586', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', padding: '2px 4px', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                      <X size={11} /> 새로 시작
-                    </button>
-                  )}
+              {/* 테스트 — 1d 재배열로 선택 그룹 맨 뒤로 이동 (사진분석 → 진단 → 테스트) */}
+              <FoldSection title="테스트" hint="단원평가·모의고사를 봤다면 점수를 기록해요"
+                state={hasTest ? '진행함' : '진행 안 함'}
+                stateColor={hasTest ? R.navy : undefined}
+                open={optOpen.test} onToggle={() => setOptOpen(p => ({ ...p, test: !p.test }))}>
+                <div style={{ display: 'flex', gap: '3px', background: TOKENS.borderLight, borderRadius: '10px', padding: '3px', marginBottom: hasTest ? '12px' : '0' }}>
+                  <button onClick={() => setHasTest(true)}  style={toggleStyle(hasTest)}>진행함</button>
+                  <button onClick={() => setHasTest(false)} style={toggleStyle(!hasTest)}>진행 안 함</button>
                 </div>
-
-                {/* 코멘트 즐겨찾기 — 학원 공용, 탭하면 메모에 이어붙임.
-                    오늘 선택한 진단 태그와 겹치는 즐겨찾기(저장 당시 태그 기록해둔 것)를
-                    앞으로 정렬 + "추천" 표시 — 목록이 늘어날수록 원하는 걸 찾기 어려워지는 걸 방지 */}
-                {commentTemplates.length > 0 && (() => {
-                  const currentTagKeys = new Set(selectedTags.map(t => t.key));
-                  const scored = commentTemplates.map(t => ({
-                    t, score: (t.tags || []).filter(k => currentTagKeys.has(k)).length,
-                  }));
-                  const sorted = currentTagKeys.size > 0
-                    ? [...scored].sort((a, b) => b.score - a.score)
-                    : scored;
-                  return (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: '8px' }}>
-                      {sorted.map(({ t, score }) => {
-                        const recommended = score > 0;
-                        return (
-                          <span key={t.id} style={{
-                            display: 'inline-flex', alignItems: 'center', gap: '4px',
-                            background: recommended ? '#FFF0D6' : '#FFF8E7', border: `1px solid ${recommended ? C.accent : '#F5D76E'}`, borderRadius: '20px',
-                            padding: '4px 6px 4px 12px', fontSize: '11px', color: C.warningText, fontWeight: 500,
-                          }}>
-                            <Star size={10} fill={C.accent} color={C.accent} style={{ flexShrink: 0 }} />
-                            <button type="button" onClick={() => setTeacherNote(prev => prev ? `${prev}\n${t.text}` : t.text)}
-                              style={{ background: 'none', border: 'none', color: C.warningText, fontWeight: recommended ? 800 : 700, cursor: 'pointer', fontFamily: 'inherit', padding: 0, maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {recommended && '👍 '}{t.label}
-                            </button>
-                            <button type="button" onClick={() => { if (window.confirm(`"${t.label}" 즐겨찾기를 삭제할까요?`)) onDeleteCommentTemplate(t.id); }}
-                              style={{ background: 'none', border: 'none', color: '#B08900', cursor: 'pointer', padding: '2px', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                              <X size={11} />
-                            </button>
-                          </span>
-                        );
-                      })}
+                {hasTest && (
+                  <>
+                    <FieldLabel>테스트 명칭</FieldLabel>
+                    <input value={testName} onChange={(e) => setTestName(e.target.value)} placeholder="예: 1학기 중간 대비 모의고사 2회차" style={inputStyle} />
+                    <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', margin: '6px 0 12px' }}>
+                      {['단원평가', '주간 테스트', '중간 대비', '기말 대비'].map(n => (
+                        <button key={n} onClick={() => setTestName(n)} style={suggestionStyle}>{n}</button>
+                      ))}
                     </div>
-                  );
-                })()}
+                    <FieldLabel>차수</FieldLabel>
+                    <div style={{ display: 'flex', gap: '5px', marginBottom: '12px' }}>
+                      {['1차', '2차', '3차'].map(r => (
+                        <button key={r} onClick={() => setTestRound(prev => prev === r ? '' : r)}
+                          style={{ ...suggestionStyle, background: testRound === r ? TOKENS.info : undefined, color: testRound === r ? '#fff' : undefined, borderColor: testRound === r ? TOKENS.info : undefined }}>
+                          {r}
+                        </button>
+                      ))}
+                    </div>
+                    <FieldLabel>점수</FieldLabel>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <input type="number" value={testScore} onChange={(e) => setTestScore(e.target.value)} placeholder="84"
+                        style={{ ...inputStyle, width: '90px', textAlign: 'center' }} />
+                      <span style={{ fontSize: '12px', color: TOKENS.textSub, fontWeight: 500 }}>점 / 100점</span>
+                      {testRound && <span style={{ fontSize: '11px', fontWeight: 700, color: TOKENS.infoDark, background: TOKENS.infoBg, padding: '3px 8px', borderRadius: '4px' }}>{testRound}</span>}
+                    </div>
+                  </>
+                )}
+              </FoldSection>
 
-                <textarea value={teacherNote} onChange={(e) => setTeacherNote(e.target.value)}
-                  placeholder="예: 3단원 자릿수 실수 2번, 응용은 시간 부족으로 못 풂. 개념은 알고 있음"
-                  rows={3} style={{ ...inputStyle, fontFamily: 'inherit', resize: 'vertical' }} />
-                <button type="button" onClick={() => {
-                  if (!teacherNote.trim()) return;
-                  const label = window.prompt('즐겨찾기 이름을 입력해주세요 (예: 계산실수 안내)', teacherNote.trim().slice(0, 12));
-                  if (label && label.trim()) onSaveCommentTemplate(label.trim(), teacherNote.trim(), selectedTags.map(t => t.key));
-                }} disabled={!teacherNote.trim()} style={{
-                  marginTop: '6px', width: '100%', padding: '7px', fontSize: '11px', fontWeight: 700, borderRadius: '8px',
-                  border: `1px solid ${teacherNote.trim() ? '#C9A227' : '#E5E7EB'}`, background: '#fff',
-                  color: teacherNote.trim() ? C.warningText : '#6C7586', cursor: teacherNote.trim() ? 'pointer' : 'not-allowed', fontFamily: 'inherit',
-                }}>
-                  <Star size={11} style={{ verticalAlign: '-2px', marginRight: '3px' }} />현재 메모 즐겨찾기에 저장
-                </button>
-                <button onClick={handleAIPolish} disabled={!teacherNote.trim() || polishing} style={aiButtonStyle(!teacherNote.trim() || polishing)}>
-                  <Sparkles size={13} /> {polishing ? '다듬는 중...' : 'AI로 학부모 톤으로 다듬기'}
-                </button>
-                {polishing && (
-                  <div style={{ background: TOKENS.successBg, borderRadius: '12px', padding: '14px', marginTop: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ display: 'inline-block', width: 14, height: 14, border: `2px solid ${TOKENS.success}40`, borderTopColor: TOKENS.success, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                    <span style={{ fontSize: '12px', color: TOKENS.success, fontWeight: 600 }}>AI가 학부모 톤으로 다듬는 중이에요...</span>
-                  </div>
-                )}
-                {!polishing && aiPolishedNote && (
-                  <div style={{ background: TOKENS.successBg, borderRadius: '12px', padding: '10px', marginTop: '10px' }}>
-                    <p style={{ fontSize: '11px', color: TOKENS.success, fontWeight: 700, margin: '0 0 6px' }}>학부모 발송 버전 (수정 가능)</p>
-                    <textarea value={aiPolishedNote} onChange={(e) => setAiPolishedNote(e.target.value)}
-                      rows={3} style={{ ...inputStyle, background: '#fff', fontFamily: 'inherit', resize: 'vertical' }} />
-                    <p style={{ fontSize: '10px', color: TOKENS.textMute, margin: '6px 0 0', lineHeight: 1.4 }}>
-                      <Info size={11} style={{ verticalAlign: '-2px' }} /> 여기서 수정하면 아래 학부모 발송 미리보기에도 그대로 반영돼요
-                    </p>
-                  </div>
-                )}
-              </FormSection>
+              <GroupDivider num="3" title="마무리" />
 
               {/* 8. 다음 수업 계획 */}
               <FormSection number="8" title="다음 수업 계획">
@@ -2711,19 +2924,6 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
   const goldText = (!student?.skinColor && skin?.accent) ? textSafeColor(gold) : R.goldText;
 
   const teacherSuffix = /선생님?$/.test(teacher?.name || '') ? '' : ' 선생님';
-  const hasDiagnosis = diagnosis && diagnosis.length > 0;
-  const diagBadges = (list) => (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
-      {list.map((d, i) => {
-        const tag = DIAG_PREVIEW_BADGE[d.key] || { label: d.key, bg: C.warningText };
-        return (
-          <span key={i} style={{ display: 'inline-block', background: tag.bg, color: '#fff', fontSize: '12px', fontWeight: 700, padding: '4px 11px', borderRadius: '20px' }}>
-            {tag.label}{d.unit ? ` · ${d.unit}` : ''}{d.pages ? ` ${d.pages}` : ''}
-          </span>
-        );
-      })}
-    </div>
-  );
 
   return (
     <div style={{ background: '#fff', borderRadius: '4px', overflow: 'hidden', boxShadow: '0 2px 20px rgba(0,0,0,0.10)', fontFamily: body }}>
@@ -2785,29 +2985,15 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
           </>
         )}
 
-        {/* 시험 결과 + 진단(시험 있으면 같이) */}
+        {/* 시험 결과 — 진단 배지는 2026-07-30 결정으로 학부모 화면(미리보기 포함) 비노출 */}
         {hasTest && testName && (
           <>
             <div style={{ marginBottom: '18px' }}>
               <p style={{ fontSize: '10px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 8px' }}>TEST RESULT</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap' }}>
-                  <p style={{ fontSize: '28px', fontWeight: 800, color: navy, margin: 0, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{testScore || '-'}<span style={{ fontSize: '13px', fontWeight: 600, color: inkMute, marginLeft: '2px' }}>점</span></p>
-                  <p style={{ fontSize: '12px', color: inkSub, margin: 0 }}>{testName}</p>
-                </div>
-                {hasDiagnosis && diagBadges(diagnosis)}
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap' }}>
+                <p style={{ fontSize: '28px', fontWeight: 800, color: navy, margin: 0, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{testScore || '-'}<span style={{ fontSize: '13px', fontWeight: 600, color: inkMute, marginLeft: '2px' }}>점</span></p>
+                <p style={{ fontSize: '12px', color: inkSub, margin: 0 }}>{testName}</p>
               </div>
-            </div>
-            <div style={{ height: '1px', background: rule, marginBottom: '18px' }} />
-          </>
-        )}
-
-        {/* 진단 (시험 없으면 독립 섹션) */}
-        {(!hasTest || !testName) && hasDiagnosis && (
-          <>
-            <div style={{ marginBottom: '18px' }}>
-              <p style={{ fontSize: '10px', fontWeight: 700, color: inkMute, letterSpacing: '0.08em', margin: '0 0 8px' }}>진단</p>
-              {diagBadges(diagnosis)}
             </div>
             <div style={{ height: '1px', background: rule, marginBottom: '18px' }} />
           </>
@@ -2877,28 +3063,94 @@ function FieldLabel({ children }) {
   return <p style={{ fontSize: '11px', color: TOKENS.textSub, fontWeight: 700, margin: '0 0 5px' }}>{children}</p>;
 }
 
-function RatingPicker({ label, value, onChange }) {
-  const isEmpty = value == null;
-  const pct = value ?? 0;
+// 1d 확정안 — 필수 카드 안의 "100px 라벨 + 입력" 한 줄. 모바일(!wide)에선 라벨이 위로 올라감
+function FieldRow({ wide, label, sub, disabled, children }) {
   return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-        <p style={{ fontSize: '11px', color: TOKENS.textSub, fontWeight: 700, margin: 0 }}>{label}</p>
-        <span style={{
-          fontSize: '12px', fontWeight: 800, padding: '2px 11px', borderRadius: '20px', fontVariantNumeric: 'tabular-nums',
-          color: isEmpty ? TOKENS.textMute : TOKENS.infoDark, background: isEmpty ? TOKENS.borderLight : TOKENS.infoBg,
-        }}>
-          {isEmpty ? '미입력' : `${pct}%`}
-        </span>
+    <div style={{
+      display: 'grid', gridTemplateColumns: wide ? '100px minmax(0,1fr)' : '1fr', gap: wide ? '16px' : '8px',
+      alignItems: 'start', opacity: disabled ? 0.45 : 1, pointerEvents: disabled ? 'none' : 'auto',
+    }}>
+      <div style={{ paddingTop: wide ? '8px' : 0 }}>
+        <span style={{ fontSize: '13px', fontWeight: 700, color: TOKENS.text, display: 'block' }}>{label}</span>
+        {sub && <span style={{ fontSize: '11px', fontWeight: 500, lineHeight: 1.5, color: 'rgba(55,56,60,0.75)', display: 'block', marginTop: '4px' }}>{sub}</span>}
       </div>
-      <input
-        type="range" min={0} max={100} step={10}
-        value={pct}
-        onChange={(e) => onChange(Number(e.target.value))}
-        aria-label={label}
-        aria-valuetext={isEmpty ? '미입력' : `${pct}% (${ratingLabel(pct) || '노력 필요'})`}
-        style={{ width: '100%', accentColor: isEmpty ? TOKENS.textMute : TOKENS.info, cursor: 'pointer', display: 'block', height: '44px' }}
-      />
+      <div style={{ minWidth: 0 }}>{children}</div>
+    </div>
+  );
+}
+
+// 1d 선택 그룹 접기 카드 — 기본 접힘, 접힌 줄에 제목/힌트/상태 텍스트만 표시.
+// 접혀 있으면 children을 아예 렌더하지 않음(상태는 전부 부모에 있어 유실 없음)
+function FoldSection({ title, hint, state, stateColor, open, onToggle, children }) {
+  return (
+    <div style={{ border: '1px solid #E4E6EB', borderRadius: '12px', background: TOKENS.bg, overflow: 'hidden' }}>
+      <button type="button" onClick={onToggle} aria-expanded={open}
+        style={{
+          width: '100%', border: 'none', background: TOKENS.bg, padding: '14px 16px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px',
+          textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit',
+        }}>
+        <span style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0 }}>
+          <span style={{ fontSize: '13px', fontWeight: 700, color: TOKENS.text }}>{title}</span>
+          <span style={{ fontSize: '11px', fontWeight: 500, color: 'rgba(55,56,60,0.75)' }}>{hint}</span>
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+          <span style={{ fontSize: '11px', fontWeight: 700, color: stateColor || 'rgba(55,56,60,0.75)' }}>{state}</span>
+          <span aria-hidden="true" style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(55,56,60,0.75)' }}>{open ? '▲' : '▼'}</span>
+        </span>
+      </button>
+      {open && (
+        <div style={{ padding: '0 16px 16px' }}>
+          <div style={{ height: '1px', background: '#F1F1F4', marginBottom: '14px' }} />
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// 필수/선택/마무리 그룹 구분 스트립 (1d의 "1 · 필수 ── 여기까지만 채우면 저장 가능" 줄)
+function GroupDivider({ num, title, hint, tone = 'muted' }) {
+  const ink = tone === 'brand' ? R.navy : 'rgba(55,56,60,0.75)';
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '2px 4px 0' }}>
+      <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '1.4px', color: ink, whiteSpace: 'nowrap' }}>{num} · {title}</span>
+      <div style={{ flex: 1, height: '1px', background: '#E4E6EB' }} />
+      {hint && <span style={{ fontSize: '11px', fontWeight: 500, color: 'rgba(55,56,60,0.75)', whiteSpace: 'nowrap' }}>{hint}</span>}
+    </div>
+  );
+}
+
+// 1d 확정안의 10칸 점수 그리드 — 기존 range 슬라이더 대체. 값까지 채움(≤value) 방식,
+// 같은 칸 재클릭 시 해제(미입력), 키보드 1~9=10~90% / 0=100%
+function ScoreGrid({ wide, label, value, onChange }) {
+  const handleKey = (e) => {
+    if (e.key >= '1' && e.key <= '9') { onChange(Number(e.key) * 10); e.preventDefault(); }
+    else if (e.key === '0') { onChange(100); e.preventDefault(); }
+  };
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }} onKeyDown={handleKey}>
+      <span style={{ minWidth: '34px', fontSize: '12px', fontWeight: 600, color: 'rgba(55,56,60,0.75)', flexShrink: 0 }}>{label}</span>
+      <div role="radiogroup" aria-label={label} style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(10, minmax(0,1fr))', gap: '4px' }}>
+        {[10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map(n => {
+          const filled = value != null && n <= value;
+          return (
+            <button type="button" key={n} role="radio" aria-checked={value === n}
+              aria-label={`${n}%`}
+              onClick={() => onChange(value === n ? null : n)}
+              style={{
+                minWidth: 0, height: wide ? '34px' : '44px', padding: 0,
+                border: `1px solid ${filled ? R.navy : '#DCDFE4'}`, borderRadius: '6px',
+                background: filled ? R.navy : '#fff', color: filled ? '#fff' : 'rgba(55,56,60,0.75)',
+                fontSize: '10px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+                transition: 'background 0.2s ease, border-color 0.2s ease, color 0.2s ease',
+              }}>{n}</button>
+          );
+        })}
+      </div>
+      <span style={{ minWidth: '52px', fontSize: '14px', fontWeight: 700, textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: value != null ? R.navy : TOKENS.textMute }}>
+        {value != null ? `${value}%` : '미입력'}
+      </span>
     </div>
   );
 }
