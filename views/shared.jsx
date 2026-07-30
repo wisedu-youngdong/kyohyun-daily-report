@@ -23,16 +23,19 @@ export const AVATARS = [
   { key: 'graduation',    label: '졸업식',       url: '/avatars/graduation.png' },
 ];
 
-// ── 프리셋 스킨 — StudentsView(StudentEditModal)/SettingsView 공용
+// ── 프리셋 스킨 — StudentsView(StudentEditModal)/SettingsView 공용. "리포트 스킨 우측 패널"
+// 개선 핸드오프(2026-07-30)의 확정 7종과 이름·색·key를 맞춤 — DiagnosticReportInput.jsx의
+// SKINS(리포트 작성 시 스킨 선택기)와 동일한 팔레트라 어느 화면에서 고르든 같은 색으로 보임.
+// 여기는 main(주조색) 1개만 저장하는 기존 구조 그대로 유지 — accent는 학생별 커스텀 저장까지
+// 확장할지는 이번 스코프 밖(리포트 작성 화면의 SKINS만 6색 전부를 씀)
 export const PRESET_SKINS = [
-  { key: 'navy',    name: '네이비+크림',   main: '#1A2540' },
-  { key: 'purple',  name: '보라+화이트',   main: '#6B3FA0' },
-  { key: 'violet',  name: '보라+노랑',     main: '#7B5EA7' },
-  { key: 'blue',    name: '딥블루+민트',   main: '#0F3460' },
-  { key: 'dark',    name: '다크+골드',     main: '#1A1714' },
-  { key: 'green',   name: '그린+화이트',   main: '#2E7D32' },
-  { key: 'red',     name: '레드+화이트',   main: '#C0392B' },
-  { key: 'indigo',  name: '인디고+피치',   main: '#3949AB' },
+  { key: 'navy',     name: '네이비+아이보리',   main: '#1B2A4A' },
+  { key: 'deepNavy', name: '딥네이비+스카이',   main: '#10305C' },
+  { key: 'purple',   name: '보라+화이트',       main: '#6D28D9' },
+  { key: 'violet',   name: '보라+노랑',         main: '#7C3AED' },
+  { key: 'indigo',   name: '인디고+피치',       main: '#312E81' },
+  { key: 'graphite', name: '그래파이트+샌드',   main: '#2B2E33' },
+  { key: 'teal',     name: '틸+아이보리',       main: '#134E4A' },
 ];
 
 // ── 통계 카드 — DashboardView/AnalysisView 공용

@@ -199,15 +199,18 @@ function buildSkin(key, name, mainHex, accentHex) {
   };
 }
 
+// "리포트 스킨 우측 패널" 개선 핸드오프(2026-07-30)의 확정 7종 조합 — Report Right Panel.dc.html의
+// NEW 배열과 동일한 main/accent 값. key는 기존 리포트의 skin.key와 최대한 겹치게 유지해서
+// (navy/purple/violet/indigo 그대로, blue→deepNavy·dark→graphite·green→teal로 교체, red는 제거)
+// 수정 모드 폴백 로직(아래 selectedSkin 복원)이 자연스럽게 이어지도록 함
 export const SKINS = {
-  navy:   buildSkin('navy',   '네이비 + 크림',  '#1A2540', '#EDEBE6'),
-  purple: buildSkin('purple', '보라 + 화이트',  '#6B3FA0', '#F0E8FF'),
-  violet: buildSkin('violet', '보라 + 노랑',    '#7B5EA7', '#F5D76E'),
-  blue:   buildSkin('blue',   '딥블루 + 민트',  '#0F3460', '#00C9A7'),
-  dark:   buildSkin('dark',   '다크 + 골드',    '#1A1714', '#D4AF37'),
-  green:  buildSkin('green',  '그린 + 화이트',  '#2E7D32', '#E8F5E9'),
-  red:    buildSkin('red',    '레드 + 화이트',  '#C0392B', '#FEE8E8'),
-  indigo: buildSkin('indigo', '인디고 + 피치',  '#3949AB', '#FFCCBC'),
+  navy:     buildSkin('navy',     '네이비 + 아이보리',   '#1B2A4A', '#EFDDC0'),
+  deepNavy: buildSkin('deepNavy', '딥네이비 + 스카이',   '#10305C', '#8CC9EE'),
+  purple:   buildSkin('purple',   '보라 + 화이트',       '#6D28D9', '#FFFFFF'),
+  violet:   buildSkin('violet',   '보라 + 노랑',         '#7C3AED', '#FBD34D'),
+  indigo:   buildSkin('indigo',   '인디고 + 피치',       '#312E81', '#FFC9A8'),
+  graphite: buildSkin('graphite', '그래파이트 + 샌드',   '#2B2E33', '#E7D3AE'),
+  teal:     buildSkin('teal',     '틸 + 아이보리',       '#134E4A', '#EFDDC0'),
 };
 
 // 공통 중앙 알림 모달
