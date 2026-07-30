@@ -2912,7 +2912,14 @@ export default function DiagnosticReportInput({
                       fontFamily: 'inherit', transition: 'all 0.15s',
                     }}
                   >
-                    <div style={{ width: '100%', height: '18px', borderRadius: '5px', background: sk.dots[0], marginBottom: '2px' }}></div>
+                    {/* 주조색+포인트색 2:1 분할 — 커스텀 슬롯 스와치, 핸드오프 원본 디자인과 동일한
+                        표현. sk.dots[0](주조색 1색만)만 쓰던 예전 방식이라 포인트색이 아예 안
+                        보였던 걸 여기서 고침 */}
+                    <div style={{ width: '100%', height: '18px', borderRadius: '5px', overflow: 'hidden', display: 'flex', marginBottom: '2px' }}>
+                      <div style={{ flex: 2, background: sk.main }} />
+                      {/* "학원 기본" 슬롯(globalSkin)은 accent가 없어서(단일 색만 저장) 주조색으로 대체 */}
+                      <div style={{ flex: 1, background: sk.accent || sk.main }} />
+                    </div>
                     <span style={{ fontSize: '10px', fontWeight: 700, color: selectedSkin === sk.key ? TOKENS.infoDark : TOKENS.textSub, textAlign: 'center', lineHeight: 1.3 }}>{sk.name}</span>
                   </button>
                 ))}
