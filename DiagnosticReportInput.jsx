@@ -1640,14 +1640,13 @@ export default function DiagnosticReportInput({
                   {ATTENDANCE.map(a => (
                     <button key={a} onClick={() => setAttendance(a)} style={chipStyle(attendance === a)}>{a}</button>
                   ))}
-                  <input type="time" value={arrivalTime} onChange={(e) => setArrivalTime(e.target.value)}
-                    style={{ ...inputStyle, width: '130px', minWidth: '130px' }} />
+                  <TimeField wide={isWide} value={arrivalTime} onChange={setArrivalTime} />
                 </div>
               </FieldRow>
 
               <div style={{ height: '1px', background: '#F1F1F4' }} />
 
-              <FieldRow wide={isWide} label="오늘의 평가" sub={isAbsent ? '결석 — 평가 생략' : '10% 단위 · 키보드 1~9, 0은 100%'} disabled={isAbsent}>
+              <FieldRow wide={isWide} label="오늘의 평가" sub={isAbsent ? '결석 — 평가 생략' : '10% 단위로 선택 · 숫자키 1~9=10~90%, 0=100%'} disabled={isAbsent}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                   <ScoreGrid wide={isWide} label="과제" value={homeworkRating} onChange={setHomeworkRating} />
                   <ScoreGrid wide={isWide} label="개념" value={conceptRating} onChange={setConceptRating} />
@@ -3151,6 +3150,46 @@ function ScoreGrid({ wide, label, value, onChange }) {
       <span style={{ minWidth: '52px', fontSize: '14px', fontWeight: 700, textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: value != null ? R.navy : TOKENS.textMute }}>
         {value != null ? `${value}%` : '미입력'}
       </span>
+    </div>
+  );
+}
+
+// 네이티브 <input type="time">는 오전/오후 세그먼트를 정밀 클릭해야 해서 터치로 조작하기 불편하고
+// 브라우저마다 표시(시계 아이콘 등)가 달라 오전/오후 · 시 · 분을 각각 버튼/셀렉트로 분리
+function TimeField({ wide, value, onChange }) {
+  const [hh, mm] = (value || '15:30').split(':').map(Number);
+  const isPM = hh >= 12;
+  const hour12 = hh % 12 === 0 ? 12 : hh % 12;
+  const cellH = wide ? '36px' : '44px';
+  const setPart = (nextHour12, nextIsPM, nextMinute) => {
+    const h24 = nextIsPM ? (nextHour12 % 12) + 12 : (nextHour12 % 12);
+    onChange(`${String(h24).padStart(2, '0')}:${String(nextMinute).padStart(2, '0')}`);
+  };
+  const minuteOptions = Array.from({ length: 12 }, (_, i) => i * 5);
+  if (!minuteOptions.includes(mm)) { minuteOptions.push(mm); minuteOptions.sort((a, b) => a - b); }
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+      <div style={{ display: 'flex', border: `1px solid ${TOKENS.border}`, borderRadius: `${RADIUS2.chip}px`, overflow: 'hidden', flexShrink: 0 }}>
+        {['오전', '오후'].map((label, i) => {
+          const active = isPM === (i === 1);
+          return (
+            <button type="button" key={label} onClick={() => setPart(hour12, i === 1, mm)}
+              style={{
+                padding: '0 12px', height: cellH, fontSize: '13px', fontWeight: active ? 700 : 500,
+                border: 'none', background: active ? TOKENS.infoBg : TOKENS.bg, color: active ? TOKENS.infoDark : TOKENS.textSub,
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}>{label}</button>
+          );
+        })}
+      </div>
+      <select value={hour12} onChange={(e) => setPart(Number(e.target.value), isPM, mm)}
+        style={{ ...selectStyle, height: cellH, width: '62px', minWidth: '62px', paddingLeft: '8px', paddingRight: '22px', textAlign: 'center' }}>
+        {Array.from({ length: 12 }, (_, i) => i + 1).map(h => <option key={h} value={h}>{h}시</option>)}
+      </select>
+      <select value={mm} onChange={(e) => setPart(hour12, isPM, Number(e.target.value))}
+        style={{ ...selectStyle, height: cellH, width: '68px', minWidth: '68px', paddingLeft: '8px', paddingRight: '22px', textAlign: 'center' }}>
+        {minuteOptions.map(m => <option key={m} value={m}>{String(m).padStart(2, '0')}분</option>)}
+      </select>
     </div>
   );
 }
