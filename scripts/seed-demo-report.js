@@ -52,6 +52,9 @@ async function main() {
   //    사진(photoUrls)은 의도적으로 생략 — PublicReport.jsx가 photoUrls 없으면 그 섹션을
   //    자동으로 숨기므로(조건부 렌더), 실제 학생 사진을 구하거나 가짜로 만들 필요가 없다.
   await db.doc(`academies/${ACADEMY_ID}/reports/${REPORT_ID}`).set({
+    studentId: 'demo-student-1', // PublicReport.jsx의 열람 기록(reportViews) addDoc이 이 필드를 그대로 읽어서
+                                  // 씀 — undefined로 두면 Firestore 클라이언트 SDK가 즉시 예외를 던져
+                                  // 리포트 자체는 로드됐는데도 화면이 "불러오지 못했습니다"로 넘어감
     studentName: '김민준',
     teacherName: '이수현',
     attendance: '정시',
