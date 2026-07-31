@@ -4,7 +4,7 @@
 - 학원 학부모 리포트 자동 생성 웹앱
 - 배포: https://dailyreportsystem.co.kr (Vercel, 구 도메인 kyohyun-daily-report.vercel.app도 계속 유효)
 - 스택: React + Vite + Firebase (Firestore/Storage) + Vercel Serverless Functions
-- AI: Gemini 3.6 Flash (사진 채점 분석 — 2026-07 2.5 Pro에서 전환, 출력 단가 25% 절감 + 세대 2회 상향), Gemini 2.5 Flash (코멘트 다듬기) — 둘 다 GEMINI_API_KEY 하나로 동작, Anthropic API는 안 씀
+- AI: Gemini 3.6 Flash 하나로 통일(사진 채점 분석·코멘트 다듬기·성장 서사 생성 전부) — 2026-08-01까지는 코멘트 다듬기(`api/polish.js`)·성장 서사(`api/narrative.js`)가 2.5 Flash로 남아있었으나 이날 3.6 Flash로 맞춤. GEMINI_API_KEY 하나로 동작, Anthropic API는 안 씀
   - 채점 모델은 `api/analyze-photo.js`의 `ALLOWED_MODELS` 화이트리스트 + `DEFAULT_MODEL`로 관리. 환경변수 `GEMINI_ANALYZE_MODEL`로 코드 수정 없이 바꿀 수 있고, 플랫폼 관리자는 리포트 작성 화면의 드롭다운으로 요청마다 다른 모델을 골라 A/B 비교 가능(응답 `meta`에 모델·소요시간·토큰 사용량이 실려 옴). 문제 발생 시 `DEFAULT_MODEL`을 `gemini-2.5-pro`로 되돌리면 즉시 복구
 
 ## 아키텍처 — 멀티테넌시
