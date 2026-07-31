@@ -83,9 +83,11 @@ export default function GrowthStory() {
   const [slideDir, setSlideDir] = useState(1); // 1: 다음(→에서 옴), -1: 이전(←에서 옴)
   const touchStartXRef = useRef(null);
 
-  // 기간 토글 — URL 파라미터 연동
+  // 기간 선택 — URL 파라미터 연동. 'all' 또는 'YYYY-M' 월 키.
+  // "최근 3개월" 고정 구간 대신 월 단위 칩으로(이 서비스가 이미 월간 단위로 돌아가서 —
+  // 월별 시상장 등 — 정확한 날짜 두 개를 찍는 캘린더 UI보다 달 선택이 자연스럽고 구현도 가벼움)
   const periodParam = searchParams.get('period');
-  const [period, setPeriod] = useState(periodParam === '3m' ? '3m' : 'all');
+  const [period, setPeriod] = useState(periodParam || 'all');
 
   // 학부모 공개 링크에는 관리자용 생성/편집 UI를 숨김 (?edit=1일 때만 노출)
   const isEditor = searchParams.get('edit') === '1';
@@ -94,8 +96,8 @@ export default function GrowthStory() {
     setPeriod(val);
     setShowAllUnits(false);
     setPage(0); // 기간 바꾸면 페이지 구성(빈 페이지 여부 등)이 달라질 수 있어 처음 페이지로
-    if (val === '3m') setSearchParams({ period: '3m' });
-    else setSearchParams({});
+    if (val === 'all') setSearchParams({});
+    else setSearchParams({ period: val });
   };
 
   // AI가 생성한 원문이 150자를 넘을 수 있어 편집창을 열 때부터 잘라서 불러옴
@@ -169,13 +171,15 @@ export default function GrowthStory() {
   const allSorted = [...reports]
     .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0))
     .map(r => ({ ...r, conceptRating: r.conceptRating == null ? null : toPct(r.conceptRating), homeworkRating: r.homeworkRating == null ? null : toPct(r.homeworkRating) }));
-  const sorted = period === '3m'
-    ? allSorted.filter(r => {
-        const ts = r.createdAt?.seconds || 0;
-        const cutoff = Date.now() / 1000 - 90 * 86400; // 90일
-        return ts >= cutoff;
-      })
-    : allSorted;
+  // 월 키 'YYYY-M' — fmtDate와 마찬가지로 별도 KST 보정 없이 브라우저 로컬 시간 기준
+  // (이 파일 전체가 서버가 아닌 클라이언트 렌더링이라 한국에서 보면 자연히 KST와 일치)
+  const monthKeyOf = (seconds) => {
+    const d = new Date(seconds * 1000);
+    return `${d.getFullYear()}-${d.getMonth() + 1}`;
+  };
+  const sorted = period === 'all'
+    ? allSorted
+    : allSorted.filter(r => r.createdAt?.seconds && monthKeyOf(r.createdAt.seconds) === period);
   const fmtDate = (r) => {
     if (!r?.createdAt?.seconds) return '';
     const d = new Date(r.createdAt.seconds * 1000);
@@ -241,9 +245,12 @@ export default function GrowthStory() {
 
   // 복습 효과 증명 — 완료된 복습마다 "진단 당시 원본 리포트 점수 → 복습 후 재시험 점수" 비교.
   // 원본 리포트에 시험 점수 자체가 없던 진단(개념 이해도 기반 등)은 비교 대상이 없어 자연히 제외됨.
-  const periodCutoff = period === '3m' ? Date.now() / 1000 - 90 * 86400 : null;
+  const periodRange = period === 'all' ? null : (() => {
+    const [y, m] = period.split('-').map(Number);
+    return { start: new Date(y, m - 1, 1).getTime() / 1000, end: new Date(y, m, 1).getTime() / 1000 };
+  })();
   const reviewProof = completedReviews
-    .filter(rv => rv.testScore != null && (!periodCutoff || rv.completedAt >= periodCutoff))
+    .filter(rv => rv.testScore != null && (!periodRange || (rv.completedAt >= periodRange.start && rv.completedAt < periodRange.end)))
     .map(rv => {
       const sourceReport = reports.find(r => r.id === rv.reportId);
       if (!sourceReport?.hasTest || !sourceReport.testScore) return null;
@@ -434,6 +441,22 @@ export default function GrowthStory() {
     ? `${fmtDate(sorted[0])} – ${fmtDate(sorted[sorted.length - 1])} · ${sorted.length}회 수업`
     : '';
 
+  // 기간 선택 칩 — 이 학생 리포트가 실제로 있는 달만, 최근 달부터. 여러 해에 걸쳐 있으면
+  // "7월"만으론 헷갈리니 연도까지 붙임
+  const monthOptions = (() => {
+    const seen = new Map();
+    allSorted.forEach(r => {
+      if (!r.createdAt?.seconds) return;
+      const d = new Date(r.createdAt.seconds * 1000);
+      const key = `${d.getFullYear()}-${d.getMonth() + 1}`;
+      if (!seen.has(key)) seen.set(key, { year: d.getFullYear(), month: d.getMonth() + 1 });
+    });
+    const years = new Set([...seen.values()].map(v => v.year));
+    return [...seen.entries()]
+      .sort((a, b) => b[0].localeCompare(a[0], undefined, { numeric: true }))
+      .map(([key, v]) => ({ key, label: years.size > 1 ? `${v.year}년 ${v.month}월` : `${v.month}월` }));
+  })();
+
   // AI 서사 생성 — 전체(4개 항목 한 번에). 이미 서사가 있으면 직접 편집한 내용까지
   // 통째로 덮어써지므로 반드시 한 번 확인받음
   const handleGenNarrative = async () => {
@@ -591,19 +614,16 @@ export default function GrowthStory() {
         <p style={{ fontFamily: R.serif, fontSize: '26px', fontWeight: 700, color: '#fff', letterSpacing: '-0.5px', marginBottom: '4px' }}>{student.name}의 성장 포트폴리오</p>
         <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginBottom: '16px' }}>{periodLabel}</p>
 
-        {/* 기간 토글 */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', background: 'rgba(255,255,255,0.08)', borderRadius: '20px', padding: '3px' }}>
-            {[
-              { key: 'all', label: '전체 여정' },
-              { key: '3m', label: '최근 3개월' },
-            ].map(({ key, label }) => (
+        {/* 기간 선택 — 전체 + 실제 리포트가 있는 달만 칩으로. 달이 많아도 안 깨지게 가로 스크롤 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ display: 'flex', gap: '4px', background: 'rgba(255,255,255,0.08)', borderRadius: '20px', padding: '3px', overflowX: 'auto', minWidth: 0, flex: 1 }}>
+            {[{ key: 'all', label: '전체 여정' }, ...monthOptions].map(({ key, label }) => (
               <button key={key} onClick={() => handlePeriodChange(key)}
                 style={{
-                  padding: '10px 16px', minHeight: '40px', borderRadius: '16px', border: 'none', cursor: 'pointer',
+                  flexShrink: 0, padding: '10px 16px', minHeight: '40px', borderRadius: '16px', border: 'none', cursor: 'pointer',
                   background: period === key ? R.gold : 'transparent',
                   color: period === key ? R.ink : 'rgba(255,255,255,0.5)',
-                  fontSize: '11px', fontWeight: 700, fontFamily: 'inherit', transition: 'all 0.2s',
+                  fontSize: '11px', fontWeight: 700, fontFamily: 'inherit', whiteSpace: 'nowrap', transition: 'all 0.2s',
                 }}>
                 {label}
               </button>
@@ -612,12 +632,12 @@ export default function GrowthStory() {
 
           {/* 공유 버튼 */}
           <button onClick={() => {
-            const url = `${window.location.origin}/story/${studentId}${period === '3m' ? '?period=3m' : ''}`;
+            const url = `${window.location.origin}/story/${studentId}${period !== 'all' ? `?period=${period}` : ''}`;
             navigator.clipboard.writeText(url)
               .then(() => alert('링크가 복사됐어요!'))
               .catch(() => window.prompt('아래 링크를 길게 눌러 복사하세요', url));
           }}
-            style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '16px', padding: '10px 16px', minHeight: '40px', color: 'rgba(255,255,255,0.8)', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ flexShrink: 0, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '16px', padding: '10px 16px', minHeight: '40px', color: 'rgba(255,255,255,0.8)', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             📤 링크 복사
           </button>
         </div>
