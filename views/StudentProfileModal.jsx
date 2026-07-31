@@ -12,7 +12,11 @@ import { useEscapeClose, useFocusTrap } from '../hooks.js';
 // 뒤로가기 히스토리 처리와 분리해둠. onClose가 있으면(모바일 모달) ×버튼을 보여주고,
 // 없으면(PC 인라인) 안 보여줌.
 // ============================================================
-export function StudentProfileContent({ student, reports, reviews = [], onClose, onToast, academyName }) {
+export function StudentProfileContent({ student, reports, reviews = [], onClose, onToast, academyName, onEditReviewNote }) {
+  // 완료된 복습 메모 오타 수정 — 대시보드에서 완료 처리할 때 1회성으로 입력되고 그 뒤엔
+  // 고칠 방법이 없었음(실사용 피드백으로 발견). 여기서만 다시 열어 고칠 수 있게.
+  const [editingReviewId, setEditingReviewId] = useState(null);
+  const [editReviewNoteText, setEditReviewNoteText] = useState('');
   const [showWeekly, setShowWeekly] = useState(false);
   useEscapeClose(() => setShowWeekly(false), showWeekly);
   const weeklyPanelRef = useRef(null);
@@ -451,8 +455,28 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
                     {rv.testScore != null && rv.testScore !== '' && (
                       <p style={{ fontSize: '10px', color: '#C9A227', fontWeight: 700, margin: '0 0 4px' }}>재시험 {rv.testScore}점</p>
                     )}
-                    {rv.note && (
-                      <p style={{ fontSize: '11px', color: T.textSub, margin: 0, lineHeight: 1.6 }}>{rv.note}</p>
+                    {editingReviewId === rv.id ? (
+                      <div>
+                        <textarea value={editReviewNoteText} onChange={e => setEditReviewNoteText(e.target.value)} autoFocus
+                          style={{ width: '100%', minHeight: '54px', padding: '6px 8px', border: '1px solid #E5E7EB', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }} />
+                        <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+                          <button onClick={async () => { await onEditReviewNote?.(rv.id, editReviewNoteText); setEditingReviewId(null); }}
+                            style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 700, border: 'none', borderRadius: '6px', background: C.primary, color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>저장</button>
+                          <button onClick={() => setEditingReviewId(null)}
+                            style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 600, border: '1px solid #E5E7EB', borderRadius: '6px', background: '#fff', color: '#6B7280', cursor: 'pointer', fontFamily: 'inherit' }}>취소</button>
+                        </div>
+                      </div>
+                    ) : rv.note && (
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+                        <p style={{ fontSize: '11px', color: T.textSub, margin: 0, lineHeight: 1.6, flex: 1 }}>{rv.note}</p>
+                        {onEditReviewNote && (
+                          <button onClick={() => { setEditingReviewId(rv.id); setEditReviewNoteText(rv.note || ''); }}
+                            title="메모 수정" aria-label="메모 수정"
+                            style={{ flexShrink: 0, border: 'none', background: 'transparent', cursor: 'pointer', padding: '2px', color: T.textMute, display: 'flex' }}>
+                            <Pencil size={11} />
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
                 ))}
@@ -613,7 +637,7 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
 // 모바일 모달 크롬 — 오버레이/배경 클릭 닫기 + 뒤로가기 히스토리 처리.
 // 실제 내용은 StudentProfileContent를 그대로 씀(PC 인라인 패널과 동일 소스).
 // ============================================================
-export function StudentProfileModal({ student, reports, reviews = [], onClose, onToast, academyName }) {
+export function StudentProfileModal({ student, reports, reviews = [], onClose, onToast, academyName, onEditReviewNote }) {
   useEscapeClose(onClose);
   const wrapperPanelRef = useRef(null);
   useFocusTrap(wrapperPanelRef, true);
@@ -636,7 +660,7 @@ export function StudentProfileModal({ student, reports, reviews = [], onClose, o
       onClick={onClose}>
       <div ref={wrapperPanelRef} style={{ background: '#fff', borderRadius: '12px', width: '100%', maxWidth: '620px', maxHeight: '88vh', overflow: 'auto' }}
         onClick={e => e.stopPropagation()}>
-        <StudentProfileContent student={student} reports={reports} reviews={reviews} onClose={onClose} onToast={onToast} academyName={academyName} />
+        <StudentProfileContent student={student} reports={reports} reviews={reviews} onClose={onClose} onToast={onToast} academyName={academyName} onEditReviewNote={onEditReviewNote} />
       </div>
     </div>
   );

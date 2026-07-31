@@ -1128,7 +1128,7 @@ export default function GrowthStory() {
                   <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${lo}%`, background: '#C7C3BB' }} />
                   <div style={{ position: 'absolute', left: `${lo}%`, top: 0, bottom: 0, width: `${hi - lo}%`, background: deltaColor }} />
                 </div>
-                {p.note && <span style={{ fontSize: '11.5px', fontWeight: 500, color: 'rgba(55,56,60,0.75)' }}>{p.note}</span>}
+                {p.note && <span style={{ fontSize: '13px', fontWeight: 500, lineHeight: 1.6, color: 'rgba(55,56,60,0.75)' }}>{p.note}</span>}
               </div>
             );
           })}
@@ -1146,7 +1146,7 @@ export default function GrowthStory() {
         const tileLabel = { fontSize: '12px', fontWeight: 600, color: 'rgba(55,56,60,0.75)' };
         const tileValue = { fontSize: '30px', fontWeight: 700, lineHeight: 1, letterSpacing: '-0.6px', color: R.navy };
         const tileUnit = { fontSize: '13px', fontWeight: 600, marginLeft: '2px' };
-        const tileSub = { fontSize: '11.5px', fontWeight: 500, color: 'rgba(55,56,60,0.75)' };
+        const tileSub = { fontSize: '13px', fontWeight: 500, lineHeight: 1.5, color: 'rgba(55,56,60,0.75)' };
 
         return (
       <>
@@ -1189,7 +1189,7 @@ export default function GrowthStory() {
             </div>
             <span style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
               {[['출석', onTimeCount, '#5A8BD8'], ['지각', lateCount, R.gold], ['결석', absentCount, '#D46A6A']].map(([label, count, color]) => (
-                <span key={label} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '10.5px', fontWeight: 600, color: 'rgba(255,255,255,0.86)' }}>
+                <span key={label} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.86)' }}>
                   <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: color, display: 'inline-block' }} />{label} {count}
                 </span>
               ))}

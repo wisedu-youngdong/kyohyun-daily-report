@@ -18,7 +18,7 @@ function formatElapsed(fromSeconds, toSeconds) {
   return `${Math.round(diffHour / 24)}일`;
 }
 
-export default function DirectorView({ reports, students, classes = [], reportViews = [], reportQuestions = [], reviews = [], onToast, academyId, academyName }) {
+export default function DirectorView({ reports, students, classes = [], reportViews = [], reportQuestions = [], reviews = [], onToast, academyId, academyName, onEditReviewNote }) {
   const [selectedDate, setSelectedDate] = useState(kstDay(Date.now() / 1000));
   const dateInputRef = React.useRef(null);
   const [expandedId, setExpandedId] = useState(null);
@@ -107,6 +107,7 @@ export default function DirectorView({ reports, students, classes = [], reportVi
           onClose={() => setProfileStudent(null)}
           onToast={onToast}
           academyName={academyName}
+          onEditReviewNote={onEditReviewNote}
         />
       )}
 

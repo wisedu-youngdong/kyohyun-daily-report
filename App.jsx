@@ -329,6 +329,16 @@ export default function App() {
       showAppToast('복습 완료 처리에 실패했습니다.', 'error');
     }
   };
+  // 완료된 복습의 메모 오타 등을 나중에 고칠 수 있게 — handleCompleteReview는 완료 시점
+  // 1회성 입력이라, 완료 후 다시 열어 고칠 방법이 없었음(학생 종합 프로필에서 편집 버튼으로 호출)
+  const handleEditReviewNote = async (id, note) => {
+    try {
+      await updateDoc(doc(db, 'academies', academyId, 'reviews', id), { note: note.trim() });
+    } catch (e) {
+      console.error('복습 메모 수정 실패:', e);
+      showAppToast('메모 수정에 실패했습니다.', 'error');
+    }
+  };
   // "복습 지시" — 학생에게 복습하라고 알려줬다는 가벼운 표시. status는 그대로 pending으로 남아
   // 목록에서 사라지지 않고(진짜 끝난 건 아니니까) 카드만 흐려짐 — 실제 완료 처리는 handleCompleteReview.
   const handleToggleReviewInstructed = async (ids, instructed) => {
@@ -936,7 +946,7 @@ export default function App() {
             <div style={{ marginTop: '12px' }}>
               {activeSubTab.insight === 'director' && (dataReady
                 ? <React.Suspense fallback={<SkeletonBlock rows={4} cardHeight={70} />}>
-                    <DirectorView reports={visibleReports} students={visibleStudents} classes={classes} reportViews={reportViews} reportQuestions={reportQuestions} reviews={reviews} onToast={showAppToast} academyId={academyId} academyName={academyName} />
+                    <DirectorView reports={visibleReports} students={visibleStudents} classes={classes} reportViews={reportViews} reportQuestions={reportQuestions} reviews={reviews} onToast={showAppToast} academyId={academyId} academyName={academyName} onEditReviewNote={handleEditReviewNote} />
                     <GrowthDashboard reports={visibleReports} students={visibleStudents} />
                   </React.Suspense>
                 : <SkeletonBlock rows={4} cardHeight={70} />
@@ -965,7 +975,7 @@ export default function App() {
             <div style={{ marginTop: '12px' }}>
               {activeSubTab.manage === 'students' && (dataReady
                 ? <React.Suspense fallback={<SkeletonBlock rows={5} cardHeight={56} />}>
-                    <StudentsView students={studentsWithContact} reports={reports} reviews={reviews} onSave={handleSaveStudent} onDelete={handleDeleteStudent} onRestore={handleRestoreStudent} teachers={teachers} classes={classes} currentTeacherId={userTeacherId} isDirector={isDirector} onToast={showAppToast} academyName={academyName} />
+                    <StudentsView students={studentsWithContact} reports={reports} reviews={reviews} onSave={handleSaveStudent} onDelete={handleDeleteStudent} onRestore={handleRestoreStudent} teachers={teachers} classes={classes} currentTeacherId={userTeacherId} isDirector={isDirector} onToast={showAppToast} academyName={academyName} onEditReviewNote={handleEditReviewNote} />
                   </React.Suspense>
                 : <SkeletonBlock rows={5} cardHeight={56} />
               )}

@@ -7,7 +7,7 @@ import { AVATARS, onKeyActivate } from './shared.jsx';
 import { StudentProfileModal, StudentProfileContent } from './StudentProfileModal.jsx';
 import { useMediaQuery } from '../hooks.js';
 
-export default function StudentsView({ students, reports, reviews = [], onSave, onDelete, onRestore, teachers = [], classes = [], currentTeacherId = null, isDirector = false, onToast, academyName = null }) {
+export default function StudentsView({ students, reports, reviews = [], onSave, onDelete, onRestore, teachers = [], classes = [], currentTeacherId = null, isDirector = false, onToast, academyName = null, onEditReviewNote }) {
   const [showAddStudent, setShowAddStudent] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
@@ -252,6 +252,7 @@ export default function StudentsView({ students, reports, reviews = [], onSave, 
           onClose={() => setProfileStudent(null)}
           onToast={onToast}
           academyName={academyName}
+          onEditReviewNote={onEditReviewNote}
         />
       )}
 
@@ -314,6 +315,7 @@ export default function StudentsView({ students, reports, reviews = [], onSave, 
                   reviews={reviews.filter(rv => rv.studentId === selectedStudent.id)}
                   onToast={onToast}
                   academyName={academyName}
+                  onEditReviewNote={onEditReviewNote}
                 />
               )
               : (
