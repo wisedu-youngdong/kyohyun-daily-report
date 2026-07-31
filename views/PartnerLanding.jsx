@@ -163,9 +163,14 @@ export default function PartnerLanding() {
           <p style={{ fontSize: '12px', color: INK_WEAK, marginTop: '16px', marginBottom: 0 }}>설치할 앱도 계약서도 없습니다 · 학부모는 링크만 열면 됩니다</p>
         </div>
         <div style={{ flex: '0 1 320px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-          <div style={{
+          {/* 스크린샷이 아니라 실제 /report/:id 라이브 페이지로 연결 — 캡처가 아니라 직접 눌러서
+              스크롤해보게 하는 게 목표(2026-08-01 결정). 데모 데이터는 scripts/seed-demo-report.js로
+              별도 academyId('demo-academy')에 격리 생성되며, 학부모가 보는 화면과 완전히 동일한
+              컴포넌트를 그대로 재사용하므로 이 페이지 쪽엔 새 렌더링 코드가 없다. */}
+          <a href="/report/demo-report-1" target="_blank" rel="noopener noreferrer" style={{
             width: '290px', background: R.navy, borderRadius: '32px', padding: '10px 10px 12px',
             boxShadow: '0 30px 60px -18px rgba(13,45,107,0.55)', animation: 'plFadeUp 0.5s ease both', boxSizing: 'border-box',
+            display: 'block', cursor: 'pointer',
           }}>
             <div style={{ position: 'relative', width: '100%', height: '400px', borderRadius: '24px', overflow: 'hidden', background: PAPER }}>
               <ShotImage src="/partner-landing/hero.png" alt="데일리 리포트 시스템 실제 리포트 화면" radius={0} position="top" />
@@ -174,10 +179,10 @@ export default function PartnerLanding() {
                 position: 'absolute', left: '50%', bottom: '14px', transform: 'translateX(-50%)',
                 fontSize: '11px', fontWeight: 700, color: R.navy, background: '#fff',
                 border: '1px solid #E1DED6', padding: '6px 14px', borderRadius: '999px', whiteSpace: 'nowrap',
-              }}>아래로 계속 이어집니다</span>
+              }}>눌러서 직접 열어보기 →</span>
             </div>
-          </div>
-          <p style={{ fontSize: '11.5px', color: INK_WEAK, margin: 0 }}>실제 발송 화면 · 학생 이름은 예시</p>
+          </a>
+          <p style={{ fontSize: '11.5px', color: INK_WEAK, margin: 0 }}>실제 발송 화면과 동일한 페이지 · 학생 이름은 예시</p>
         </div>
       </div>
 
