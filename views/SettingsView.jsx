@@ -12,6 +12,11 @@ const UsageMonitoring = React.lazy(() => import('./UsageMonitoring.jsx'));
 
 const DEFAULT_SKIN_COLOR = '#1A2540';
 
+// 가입 승인 시 지급하는 체험 크레딧 — 계정당 최악 원가 노출 = TRIAL_CREDIT_GRANT × TRIAL_PHOTO_CAP × 사진당 원가(약 39원).
+// 첫 결제가 승인되면 handleApprovePaymentRequest가 isTrial을 꺼서 사진 캡이 해제됨.
+const TRIAL_CREDIT_GRANT = 5;
+const TRIAL_PHOTO_CAP = 3;
+
 // ── 학원 ID 슬러그 제안/검증 — "새 학원 추가" 전용
 function slugifyAcademyId(name) {
   const base = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
@@ -310,6 +315,14 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
         // 구 신청 문서(이 필드 추가 전)는 undefined일 수 있어 매일형으로 방어
         ...(req.reportMode === 'weekly' ? { reportMode: 'weekly' } : {}),
       });
+      // 2.5. 체험 크레딧 5건 지급 — 결제 전에도 낯선 원장이 자기 학생 사진으로 직접 품질을
+      //      느껴볼 수 있게 함. isTrial:true일 때 api/analyze-photo.js가 사진 3장(TRIAL_PHOTO_CAP)
+      //      까지만 허용 — 5장 분석 원가(약 193원)가 아니라 3장(약 117원)으로 계정당 최악 노출을
+      //      묶어둠(5회 x 3장 = 최대 약 585원). 첫 결제 승인 시 handleApprovePaymentRequest가
+      //      isTrial을 false로 꺼서 캡을 해제함.
+      await setDoc(doc(db, 'academies', trimmedId, 'private', 'billing'), {
+        creditBalance: TRIAL_CREDIT_GRANT, isTrial: true, trialPhotoCap: TRIAL_PHOTO_CAP, updatedAt: serverTimestamp(),
+      });
       // 3. 원장 본인의 teachers 레코드
       const teacherRef = await addDoc(collection(db, 'academies', trimmedId, 'teachers'), {
         name: req.directorName, createdAt: serverTimestamp(),
@@ -487,6 +500,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
       const grantAmount = applyBonus ? Math.round(req.packageSize * 1.5) : req.packageSize;
       await setDoc(doc(db, 'academies', req.academyId, 'private', 'billing'), {
         creditBalance: increment(grantAmount), creditPackage: req.packageSize, updatedAt: serverTimestamp(),
+        isTrial: false, // 실결제 승인 시점에 체험 사진 캡 해제
       }, { merge: true });
       await addDoc(collection(db, 'academies', req.academyId, 'paymentHistory'), {
         packageSize: grantAmount, amount: req.amount, method: 'bank_transfer',

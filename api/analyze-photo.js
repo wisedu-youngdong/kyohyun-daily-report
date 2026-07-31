@@ -318,6 +318,11 @@ export default async function handler(req, res) {
     if (!isUnlimited && creditBalance <= 0) {
       return res.status(200).json({ error: '크레딧이 부족합니다. 원장님께 문의해 충전 후 다시 시도해주세요.' });
     }
+    // 체험 계정(가입 직후, 결제 전) — 사진 장수를 캡으로 묶어 계정당 최악 원가 노출을 통제.
+    // 첫 결제 승인 시 handleApprovePaymentRequest가 isTrial을 꺼서 이후엔 걸리지 않음.
+    if (billingData.isTrial === true && imageList.length > (billingData.trialPhotoCap || 3)) {
+      return res.status(200).json({ error: `체험판은 한 번에 사진 ${billingData.trialPhotoCap || 3}장까지 분석할 수 있어요. 더 보시려면 크레딧을 충전해주세요.` });
+    }
 
     // 사진마다 독립적으로(1장씩) Gemini를 병렬 호출 — 여러 장을 한 번에 한 호출로 보내면
     // 특정 사진에 쏟는 주의력이 떨어져, 그 사진 혼자 분석했을 땐 정상 인식되던 채점 표시를
