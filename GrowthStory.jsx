@@ -59,7 +59,6 @@ export default function GrowthStory() {
   const [regenField, setRegenField] = useState(null); // 항목별 재생성 진행 중인 필드 키
   const [editing, setEditing] = useState(null);
   const [showAllUnits, setShowAllUnits] = useState(false);
-  const [showAllSessions, setShowAllSessions] = useState(false);
   const [completedReviews, setCompletedReviews] = useState([]); // 복습 효과 증명 그래프용
   const [trendTooltip, setTrendTooltip] = useState(null); // 성적 추이 차트 — 탭해서 선택된 지점의 인덱스
   const [editText, setEditText] = useState('');
@@ -680,7 +679,9 @@ export default function GrowthStory() {
                 </span>
                 <span style={{ background: heroDeltaStyle.bg, color: heroDeltaStyle.color, fontSize: '13px', fontWeight: 700, padding: '7px 12px', borderRadius: '8px', marginBottom: '5px' }}>{heroDeltaStyle.text}</span>
               </div>
-              <span style={{ fontSize: '13px', fontWeight: 500, lineHeight: 1.7, color: 'rgba(55,56,60,0.9)' }}>개념 이해 평가 기준. {sorted.length}회 수업을 쌓은 결과입니다.</span>
+              {/* '성장 증명'보다 '이렇게 꼼꼼히 기록해요' 쪽으로 — 하락한 회차여도 이 문장은
+                  계속 성립해야 해서, 델타 방향에 기대지 않는 문구로(실사용 피드백) */}
+              <span style={{ fontSize: '13px', fontWeight: 500, lineHeight: 1.7, color: 'rgba(55,56,60,0.9)' }}>선생님이 매 수업 개념 이해도를 꼼꼼히 기록해요. {sorted.length}회 수업 동안의 흐름이에요.</span>
             </div>
           </div>
         );
@@ -705,14 +706,14 @@ export default function GrowthStory() {
             { value: `${attendanceRate}%`, label: '정시 출석' },
           ].map((stat, si) => (
             <div key={si} style={{ flex: 1, textAlign: 'center', padding: '14px 8px', background: '#F8F9FC', border: '0.5px solid #E5E7EB', borderRadius: '10px' }}>
-              <p style={{ fontSize: '20px', fontWeight: 800, color: R.navy, margin: '0 0 3px', fontFamily: R.serif }}>{stat.value}</p>
+              <p style={{ fontSize: '20px', fontWeight: 800, color: R.navy, margin: '0 0 3px' }}>{stat.value}</p>
               <p style={{ fontSize: '10px', fontWeight: 600, color: '#8A93A3', margin: 0, letterSpacing: '0.02em' }}>{stat.label}</p>
             </div>
           ))}
         </div>
         {sectionDivider('GROWTH MILESTONE')}
         {sorted.length > milestones.length && (
-          <p style={{ fontSize: '11px', color: '#6C7586', margin: '-6px 0 0', lineHeight: 1.6 }}>
+          <p style={{ fontSize: '13px', color: '#6C7586', margin: '-4px 0 0', lineHeight: 1.6 }}>
             총 {sorted.length}회 수업 중 의미 있었던 {milestones.length}개의 순간을 모았어요
           </p>
         )}
@@ -850,37 +851,6 @@ export default function GrowthStory() {
           })}
         </div>
 
-        {/* 요약에 안 들어간 나머지 회차를 원하는 학부모를 위한 전체 목록 */}
-        {sorted.length > milestones.length && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <button onClick={() => setShowAllSessions(v => !v)}
-              style={{ width: '100%', border: '1px solid #DCD8D0', borderRadius: '10px', background: '#fff', color: R.navy, fontSize: '13px', fontWeight: 700, padding: '14px', cursor: 'pointer', fontFamily: 'inherit' }}>
-              {showAllSessions ? '접기' : `전체 ${sorted.length}회 리포트 보기`}
-            </button>
-            {showAllSessions && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {sorted.map((r, ri) => {
-                  const cleanNote = (r.teacherNote || '').replace(/\[([^\]]+)\]\s*/g, '').trim();
-                  return (
-                    <div key={r.id || ri} style={{ display: 'flex', gap: '8px', padding: '8px 10px', background: '#F9FAFB', borderRadius: '8px' }}>
-                      <span style={{ fontSize: '11px', color: '#6C7586', fontWeight: 600, flexShrink: 0, width: '44px' }}>{fmtDate(r)}</span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: '11px', color: '#374151', fontWeight: 600, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {[r.textbook, r.unit].filter(Boolean).join(' · ') || '수업'}
-                        </p>
-                        {cleanNote && (
-                          <p style={{ fontSize: '11px', color: '#6C7586', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {cleanNote}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
         </>
         );
 
