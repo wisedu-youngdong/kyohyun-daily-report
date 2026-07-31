@@ -354,10 +354,10 @@ export default function GrowthStory() {
     ] : [
       {
         phase: 'PHASE 1 · 도전 설정',
-        title: weakUnit ? `${weakUnit} 취약점 극복 프로젝트 시작` : '새로운 단원 도전 시작',
+        title: weakUnit ? `${weakUnit} 약점 보완 시작` : '새로운 단원 도전 시작',
         desc: weakUnit
-          ? `${weakUnit} 단원의 오답 패턴을 정확히 파악하고 체계적인 극복 전략을 수립했습니다.`
-          : '반복되는 약점을 인식하고 집중 보완 전략을 세우기 시작했습니다.',
+          ? `${weakUnit} 단원에서 반복되는 오답 유형을 확인했습니다.`
+          : '반복되는 약점을 인식하고 보완을 시작했습니다.',
         badge: '약점 분석 완료',
         active: false,
       },
@@ -367,31 +367,31 @@ export default function GrowthStory() {
           ? `오답 패턴 개선 — 회당 ${firstErr}개 → ${secondErr}개`
           : '반복 오답 유형 집중 훈련',
         desc: improved
-          ? '같은 실수를 두 번 하지 않겠다는 고집이 데이터로 확인되기 시작했습니다.'
-          : '오답의 원인을 언어로 정리하고 풀이 전략을 다듬어가는 과정입니다.',
+          ? '회당 오답 개수가 줄어드는 추세가 데이터로 확인되고 있습니다.'
+          : '오답의 원인을 태그로 기록하고 유형별로 다시 풀어보는 과정입니다.',
         badge: improved ? `오답률 감소 확인` : '패턴 분석 중',
         active: false,
       },
       {
-        phase: 'PHASE 3 · 성장 증명',
+        phase: 'PHASE 3 · 점수 상승',
         title: growth > 0
           ? `단원평가 ${firstScore}점 → ${bestScore}점 (+${growth}점 상승)`
           : over70 ? `단원평가 ${over70.testScore}점 달성` : '개념 이해도 꾸준히 상승 중',
         desc: growth > 0
-          ? '단순히 점수가 오른 것이 아니라, 문제를 대하는 판단 기준 자체가 달라진 결과입니다.'
-          : '풀이 방향을 스스로 결정하는 과정에서 자신만의 기준을 세우기 시작했습니다.',
-        badge: growth > 0 ? `+${growth}점 성장` : '판단 기준 형성',
+          ? '이전보다 높은 점수를 기록하며 상승 흐름을 보이고 있습니다.'
+          : '풀이 과정을 스스로 정리하는 연습을 이어가고 있습니다.',
+        badge: growth > 0 ? `+${growth}점 성장` : '꾸준히 진행 중',
         active: false,
       },
       {
-        phase: 'PHASE 4 · 전략 고도화',
+        phase: 'PHASE 4 · 최근 성과',
         title: improved
-          ? '사고력 고도화 — 응용 문제 자력 해결 체계 완성'
+          ? (bestScore ? `단원평가 최고 ${bestScore}점 기록` : '오답 패턴 개선 지속 중')
           : '기초 다지기 — 반복 오답 패턴 재점검 중',
         desc: improved
-          ? '이제 낯선 문제 유형에서도 스스로 판단 기준을 세우고 전략을 선택할 수 있습니다. 다음 단원에서 이 고집이 더 빛을 발할 것입니다.'
-          : '최근 오답 패턴이 다시 늘어 기초 개념을 한 번 더 점검하는 시기입니다. 이 과정을 거치면 다음 도약이 더 단단해집니다.',
-        badge: improved ? '해결 전략 완성 단계' : '재점검 진행 중',
+          ? '최근 오답 개수가 줄고 점수도 오르는 추세를 보이고 있습니다.'
+          : '최근 오답 패턴이 다시 늘어 기초 개념을 한 번 더 점검하는 시기입니다.',
+        badge: improved ? '오답 감소 추세' : '재점검 진행 중',
         active: true,
       },
     ];
@@ -767,20 +767,28 @@ export default function GrowthStory() {
             const hasFigureRow = !!range || figures.length > 0 || rd.diagTags.length > 0;
             return (
               <div key={i} style={{ background: '#fff', border: '1px solid #EEECEA', borderRadius: '14px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ position: 'relative', height: '196px' }}>
-                  {rd.photoUrl ? (
+                {/* 사진 있으면 196px 사진 위에 오버레이, 없으면 그 자리를 통째로 네이비로
+                    채우지 않고(빈 배너처럼 커 보임) 내용만큼만 높이가 나오는 얇은 헤더 띠로 대체 */}
+                {rd.photoUrl ? (
+                  <div style={{ position: 'relative', height: '196px' }}>
                     <img src={rd.photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                  ) : (
-                    <div style={{ width: '100%', height: '100%', background: R.navy }} />
-                  )}
-                  <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '14px 18px', background: 'rgba(13,45,107,0.84)', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '14px' }}>
+                    <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '14px 18px', background: 'rgba(13,45,107,0.84)', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '14px' }}>
+                      <span style={{ display: 'flex', flexDirection: 'column', gap: '5px', minWidth: 0 }}>
+                        <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.6px', color: '#E4C978' }}>{m.phase}</span>
+                        <span style={{ fontSize: '18px', fontWeight: 700, letterSpacing: '-0.3px', color: '#fff' }}>{m.title}</span>
+                      </span>
+                      <span style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.86)', whiteSpace: 'nowrap' }}>{m.date}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ background: R.navy, padding: '16px 18px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '14px' }}>
                     <span style={{ display: 'flex', flexDirection: 'column', gap: '5px', minWidth: 0 }}>
                       <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.6px', color: '#E4C978' }}>{m.phase}</span>
                       <span style={{ fontSize: '18px', fontWeight: 700, letterSpacing: '-0.3px', color: '#fff' }}>{m.title}</span>
                     </span>
                     <span style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.86)', whiteSpace: 'nowrap' }}>{m.date}</span>
                   </div>
-                </div>
+                )}
 
                 {hasFigureRow && (
                   <div style={{ padding: '14px 18px', borderBottom: (rd.notePreview || chapterField) ? '1px solid #F1EFEC' : 'none', display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
