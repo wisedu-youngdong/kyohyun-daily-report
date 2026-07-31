@@ -83,21 +83,40 @@ export default function GrowthStory() {
   const [slideDir, setSlideDir] = useState(1); // 1: 다음(→에서 옴), -1: 이전(←에서 옴)
   const touchStartXRef = useRef(null);
 
-  // 기간 선택 — URL 파라미터 연동. 'all' 또는 'YYYY-M' 월 키.
-  // "최근 3개월" 고정 구간 대신 월 단위 칩으로(이 서비스가 이미 월간 단위로 돌아가서 —
-  // 월별 시상장 등 — 정확한 날짜 두 개를 찍는 캘린더 UI보다 달 선택이 자연스럽고 구현도 가벼움)
-  const periodParam = searchParams.get('period');
-  const [period, setPeriod] = useState(periodParam || 'all');
+  // 기간 선택 — 캘린더로 시작일/종료일 직접 지정. URL 파라미터(from/to)와 연동.
+  // 새 UI 라이브러리 없이 <input type="date">의 브라우저 기본 캘린더를 그대로 씀
+  // (달력 그리드를 직접 구현하지 않아도 진짜 캘린더 UI가 나옴).
+  const [periodFrom, setPeriodFrom] = useState(searchParams.get('from') || '');
+  const [periodTo, setPeriodTo] = useState(searchParams.get('to') || '');
 
   // 학부모 공개 링크에는 관리자용 생성/편집 UI를 숨김 (?edit=1일 때만 노출)
   const isEditor = searchParams.get('edit') === '1';
 
-  const handlePeriodChange = (val) => {
-    setPeriod(val);
+  const applySearchParams = (from, to) => {
+    const next = {};
+    if (from) next.from = from;
+    if (to) next.to = to;
+    if (isEditor) next.edit = '1';
+    setSearchParams(next);
+  };
+  const handleFromChange = (val) => {
+    setPeriodFrom(val);
     setShowAllUnits(false);
-    setPage(0); // 기간 바꾸면 페이지 구성(빈 페이지 여부 등)이 달라질 수 있어 처음 페이지로
-    if (val === 'all') setSearchParams({});
-    else setSearchParams({ period: val });
+    setPage(0);
+    applySearchParams(val, periodTo);
+  };
+  const handleToChange = (val) => {
+    setPeriodTo(val);
+    setShowAllUnits(false);
+    setPage(0);
+    applySearchParams(periodFrom, val);
+  };
+  const handleClearPeriod = () => {
+    setPeriodFrom('');
+    setPeriodTo('');
+    setShowAllUnits(false);
+    setPage(0);
+    applySearchParams('', '');
   };
 
   // AI가 생성한 원문이 150자를 넘을 수 있어 편집창을 열 때부터 잘라서 불러옴
@@ -171,15 +190,21 @@ export default function GrowthStory() {
   const allSorted = [...reports]
     .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0))
     .map(r => ({ ...r, conceptRating: r.conceptRating == null ? null : toPct(r.conceptRating), homeworkRating: r.homeworkRating == null ? null : toPct(r.homeworkRating) }));
-  // 월 키 'YYYY-M' — fmtDate와 마찬가지로 별도 KST 보정 없이 브라우저 로컬 시간 기준
-  // (이 파일 전체가 서버가 아닌 클라이언트 렌더링이라 한국에서 보면 자연히 KST와 일치)
-  const monthKeyOf = (seconds) => {
+  // 'YYYY-MM-DD' — <input type="date">가 주는 값과 같은 포맷이라 문자열 비교로 바로 범위
+  // 필터링 가능. fmtDate와 마찬가지로 별도 KST 보정 없이 브라우저 로컬 시간 기준(클라이언트
+  // 렌더링이라 한국에서 보면 자연히 KST와 일치).
+  const dayKeyOf = (seconds) => {
     const d = new Date(seconds * 1000);
-    return `${d.getFullYear()}-${d.getMonth() + 1}`;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   };
-  const sorted = period === 'all'
-    ? allSorted
-    : allSorted.filter(r => r.createdAt?.seconds && monthKeyOf(r.createdAt.seconds) === period);
+  const hasCustomRange = !!(periodFrom && periodTo);
+  // 최소 2주 — 너무 좁은 구간은 마일스톤/차트가 텅 비어 보여서 최소 표본을 강제
+  const rangeDays = hasCustomRange ? Math.abs(Math.round((new Date(`${periodTo}T00:00:00`) - new Date(`${periodFrom}T00:00:00`)) / 86400000)) + 1 : null;
+  const rangeTooShort = hasCustomRange && rangeDays < 14;
+  const rangeActive = hasCustomRange && !rangeTooShort;
+  const sorted = rangeActive
+    ? allSorted.filter(r => r.createdAt?.seconds && dayKeyOf(r.createdAt.seconds) >= periodFrom && dayKeyOf(r.createdAt.seconds) <= periodTo)
+    : allSorted;
   const fmtDate = (r) => {
     if (!r?.createdAt?.seconds) return '';
     const d = new Date(r.createdAt.seconds * 1000);
@@ -245,12 +270,11 @@ export default function GrowthStory() {
 
   // 복습 효과 증명 — 완료된 복습마다 "진단 당시 원본 리포트 점수 → 복습 후 재시험 점수" 비교.
   // 원본 리포트에 시험 점수 자체가 없던 진단(개념 이해도 기반 등)은 비교 대상이 없어 자연히 제외됨.
-  const periodRange = period === 'all' ? null : (() => {
-    const [y, m] = period.split('-').map(Number);
-    return { start: new Date(y, m - 1, 1).getTime() / 1000, end: new Date(y, m, 1).getTime() / 1000 };
-  })();
+  const periodRange = rangeActive
+    ? { start: new Date(`${periodFrom}T00:00:00`).getTime() / 1000, end: new Date(`${periodTo}T23:59:59`).getTime() / 1000 }
+    : null;
   const reviewProof = completedReviews
-    .filter(rv => rv.testScore != null && (!periodRange || (rv.completedAt >= periodRange.start && rv.completedAt < periodRange.end)))
+    .filter(rv => rv.testScore != null && (!periodRange || (rv.completedAt >= periodRange.start && rv.completedAt <= periodRange.end)))
     .map(rv => {
       const sourceReport = reports.find(r => r.id === rv.reportId);
       if (!sourceReport?.hasTest || !sourceReport.testScore) return null;
@@ -441,21 +465,10 @@ export default function GrowthStory() {
     ? `${fmtDate(sorted[0])} – ${fmtDate(sorted[sorted.length - 1])} · ${sorted.length}회 수업`
     : '';
 
-  // 기간 선택 칩 — 이 학생 리포트가 실제로 있는 달만, 최근 달부터. 여러 해에 걸쳐 있으면
-  // "7월"만으론 헷갈리니 연도까지 붙임
-  const monthOptions = (() => {
-    const seen = new Map();
-    allSorted.forEach(r => {
-      if (!r.createdAt?.seconds) return;
-      const d = new Date(r.createdAt.seconds * 1000);
-      const key = `${d.getFullYear()}-${d.getMonth() + 1}`;
-      if (!seen.has(key)) seen.set(key, { year: d.getFullYear(), month: d.getMonth() + 1 });
-    });
-    const years = new Set([...seen.values()].map(v => v.year));
-    return [...seen.entries()]
-      .sort((a, b) => b[0].localeCompare(a[0], undefined, { numeric: true }))
-      .map(([key, v]) => ({ key, label: years.size > 1 ? `${v.year}년 ${v.month}월` : `${v.month}월` }));
-  })();
+  // 날짜 입력의 min/max — 실제 리포트가 있는 범위 밖은 애초에 고를 수 없게(리포트 0건 구간
+  // 선택 방지). allSorted는 오름차순 정렬이라 첫/마지막이 그대로 최소/최대.
+  const earliestDay = allSorted[0]?.createdAt?.seconds ? dayKeyOf(allSorted[0].createdAt.seconds) : undefined;
+  const latestDay = allSorted[allSorted.length - 1]?.createdAt?.seconds ? dayKeyOf(allSorted[allSorted.length - 1].createdAt.seconds) : undefined;
 
   // AI 서사 생성 — 전체(4개 항목 한 번에). 이미 서사가 있으면 직접 편집한 내용까지
   // 통째로 덮어써지므로 반드시 한 번 확인받음
@@ -614,32 +627,42 @@ export default function GrowthStory() {
         <p style={{ fontFamily: R.serif, fontSize: '26px', fontWeight: 700, color: '#fff', letterSpacing: '-0.5px', marginBottom: '4px' }}>{student.name}의 성장 포트폴리오</p>
         <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginBottom: '16px' }}>{periodLabel}</p>
 
-        {/* 기간 선택 — 전체 + 실제 리포트가 있는 달만 칩으로. 달이 많아도 안 깨지게 가로 스크롤 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ display: 'flex', gap: '4px', background: 'rgba(255,255,255,0.08)', borderRadius: '20px', padding: '3px', overflowX: 'auto', minWidth: 0, flex: 1 }}>
-            {[{ key: 'all', label: '전체 여정' }, ...monthOptions].map(({ key, label }) => (
-              <button key={key} onClick={() => handlePeriodChange(key)}
-                style={{
-                  flexShrink: 0, padding: '10px 16px', minHeight: '40px', borderRadius: '16px', border: 'none', cursor: 'pointer',
-                  background: period === key ? R.gold : 'transparent',
-                  color: period === key ? R.ink : 'rgba(255,255,255,0.5)',
-                  fontSize: '11px', fontWeight: 700, fontFamily: 'inherit', whiteSpace: 'nowrap', transition: 'all 0.2s',
-                }}>
-                {label}
-              </button>
-            ))}
-          </div>
+        {/* 기간 선택 — 캘린더로 시작일/종료일 직접 지정(브라우저 기본 date input 사용,
+            새 캘린더 컴포넌트 안 만듦). 최소 2주 미만이면 마일스톤/차트가 텅 비어 보여서
+            아래 경고만 띄우고 필터는 적용 안 함(전체 기간으로 유지) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <button onClick={handleClearPeriod}
+              style={{
+                flexShrink: 0, padding: '10px 16px', minHeight: '40px', borderRadius: '16px', border: 'none', cursor: 'pointer',
+                background: !hasCustomRange ? R.gold : 'rgba(255,255,255,0.08)',
+                color: !hasCustomRange ? R.ink : 'rgba(255,255,255,0.5)',
+                fontSize: '11px', fontWeight: 700, fontFamily: 'inherit', whiteSpace: 'nowrap',
+              }}>
+              전체 여정
+            </button>
+            <input type="date" value={periodFrom} min={earliestDay} max={latestDay} onChange={e => handleFromChange(e.target.value)}
+              style={{ minHeight: '40px', padding: '0 10px', borderRadius: '10px', border: 'none', background: 'rgba(255,255,255,0.1)', color: hasCustomRange ? '#fff' : 'rgba(255,255,255,0.6)', fontSize: '12px', fontFamily: 'inherit', colorScheme: 'dark' }} />
+            <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px' }}>~</span>
+            <input type="date" value={periodTo} min={earliestDay} max={latestDay} onChange={e => handleToChange(e.target.value)}
+              style={{ minHeight: '40px', padding: '0 10px', borderRadius: '10px', border: 'none', background: 'rgba(255,255,255,0.1)', color: hasCustomRange ? '#fff' : 'rgba(255,255,255,0.6)', fontSize: '12px', fontFamily: 'inherit', colorScheme: 'dark' }} />
 
-          {/* 공유 버튼 */}
-          <button onClick={() => {
-            const url = `${window.location.origin}/story/${studentId}${period !== 'all' ? `?period=${period}` : ''}`;
-            navigator.clipboard.writeText(url)
-              .then(() => alert('링크가 복사됐어요!'))
-              .catch(() => window.prompt('아래 링크를 길게 눌러 복사하세요', url));
-          }}
-            style={{ flexShrink: 0, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '16px', padding: '10px 16px', minHeight: '40px', color: 'rgba(255,255,255,0.8)', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-            📤 링크 복사
-          </button>
+            {/* 공유 버튼 */}
+            <button onClick={() => {
+              const url = `${window.location.origin}/story/${studentId}${rangeActive ? `?from=${periodFrom}&to=${periodTo}` : ''}`;
+              navigator.clipboard.writeText(url)
+                .then(() => alert('링크가 복사됐어요!'))
+                .catch(() => window.prompt('아래 링크를 길게 눌러 복사하세요', url));
+            }}
+              style={{ flexShrink: 0, marginLeft: 'auto', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '16px', padding: '10px 16px', minHeight: '40px', color: 'rgba(255,255,255,0.8)', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+              📤 링크 복사
+            </button>
+          </div>
+          {rangeTooShort && (
+            <p style={{ fontSize: '11px', color: '#F3B6B6', margin: 0, lineHeight: 1.5 }}>
+              선택한 기간이 {rangeDays}일이에요 — 최소 2주 이상 선택해주세요. 자료가 부족해서 지금은 전체 기간으로 보여드리고 있어요.
+            </p>
+          )}
         </div>
       </div>
 
