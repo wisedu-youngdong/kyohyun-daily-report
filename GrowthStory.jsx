@@ -648,18 +648,23 @@ export default function GrowthStory() {
           ? { bg: '#FBEDED', color: R.negative, text: `${heroDelta}%p` }
           : { bg: '#F3F4F6', color: '#6B7280', text: '변화 없음' };
         // 사진 없는 마일스톤/히어로는 접지 않고 네이비 단색 블록으로 대체(결정 ③) — 레이아웃이
-        // 데이터 유무에 따라 들쭉날쭉해지는 걸 방지
+        // 데이터 유무에 따라 들쭉날쭉해지는 걸 방지. 단, 둘 중 하나만 있으면 반반으로 쪼개
+        // 한쪽만 네이비로 비워두지 않고 있는 사진 1장을 꽉 채움(둘 다 있을 때만 반반 비교)
+        const heroFirstPhoto = heroFirst.photoUrls?.[0] || null;
+        const heroLastPhoto = heroLast.photoUrls?.[0] || null;
         const heroContent = conceptReports.length < 2 ? null : (
           <div style={{ background: '#fff', border: '1px solid #EEECEA', borderRadius: '14px', overflow: 'hidden', display: 'flex' }}>
             <div style={{ width: '186px', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
-              {[heroFirst, heroLast].map((r, i) => {
-                const url = r.photoUrls?.[0];
-                return url ? (
-                  <img key={i} src={url} alt="수업 사진" style={{ flex: 1, minHeight: 0, width: '100%', objectFit: 'cover', display: 'block' }} />
-                ) : (
-                  <div key={i} style={{ flex: 1, minHeight: 0, background: R.navy }} />
-                );
-              })}
+              {!heroFirstPhoto && !heroLastPhoto ? (
+                <div style={{ flex: 1, background: R.navy }} />
+              ) : heroFirstPhoto && heroLastPhoto ? (
+                <>
+                  <img src={heroFirstPhoto} alt="수업 사진" style={{ flex: 1, minHeight: 0, width: '100%', objectFit: 'cover', display: 'block' }} />
+                  <img src={heroLastPhoto} alt="수업 사진" style={{ flex: 1, minHeight: 0, width: '100%', objectFit: 'cover', display: 'block' }} />
+                </>
+              ) : (
+                <img src={heroFirstPhoto || heroLastPhoto} alt="수업 사진" style={{ flex: 1, minHeight: 0, width: '100%', objectFit: 'cover', display: 'block' }} />
+              )}
             </div>
             <div style={{ flex: 1, minWidth: 0, padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: '15px', justifyContent: 'center' }}>
               <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '1.6px', color: R.goldText }}>처음과 지금</span>
