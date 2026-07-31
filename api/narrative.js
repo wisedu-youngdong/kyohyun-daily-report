@@ -33,7 +33,7 @@ const DATA_RULE = '[중요] 아래 "데이터"에 실제로 나온 단원명·�
 const NO_HYPE_RULE = '[중요] "사고력이 고도화됐다", "문제 해결 체계를 완성했다", "증명합니다" 같은 추상적이고 거창한 결론 금지. 근거는 숙제·시험 채점 기록(오답 개수, 점수)뿐이므로 그 수치 변화만으로 담백하게 서술할 것.';
 
 async function callGemini(prompt, maxOutputTokens) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

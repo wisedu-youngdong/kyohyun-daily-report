@@ -58,7 +58,7 @@ ${photoContext ? '- "O번, O번을 틀렸습니다"처럼 문항 번호만 나�
 [한 줄 요약 — 마지막에 추가로]
 본문을 다 쓴 뒤, 새 줄에 구분자 \`///SUMMARY///\` 를 쓰고 그 다음 줄에 이 리포트 전체를 관통하는 핵심을 15~30자 한 문장으로 요약하세요. 학부모가 이 한 줄만 읽어도 오늘 수업의 결론을 알 수 있어야 합니다(예: "평행선과 선분의 길이의 비, 개념은 잡혔고 응용에서 아직 시간이 걸립니다."). 본문의 첫 문장을 그대로 복사하지 말고 더 압축하세요. 과장 표현 금지.`;
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
 
     const response = await fetch(url, {
       method: 'POST',
