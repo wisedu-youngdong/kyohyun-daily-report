@@ -3424,7 +3424,7 @@ function TimeField({ wide, value, onChange }) {
         {Array.from({ length: 12 }, (_, i) => i + 1).map(h => <option key={h} value={h}>{h}시</option>)}
       </select>
       <select value={mm} onChange={(e) => setPart(hour12, isPM, Number(e.target.value))}
-        style={{ ...selectStyle, height: cellH, width: '68px', minWidth: '68px', paddingLeft: '8px', paddingRight: '22px', textAlign: 'center' }}>
+        style={{ ...selectStyle, height: cellH, width: '78px', minWidth: '78px', paddingLeft: '8px', paddingRight: '22px', textAlign: 'center' }}>
         {minuteOptions.map(m => <option key={m} value={m}>{String(m).padStart(2, '0')}분</option>)}
       </select>
     </div>
