@@ -228,6 +228,7 @@ export default function PublicReport() {
               <span style={{ fontSize: '12px', fontWeight: 500, color: 'rgba(255,255,255,0.82)' }}>
                 {r.teacherName}{teacherSuffix}
                 {r.attendance === '결석' ? ` · ${r.attendance}` : ` · ${r.arrivalTime} ${r.attendance} 등원`}
+                {r.attendance === '조퇴' && r.departureTime ? ` (${r.departureTime} 하원)` : ''}
               </span>
             </div>
           </div>

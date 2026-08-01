@@ -399,6 +399,10 @@ export default function DiagnosticReportInput({
 
   const [attendance, setAttendance] = useState('정시');
   const [arrivalTime, setArrivalTime] = useState('15:30');
+  // 하원 시각 — '조퇴'일 때만 입력받음(정시 하원은 매번 기록할 필요가 없어 평소엔 숨김,
+  // 2026-08-01 결정). 빈 문자열이면 미입력 — TimeField 기본값('15:30')과 구분하기 위해
+  // 빈 값을 그대로 유지하고, 조퇴가 아니면 저장 시점에 null로 정리(아래 payload 참고)
+  const [departureTime, setDepartureTime] = useState('');
   const [homeworkRating, setHomeworkRating] = useState(null);
   const [conceptRating, setConceptRating] = useState(null);
   const [hasTest, setHasTest] = useState(false);
@@ -559,6 +563,7 @@ export default function DiagnosticReportInput({
   const buildSessionEntry = () => ({
     date: kstDay(Date.now() / 1000),
     attendance, arrivalTime,
+    departureTime: attendance === '조퇴' ? (departureTime || null) : null,
     homeworkRating: homeworkRating ?? null,
     conceptRating: conceptRating ?? null,
     hasTest,
@@ -606,6 +611,7 @@ export default function DiagnosticReportInput({
         studentId, studentName: student?.name,
         teacherId: teacherId || '', teacherName: teacher?.name || '',
         attendance, arrivalTime,
+        departureTime: attendance === '조퇴' ? (departureTime || null) : null,
         // null = 미입력 규약 유지 — 0으로 강제 변환하면 학부모 화면에 "0%"로 표시됨
         homeworkRating: homeworkRating ?? null,
         conceptRating: conceptRating ?? null,
@@ -751,6 +757,7 @@ export default function DiagnosticReportInput({
     setTeacherId(editingReport.teacherId || '');
     setAttendance(editingReport.attendance || '정시');
     setArrivalTime(editingReport.arrivalTime || '15:30');
+    setDepartureTime(editingReport.departureTime || '');
     // null(미입력)은 그대로 유지 — toPct(null)=0으로 변환되면 미입력이 0%로 확정 저장됨
     setHomeworkRating(editingReport.homeworkRating == null ? null : toPct(editingReport.homeworkRating));
     setConceptRating(editingReport.conceptRating == null ? null : toPct(editingReport.conceptRating));
@@ -854,13 +861,14 @@ export default function DiagnosticReportInput({
   // (1d 결정사항 6 — 결석인데 개념 이해도 입력을 요구하던 기존 동작이 오히려 이상했음)
   const isAbsent = attendance === '결석';
   // teacherNote는 handleSubmit의 기존 검증("선생님 코멘트를 입력해주세요")이 이미 필수로
-  // 막고 있었음 — 버튼 활성 색(isValid)과 실제 차단 조건이 어긋나지 않게 여기도 포함
-  const isValid = studentId && teacherId && teacherNote.trim() && (isAbsent || (homeworkRating != null && conceptRating != null));
+  // 막고 있었음 — 버튼 활성 색(isValid)과 실제 차단 조건이 어긋나지 않게 여기도 포함.
+  // 하원 시각도 마찬가지 — 조퇴인데 미입력이면 handleSubmit이 막으므로 여기도 반영
+  const isValid = studentId && teacherId && teacherNote.trim() && (isAbsent || (homeworkRating != null && conceptRating != null)) && (attendance !== '조퇴' || !!departureTime);
 
   // 1d 네이비 헤더의 "기본 항목 4칸" 진행 바 — 표시용이며 저장 차단 조건은 handleSubmit 검증이 전부
   // (결정사항 1 확정: 오늘 학습만 저장 비차단, 등원·평가·한 마디는 기존대로 저장 필수)
   const requiredSteps = [
-    { label: '등원', done: !!attendance },
+    { label: '등원', done: !!attendance && (attendance !== '조퇴' || !!departureTime) },
     { label: '평가', done: isAbsent || (homeworkRating != null && conceptRating != null) },
     { label: '오늘 학습', done: isAbsent || !!(textbook.trim() && pages.trim()) },
     { label: '한 마디', done: !!teacherNote.trim() },
@@ -1174,6 +1182,7 @@ export default function DiagnosticReportInput({
     // 단계별 검증
     if (!studentId) return setAlertMessage('학생을 먼저 선택해주세요.');
     if (!teacherId) return setAlertMessage('담당 강사를 선택해주세요.');
+    if (attendance === '조퇴' && !departureTime) return setAlertMessage('하원 시각을 입력해주세요.');
     if (!isAbsent && (homeworkRating == null || conceptRating == null)) return setAlertMessage('과제 수행과 개념 이해 평가를 입력해주세요.');
     if (polishing) return setAlertMessage('AI가 코멘트를 다듬는 중입니다. 완료 후 다시 저장해주세요.');
     if (!teacherNote.trim() && !aiPolishedNote.trim()) return setAlertMessage('선생님 코멘트를 입력해주세요.\n학부모에게 전달되는 핵심 내용입니다.');
@@ -1243,6 +1252,7 @@ export default function DiagnosticReportInput({
         studentId, studentName: student?.name,
         teacherId, teacherName: teacher?.name,
         attendance, arrivalTime,
+        departureTime: attendance === '조퇴' ? (departureTime || null) : null,
         homeworkRating, conceptRating,
         hasTest,
         testName: hasTest ? testName : null,
@@ -1372,6 +1382,7 @@ export default function DiagnosticReportInput({
         if (todaySession) {
           setAttendance(todaySession.attendance || '정시');
           setArrivalTime(todaySession.arrivalTime || '15:30');
+          setDepartureTime(todaySession.departureTime || '');
           setHomeworkRating(todaySession.homeworkRating ?? null);
           setConceptRating(todaySession.conceptRating ?? null);
           setHasTest(!!todaySession.hasTest);
@@ -1709,11 +1720,22 @@ export default function DiagnosticReportInput({
               <div style={{ padding: '14px 20px 20px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
 
               <FieldRow wide={isWide} label="등원">
-                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px' }}>
-                  {ATTENDANCE.map(a => (
-                    <button key={a} onClick={() => setAttendance(a)} style={chipStyle(attendance === a)}>{a}</button>
-                  ))}
-                  <TimeField wide={isWide} value={arrivalTime} onChange={setArrivalTime} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px' }}>
+                    {ATTENDANCE.map(a => (
+                      <button key={a} onClick={() => setAttendance(a)} style={chipStyle(attendance === a)}>{a}</button>
+                    ))}
+                    <TimeField wide={isWide} value={arrivalTime} onChange={setArrivalTime} />
+                  </div>
+                  {/* 하원 시각 — 정시 하원은 매번 기록할 필요가 없어 평소엔 숨기고, '조퇴'를
+                      고를 때만 나타나며 필수로 전환(handleSubmit 검증). 정시 하원까지 매번 기록해야
+                      하면 입력 부담이 2배가 돼 선생님 실사용 흐름과 안 맞음(2026-08-01 결정) */}
+                  {attendance === '조퇴' && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 600, color: TOKENS.textSub, flexShrink: 0 }}>하원</span>
+                      <TimeField wide={isWide} value={departureTime || arrivalTime} onChange={setDepartureTime} />
+                    </div>
+                  )}
                 </div>
               </FieldRow>
 
@@ -3017,7 +3039,7 @@ export default function DiagnosticReportInput({
 
           <ParentCard
             student={student} teacher={teacher}
-            attendance={attendance} arrivalTime={arrivalTime}
+            attendance={attendance} arrivalTime={arrivalTime} departureTime={attendance === '조퇴' ? departureTime : null}
             homeworkRating={homeworkRating} conceptRating={conceptRating}
             hasTest={hasTest} testName={testName} testScore={testScore}
             textbook={textbook} unit={unit} pages={pages}
@@ -3082,7 +3104,7 @@ export function deriveColorsToSkin(mainHex) {
 // 레이아웃은 무관) — 지금은 PublicReport와 동일한 레터헤드 구조에 skin.main/accent로 색만
 // 입힌다. PublicReport에 없는 기능(아바타 등)은 미리보기에서도 뺐다 — 안 그러면 반대로
 // "미리보기엔 있는데 실제론 없는" 거짓말이 생김.
-function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating, conceptRating, hasTest, testName, testScore, textbook, unit, pages, diagnosis, teacherNote, summary, wrongItems, nextPlan, nextPlanDetail, skin, academyName = null, academyPhone = null }) {
+function ParentCard({ student, teacher, attendance, arrivalTime, departureTime, homeworkRating, conceptRating, hasTest, testName, testScore, textbook, unit, pages, diagnosis, teacherNote, summary, wrongItems, nextPlan, nextPlanDetail, skin, academyName = null, academyPhone = null }) {
   const [noteOpen, setNoteOpen] = React.useState(false);
   const today = new Date();
   const dateStr = `${today.getMonth() + 1}월 ${today.getDate()}일 (${'일월화수목금토'[today.getDay()]})`;
@@ -3131,6 +3153,7 @@ function ParentCard({ student, teacher, attendance, arrivalTime, homeworkRating,
           <span style={{ fontSize: '12px', fontWeight: 500, color: 'rgba(255,255,255,0.82)' }}>
             {teacher?.name || '선생님'}{teacherSuffix}
             {attendance === '결석' ? ` · ${attendance}` : ` · ${arrivalTime} ${attendance} 등원`}
+            {attendance === '조퇴' && departureTime ? ` (${departureTime} 하원)` : ''}
           </span>
         </div>
       </div>
@@ -3439,7 +3462,11 @@ const inputStyle = {
   fontWeight: 500, color: TOKENS.text, letterSpacing: '-0.02em', boxSizing: 'border-box',
 };
 const selectStyle = {
-  ...inputStyle, cursor: 'pointer', appearance: 'none',
+  ...inputStyle, cursor: 'pointer',
+  // appearance: 'none'만 있으면 삼성인터넷 등 일부 안드로이드 브라우저가 네이티브 드롭다운
+  // 화살표를 여전히 그려서, 오른쪽에 커스텀 SVG 화살표와 겹쳐 글자가 깨져 보임(실사용 피드백) —
+  // 벤더 프리픽스를 같이 줘야 완전히 꺼짐
+  WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none',
   backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236B7280' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
   backgroundRepeat: 'no-repeat',
   backgroundPosition: 'right 12px center',
