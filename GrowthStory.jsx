@@ -82,6 +82,7 @@ export default function GrowthStory() {
   const [page, setPage] = useState(0);
   const [slideDir, setSlideDir] = useState(1); // 1: 다음(→에서 옴), -1: 이전(←에서 옴)
   const touchStartXRef = useRef(null);
+  const touchStartYRef = useRef(null);
 
   // 기간 선택 — 캘린더로 시작일/종료일 직접 지정. URL 파라미터(from/to)와 연동.
   // 새 UI 라이브러리 없이 <input type="date">의 브라우저 기본 캘린더를 그대로 씀
@@ -629,7 +630,12 @@ export default function GrowthStory() {
 
         {/* 기간 선택 — 캘린더로 시작일/종료일 직접 지정(브라우저 기본 date input 사용,
             새 캘린더 컴포넌트 안 만듦). 최소 2주 미만이면 마일스톤/차트가 텅 비어 보여서
-            아래 경고만 띄우고 필터는 적용 안 함(전체 기간으로 유지) */}
+            아래 경고만 띄우고 필터는 적용 안 함(전체 기간으로 유지).
+            원장 편집 모드(?edit=1)에서만 노출 — 학부모에게는 조작 방법이 불분명한 빈 날짜
+            입력창으로 보여 화면 맨 위가 혼란스러웠음(실사용 피드백, 2026-08-01). 원장이 만든
+            기간 필터 링크(?from=&to=)는 학부모 쪽에서도 그대로 적용된 상태로 보임 — 조작
+            UI만 숨기고 필터 자체는 URL 파라미터로 계속 동작함. */}
+        {isEditor && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             <button onClick={handleClearPeriod}
@@ -664,6 +670,7 @@ export default function GrowthStory() {
             </p>
           )}
         </div>
+        )}
       </div>
 
       {(() => {
@@ -1317,12 +1324,19 @@ export default function GrowthStory() {
           setSlideDir(next > curPage ? 1 : -1);
           setPage(next);
         };
-        const onTouchStart = (e) => { touchStartXRef.current = e.touches[0].clientX; };
+        const onTouchStart = (e) => {
+          touchStartXRef.current = e.touches[0].clientX;
+          touchStartYRef.current = e.touches[0].clientY;
+        };
         const onTouchEnd = (e) => {
           if (touchStartXRef.current == null) return;
           const dx = e.changedTouches[0].clientX - touchStartXRef.current;
+          const dy = e.changedTouches[0].clientY - (touchStartYRef.current ?? 0);
           touchStartXRef.current = null;
-          if (Math.abs(dx) < 40) return; // 너무 짧은 터치는 무시
+          touchStartYRef.current = null;
+          // 세로 스크롤(글 읽다가 손가락 내리는 동작)이 가로 스와이프로 오인되던 버그 —
+          // 가로 이동이 세로 이동보다 뚜렷하게 클 때만 페이지 전환으로 인정(실사용 피드백)
+          if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return;
           if (dx < 0) goPage(curPage + 1); // 왼쪽으로 스와이프 → 다음 페이지
           else goPage(curPage - 1);
         };

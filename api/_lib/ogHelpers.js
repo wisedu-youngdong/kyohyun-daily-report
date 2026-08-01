@@ -22,6 +22,34 @@ export async function fetchAcademyDocFields(academyId, path) {
   return data.fields || null;
 }
 
+// 성장 포트폴리오 OG 미리보기용 — 학생의 리포트 개수/기간을 계산. orderBy 없이 등호 필터만
+// 써서 별도 복합 인덱스 배포 없이 동작하게 함(firestore.indexes.json은 git push로 자동배포
+// 안 됨 — firestore.rules와 같은 함정). createdAt만 선택 조회해 응답을 가볍게 유지.
+export async function fetchReportDateRange(academyId, studentId) {
+  const url = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents/academies/${academyId}:runQuery`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      structuredQuery: {
+        from: [{ collectionId: 'reports' }],
+        where: { fieldFilter: { field: { fieldPath: 'studentId' }, op: 'EQUAL', value: { stringValue: studentId } } },
+        select: { fields: [{ fieldPath: 'createdAt' }] },
+        limit: 200, // firestore.rules의 비로그인 list 규칙이 request.query.limit<=200을 요구함
+      },
+    }),
+  });
+  if (!res.ok) return null;
+  const rows = await res.json();
+  const timestamps = (Array.isArray(rows) ? rows : [])
+    .map(r => r.document?.fields?.createdAt?.timestampValue)
+    .filter(Boolean)
+    .map(t => new Date(t).getTime())
+    .sort((a, b) => a - b);
+  if (timestamps.length === 0) return null;
+  return { count: timestamps.length, first: timestamps[0], last: timestamps[timestamps.length - 1] };
+}
+
 export function renderOgShell({ title, desc, siteName, ogImg, ogUrl, redirectPath, loadingText }) {
   // title/desc/redirectPath 등은 리포트 작성 화면에서 강사가 입력한 studentName/teacherNote/unit이나
   // URL의 id 쿼리 파라미터를 그대로 물고 들어올 수 있어(og-preview.js 참고) — 이스케이프 없이

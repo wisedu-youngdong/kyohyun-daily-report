@@ -5,7 +5,12 @@
 // 추가하면서 슬롯을 확보하기 위한 정리.
 
 import { fetchAcademyName } from './_lib/academyName.js';
-import { fetchAcademyIdFromIndex, fetchAcademyDocFields, renderOgShell, sendOgHtml } from './_lib/ogHelpers.js';
+import { fetchAcademyIdFromIndex, fetchAcademyDocFields, fetchReportDateRange, renderOgShell, sendOgHtml } from './_lib/ogHelpers.js';
+
+function fmtMonthDay(ms) {
+  const d = new Date(ms);
+  return `${d.getMonth() + 1}월 ${d.getDate()}일`;
+}
 
 async function loadReportPreview(id) {
   let studentName = '학생', dateStr = '', teacherNote = '', unit = '', academyName = null;
@@ -47,6 +52,7 @@ async function loadStudentNamePreview(id, { title, ogTitleSuffix, ogSub, redirec
     studentName = fields?.name?.stringValue || '학생';
   }
   return {
+    academyId,
     academyName,
     title: title(studentName),
     desc: '숫자를 넘어선 아이의 노력, 매 수업 진심으로 기록합니다.',
@@ -74,13 +80,26 @@ async function loadPartnerPreview() {
 const KIND_LOADERS = {
   report: (id) => loadReportPreview(id),
   partner: () => loadPartnerPreview(),
-  story: (id) => loadStudentNamePreview(id, {
-    title: (name) => `${name}의 성장 포트폴리오`,
-    ogTitleSuffix: ' 성장 포트폴리오',
-    ogSub: 'GROWTH PORTFOLIO',
-    redirectPrefix: '/story',
-    loadingText: '성장 포트폴리오로 이동 중...',
-  }),
+  story: async (id) => {
+    const base = await loadStudentNamePreview(id, {
+      title: (name) => `${name}의 성장 포트폴리오`,
+      ogTitleSuffix: ' 성장 포트폴리오',
+      ogSub: 'GROWTH PORTFOLIO',
+      redirectPrefix: '/story',
+      loadingText: '성장 포트폴리오로 이동 중...',
+    });
+    // 기간(예: "6월 24일 – 7월 30일 · 17회 수업")을 카톡 미리보기 설명란에 노출 — 실패해도
+    // 기본 미리보기(base)는 그대로 유지(필수 아님, 학생 이름/이동 리다이렉트가 더 중요)
+    try {
+      if (base.academyId) {
+        const range = await fetchReportDateRange(base.academyId, id);
+        if (range) {
+          base.desc = `${fmtMonthDay(range.first)} – ${fmtMonthDay(range.last)} · ${range.count}회 수업`;
+        }
+      }
+    } catch (e) { console.error('성장 포트폴리오 기간 조회 실패(기본 미리보기 유지):', e.message); }
+    return base;
+  },
   award: (id) => loadStudentNamePreview(id, {
     title: (name) => `${name} 학생 성장 시상장`,
     ogTitleSuffix: ' 성장 시상장',
