@@ -1722,6 +1722,9 @@ export default function DiagnosticReportInput({
               <FieldRow wide={isWide} label="등원">
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px' }}>
+                    {/* 아래 등원/하원 행의 라벨(28px)만큼 빈 스페이서를 둬서 칩과 시간 위젯의
+                        시작 x좌표를 맞춤(실사용 피드백 — 칩 행만 라벨이 없어 왼쪽으로 튀어나와 보였음) */}
+                    <span style={{ flexShrink: 0, width: '28px' }} />
                     {ATTENDANCE.map(a => (
                       <button key={a} onClick={() => setAttendance(a)} style={chipStyle(attendance === a)}>{a}</button>
                     ))}
@@ -3428,6 +3431,11 @@ function TimeField({ wide, value, onChange }) {
     const h24 = nextIsPM ? (nextHour12 % 12) + 12 : (nextHour12 % 12);
     onChange(`${String(h24).padStart(2, '0')}:${String(nextMinute).padStart(2, '0')}`);
   };
+  // 분 입력 로컬 초안 — 타이핑 중에 mm에서 매번 0패딩 문자열("05" 등)로 다시 그리면, 그 값이
+  // 방금 입력한 값과 달라서 브라우저가 커서를 앞으로 되돌리는 현상이 실제로 확인됨(예: "07"을
+  // 치려 했는데 "00"으로 깨짐). 포커스 중엔 타이핑한 원본 그대로 보여주고(minuteDraft),
+  // blur에서만 0~59로 정리해 mm과 다시 맞춘다 — null이면 mm을 그대로 보여줌(외부 데이터 반영)
+  const [minuteDraft, setMinuteDraft] = useState(null);
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
       <div style={{ display: 'flex', border: `1px solid ${TOKENS.border}`, borderRadius: `${RADIUS2.chip}px`, overflow: 'hidden', flexShrink: 0 }}>
@@ -3449,15 +3457,16 @@ function TimeField({ wide, value, onChange }) {
       </select>
       {/* 분은 select 대신 직접 입력 — 5분 단위 드롭다운이라 1분 단위 조정이 안 됐고(실사용 피드백),
           일부 안드로이드 브라우저에서 select 화살표가 겹쳐 글자가 깨져 보이는 문제도 select
-          자체를 없애면서 함께 해소됨. slice(-2)는 마지막에 입력한 두 자리만 반영하는 트릭 —
-          controlled input이 매번 0패딩(예: "05")으로 다시 그려져도 이어서 입력한 숫자가
-          그 뒤에 정상적으로 누적되게 함(예: "0"→"05", "05"+"3" 입력 시 "53"으로 수렴) */}
+          자체를 없애면서 함께 해소됨. */}
       <input type="text" inputMode="numeric" pattern="[0-9]*" maxLength={2}
-        value={String(mm).padStart(2, '0')}
+        value={minuteDraft ?? String(mm).padStart(2, '0')}
+        onFocus={() => setMinuteDraft(String(mm).padStart(2, '0'))}
         onChange={(e) => {
-          const digits = e.target.value.replace(/[^0-9]/g, '').slice(-2);
-          setPart(hour12, isPM, digits === '' ? 0 : Math.min(59, parseInt(digits, 10)));
+          const digits = e.target.value.replace(/[^0-9]/g, '').slice(0, 2);
+          setMinuteDraft(digits);
+          if (digits !== '') setPart(hour12, isPM, Math.min(59, parseInt(digits, 10)));
         }}
+        onBlur={() => setMinuteDraft(null)}
         style={{ ...inputStyle, height: cellH, width: '40px', minWidth: '40px', padding: '0 4px', textAlign: 'center' }} />
       <span style={{ fontSize: '13px', fontWeight: 500, color: TOKENS.textSub, flexShrink: 0 }}>분</span>
     </div>
