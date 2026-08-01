@@ -1725,6 +1725,9 @@ export default function DiagnosticReportInput({
                     {ATTENDANCE.map(a => (
                       <button key={a} onClick={() => setAttendance(a)} style={chipStyle(attendance === a)}>{a}</button>
                     ))}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 600, color: TOKENS.textSub, flexShrink: 0, width: '28px' }}>등원</span>
                     <TimeField wide={isWide} value={arrivalTime} onChange={setArrivalTime} />
                   </div>
                   {/* 하원 시각 — 정시 하원은 매번 기록할 필요가 없어 평소엔 숨기고, '조퇴'를
@@ -1732,7 +1735,7 @@ export default function DiagnosticReportInput({
                       하면 입력 부담이 2배가 돼 선생님 실사용 흐름과 안 맞음(2026-08-01 결정) */}
                   {attendance === '조퇴' && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ fontSize: '12px', fontWeight: 600, color: TOKENS.textSub, flexShrink: 0 }}>하원</span>
+                      <span style={{ fontSize: '12px', fontWeight: 600, color: TOKENS.textSub, flexShrink: 0, width: '28px' }}>하원</span>
                       <TimeField wide={isWide} value={departureTime || arrivalTime} onChange={setDepartureTime} />
                     </div>
                   )}
@@ -3425,8 +3428,6 @@ function TimeField({ wide, value, onChange }) {
     const h24 = nextIsPM ? (nextHour12 % 12) + 12 : (nextHour12 % 12);
     onChange(`${String(h24).padStart(2, '0')}:${String(nextMinute).padStart(2, '0')}`);
   };
-  const minuteOptions = Array.from({ length: 12 }, (_, i) => i * 5);
-  if (!minuteOptions.includes(mm)) { minuteOptions.push(mm); minuteOptions.sort((a, b) => a - b); }
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
       <div style={{ display: 'flex', border: `1px solid ${TOKENS.border}`, borderRadius: `${RADIUS2.chip}px`, overflow: 'hidden', flexShrink: 0 }}>
@@ -3446,10 +3447,19 @@ function TimeField({ wide, value, onChange }) {
         style={{ ...selectStyle, height: cellH, width: '62px', minWidth: '62px', paddingLeft: '8px', paddingRight: '22px', textAlign: 'center' }}>
         {Array.from({ length: 12 }, (_, i) => i + 1).map(h => <option key={h} value={h}>{h}시</option>)}
       </select>
-      <select value={mm} onChange={(e) => setPart(hour12, isPM, Number(e.target.value))}
-        style={{ ...selectStyle, height: cellH, width: '78px', minWidth: '78px', paddingLeft: '8px', paddingRight: '22px', textAlign: 'center' }}>
-        {minuteOptions.map(m => <option key={m} value={m}>{String(m).padStart(2, '0')}분</option>)}
-      </select>
+      {/* 분은 select 대신 직접 입력 — 5분 단위 드롭다운이라 1분 단위 조정이 안 됐고(실사용 피드백),
+          일부 안드로이드 브라우저에서 select 화살표가 겹쳐 글자가 깨져 보이는 문제도 select
+          자체를 없애면서 함께 해소됨. slice(-2)는 마지막에 입력한 두 자리만 반영하는 트릭 —
+          controlled input이 매번 0패딩(예: "05")으로 다시 그려져도 이어서 입력한 숫자가
+          그 뒤에 정상적으로 누적되게 함(예: "0"→"05", "05"+"3" 입력 시 "53"으로 수렴) */}
+      <input type="text" inputMode="numeric" pattern="[0-9]*" maxLength={2}
+        value={String(mm).padStart(2, '0')}
+        onChange={(e) => {
+          const digits = e.target.value.replace(/[^0-9]/g, '').slice(-2);
+          setPart(hour12, isPM, digits === '' ? 0 : Math.min(59, parseInt(digits, 10)));
+        }}
+        style={{ ...inputStyle, height: cellH, width: '40px', minWidth: '40px', padding: '0 4px', textAlign: 'center' }} />
+      <span style={{ fontSize: '13px', fontWeight: 500, color: TOKENS.textSub, flexShrink: 0 }}>분</span>
     </div>
   );
 }
