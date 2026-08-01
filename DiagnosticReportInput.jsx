@@ -3461,12 +3461,19 @@ function TimeField({ wide, value, onChange }) {
       <input type="text" inputMode="numeric" pattern="[0-9]*" maxLength={2}
         value={minuteDraft ?? String(mm).padStart(2, '0')}
         onFocus={() => setMinuteDraft(String(mm).padStart(2, '0'))}
-        onChange={(e) => {
-          const digits = e.target.value.replace(/[^0-9]/g, '').slice(0, 2);
-          setMinuteDraft(digits);
-          if (digits !== '') setPart(hour12, isPM, Math.min(59, parseInt(digits, 10)));
+        onChange={(e) => setMinuteDraft(e.target.value.replace(/[^0-9]/g, '').slice(0, 2))}
+        onBlur={() => {
+          // 부모(onChange→arrivalTime/departureTime) 반영을 blur 시점까지 미룸 — 타이핑 중에
+          // 매번 부모까지 리렌더가 전파되면 그 리렌더가 이 입력창의 controlled value를 다시
+          // 그리는 타이밍과 다음 키 입력이 경합해서, 두 번째 글자부터 입력이 씹히는 현상이
+          // 실기기에서 확인됨(예: "07"을 눌러도 "00"으로 깨짐). 로컬 draft만 쓰다가 포커스를
+          // 벗어날 때 한 번만 커밋하면 이 경합 자체가 발생하지 않음
+          if (minuteDraft !== null) {
+            const n = minuteDraft === '' ? 0 : Math.min(59, parseInt(minuteDraft, 10));
+            setPart(hour12, isPM, n);
+          }
+          setMinuteDraft(null);
         }}
-        onBlur={() => setMinuteDraft(null)}
         style={{ ...inputStyle, height: cellH, width: '40px', minWidth: '40px', padding: '0 4px', textAlign: 'center' }} />
       <span style={{ fontSize: '13px', fontWeight: 500, color: TOKENS.textSub, flexShrink: 0 }}>분</span>
     </div>
