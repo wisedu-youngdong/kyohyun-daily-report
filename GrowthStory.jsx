@@ -675,23 +675,33 @@ export default function GrowthStory() {
         </button>
         );
 
-        // '처음과 지금' 히어로(2026-07-31 신규) — 개념 이해도 기준으로 고정(결정 ①).
-        // 시험 점수는 hasTest인 날만 있어 듬성듬성하지만 개념 이해도는 결석 아니면 거의 매
-        // 리포트에 기록되므로 히어로가 항상 뜬다. 하락이어도 숨기지 않고(과장 금지 원칙,
-        // 복습 효과 블록과 같은 태도) 델타 색만 상승=초록/하락=빨강/변화없음=회색으로 반영.
-        // 기간 토글은 이미 sorted 자체가 필터링돼 있어(결정 ⑥) 별도 처리 불필요.
+        // '처음과 지금' 히어로(2026-07-31 신규 → 2026-08-01 초기/최근 평균 비교로 재설계) —
+        // 개념 이해도 기준으로 고정(결정 ①). 원래는 첫/마지막 리포트 단건을 그냥 뺐는데, 그날
+        // 나간 단원이 우연히 더 어려우면 실력 변화가 아니라 단원 난이도 차이가 하락으로 보이는
+        // 문제가 있었음(단원 무관 비교라 착시 발생, 실사용 피드백으로 발견). 초기 N회 평균 vs
+        // 최근 N회 평균으로 바꿔 노이즈를 상쇄. N=3이면 4~6회 수업(약 2~3주)만 지나도 카드가
+        // 활성화됨. 하락이어도 숨기지 않고(과장 금지 원칙) 이유를 지어내지 않음 — "심화 단원
+        // 진입" 같은 근거 없는 해석은 절대 넣지 않고, 원인은 아래 반복 약점 패턴/단원별 이해도의
+        // 실제 데이터로 유도. 기간 토글은 이미 sorted 자체가 필터링돼 있어(결정 ⑥) 별도 처리 불필요.
         const conceptReports = sorted.filter(r => r.conceptRating != null);
-        const heroFirst = conceptReports[0];
-        const heroLast = conceptReports[conceptReports.length - 1];
-        const heroDelta = heroFirst && heroLast ? heroLast.conceptRating - heroFirst.conceptRating : 0;
+        const HERO_AVG_N = 3;
+        const heroFirstGroup = conceptReports.slice(0, HERO_AVG_N);
+        const heroLastGroup = conceptReports.slice(-HERO_AVG_N);
+        const avgOf = (group) => Math.round(group.reduce((s, r) => s + r.conceptRating, 0) / group.length);
+        const heroFirstAvg = heroFirstGroup.length ? avgOf(heroFirstGroup) : 0;
+        const heroLastAvg = heroLastGroup.length ? avgOf(heroLastGroup) : 0;
+        const heroDelta = heroLastAvg - heroFirstAvg;
         const heroDeltaStyle = heroDelta > 0
           ? { bg: '#E8F1EC', color: R.positive, text: `+${heroDelta}%p` }
           : heroDelta < 0
           ? { bg: '#FBEDED', color: R.negative, text: `${heroDelta}%p` }
           : { bg: '#F3F4F6', color: '#6B7280', text: '변화 없음' };
+        // 사진은 평균이 아니라 실제 첫/마지막 리포트 사진 그대로 — 숫자만 평균으로 바꾸고
         // 사진 없는 마일스톤/히어로는 접지 않고 네이비 단색 블록으로 대체(결정 ③) — 레이아웃이
         // 데이터 유무에 따라 들쭉날쭉해지는 걸 방지. 단, 둘 중 하나만 있으면 반반으로 쪼개
         // 한쪽만 네이비로 비워두지 않고 있는 사진 1장을 꽉 채움(둘 다 있을 때만 반반 비교)
+        const heroFirst = conceptReports[0];
+        const heroLast = conceptReports[conceptReports.length - 1];
         const heroFirstPhoto = heroFirst.photoUrls?.[0] || null;
         const heroLastPhoto = heroLast.photoUrls?.[0] || null;
         const heroContent = conceptReports.length < 2 ? null : (
@@ -712,13 +722,13 @@ export default function GrowthStory() {
               <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '1.6px', color: R.goldText }}>처음과 지금</span>
               <div style={{ display: 'flex', alignItems: 'flex-end', gap: '14px', flexWrap: 'wrap' }}>
                 <span style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                  <span style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(55,56,60,0.75)' }}>{fmtDate(heroFirst)}</span>
-                  <span style={{ fontSize: '26px', fontWeight: 600, lineHeight: 1, color: 'rgba(55,56,60,0.75)' }}>{heroFirst.conceptRating}<span style={{ fontSize: '12px', fontWeight: 600 }}>%</span></span>
+                  <span style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(55,56,60,0.75)' }}>초기 {heroFirstGroup.length}회 평균</span>
+                  <span style={{ fontSize: '26px', fontWeight: 600, lineHeight: 1, color: 'rgba(55,56,60,0.75)' }}>{heroFirstAvg}<span style={{ fontSize: '12px', fontWeight: 600 }}>%</span></span>
                 </span>
                 <span style={{ fontSize: '18px', color: '#B0B5BD', marginBottom: '4px' }}>→</span>
                 <span style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                  <span style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(55,56,60,0.75)' }}>{fmtDate(heroLast)}</span>
-                  <span style={{ fontSize: '40px', fontWeight: 700, lineHeight: 1, letterSpacing: '-1px', color: R.navy }}>{heroLast.conceptRating}<span style={{ fontSize: '14px', fontWeight: 600 }}>%</span></span>
+                  <span style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(55,56,60,0.75)' }}>최근 {heroLastGroup.length}회 평균</span>
+                  <span style={{ fontSize: '40px', fontWeight: 700, lineHeight: 1, letterSpacing: '-1px', color: R.navy }}>{heroLastAvg}<span style={{ fontSize: '14px', fontWeight: 600 }}>%</span></span>
                 </span>
                 <span style={{ background: heroDeltaStyle.bg, color: heroDeltaStyle.color, fontSize: '13px', fontWeight: 700, padding: '7px 12px', borderRadius: '8px', marginBottom: '5px' }}>{heroDeltaStyle.text}</span>
               </div>
