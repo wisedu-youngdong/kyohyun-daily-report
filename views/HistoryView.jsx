@@ -285,7 +285,15 @@ export default function HistoryView({ reports, students, classes = [], reportVie
                       <span style={{ fontSize: '15px', fontWeight: 700, color: '#171719' }}>{r.studentName}</span>
                       <span style={{ fontSize: '11px', fontWeight: 500, color: 'rgba(55,56,60,0.75)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.textbook}</span>
                     </span>
-                    <span style={{ background: badge.bg, color: badge.color, fontSize: '10px', fontWeight: 700, padding: '4px 8px', borderRadius: '6px', whiteSpace: 'nowrap' }}>{badge.label}</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                      <span style={{ background: badge.bg, color: badge.color, fontSize: '10px', fontWeight: 700, padding: '4px 8px', borderRadius: '6px', whiteSpace: 'nowrap' }}>{badge.label}</span>
+                      {/* PC와 동일 — 카드를 열지 않고 바로 삭제 확인까지 도달(2026-08-01, 실사용 피드백) */}
+                      <button onClick={(e) => { e.stopPropagation(); setDeleteConfirmReport(r.id); }}
+                        title="삭제" aria-label="리포트 삭제"
+                        style={{ width: '30px', height: '30px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', border: 'none', borderRadius: '7px', background: 'transparent', color: '#9CA3AF', cursor: 'pointer', flexShrink: 0 }}>
+                        <Trash2 size={15} />
+                      </button>
+                    </span>
                   </div>
                   {summary && <span style={{ fontSize: '12px', fontWeight: 500, lineHeight: 1.6, color: 'rgba(55,56,60,0.75)' }}>{summary}</span>}
                   {(hw != null || cc != null) && (
