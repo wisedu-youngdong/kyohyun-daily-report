@@ -831,7 +831,20 @@ export default function HistoryView({ reports, students, classes = [], reportVie
                 onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                   <span style={{ fontSize: '14px', fontWeight: 700, color: '#171719' }}>{pcViewMode === 'student' ? fmtDate(r) : r.studentName}</span>
-                  <span style={{ background: badge.bg, color: badge.color, fontSize: '10px', fontWeight: 700, padding: '3px 7px', borderRadius: '6px', whiteSpace: 'nowrap' }}>{badge.label}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                    <span style={{ background: badge.bg, color: badge.color, fontSize: '10px', fontWeight: 700, padding: '3px 7px', borderRadius: '6px', whiteSpace: 'nowrap' }}>{badge.label}</span>
+                    {/* 목록 행에서 바로 삭제 — 기존엔 상세 패널을 먼저 열어야만 삭제 버튼이 나와서
+                        지우기만 할 때도 동선이 불필요하게 길었음(실사용 피드백). 확인 모달은
+                        기존 것 그대로 재사용(deleteConfirmReport는 selected와 무관하게 id로
+                        조회되므로 선택 안 된 항목도 바로 삭제 요청 가능) */}
+                    <button onClick={(e) => { e.stopPropagation(); setDeleteConfirmReport(r.id); }}
+                      title="삭제" aria-label="리포트 삭제"
+                      style={{ width: '22px', height: '22px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', border: 'none', borderRadius: '5px', background: 'transparent', color: '#9CA3AF', cursor: 'pointer', flexShrink: 0 }}
+                      onMouseEnter={e => { e.currentTarget.style.background = C.dangerBg; e.currentTarget.style.color = C.danger; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#9CA3AF'; }}>
+                      <Trash2 size={13} />
+                    </button>
+                  </span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '8px', marginTop: '4px' }}>
                   <span style={{ fontSize: '11px', fontWeight: 500, color: 'rgba(55,56,60,0.75)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
