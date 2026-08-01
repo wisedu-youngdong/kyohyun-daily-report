@@ -563,7 +563,7 @@ export default function DiagnosticReportInput({
   const buildSessionEntry = () => ({
     date: kstDay(Date.now() / 1000),
     attendance, arrivalTime,
-    departureTime: attendance === '조퇴' ? (departureTime || null) : null,
+    departureTime: attendance !== '결석' ? (departureTime || null) : null,
     homeworkRating: homeworkRating ?? null,
     conceptRating: conceptRating ?? null,
     hasTest,
@@ -611,7 +611,7 @@ export default function DiagnosticReportInput({
         studentId, studentName: student?.name,
         teacherId: teacherId || '', teacherName: teacher?.name || '',
         attendance, arrivalTime,
-        departureTime: attendance === '조퇴' ? (departureTime || null) : null,
+        departureTime: attendance !== '결석' ? (departureTime || null) : null,
         // null = 미입력 규약 유지 — 0으로 강제 변환하면 학부모 화면에 "0%"로 표시됨
         homeworkRating: homeworkRating ?? null,
         conceptRating: conceptRating ?? null,
@@ -1252,7 +1252,7 @@ export default function DiagnosticReportInput({
         studentId, studentName: student?.name,
         teacherId, teacherName: teacher?.name,
         attendance, arrivalTime,
-        departureTime: attendance === '조퇴' ? (departureTime || null) : null,
+        departureTime: attendance !== '결석' ? (departureTime || null) : null,
         homeworkRating, conceptRating,
         hasTest,
         testName: hasTest ? testName : null,
@@ -1733,10 +1733,12 @@ export default function DiagnosticReportInput({
                     <span style={{ fontSize: '12px', fontWeight: 600, color: TOKENS.textSub, flexShrink: 0, width: '28px' }}>등원</span>
                     <TimeField wide={isWide} value={arrivalTime} onChange={setArrivalTime} />
                   </div>
-                  {/* 하원 시각 — 정시 하원은 매번 기록할 필요가 없어 평소엔 숨기고, '조퇴'를
-                      고를 때만 나타나며 필수로 전환(handleSubmit 검증). 정시 하원까지 매번 기록해야
-                      하면 입력 부담이 2배가 돼 선생님 실사용 흐름과 안 맞음(2026-08-01 결정) */}
-                  {attendance === '조퇴' && (
+                  {/* 하원 시각 — 결석이면 애초에 출결 자체가 없어서 숨기고, 그 외(정시/지각/보강/
+                      자율학습/조퇴)에는 전부 노출. 다만 필수 입력은 '조퇴'일 때만(handleSubmit
+                      검증) — 정시 하원까지 매번 필수로 강제하면 입력 부담이 2배가 돼 선생님
+                      실사용 흐름과 안 맞아서, 나머지 상태에서는 원하면 기록하는 선택 항목으로 둠
+                      (2026-08-01 결정, 이후 결석 제외 전체 노출로 확장) */}
+                  {attendance !== '결석' && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <span style={{ fontSize: '12px', fontWeight: 600, color: TOKENS.textSub, flexShrink: 0, width: '28px' }}>하원</span>
                       <TimeField wide={isWide} value={departureTime || arrivalTime} onChange={setDepartureTime} />
@@ -3045,7 +3047,7 @@ export default function DiagnosticReportInput({
 
           <ParentCard
             student={student} teacher={teacher}
-            attendance={attendance} arrivalTime={arrivalTime} departureTime={attendance === '조퇴' ? departureTime : null}
+            attendance={attendance} arrivalTime={arrivalTime} departureTime={attendance !== '결석' ? departureTime : null}
             homeworkRating={homeworkRating} conceptRating={conceptRating}
             hasTest={hasTest} testName={testName} testScore={testScore}
             textbook={textbook} unit={unit} pages={pages}
@@ -3159,7 +3161,7 @@ function ParentCard({ student, teacher, attendance, arrivalTime, departureTime, 
           <span style={{ fontSize: '12px', fontWeight: 500, color: 'rgba(255,255,255,0.82)' }}>
             {teacher?.name || '선생님'}{teacherSuffix}
             {attendance === '결석' ? ` · ${attendance}` : ` · ${arrivalTime} ${attendance} 등원`}
-            {attendance === '조퇴' && departureTime ? ` (${departureTime} 하원)` : ''}
+            {attendance !== '결석' && departureTime ? ` (${departureTime} 하원)` : ''}
           </span>
         </div>
       </div>
