@@ -732,9 +732,9 @@ export default function GrowthStory() {
                 </span>
                 <span style={{ background: heroDeltaStyle.bg, color: heroDeltaStyle.color, fontSize: '13px', fontWeight: 700, padding: '7px 12px', borderRadius: '8px', marginBottom: '5px' }}>{heroDeltaStyle.text}</span>
               </div>
-              {/* '성장 증명'보다 '이렇게 꼼꼼히 기록해요' 쪽으로 — 하락한 회차여도 이 문장은
-                  계속 성립해야 해서, 델타 방향에 기대지 않는 문구로(실사용 피드백) */}
-              <span style={{ fontSize: '13px', fontWeight: 500, lineHeight: 1.7, color: 'rgba(55,56,60,0.9)' }}>선생님이 매 수업 개념 이해도를 꼼꼼히 기록해요. {sorted.length}회 수업 동안의 흐름이에요.</span>
+              {/* 방향(상승/하락)에 따라 다른 문구를 쓰지 않음 — 카드가 실제로 계산한 방식만
+                  그대로 설명하고, 이유는 지어내지 않는다(2026-08-01 결정, ai-hallucination-fix-pattern). */}
+              <span style={{ fontSize: '13px', fontWeight: 500, lineHeight: 1.7, color: 'rgba(55,56,60,0.9)' }}>총 {sorted.length}회 수업 중 초기 {heroFirstGroup.length}회와 최근 {heroLastGroup.length}회의 성취도 집계 결과입니다.</span>
             </div>
           </div>
         );
