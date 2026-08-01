@@ -1175,7 +1175,7 @@ export default function GrowthStory() {
               <span style={tileValue}>{maxScore}<span style={tileUnit}>점</span></span>
               <span style={tileSub}>
                 {maxScoreReport && <b style={{ color: R.goldText, fontWeight: 700 }}>{fmtDate(maxScoreReport)}</b>}
-                {maxScoreReport && (maxScoreReport.unit || maxScoreReport.textbook) ? ' · ' : ''}
+                {maxScoreReport ? ' · ' : ''}
                 {maxScoreReport?.unit || maxScoreReport?.textbook || '100점 만점'}
               </span>
             </div>
