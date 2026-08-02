@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { db } from '../firebase';
 import { updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
-import { FileText, AlertTriangle, Copy, Bell, CalendarDays, MessageCircle } from 'lucide-react';
+import { FileText, AlertTriangle, Copy, CalendarDays } from 'lucide-react';
 import { kstDay, kstWeekday, toPct, ratingLabel, getKstWeekRange } from '../growth.js';
 import { DIAG_BADGE as DIAG_MAP } from '../diagnosis.js';
 import { T, C, R } from '../tokens.jsx';
@@ -144,204 +144,32 @@ export default function DirectorView({ reports, students, classes = [], reportVi
         />
       )}
 
-      {/* 이번 주 현황 위젯 */}
+      {/* 이번 주 챙길 것 — 재설계 2단계. 예전엔 "이번 주 현황"(숫자만) / "답변 대기 질문" /
+          "학부모 참여도" 3개가 따로 놀아서, 실제로 처리해야 할 항목이 몇 개인지 한눈에 안 보였음.
+          하나의 카드로 합치고 기간 컨트롤(오늘/1주/1개월/3개월)과 무관하게 항상 이번 주 기준으로
+          고정 표시한다. 0건인 항목도 숨기지 않고 흐리게만(배경만 낮추고 텍스트 알파는 유지 —
+          wrapper opacity로 흐리게 하면 이미 옅은 보조 텍스트가 대비 기준 미달까지 떨어짐) 남겨서
+          "확인은 했다"는 확신을 준다. */}
       {(() => {
-        // 주차 계산을 로컬로 재구현하면서 "이번 달 날짜 + 월요일 보정"이 음수가 되는 케이스
-        // (이번 주 월요일이 지난달인 경우, 예: 8/2 일요일 → 월요일 7/27)를 놓쳐 "0주차"로
-        // 표시되는 버그가 있었음. AnalysisView/WeeklyReviewView가 이미 쓰는 공용 헬퍼로 교체.
         const week = getKstWeekRange(0);
-        const weekLabel = week.label;
-
         const weekReports = reports.filter(r => r.createdAt?.seconds && kstDay(r.createdAt.seconds) >= week.startStr);
-
         const weekStudentIds = [...new Set(weekReports.map(r => r.studentId))];
-        // 주간 리포트는 최상위 attendance가 없음(세션마다 다를 수 있어 대표값 없음) — 분모에서 제외
-        const weekAttendanceRated = weekReports.filter(r => r.attendance != null);
-        const attendRate = weekAttendanceRated.length > 0
-          ? Math.round(weekAttendanceRated.filter(r => r.attendance === '정시').length / weekAttendanceRated.length * 100)
-          : 0;
-
-        // 미제출 — 이번 주 리포트가 없는 학생 중, 스케줄 요일이 이번 주에 이미 한 번이라도
-        // 지났는데도(오늘 포함) 리포트가 없는 경우만. 스케줄 미설정(레거시 포함)은 기존처럼 매일 대상 유지.
-        // 화목토 학생이 월요일 아침이라 아직 이번 주 수업이 시작도 안 됐는데 미제출로 뜨는 걸 방지.
-        const todayDow = kstWeekday(Date.now() / 1000); // 0=일...6=토, KST 기준(로컬 타임존 의존 제거)
-        const dowRank = (d) => (d + 6) % 7; // 월요일=0 기준으로 재정렬해 "이미 지난 요일인지" 비교
+        // 화목토 학생이 월요일 아침이라 아직 이번 주 수업이 시작도 안 됐는데 미제출로 뜨는 걸 방지
+        const todayDow = kstWeekday(Date.now() / 1000);
+        const dowRank = (d) => (d + 6) % 7;
         const noReportStudents = students.filter(s => {
           if (weekStudentIds.includes(s.id)) return false;
           if (!s.scheduleDays || s.scheduleDays.length === 0) return true;
           return s.scheduleDays.some(d => dowRank(d) <= dowRank(todayDow));
         });
 
-        return (
-          <div style={{ background: '#F6F8FC', border: '1px solid #E6EBF4', borderLeft: '3px solid #0D2D6B', borderRadius: '14px', padding: '20px', marginBottom: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '16px' }}>
-              <p style={{ fontSize: '15px', fontWeight: 700, color: '#0D2D6B', margin: 0 }}>이번 주 현황 · {weekLabel}</p>
-              <span style={{ fontSize: '12px', color: '#6C7586' }}>
-                {week.rangeLabel}
-              </span>
-            </div>
-
-            {/* 수치 3개 — 숫자가 주인공: 카드로 감싸지 않고 큰 숫자만 나란히 */}
-            <div style={{ display: 'flex', gap: '32px', flexWrap: 'wrap' }}>
-              {[
-                { label: '리포트', value: `${weekReports.length}`, unit: '건' },
-                { label: '출석률', value: `${attendRate}`, unit: '%', accent: true },
-                { label: '미제출', value: `${noReportStudents.length}`, unit: '명', warn: noReportStudents.length > 0 },
-              ].map((s, i) => (
-                <div key={i}>
-                  <p style={{ fontSize: '34px', fontWeight: 800, letterSpacing: '-0.03em', margin: 0, fontVariantNumeric: 'tabular-nums', color: s.warn ? C.errorDark : s.accent ? '#0D2D6B' : '#1A1A1A' }}>
-                    {s.value}<span style={{ fontSize: '16px', fontWeight: 700 }}>{s.unit}</span>
-                  </p>
-                  <p style={{ fontSize: '12px', color: '#6C7586', margin: '2px 0 0' }}>{s.label}</p>
-                </div>
-              ))}
-
-              {/* 미제출 학생 알림 — 우측 정렬 배지 */}
-              {noReportStudents.length > 0 && (
-                <div style={{ marginLeft: 'auto', alignSelf: 'center', display: 'flex', alignItems: 'center', gap: '9px', background: '#FEF6F5', border: '1px solid #F7DCD8', borderRadius: '14px', padding: '9px 14px' }}>
-                  <Bell size={16} style={{ color: C.errorDark, flexShrink: 0 }} />
-                  <p style={{ fontSize: '12px', color: '#6C7586', margin: 0, lineHeight: 1.4 }}>
-                    리포트 미작성<br />
-                    <span style={{ color: '#1A1A1A', fontSize: '13px', fontWeight: 700 }}>
-                      {noReportStudents.map(s => s.name).join(', ')}
-                    </span>
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* 답변 대기 중인 질문 — 날짜 선택과 무관하게 전체 학원의 미답변 질문을 한 번에 모아봄.
-          아래 날짜별 카드는 선택한 날짜 리포트에만 질문이 보이는데, 질문은 어떤 날짜의
-          리포트에도 달릴 수 있어서 날짜를 안 옮겨도 놓치지 않게 여기 따로 둠 */}
-      {(() => {
         const pending = reportQuestions
           .filter(q => !q.answerText)
           .sort((a, b) => (b.askedAt?.seconds || 0) - (a.askedAt?.seconds || 0));
-        if (pending.length === 0) return null;
-        return (
-          <div style={{ background: '#F5F8FF', border: '1px solid #C5D5F0', borderRadius: '14px', padding: '16px 18px', marginBottom: '20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-              <MessageCircle size={16} style={{ color: T.brand }} />
-              <p style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>답변 대기 중인 질문 · {pending.length}건</p>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {pending.map(q => {
-                // 질문은 "질문한 날짜"가 아니라 "어느 리포트에 대한 질문인지"가 중요 —
-                // 질문한 날짜와 리포트 날짜가 다른 경우가 많아서(리포트 받고 며칠 뒤에 질문하는 경우 등)
-                // 원본 리포트를 찾아 그 날짜/내용을 같이 보여주고, 클릭하면 그 날짜로 바로 이동
-                const sourceReport = reports.find(r => r.id === q.reportId);
-                const reportDateStr = sourceReport?.createdAt?.seconds ? kstDay(sourceReport.createdAt.seconds) : null;
-                const reportLabel = sourceReport
-                  ? `${new Date(reportDateStr).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} 리포트${sourceReport.unit ? ` · ${sourceReport.unit}` : (sourceReport.textbook ? ` · ${sourceReport.textbook}` : '')}`
-                  : '원본 리포트를 찾을 수 없음';
-                return (
-                <div key={q.id} style={{ background: '#fff', borderRadius: '8px', padding: '10px 12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '4px' }}>
-                    <p style={{ fontSize: '11px', color: '#6B7785', margin: 0 }}>
-                      {q.studentName} · {reportLabel}
-                      {q.askedAt?.seconds && (
-                        <span style={{ color: '#B0752A', fontWeight: 700 }}> · {formatElapsed(q.askedAt.seconds, Date.now() / 1000)}째 대기</span>
-                      )}
-                    </p>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-                      {reportDateStr && (
-                        <button onClick={() => setSelectedDate(reportDateStr)}
-                          style={{ background: 'none', border: 'none', color: T.brand, fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>
-                          그 날짜로 이동
-                        </button>
-                      )}
-                      <button onClick={() => handleDeleteQuestion(q.id)} disabled={deletingQuestionId === q.id}
-                        style={{
-                          background: confirmDeleteQuestionId === q.id ? C.danger : 'none', border: 'none', borderRadius: '6px',
-                          padding: confirmDeleteQuestionId === q.id ? '2px 8px' : 0,
-                          color: confirmDeleteQuestionId === q.id ? '#fff' : '#6B7280', fontSize: '11px', fontWeight: 700,
-                          cursor: deletingQuestionId === q.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
-                        }}>
-                        {deletingQuestionId === q.id ? '삭제 중' : confirmDeleteQuestionId === q.id ? '확인' : '삭제'}
-                      </button>
-                    </div>
-                  </div>
-                  <p style={{ fontSize: '12px', color: '#1A1A1A', margin: '0 0 8px', lineHeight: 1.6 }}>{q.questionText}</p>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <textarea
-                      value={answerDrafts[q.id] ?? ''}
-                      onChange={e => setAnswerDrafts(prev => ({ ...prev, [q.id]: e.target.value }))}
-                      placeholder="답변을 입력해주세요" rows={2}
-                      style={{ flex: 1, padding: '8px 10px', fontSize: '16px', border: '0.5px solid #E8E6E0', borderRadius: '8px', fontFamily: 'inherit', resize: 'vertical', lineHeight: 1.6 }}
-                    />
-                    <button
-                      onClick={() => handleAnswerSave(q.id, answerDrafts[q.id] || '')}
-                      disabled={savingAnswer === q.id || !(answerDrafts[q.id] || '').trim()}
-                      style={{ padding: '8px 14px', fontSize: '12px', fontWeight: 700, background: savingAnswer === q.id ? '#E5E7EB' : '#0D2D6B', color: savingAnswer === q.id ? '#6C7586' : '#fff', border: 'none', borderRadius: '8px', cursor: savingAnswer === q.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit', alignSelf: 'flex-start' }}>
-                      {savingAnswer === q.id ? '저장 중' : '답변 저장'}
-                    </button>
-                  </div>
-                </div>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* 답변 완료 — 기본은 접어둠(계속 쌓이는 목록이라 화면 차지 안 하게), 눌러야 펼쳐짐 */}
-      {(() => {
         const answered = reportQuestions
           .filter(q => q.answerText)
           .sort((a, b) => (b.answeredAt?.seconds || 0) - (a.answeredAt?.seconds || 0));
-        if (answered.length === 0) return null;
-        return (
-          <div style={{ border: '1px solid #E8E6E0', borderRadius: '14px', marginBottom: '20px', overflow: 'hidden' }}>
-            <button onClick={() => setShowAnswered(v => !v)}
-              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px', padding: '14px 18px', background: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
-              <MessageCircle size={15} style={{ color: C.successDark, flexShrink: 0 }} />
-              <span style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A' }}>답변 완료 · {answered.length}건</span>
-              <span style={{ marginLeft: 'auto', fontSize: '11px', color: '#6C7586' }}>{showAnswered ? '접기' : '펼치기'}</span>
-            </button>
-            {showAnswered && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '0 18px 16px' }}>
-                {answered.map(q => {
-                  const sourceReport = reports.find(r => r.id === q.reportId);
-                  const reportLabel = sourceReport?.createdAt?.seconds
-                    ? `${new Date(kstDay(sourceReport.createdAt.seconds)).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} 리포트`
-                    : '원본 리포트를 찾을 수 없음';
-                  return (
-                    <div key={q.id} style={{ background: '#FAFAFA', border: '0.5px solid #E8E6E0', borderRadius: '8px', padding: '10px 12px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '4px' }}>
-                        <p style={{ fontSize: '11px', color: '#6B7785', margin: 0 }}>{q.studentName} · {reportLabel}</p>
-                        <button onClick={() => handleDeleteQuestion(q.id)} disabled={deletingQuestionId === q.id}
-                          style={{
-                            background: confirmDeleteQuestionId === q.id ? C.danger : 'none', border: 'none', borderRadius: '6px',
-                            padding: confirmDeleteQuestionId === q.id ? '2px 8px' : 0, flexShrink: 0,
-                            color: confirmDeleteQuestionId === q.id ? '#fff' : '#6B7280', fontSize: '11px', fontWeight: 700,
-                            cursor: deletingQuestionId === q.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
-                          }}>
-                          {deletingQuestionId === q.id ? '삭제 중' : confirmDeleteQuestionId === q.id ? '확인' : '삭제'}
-                        </button>
-                      </div>
-                      <p style={{ fontSize: '12px', color: '#1A1A1A', margin: '0 0 6px', fontWeight: 600, lineHeight: 1.6 }}>Q. {q.questionText}</p>
-                      <div style={{ borderLeft: `2px solid ${C.successDark}`, paddingLeft: '10px' }}>
-                        <p style={{ fontSize: '12px', color: '#5A6472', margin: 0, lineHeight: 1.6 }}>A. {q.answerText}</p>
-                        {q.askedAt?.seconds && q.answeredAt?.seconds && (
-                          <p style={{ fontSize: '10px', color: '#6C7586', margin: '4px 0 0' }}>답변까지 {formatElapsed(q.askedAt.seconds, q.answeredAt.seconds)} 소요</p>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        );
-      })()}
 
-      {/* 학부모 참여도 — 열람률/질문 여부로 "조용한 집"을 먼저 찾아줌. 퇴원은 대개 조용한
-          집에서 나오는데, 지금까지는 "리포트를 열람했는지"를 개별 리포트 배지로만 봤지
-          학생 단위로 모아서 우선순위를 알려주는 화면이 없었음 */}
-      {(() => {
         const MIN_REPORTS = 3; // 샘플이 너무 적으면(신규생 등) 판단 근거가 약해 제외
         const engagement = students
           .filter(s => !s.archived)
@@ -359,36 +187,164 @@ export default function DirectorView({ reports, students, classes = [], reportVi
           })
           .filter(Boolean)
           .sort((a, b) => a.viewRate - b.viewRate);
-
-        if (engagement.length === 0) return null;
         const quietCount = engagement.filter(e => e.label === '조용함').length;
 
+        // §7 숫자 일관성 — 이 총계도 students/reportQuestions에서 파생된 위 세 값의 합일 뿐,
+        // 화면 어디에도 직접 하드코딩된 숫자가 없다
+        const todoCount = noReportStudents.length + pending.length + quietCount;
+        const dim = { color: 'rgba(55,56,60,0.75)' };
+        const rowStyle = { padding: '14px 20px', borderTop: '1px solid #EEF0F3' };
+
         return (
-          <div style={{ background: '#fff', border: '1px solid #E8E6E0', borderRadius: '14px', marginBottom: '20px', overflow: 'hidden' }}>
-            <button onClick={() => setShowEngagement(v => !v)}
-              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px', padding: '16px 18px', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A' }}>학부모 참여도</span>
-              {quietCount > 0 && (
-                <span style={{ fontSize: '11px', fontWeight: 700, background: '#FDF0F0', color: C.errorDark, padding: '2px 8px', borderRadius: '10px' }}>조용함 {quietCount}명</span>
+          <div style={{ background: '#F6F8FC', border: '1px solid #E6EBF4', borderLeft: '3px solid #0D2D6B', borderRadius: '14px', marginBottom: '20px', overflow: 'hidden' }}>
+            <div style={{ padding: '18px 20px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: '6px' }}>
+              <p style={{ fontSize: '15px', fontWeight: 700, color: '#0D2D6B', margin: 0 }}>이번 주 챙길 것 · {todoCount}건</p>
+              <span style={{ fontSize: '11px', color: '#6C7586' }}>{week.label} · 기간 설정과 무관하게 항상 이번 주</span>
+            </div>
+
+            {/* 리포트 미작성 */}
+            <div style={rowStyle}>
+              <p style={{ fontSize: '13px', fontWeight: 700, margin: 0, ...(noReportStudents.length === 0 ? dim : { color: '#1A1A1A' }) }}>
+                리포트 미작성 <span style={{ fontWeight: 800 }}>{noReportStudents.length}건</span>
+              </p>
+              {noReportStudents.length > 0 && (
+                <p style={{ fontSize: '12px', margin: '4px 0 0', ...dim }}>{noReportStudents.map(s => s.name).join(', ')}</p>
               )}
-              <span style={{ marginLeft: 'auto', fontSize: '11px', color: '#6C7586' }}>{showEngagement ? '접기' : '펼치기'}</span>
-            </button>
-            {showEngagement && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', padding: '0 18px 16px' }}>
-                <p style={{ fontSize: '11px', color: '#6C7586', margin: '0 0 6px' }}>최근 발송 {MIN_REPORTS}건 이상인 학생만 표시 · 열람률 낮은 순</p>
-                {engagement.map(e => (
-                  <div key={e.student.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderTop: '1px solid #F3F4F6' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 600, color: '#1A1A1A', flexShrink: 0, minWidth: '52px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.student.name}</span>
-                    <div style={{ flex: 1, height: '5px', background: '#F3F4F6', borderRadius: '4px', overflow: 'hidden' }}>
-                      <div style={{ width: `${e.viewRate}%`, height: '100%', background: e.viewRate < 50 ? C.errorDark : '#0D2D6B', borderRadius: '4px' }} />
+            </div>
+
+            {/* 학부모 질문 미답변 */}
+            <div style={rowStyle}>
+              <p style={{ fontSize: '13px', fontWeight: 700, margin: 0, ...(pending.length === 0 ? dim : { color: '#1A1A1A' }) }}>
+                학부모 질문 미답변 <span style={{ fontWeight: 800 }}>{pending.length}건</span>
+              </p>
+              {pending.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
+                  {pending.map(q => {
+                    // 질문은 "질문한 날짜"가 아니라 "어느 리포트에 대한 질문인지"가 중요 —
+                    // 질문한 날짜와 리포트 날짜가 다른 경우가 많아서(리포트 받고 며칠 뒤에 질문하는 경우 등)
+                    // 원본 리포트를 찾아 그 날짜/내용을 같이 보여주고, 클릭하면 그 날짜로 바로 이동
+                    const sourceReport = reports.find(r => r.id === q.reportId);
+                    const reportDateStr = sourceReport?.createdAt?.seconds ? kstDay(sourceReport.createdAt.seconds) : null;
+                    const reportLabel = sourceReport
+                      ? `${new Date(reportDateStr).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} 리포트${sourceReport.unit ? ` · ${sourceReport.unit}` : (sourceReport.textbook ? ` · ${sourceReport.textbook}` : '')}`
+                      : '원본 리포트를 찾을 수 없음';
+                    return (
+                    <div key={q.id} style={{ background: '#fff', borderRadius: '8px', padding: '10px 12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '4px' }}>
+                        <p style={{ fontSize: '11px', color: '#6B7785', margin: 0 }}>
+                          {q.studentName} · {reportLabel}
+                          {q.askedAt?.seconds && (
+                            <span style={{ color: '#B0752A', fontWeight: 700 }}> · {formatElapsed(q.askedAt.seconds, Date.now() / 1000)}째 대기</span>
+                          )}
+                        </p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+                          {reportDateStr && (
+                            <button onClick={() => { setView('today'); setSelectedDate(reportDateStr); }}
+                              style={{ background: 'none', border: 'none', color: T.brand, fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>
+                              그 날짜로 이동
+                            </button>
+                          )}
+                          <button onClick={() => handleDeleteQuestion(q.id)} disabled={deletingQuestionId === q.id}
+                            style={{
+                              background: confirmDeleteQuestionId === q.id ? C.danger : 'none', border: 'none', borderRadius: '6px',
+                              padding: confirmDeleteQuestionId === q.id ? '2px 8px' : 0,
+                              color: confirmDeleteQuestionId === q.id ? '#fff' : '#6B7280', fontSize: '11px', fontWeight: 700,
+                              cursor: deletingQuestionId === q.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+                            }}>
+                            {deletingQuestionId === q.id ? '삭제 중' : confirmDeleteQuestionId === q.id ? '확인' : '삭제'}
+                          </button>
+                        </div>
+                      </div>
+                      <p style={{ fontSize: '12px', color: '#1A1A1A', margin: '0 0 8px', lineHeight: 1.6 }}>{q.questionText}</p>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <textarea
+                          value={answerDrafts[q.id] ?? ''}
+                          onChange={e => setAnswerDrafts(prev => ({ ...prev, [q.id]: e.target.value }))}
+                          placeholder="답변을 입력해주세요" rows={2}
+                          style={{ flex: 1, padding: '8px 10px', fontSize: '16px', border: '0.5px solid #E8E6E0', borderRadius: '8px', fontFamily: 'inherit', resize: 'vertical', lineHeight: 1.6 }}
+                        />
+                        <button
+                          onClick={() => handleAnswerSave(q.id, answerDrafts[q.id] || '')}
+                          disabled={savingAnswer === q.id || !(answerDrafts[q.id] || '').trim()}
+                          style={{ padding: '8px 14px', fontSize: '12px', fontWeight: 700, background: savingAnswer === q.id ? '#E5E7EB' : '#0D2D6B', color: savingAnswer === q.id ? '#6C7586' : '#fff', border: 'none', borderRadius: '8px', cursor: savingAnswer === q.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit', alignSelf: 'flex-start' }}>
+                          {savingAnswer === q.id ? '저장 중' : '답변 저장'}
+                        </button>
+                      </div>
                     </div>
-                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#5A6472', flexShrink: 0, width: '34px', textAlign: 'right' }}>{e.viewRate}%</span>
-                    {e.questionCount > 0 && <span style={{ fontSize: '10px', color: '#6B7785', flexShrink: 0, whiteSpace: 'nowrap' }}>질문{e.questionCount}</span>}
-                    <span style={{ fontSize: '10px', fontWeight: 700, background: e.labelBg, color: e.labelColor, padding: '2px 8px', borderRadius: '10px', flexShrink: 0 }}>{e.label}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* 참여도 조정 필요 */}
+            <div style={rowStyle}>
+              <button onClick={() => setShowEngagement(v => !v)} disabled={engagement.length === 0}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', background: 'none', border: 'none', padding: 0, cursor: engagement.length === 0 ? 'default' : 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
+                <p style={{ fontSize: '13px', fontWeight: 700, margin: 0, ...(quietCount === 0 ? dim : { color: '#1A1A1A' }) }}>
+                  참여도 조정 필요 <span style={{ fontWeight: 800 }}>{quietCount}명</span>
+                </p>
+                {engagement.length > 0 && <span style={{ fontSize: '11px', color: '#6C7586', flexShrink: 0 }}>{showEngagement ? '접기' : '명단 보기'}</span>}
+              </button>
+              {showEngagement && engagement.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '10px' }}>
+                  <p style={{ fontSize: '11px', color: '#6C7586', margin: '0 0 6px' }}>최근 발송 {MIN_REPORTS}건 이상인 학생만 표시 · 열람률 낮은 순</p>
+                  {engagement.map(e => (
+                    <div key={e.student.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderTop: '1px solid #F3F4F6' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 600, color: '#1A1A1A', flexShrink: 0, minWidth: '52px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.student.name}</span>
+                      <div style={{ flex: 1, height: '5px', background: '#F3F4F6', borderRadius: '4px', overflow: 'hidden' }}>
+                        <div style={{ width: `${e.viewRate}%`, height: '100%', background: e.viewRate < 50 ? C.errorDark : '#0D2D6B', borderRadius: '4px' }} />
+                      </div>
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#5A6472', flexShrink: 0, width: '34px', textAlign: 'right' }}>{e.viewRate}%</span>
+                      {e.questionCount > 0 && <span style={{ fontSize: '10px', color: '#6B7785', flexShrink: 0, whiteSpace: 'nowrap' }}>질문{e.questionCount}</span>}
+                      <span style={{ fontSize: '10px', fontWeight: 700, background: e.labelBg, color: e.labelColor, padding: '2px 8px', borderRadius: '10px', flexShrink: 0 }}>{e.label}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 답변 완료 — 처리할 항목은 아니지만(§5) 숨기지 않고 마지막 줄에 흐리게 남겨 참고용으로 둠 */}
+            <div style={rowStyle}>
+              <button onClick={() => setShowAnswered(v => !v)} disabled={answered.length === 0}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', background: 'none', border: 'none', padding: 0, cursor: answered.length === 0 ? 'default' : 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
+                <p style={{ fontSize: '13px', fontWeight: 700, margin: 0, ...dim }}>답변 완료 <span style={{ fontWeight: 800 }}>{answered.length}건</span></p>
+                {answered.length > 0 && <span style={{ fontSize: '11px', color: '#6C7586', flexShrink: 0 }}>{showAnswered ? '접기' : '펼치기'}</span>}
+              </button>
+              {showAnswered && answered.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
+                  {answered.map(q => {
+                    const sourceReport = reports.find(r => r.id === q.reportId);
+                    const reportLabel = sourceReport?.createdAt?.seconds
+                      ? `${new Date(kstDay(sourceReport.createdAt.seconds)).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} 리포트`
+                      : '원본 리포트를 찾을 수 없음';
+                    return (
+                      <div key={q.id} style={{ background: '#FAFAFA', border: '0.5px solid #E8E6E0', borderRadius: '8px', padding: '10px 12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '4px' }}>
+                          <p style={{ fontSize: '11px', color: '#6B7785', margin: 0 }}>{q.studentName} · {reportLabel}</p>
+                          <button onClick={() => handleDeleteQuestion(q.id)} disabled={deletingQuestionId === q.id}
+                            style={{
+                              background: confirmDeleteQuestionId === q.id ? C.danger : 'none', border: 'none', borderRadius: '6px',
+                              padding: confirmDeleteQuestionId === q.id ? '2px 8px' : 0, flexShrink: 0,
+                              color: confirmDeleteQuestionId === q.id ? '#fff' : '#6B7280', fontSize: '11px', fontWeight: 700,
+                              cursor: deletingQuestionId === q.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+                            }}>
+                            {deletingQuestionId === q.id ? '삭제 중' : confirmDeleteQuestionId === q.id ? '확인' : '삭제'}
+                          </button>
+                        </div>
+                        <p style={{ fontSize: '12px', color: '#1A1A1A', margin: '0 0 6px', fontWeight: 600, lineHeight: 1.6 }}>Q. {q.questionText}</p>
+                        <div style={{ borderLeft: `2px solid ${C.successDark}`, paddingLeft: '10px' }}>
+                          <p style={{ fontSize: '12px', color: '#5A6472', margin: 0, lineHeight: 1.6 }}>A. {q.answerText}</p>
+                          {q.askedAt?.seconds && q.answeredAt?.seconds && (
+                            <p style={{ fontSize: '10px', color: '#6C7586', margin: '4px 0 0' }}>답변까지 {formatElapsed(q.askedAt.seconds, q.answeredAt.seconds)} 소요</p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         );
       })()}
