@@ -1,5 +1,5 @@
 import React from 'react';
-import { toPct } from '../growth.js';
+import { toPct, kstDay, kstWeekday } from '../growth.js';
 import { useMediaQuery } from '../hooks.js';
 import { C } from '../tokens.jsx';
 import { onKeyActivate } from './shared.jsx';
@@ -167,6 +167,33 @@ export default function GrowthDashboard({ reports, students, period, classes = [
   const prevOverallAvg = avg(students.map(s => getAvgInRange(s.id, Date.now() - periodMs * 2, Date.now() - periodMs)).filter(v => v > 0));
   const avgDelta = prevOverallAvg > 0 ? Math.round((overallAvg - prevOverallAvg) * 10) / 10 : null;
 
+  // 기간별 리포트 미작성 — 미뤄뒀던 결정 항목. "오늘" 뷰의 미작성(하루 기준)과 같은
+  // scheduleDays 판정을, 선택된 기간(1주/1개월/3개월)의 매일에 대해 반복해서 합산한다.
+  // 학생-일 단위로 "그날이 그 학생의 수업 요일인데 그날 리포트가 있는지"를 센다.
+  const writeRateInfo = React.useMemo(() => {
+    const days = PERIODS[period];
+    const cutoffSeconds = Math.floor(Date.now() / 1000) - days * 86400;
+    const reportedSet = new Set();
+    reports.forEach(r => {
+      if (!r.createdAt?.seconds || r.createdAt.seconds < cutoffSeconds) return;
+      reportedSet.add(`${r.studentId}|${kstDay(r.createdAt.seconds)}`);
+    });
+    let expected = 0, written = 0;
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    for (let i = 0; i < days; i++) {
+      const daySeconds = nowSeconds - i * 86400;
+      const dayStr = kstDay(daySeconds);
+      const dow = kstWeekday(daySeconds);
+      students.forEach(s => {
+        const scheduled = !s.scheduleDays || s.scheduleDays.length === 0 || s.scheduleDays.includes(dow);
+        if (!scheduled) return;
+        expected++;
+        if (reportedSet.has(`${s.id}|${dayStr}`)) written++;
+      });
+    }
+    return { missing: expected - written, rate: expected > 0 ? Math.round(written / expected * 100) : null };
+  }, [reports, students, period]);
+
   return (
     // DirectorView와 같은 스크롤 안에 이어 붙어 렌더링되는 화면(App.jsx 원장분석 › 원장 보고서
     // 서브탭) — maxWidth가 DirectorView(880px)와 달라서 두 화면이 폭 다른 덩어리로 어긋나 보이던
@@ -191,6 +218,11 @@ export default function GrowthDashboard({ reports, students, period, classes = [
             c: '#0D2D6B', bg: '#fff', bd: '#E8E6E0',
           },
           { label: '총 학생', value: `${students.length}명`, sub: '등록', c: '#1A1A1A', bg: '#fff', bd: '#E8E6E0' },
+          {
+            label: '리포트 미작성', value: `${writeRateInfo.missing}건`,
+            sub: writeRateInfo.rate == null ? '수업 요일 데이터 없음' : `작성률 ${writeRateInfo.rate}%`,
+            c: writeRateInfo.missing > 0 ? C.warningText : '#1A1A1A', bg: writeRateInfo.missing > 0 ? '#FAEEDA' : '#fff', bd: writeRateInfo.missing > 0 ? '#EF9F27' : '#E8E6E0',
+          },
         ].map((w, i) => (
           <div key={i} onClick={w.onClick}
             style={{ background: w.bg, border: `1px solid ${w.bd}`, borderRadius: '10px', padding: '10px 12px', cursor: w.onClick ? 'pointer' : 'default' }}>
