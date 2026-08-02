@@ -29,6 +29,13 @@ export default function GrowthDashboard({ reports, students, period, classes = [
   // 안에서 직접 했는데, 이제 버튼 자체가 이 컴포넌트에 없어서 effect로 옮김
   React.useEffect(() => { setSelId(null); }, [period]);
 
+  // 페이지네이션 — 미뤄뒀던 결정 항목. 지금 학생 수(4명)엔 아무 효과가 없고, PAGE_SIZE를
+  // 넘는 학원에서만 컨트롤이 나타남(이전/다음 이동은 페이지가 아니라 전체 정렬 목록 기준—
+  // 서랍 훑어보기가 페이지 경계에서 끊기면 안 되므로 아래 pagedStudents는 표 렌더링에만 씀)
+  const PAGE_SIZE = 30;
+  const [page, setPage] = React.useState(1);
+  React.useEffect(() => { setPage(1); }, [period, sortMode, classFilter, teacherFilter, search]);
+
   const PERIODS = { week: 7, month: 30, '3month': 90 };
 
   // 과제/개념 평가는 구 리포트(1~5)와 신규 리포트(0~100)가 섞여 있으므로,
@@ -115,6 +122,9 @@ export default function GrowthDashboard({ reports, students, period, classes = [
     if (sortMode === 'score') return list.sort((a, b) => getAvg(b.id) - getAvg(a.id));
     return list.sort((a, b) => a.name.localeCompare(b.name, 'ko'));
   }, [filteredStudents, period, sortMode, getTrend, getAvg, getStatus]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedStudents.length / PAGE_SIZE));
+  const pagedStudents = sortedStudents.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   // 전체 평균 데이터 포인트 생성
   const globalPoints = React.useMemo(() => {
@@ -372,7 +382,7 @@ export default function GrowthDashboard({ reports, students, period, classes = [
               style={{ fontSize: '10px', color: '#6B7785', margin: 0, textAlign: i === 0 ? 'left' : 'center', letterSpacing: '0.06em', cursor: h === '변화량' ? 'help' : 'default' }}>{h}</p>
           ))}
         </div>
-        {sortedStudents.map(s => {
+        {pagedStudents.map(s => {
           const rs = getStudentReports(s.id);
           const a = getAvg(s.id);
           const trend = getTrend(s.id);
@@ -451,6 +461,21 @@ export default function GrowthDashboard({ reports, students, period, classes = [
           </p>
         )}
       </div>
+
+      {/* 페이지네이션 — 미뤄뒀던 결정 항목. PAGE_SIZE(30명) 이하 학원엔 그냥 안 보임 */}
+      {totalPages > 1 && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginTop: '10px' }}>
+          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}
+            style={{ padding: '6px 12px', fontSize: '12px', fontWeight: 700, borderRadius: '8px', border: '1px solid #E8E6E0', background: '#fff', color: page <= 1 ? '#D4D7DD' : '#374151', cursor: page <= 1 ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+            ‹ 이전
+          </button>
+          <span style={{ fontSize: '12px', color: '#6B7785', fontWeight: 600 }}>{page} / {totalPages} 페이지 · {sortedStudents.length}명</span>
+          <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}
+            style={{ padding: '6px 12px', fontSize: '12px', fontWeight: 700, borderRadius: '8px', border: '1px solid #E8E6E0', background: '#fff', color: page >= totalPages ? '#D4D7DD' : '#374151', cursor: page >= totalPages ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+            다음 ›
+          </button>
+        </div>
+      )}
 
       {/* 학생 상세 패널 — 재설계 4단계: 예전엔 여기 자체 미니 드로어가 있었는데, StudentsView/
           DirectorView가 쓰는 풀 기능 StudentProfileContent를 420px 오버레이에 그대로 담는
