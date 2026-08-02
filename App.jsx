@@ -968,7 +968,7 @@ export default function App() {
             <div style={{ marginTop: '12px' }}>
               {activeSubTab.insight === 'director' && (dataReady
                 ? <React.Suspense fallback={<SkeletonBlock rows={4} cardHeight={70} />}>
-                    <DirectorView reports={visibleReports} students={visibleStudents} classes={classes} teachers={teachers} reportViews={reportViews} reportQuestions={reportQuestions} reviews={reviews} onToast={showAppToast} academyId={academyId} academyName={academyName} onEditReviewNote={handleEditReviewNote} onOpenStudentProfile={handleOpenStudentProfile} statusThresholds={academyStatusThresholds} />
+                    <DirectorView reports={visibleReports} students={visibleStudents} classes={classes} teachers={teachers} reportViews={reportViews} reportQuestions={reportQuestions} onToast={showAppToast} academyId={academyId} academyName={academyName} onOpenStudentProfile={handleOpenStudentProfile} statusThresholds={academyStatusThresholds} />
                   </React.Suspense>
                 : <SkeletonBlock rows={4} cardHeight={70} />
               )}

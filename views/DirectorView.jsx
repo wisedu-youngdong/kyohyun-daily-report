@@ -18,7 +18,7 @@ function formatElapsed(fromSeconds, toSeconds) {
   return `${Math.round(diffHour / 24)}일`;
 }
 
-export default function DirectorView({ reports, students, classes = [], teachers = [], reportViews = [], reportQuestions = [], reviews = [], onToast, academyId, academyName, onEditReviewNote, onOpenStudentProfile, statusThresholds }) {
+export default function DirectorView({ reports, students, classes = [], teachers = [], reportViews = [], reportQuestions = [], onToast, academyId, academyName, onOpenStudentProfile, statusThresholds }) {
   // 기간 컨트롤 통합(재설계 1단계) — 예전엔 날짜 선택기(이 화면)와 기간 토글(GrowthDashboard)이
   // 완전히 분리된 state라 서로 반응하지 않았음. 이제 이 view 하나가 "오늘 카드 목록"과
   // "기간 KPI/추이/표"(GrowthDashboard에 위임) 중 무엇을 보여줄지 전체를 결정한다 — 두 뷰가
@@ -162,8 +162,9 @@ export default function DirectorView({ reports, students, classes = [], teachers
           .sort((a, b) => (b.answeredAt?.seconds || 0) - (a.answeredAt?.seconds || 0));
 
         const MIN_REPORTS = 3; // 샘플이 너무 적으면(신규생 등) 판단 근거가 약해 제외
+        // students(App.jsx의 visibleStudents)는 이미 !archived로 걸러진 상태로 내려오므로
+        // 여기서 다시 거를 필요 없음(죽은 방어 코드였음)
         const engagement = students
-          .filter(s => !s.archived)
           .map(s => {
             const sentReports = reports.filter(r => r.studentId === s.id && !r.isDraft);
             if (sentReports.length < MIN_REPORTS) return null;
@@ -378,10 +379,12 @@ export default function DirectorView({ reports, students, classes = [], teachers
           <button onClick={() => shiftDate(1)} disabled={selectedDate >= todayStr} aria-label="다음 날짜"
             style={{ background: 'none', border: 'none', color: selectedDate >= todayStr ? '#D4D7DD' : '#374151', cursor: selectedDate >= todayStr ? 'not-allowed' : 'pointer', fontSize: '16px', padding: '4px 6px', fontFamily: 'inherit' }}>›</button>
           <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', marginLeft: '4px' }}>
-            <style>{`.dv-date-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }`}</style>
             {/* max 없으면 옆의 "다음 날짜" 화살표(todayStr 이상이면 비활성)와 달리 달력
-                아이콘으로는 미래 날짜를 고를 수 있어, 같은 상태로 가는 두 경로의 규칙이 달랐음 */}
-            <input ref={dateInputRef} type="date" value={selectedDate} max={todayStr} onChange={e => setSelectedDate(e.target.value)} className="dv-date-input" tabIndex={-1} />
+                아이콘으로는 미래 날짜를 고를 수 있어, 같은 상태로 가는 두 경로의 규칙이 달랐음.
+                예전엔 별도 <style> 태그로 클래스를 정의했는데, 렌더마다 새 <style> 엘리먼트가
+                DOM에 재삽입돼 낭비였음 — 인라인 style로 대체해 <style> 태그 자체를 없앰 */}
+            <input ref={dateInputRef} type="date" value={selectedDate} max={todayStr} onChange={e => setSelectedDate(e.target.value)} tabIndex={-1}
+              style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }} />
             <CalendarDays size={18} strokeWidth={2}
               role="button" tabIndex={0} aria-label="날짜 선택"
               onClick={() => dateInputRef.current?.showPicker ? dateInputRef.current.showPicker() : dateInputRef.current?.focus()}
@@ -448,7 +451,10 @@ export default function DirectorView({ reports, students, classes = [], teachers
           const isOpen = expandedId === r.id;
           const weakDiag = (r.diagnosis || []).filter(d => d.key !== 'perfect');
           const goodDiag = (r.diagnosis || []).filter(d => d.key === 'perfect');
-          const mainDiag = r.diagnosis?.[0];
+          // 배열 순서로만 뽑으면(구 로직: r.diagnosis?.[0]) 약점 태그와 perfect 태그가 같이
+          // 선택된 리포트에서 perfect가 우연히 먼저 오면, 테두리는 빨강(약점 있음)인데 배지는
+          // "개념 완벽"이 뜨는 자기모순이 생김 — 테두리 우선순위(약점 > 완벽)와 맞춤
+          const mainDiag = weakDiag[0] || goodDiag[0];
           const borderColor = weakDiag.length > 0 ? C.errorDark : goodDiag.length > 0 ? C.successDark : '#E8E6E0';
           // timeZone 고정 필수 — 이 값이 학부모에게 실제로 나가는 카톡 복사 텍스트에도 그대로
           // 쓰인다(아래 dateStr 참조). 원장님 기기가 KST가 아니면 문구 날짜가 틀릴 수 있었음.
@@ -525,7 +531,10 @@ export default function DirectorView({ reports, students, classes = [], teachers
                       {r.textbook && <span style={{ fontWeight: 600 }}>{r.textbook}{r.unit ? ` · ${r.unit}` : ''}{r.pages ? ` ${r.pages}` : ''}</span>}
                       <span style={{ color: '#5A6472' }}>
                         {r.textbook ? ' · ' : ''}과제 {r.homeworkRating != null ? `${toPct(r.homeworkRating)}%` : '미평가'} · 개념 {r.conceptRating != null ? `${toPct(r.conceptRating)}%` : '미평가'}
-                        {r.hasTest && r.testScore ? ` · 시험 ${r.testScore}점` : ''}
+                        {/* r.testScore != null && !== '' — 지금은 testScore가 항상 문자열이라
+                            truthy 체크로도 문제없지만(빈 문자열만 falsy), 혹시 나중에 숫자
+                            타입으로 바뀌면 진짜 0점이 "미입력"처럼 사라지는 걸 미리 방지 */}
+                        {r.hasTest && r.testScore != null && r.testScore !== '' ? ` · 시험 ${r.testScore}점` : ''}
                       </span>
                     </>
                   )}
@@ -686,7 +695,7 @@ export default function DirectorView({ reports, students, classes = [], teachers
                         {r.homeworkRating != null && <span style={{ fontSize: '11px', color: '#5A6472' }}>과제 {toPct(r.homeworkRating)}%</span>}
                         {r.conceptRating != null && <span style={{ fontSize: '11px', color: '#5A6472' }}>개념 {toPct(r.conceptRating)}%</span>}
                         <span style={{ fontSize: '11px', color: r.attendance === '정시' ? C.successDark : C.errorDark }}>{r.attendance}</span>
-                        {r.hasTest && r.testScore && <span style={{ fontSize: '11px', color: '#5A6472' }}>시험 {r.testScore}점</span>}
+                        {r.hasTest && r.testScore != null && r.testScore !== '' && <span style={{ fontSize: '11px', color: '#5A6472' }}>시험 {r.testScore}점</span>}
                       </div>
                       {(r.diagnosis || []).length > 0 && (
                         <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginBottom: '6px' }}>
@@ -715,7 +724,7 @@ export default function DirectorView({ reports, students, classes = [], teachers
                           r.homeworkRating != null ? `▸ 과제 수행: ${toPct(r.homeworkRating)}% (${ratingLabel(toPct(r.homeworkRating))})` : `▸ 과제 수행: 미평가`,
                           r.conceptRating != null ? `▸ 개념 이해: ${toPct(r.conceptRating)}% (${ratingLabel(toPct(r.conceptRating))})` : `▸ 개념 이해: 미평가`,
                           `▸ 출결: ${r.attendance}`,
-                          r.hasTest && r.testScore ? `▸ 시험: ${r.testName || ''} ${r.testScore}점` : '',
+                          r.hasTest && r.testScore != null && r.testScore !== '' ? `▸ 시험: ${r.testName ? `${r.testName} ` : ''}${r.testScore}점` : '',
                           diagText ? `▸ 진단: ${diagText}` : '',
                           ``,
                           `👉 자세한 리포트 보기`,
