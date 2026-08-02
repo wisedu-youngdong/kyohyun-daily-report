@@ -202,10 +202,11 @@ export default function DirectorView({ reports, students, classes = [], reportVi
               <span style={{ fontSize: '11px', color: '#6C7586' }}>{week.label} · 기간 설정과 무관하게 항상 이번 주</span>
             </div>
 
-            {/* 리포트 미작성 */}
+            {/* 이번 주 미제출 — "오늘" 뷰 KPI의 "리포트 미작성"(그 날 하루 기준)과는 다른 개념이라
+                이름을 다르게 씀(§10 결정: 둘 다 실제로 필요하지만 같은 이름이면 헷갈림) */}
             <div style={rowStyle}>
               <p style={{ fontSize: '13px', fontWeight: 700, margin: 0, ...(noReportStudents.length === 0 ? dim : { color: '#1A1A1A' }) }}>
-                리포트 미작성 <span style={{ fontWeight: 800 }}>{noReportStudents.length}건</span>
+                이번 주 미제출 <span style={{ fontWeight: 800 }}>{noReportStudents.length}건</span>
               </p>
               {noReportStudents.length > 0 && (
                 <p style={{ fontSize: '12px', margin: '4px 0 0', ...dim }}>{noReportStudents.map(s => s.name).join(', ')}</p>

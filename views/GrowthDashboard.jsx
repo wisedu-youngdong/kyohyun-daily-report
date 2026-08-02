@@ -18,6 +18,7 @@ export default function GrowthDashboard({ reports, students, period }) {
   const [tooltip, setTooltip] = React.useState(null);
   const [storyPeriod, setStoryPeriod] = React.useState('all'); // 성장 포트폴리오 열기 전 선택하는 기간
   const svgRef = React.useRef(null);
+  const tableRef = React.useRef(null);
 
   // 기간이 바뀌면(부모의 세그먼트 클릭) 이전 선택 학생/드로어는 초기화 — 예전엔 버튼 onClick
   // 안에서 직접 했는데, 이제 버튼 자체가 이 컴포넌트에 없어서 effect로 옮김
@@ -120,7 +121,18 @@ export default function GrowthDashboard({ reports, students, period }) {
   const atRisk = students.filter(s => getStatus(s.id).label === '경고').length;
   const caution = students.filter(s => getStatus(s.id).label === '주의').length;
   const overallAvg = avg(students.map(s => getAvg(s.id)).filter(v => v > 0));
-  const bestStudent = students.length ? students.reduce((b, s) => getAvg(s.id) > getAvg(b.id) ? s : b) : null;
+
+  // 지난 기간 대비 — "개념 이해 평균" KPI 부제용. 같은 길이의 직전 구간(예: 이번 주 대비 지난 주)
+  // 평균과 비교한다. 직전 구간에 데이터가 아예 없으면(신규 학원 등) 0에서 급증한 것처럼 보이는
+  // 허위 비교가 되므로 델타 자체를 안 보여준다(있는 척 안 함).
+  const periodMs = PERIODS[period] * 24 * 60 * 60 * 1000;
+  const getAvgInRange = (sid, startMs, endMs) => avg(
+    reports
+      .filter(r => r.studentId === sid && !r.isDraft && r.createdAt?.seconds * 1000 >= startMs && r.createdAt.seconds * 1000 < endMs && r.conceptRating != null)
+      .map(r => toPct(r.conceptRating))
+  );
+  const prevOverallAvg = avg(students.map(s => getAvgInRange(s.id, Date.now() - periodMs * 2, Date.now() - periodMs)).filter(v => v > 0));
+  const avgDelta = prevOverallAvg > 0 ? Math.round((overallAvg - prevOverallAvg) * 10) / 10 : null;
 
   return (
     // DirectorView와 같은 스크롤 안에 이어 붙어 렌더링되는 화면(App.jsx 원장분석 › 원장 보고서
@@ -128,18 +140,30 @@ export default function GrowthDashboard({ reports, students, period }) {
     // 문제. DirectorView 쪽에 맞춤(반대가 아닌 이유: DirectorView가 먼저 렌더되는 주 화면)
     <div style={{ maxWidth: '880px', margin: '0 auto', padding: '20px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>
 
-      {/* TOP 위젯 — 기간 필터는 이제 DirectorView의 통합 세그먼트가 담당(더 이상 여기서 안 그림) */}
+      {/* TOP 위젯 — 기간 필터는 이제 DirectorView의 통합 세그먼트가 담당(더 이상 여기서 안 그림).
+          재설계 3단계(KPI 정리): "최고 성취"는 클릭해도 아무 동작 없는 순수 정보 카드라 제거,
+          "관심 필요"는 경고+주의 합으로(예전엔 경고만 세고 주의는 부제에만 있어서 실제 챙길
+          인원수와 카드 숫자가 달랐음) 바꾸고 클릭하면 학생 표가 하락폭 큰 순으로 정렬되며
+          스크롤됨, "전체 평균"은 무엇의 평균인지 불명확해 "개념 이해 평균"으로 개명하고
+          지난 기간 대비 델타를 부제에 추가(과제 수행률은 안 섞임 — 실제로 개념만의 평균이므로) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '8px', marginBottom: '12px' }}>
         {[
-          { label: '🚨 관심 필요', value: `${atRisk}명`, sub: `주의 ${caution}명 포함`, c: C.errorDark, bg: '#FCEBEB', bd: C.errorDark },
-          { label: '전체 평균', value: `${overallAvg}%`, sub: periodLabel, c: '#0D2D6B', bg: '#fff', bd: '#E8E6E0' },
+          {
+            label: '🚨 관심 필요', value: `${atRisk + caution}명`, sub: `경고 ${atRisk} · 주의 ${caution}`, c: C.errorDark, bg: '#FCEBEB', bd: C.errorDark,
+            onClick: () => { setSortMode('decline'); tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); },
+          },
+          {
+            label: '개념 이해 평균', value: `${overallAvg}%`,
+            sub: avgDelta === null ? periodLabel : `지난 기간 ${prevOverallAvg}% · ${avgDelta > 0 ? '▲' : avgDelta < 0 ? '▼' : '—'}${Math.abs(avgDelta)}`,
+            c: '#0D2D6B', bg: '#fff', bd: '#E8E6E0',
+          },
           { label: '총 학생', value: `${students.length}명`, sub: '등록', c: '#1A1A1A', bg: '#fff', bd: '#E8E6E0' },
-          { label: '최고 성취', value: bestStudent?.name || '-', sub: `${bestStudent ? getAvg(bestStudent.id) : 0}%`, c: bestStudent ? getStatus(bestStudent.id).color : '#6B7785', bg: '#fff', bd: '#E8E6E0' },
         ].map((w, i) => (
-          <div key={i} style={{ background: w.bg, border: `1px solid ${w.bd}`, borderRadius: '10px', padding: '10px 12px' }}>
+          <div key={i} onClick={w.onClick}
+            style={{ background: w.bg, border: `1px solid ${w.bd}`, borderRadius: '10px', padding: '10px 12px', cursor: w.onClick ? 'pointer' : 'default' }}>
             <p style={{ fontSize: '10px', color: w.c, margin: '0 0 3px', fontWeight: 700 }}>{w.label}</p>
             <p style={{ fontSize: '18px', fontWeight: 800, color: w.c, margin: 0, fontVariantNumeric: 'tabular-nums' }}>{w.value}</p>
-            <p style={{ fontSize: '10px', color: '#6B7785', margin: '3px 0 0' }}>{w.sub}</p>
+            <p style={{ fontSize: '10px', color: '#6B7785', margin: '3px 0 0' }}>{w.sub}{w.onClick ? ' · 목록 보기' : ''}</p>
           </div>
         ))}
       </div>
@@ -234,10 +258,11 @@ export default function GrowthDashboard({ reports, students, period }) {
       </div>
 
       {/* 학생 리스트 */}
-      <div style={{ background: '#fff', border: '0.5px solid #E8E6E0', borderRadius: '14px', overflow: 'hidden' }}>
+      <div ref={tableRef} style={{ background: '#fff', border: '0.5px solid #E8E6E0', borderRadius: '14px', overflow: 'hidden' }}>
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 50px 60px 55px' : '1fr 65px 80px 70px 55px', padding: '8px 14px', borderBottom: '0.5px solid #E8E6E0', background: '#FAFAFA' }}>
           {(isMobile ? ['학생', '현재', '변화량', '상태'] : ['학생', '현재', '변화량', '추이', '상태']).map((h, i) => (
-            <p key={i} style={{ fontSize: '10px', color: '#6B7785', margin: 0, textAlign: i === 0 ? 'left' : 'center', letterSpacing: '0.06em' }}>{h}</p>
+            <p key={i} title={h === '변화량' ? '직전 수업 대비' : undefined}
+              style={{ fontSize: '10px', color: '#6B7785', margin: 0, textAlign: i === 0 ? 'left' : 'center', letterSpacing: '0.06em', cursor: h === '변화량' ? 'help' : 'default' }}>{h}</p>
           ))}
         </div>
         {sortedStudents.map(s => {
