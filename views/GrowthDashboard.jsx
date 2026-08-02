@@ -1,28 +1,26 @@
 import React from 'react';
 import { toPct } from '../growth.js';
-import { DIAG_BADGE as DIAG_MAP, DIAG_LABELS as diagLabels } from '../diagnosis.js';
 import { useMediaQuery } from '../hooks.js';
 import { C } from '../tokens.jsx';
 import { onKeyActivate } from './shared.jsx';
+import { StudentDetailPanel } from './StudentProfileModal.jsx';
 
 // period는 이제 DirectorView가 소유(재설계 1단계 — 기간 컨트롤 통합, 오늘/1주/1개월/3개월
 // 세그먼트 하나가 이 컴포넌트를 렌더할지 말지까지 결정). 이 컴포넌트는 더 이상 자체 기간
 // 토글을 그리지 않고 prop으로 받은 값만 따른다.
-export default function GrowthDashboard({ reports, students, period }) {
+export default function GrowthDashboard({ reports, students, period, reviews, onToast, academyName, onEditReviewNote }) {
   // App.jsx의 isPc(900px)와 기준 통일 — 앱 전체에서 PC/모바일 판정 기준이 화면마다
   // 제각각(768 vs 900)이면 중간 폭에서 레이아웃이 서로 어긋나는 문제가 생기기 쉬움
   const isMobile = !useMediaQuery('(min-width: 900px)');
   const [sortMode, setSortMode] = React.useState('decline');
   const [selId, setSelId] = React.useState(null);
-  const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [tooltip, setTooltip] = React.useState(null);
-  const [storyPeriod, setStoryPeriod] = React.useState('all'); // 성장 포트폴리오 열기 전 선택하는 기간
   const svgRef = React.useRef(null);
   const tableRef = React.useRef(null);
 
-  // 기간이 바뀌면(부모의 세그먼트 클릭) 이전 선택 학생/드로어는 초기화 — 예전엔 버튼 onClick
+  // 기간이 바뀌면(부모의 세그먼트 클릭) 이전 선택 학생은 초기화 — 예전엔 버튼 onClick
   // 안에서 직접 했는데, 이제 버튼 자체가 이 컴포넌트에 없어서 effect로 옮김
-  React.useEffect(() => { setSelId(null); setDrawerOpen(false); }, [period]);
+  React.useEffect(() => { setSelId(null); }, [period]);
 
   const PERIODS = { week: 7, month: 30, '3month': 90 };
 
@@ -293,8 +291,8 @@ export default function GrowthDashboard({ reports, students, period }) {
 
           return (
             <div key={s.id} role="button" tabIndex={0} aria-pressed={isSel}
-              onClick={() => { setSelId(isSel ? null : s.id); setDrawerOpen(!isSel); }}
-              onKeyDown={onKeyActivate(() => { setSelId(isSel ? null : s.id); setDrawerOpen(!isSel); })}
+              onClick={() => setSelId(isSel ? null : s.id)}
+              onKeyDown={onKeyActivate(() => setSelId(isSel ? null : s.id))}
               style={{
                 display: 'grid', gridTemplateColumns: isMobile ? '1fr 50px 60px 55px' : '1fr 65px 80px 70px 55px',
                 padding: '10px 14px', borderBottom: '0.5px solid #F3F4F6', cursor: 'pointer',
@@ -343,140 +341,25 @@ export default function GrowthDashboard({ reports, students, period }) {
         )}
       </div>
 
-      {/* 사이드 드로어 */}
-      {drawerOpen && selId && (() => {
-        const s = students.find(x => x.id === selId);
-        const rsAll = getStudentReports(selId);
-        const rs = rsAll.slice(-10); // 최대 10개
-        const status = getStatus(selId);
-        const a = getAvg(selId);
-        const trend = getTrend(selId);
-        const trendStr = trend === null ? '―' : trend > 0 ? `▲${Math.abs(trend)}` : trend < 0 ? `▼${Math.abs(trend)}` : '―';
-        const trendColor = trend === null ? '#6B7785' : trend > 0 ? C.successDark : trend < 0 ? C.errorDark : '#6B7785';
-
-        // 예전엔 "보기(공개 페이지)"/"편집" 버튼 2개로 나뉘어 있었는데, 사실 같은 페이지에
-        // ?edit=1 하나 차이 — 편집 모드가 보기 모드를 완전히 포함하고(학부모에게는 원래도
-        // ?edit=1이 안 보임), 학부모용 링크는 페이지 안 "링크 복사" 버튼이 항상 순수 URL을
-        // 주기 때문에 굳이 나눌 이유가 없었음. 분양학원처럼 맥락 모르는 사용자에게 헷갈리는
-        // 원인이라 하나로 통합.
-        const openGrowthStory = () => {
-          const query = storyPeriod === '3m' ? '&period=3m' : '';
-          window.open(`/story/${s?.id}?edit=1${query}`, '_blank');
-        };
-
-        const closeDrawer = () => { setDrawerOpen(false); setSelId(null); setStoryPeriod('all'); };
-
-        return (
-          <>
-            <div onClick={closeDrawer} style={{
-              position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 199,
-            }} />
-            <div style={isMobile
-              ? {
-                  position: 'fixed', left: 0, right: 0, bottom: 0, maxHeight: '85vh', width: '100%',
-                  background: '#fff', borderTopLeftRadius: '16px', borderTopRightRadius: '16px',
-                  padding: '18px', paddingBottom: 'calc(18px + env(safe-area-inset-bottom))', overflowY: 'auto', zIndex: 200,
-                  fontFamily: "'Pretendard Variable', Pretendard, sans-serif",
-                  boxShadow: '0 -4px 20px rgba(0,0,0,0.12)',
-                }
-              : {
-                  position: 'fixed', top: 0, right: 0, bottom: 0, width: '290px',
-                  background: '#fff', borderLeft: '0.5px solid #E8E6E0',
-                  padding: '18px', overflowY: 'auto', zIndex: 200,
-                  fontFamily: "'Pretendard Variable', Pretendard, sans-serif",
-                  boxShadow: '-4px 0 20px rgba(0,0,0,0.08)',
-                }
-            }>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-              <p style={{ fontSize: '15px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>{s?.name}</p>
-              <button onClick={closeDrawer}
-                style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#6B7785', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>×</button>
-            </div>
-
-            {/* 상태 배지 */}
-            <div style={{ background: status.bg, border: `1px solid ${status.border}`, borderRadius: '8px', padding: '10px 12px', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: '12px', fontWeight: 700, color: status.color }}>● {status.label}</span>
-              <span style={{ fontSize: '18px', fontWeight: 800, color: status.color, fontVariantNumeric: 'tabular-nums' }}>
-                {a}% <span style={{ fontSize: '12px', color: trendColor }}>{trendStr}</span>
-              </span>
-            </div>
-
-            {/* 미니 바차트 + 진단 태그 연결 */}
-            {/* 날짜별 수업 카드 */}
-            <div style={{ marginBottom: '14px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {rs.slice().reverse().slice(0, 4).map((r, i) => {
-                  const tags = (r.diagnosis || []).filter(d => d.key !== 'perfect');
-                  const hasPerfect = (r.diagnosis || []).some(d => d.key === 'perfect');
-                  const isWarning = r.conceptRating != null && r.conceptRating <= 40;
-                  const dateStr = r.createdAt?.seconds
-                    ? `${new Date(r.createdAt.seconds*1000).getMonth()+1}/${new Date(r.createdAt.seconds*1000).getDate()}`
-                    : '';
-                  const rawNote = r.teacherNote || '';
-                  const cleanNote = rawNote.replace(/\[([^\]]+)\]\s*/g, '').trim();
-
-                  return (
-                    <div key={i} style={{
-                      background: '#FAFAF8', border: '0.5px solid #E5E7EB', borderRadius: '8px', padding: '8px 10px',
-                      borderLeft: isWarning ? `2px solid ${C.danger}` : hasPerfect ? `2px solid ${C.successDark}` : '2px solid transparent',
-                    }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
-                        <span style={{ fontSize: '11px', fontWeight: 600, color: '#1A1A1A' }}>{dateStr}</span>
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                          {r.homeworkRating != null && <span style={{ fontSize: '10px', color: '#6B7280' }}>과제 <strong style={{ color: '#0D2D6B' }}>{r.homeworkRating}%</strong></span>}
-                          {r.conceptRating != null && <span style={{ fontSize: '10px', color: '#6B7280' }}>개념 <strong style={{ color: '#0D2D6B' }}>{r.conceptRating}%</strong></span>}
-                          {r.hasTest && r.testScore && <span style={{ fontSize: '10px', color: '#C9A227', fontWeight: 700 }}>시험 {r.testScore}점</span>}
-                        </div>
-                      </div>
-                      {(r.textbook || r.unit) && (
-                        <p style={{ fontSize: '10px', color: '#6C7586', margin: '0 0 4px' }}>
-                          {[r.textbook, r.unit].filter(Boolean).join(' · ')}
-                        </p>
-                      )}
-                      {(tags.length > 0 || hasPerfect) && (
-                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: cleanNote ? '4px' : 0 }}>
-                          {hasPerfect && <span style={{ fontSize: '10px', background: C.successBg, color: C.successDark, padding: '1px 6px', borderRadius: '8px', fontWeight: 600 }}>개념 완벽</span>}
-                          {tags.map((d, ti) => (
-                            <span key={ti} style={{ fontSize: '10px', background: '#FDF0F0', color: C.errorDark, padding: '1px 6px', borderRadius: '8px', fontWeight: 600 }}>
-                              {diagLabels[d.key] || d.key}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                      {cleanNote && (
-                        <p style={{ fontSize: '10px', color: '#6B7280', margin: 0, fontStyle: 'italic' }}>
-                          "{cleanNote.length > 40 ? cleanNote.slice(0, 40) + '...' : cleanNote}"
-                        </p>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* 성장 포트폴리오 진입 — 기간 선택 후 학부모 공개 페이지로 이동 */}
-            <div>
-              <div style={{ display: 'flex', gap: '5px', marginBottom: '6px' }}>
-                {[['all', '전체'], ['3m', '최근 3개월']].map(([key, label]) => (
-                  <button key={key} onClick={() => setStoryPeriod(key)}
-                    style={{
-                      flex: 1, padding: '6px 8px', fontSize: '11px', fontWeight: 700, borderRadius: '7px', cursor: 'pointer', fontFamily: 'inherit',
-                      border: storyPeriod === key ? '1.5px solid #185FA5' : '1px solid #E5E7EB',
-                      background: storyPeriod === key ? '#E6F1FB' : '#fff',
-                      color: storyPeriod === key ? '#185FA5' : '#6B7280',
-                    }}>{label}</button>
-                ))}
-              </div>
-              <button onClick={openGrowthStory} style={{
-                width: '100%', padding: '10px 12px', fontSize: '12px', fontWeight: 700, borderRadius: '8px',
-                border: 'none', background: 'linear-gradient(135deg, #185FA5, #0C447C)', color: '#fff',
-                cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-              }}>📈 성장 포트폴리오 보기·편집</button>
-            </div>
-          </div>
-          </>
-        );
-      })()}
+      {/* 학생 상세 패널 — 재설계 4단계: 예전엔 여기 자체 미니 드로어가 있었는데, StudentsView/
+          DirectorView가 쓰는 풀 기능 StudentProfileContent를 420px 오버레이에 그대로 담는
+          공용 StudentDetailPanel로 교체(중복 UI 제거). 이전/다음 이동은 지금 정렬된 학생 표
+          순서(sortedStudents)를 그대로 따른다. */}
+      {selId && (
+        <StudentDetailPanel
+          studentList={sortedStudents}
+          currentId={selId}
+          onSelect={setSelId}
+          onClose={() => setSelId(null)}
+          reports={reports.filter(r => r.studentId === selId)}
+          reviews={(reviews || []).filter(rv => rv.studentId === selId)}
+          onToast={onToast}
+          academyName={academyName}
+          onEditReviewNote={onEditReviewNote}
+          directorActions
+          statusInfo={{ status: getStatus(selId), avg: getAvg(selId), trend: getTrend(selId) }}
+        />
+      )}
 
       {/* 툴팁 */}
       {tooltip && (

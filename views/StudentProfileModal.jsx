@@ -4,7 +4,7 @@ import { toPct, fmtPages } from '../growth.js';
 import { findUnitKey, extractUnitNumbers } from '../curriculum.js';
 import { DIAG_LABELS as diagLabels, DIAG_BADGE as DIAG_MAP, DIAG_SOFT } from '../diagnosis.js';
 import { T, C } from '../tokens.jsx';
-import { useEscapeClose, useFocusTrap } from '../hooks.js';
+import { useEscapeClose, useFocusTrap, useMediaQuery } from '../hooks.js';
 
 // ============================================================
 // 학생 종합 프로필 — 내용 본체(모달 크롬 없음)
@@ -12,7 +12,7 @@ import { useEscapeClose, useFocusTrap } from '../hooks.js';
 // 뒤로가기 히스토리 처리와 분리해둠. onClose가 있으면(모바일 모달) ×버튼을 보여주고,
 // 없으면(PC 인라인) 안 보여줌.
 // ============================================================
-export function StudentProfileContent({ student, reports, reviews = [], onClose, onToast, academyName, onEditReviewNote }) {
+export function StudentProfileContent({ student, reports, reviews = [], onClose, onToast, academyName, onEditReviewNote, directorActions = false }) {
   // 완료된 복습 메모 오타 수정 — 대시보드에서 완료 처리할 때 1회성으로 입력되고 그 뒤엔
   // 고칠 방법이 없었음(실사용 피드백으로 발견). 여기서만 다시 열어 고칠 수 있게.
   const [editingReviewId, setEditingReviewId] = useState(null);
@@ -174,6 +174,30 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
               </div>
             ))}
           </div>
+
+          {/* 최근 개념 이해 추이 — 숫자 나열이던 걸 한눈에 보이게(재설계 4단계). 새 차트
+              라이브러리 없이 순수 SVG, GrowthDashboard의 학급 평균선과 같은 좌표 변환 방식 */}
+          {conceptRated.length >= 2 && (() => {
+            const recent = conceptRated.slice(-6);
+            const W = 380, H = 70, PAD = 8;
+            const toXY = (i, v) => [
+              PAD + (i / Math.max(recent.length - 1, 1)) * (W - PAD * 2),
+              H - PAD - (v / 100) * (H - PAD * 2),
+            ];
+            const points = recent.map((r, i) => toXY(i, r.conceptRating));
+            const last = points[points.length - 1];
+            return (
+              <div style={{ marginBottom: '20px' }}>
+                <p style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 6px', color: '#1A1A1A' }}>최근 개념 이해 추이 · 최근 {recent.length}회</p>
+                <div style={{ width: '32px', height: '2px', background: '#C9A227', marginBottom: '10px' }} />
+                <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ overflow: 'visible', display: 'block' }}>
+                  <polyline points={points.map(p => p.join(',')).join(' ')} fill="none" stroke="#0D2D6B" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+                  {points.map((p, i) => <circle key={i} cx={p[0]} cy={p[1]} r={i === points.length - 1 ? 3.5 : 2.5} fill="#0D2D6B" />)}
+                  <text x={last[0] + 6} y={last[1] + 4} fontSize="11" fontWeight="700" fill="#0D2D6B">{recent[recent.length - 1].conceptRating}%</text>
+                </svg>
+              </div>
+            );
+          })()}
 
           {/* 출결 캘린더 */}
           {(() => {
@@ -555,23 +579,43 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
                 });
               };
 
+              // 담당 선생님에게 확인 요청 — 재설계 4단계, 원장 화면 전용(directorActions).
+              // 자동 알림을 보내는 기능이 아직 없어서(그런 발송 경로 자체가 앱에 없음), 실제로
+              // 하는 일은 다른 "링크 복사"들과 똑같이 클립보드에 문구를 담아주는 것뿐이다 —
+              // 원장이 그 문구를 복사해 카톡 등으로 직접 보내는 방식. 없는 자동발송 기능을
+              // 있는 것처럼 보이는 버튼으로 만들지 않기 위함.
+              const latestTeacherName = [...sorted].reverse().find(r => r.teacherName)?.teacherName || null;
+              const handleRequestCheck = () => {
+                const text = `[${academyName || '데일리 리포트'}] ${student.name} 학생 리포트 확인 부탁드립니다.${latestTeacherName ? ` (${latestTeacherName})` : ''}`;
+                navigator.clipboard.writeText(text).then(() => onToast?.('복사됐어요! 선생님께 보내주세요.'));
+              };
+
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
 
-                  {/* 카카오톡 공유 */}
-                  <button onClick={handleCopy}
-                    style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '13px 16px', background: '#FEE500', border: 'none', borderRadius: '10px', cursor: 'pointer', textAlign: 'left', width: '100%' }}>
-                    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
-                      <path d="M11 2C6.03 2 2 5.36 2 9.5c0 2.67 1.63 5.02 4.07 6.44l-.88 3.25 3.8-1.98A10.8 10.8 0 0011 17c4.97 0 9-3.36 9-7.5S15.97 2 11 2z" fill="#3A1D1D"/>
-                    </svg>
-                    <div style={{ flex: 1 }}>
-                      <p style={{ fontSize: '13px', fontWeight: 700, color: '#3A1D1D', margin: '0 0 2px' }}>카카오톡으로 공유</p>
-                      <p style={{ fontSize: '11px', color: '#5A3D3D', margin: 0 }}>링크 복사 → 카카오톡 붙여넣기</p>
-                    </div>
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
-                      <path d="M6 3l5 5-5 5" stroke="#3A1D1D" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </button>
+                  {directorActions && (
+                    <button onClick={handleRequestCheck}
+                      style={{ width: '100%', padding: '13px 16px', fontSize: '13px', fontWeight: 700, background: '#0D2D6B', color: '#fff', border: 'none', borderRadius: '10px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                      담당 선생님에게 확인 요청
+                    </button>
+                  )}
+
+                  {/* 카카오톡 공유 — 학부모 발송은 리포트 작성 화면의 역할이라, 원장 화면에서는 뺌 */}
+                  {!directorActions && (
+                    <button onClick={handleCopy}
+                      style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '13px 16px', background: '#FEE500', border: 'none', borderRadius: '10px', cursor: 'pointer', textAlign: 'left', width: '100%' }}>
+                      <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
+                        <path d="M11 2C6.03 2 2 5.36 2 9.5c0 2.67 1.63 5.02 4.07 6.44l-.88 3.25 3.8-1.98A10.8 10.8 0 0011 17c4.97 0 9-3.36 9-7.5S15.97 2 11 2z" fill="#3A1D1D"/>
+                      </svg>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontSize: '13px', fontWeight: 700, color: '#3A1D1D', margin: '0 0 2px' }}>카카오톡으로 공유</p>
+                        <p style={{ fontSize: '11px', color: '#5A3D3D', margin: 0 }}>링크 복사 → 카카오톡 붙여넣기</p>
+                      </div>
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
+                        <path d="M6 3l5 5-5 5" stroke="#3A1D1D" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </button>
+                  )}
 
                   {/* 링크 복사 */}
                   <button onClick={() => navigator.clipboard.writeText(copyUrl).then(() => onToast?.('링크 복사됐어요! 카톡에 붙여넣기 하세요.'))}
@@ -592,12 +636,20 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
                   {/* 성장 포트폴리오 열기 — "보기(공개페이지)"/"편집" 2개 링크로 나뉘어 있던 걸 통합.
                       같은 페이지에 ?edit=1 하나 차이고, 편집 모드가 보기 모드를 포함(학부모에게는
                       원래도 이 파라미터가 안 보임), 학부모용 링크는 위 "링크 복사"가 항상 순수
-                      URL을 주므로 굳이 나눌 이유가 없었음. */}
-                  <a href={`/story/${student.id}?edit=1`} target="_blank" rel="noopener noreferrer"
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px', background: '#FFF9EC', border: '1px solid #C9A227', borderRadius: '8px', textDecoration: 'none', marginTop: '4px' }}>
-                    <Pencil size={12} style={{ color: '#8A6500' }} />
-                    <span style={{ fontSize: '12px', color: '#8A6500', fontWeight: 700 }}>성장 포트폴리오 보기·편집</span>
-                  </a>
+                      URL을 주므로 굳이 나눌 이유가 없었음. directorActions에서는 이탈 동작이 가장
+                      강한 버튼이면 안 된다는 시안 결정에 따라 텍스트 링크로 강등. */}
+                  {directorActions ? (
+                    <a href={`/story/${student.id}?edit=1`} target="_blank" rel="noopener noreferrer"
+                      style={{ display: 'block', textAlign: 'center', padding: '8px', color: '#8A6500', fontSize: '12px', fontWeight: 600, textDecoration: 'underline', marginTop: '2px' }}>
+                      성장 포트폴리오 보기·편집
+                    </a>
+                  ) : (
+                    <a href={`/story/${student.id}?edit=1`} target="_blank" rel="noopener noreferrer"
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px', background: '#FFF9EC', border: '1px solid #C9A227', borderRadius: '8px', textDecoration: 'none', marginTop: '4px' }}>
+                      <Pencil size={12} style={{ color: '#8A6500' }} />
+                      <span style={{ fontSize: '12px', color: '#8A6500', fontWeight: 700 }}>성장 포트폴리오 보기·편집</span>
+                    </a>
+                  )}
 
                   {/* 주간 요약 카드 */}
                   <button onClick={() => setShowWeekly(true)}
@@ -663,6 +715,66 @@ export function StudentProfileModal({ student, reports, reviews = [], onClose, o
         <StudentProfileContent student={student} reports={reports} reviews={reviews} onClose={onClose} onToast={onToast} academyName={academyName} onEditReviewNote={onEditReviewNote} />
       </div>
     </div>
+  );
+}
+
+// ============================================================
+// 학생 상세 패널 — 재설계 4단계. 예전엔 "학생 상세를 보는 방법"이 두 벌이었음
+// (GrowthDashboard의 미니 사이드 드로어 vs 이 파일의 풀 모달인 StudentProfileModal).
+// 기능이 더 많은 StudentProfileContent를 그대로 쓰고, 폭 420px 오버레이(본문을 안 미는
+// 방식)로 통일 + 이전/다음 학생 이동을 추가했다. GrowthDashboard(학생 표 행 클릭)와
+// DirectorView(오늘자 카드의 "종합 프로필" 버튼) 양쪽에서 공용으로 씀.
+// ============================================================
+export function StudentDetailPanel({ studentList, currentId, onSelect, onClose, reports, reviews = [], onToast, academyName, onEditReviewNote, statusInfo, directorActions = false }) {
+  const isMobile = !useMediaQuery('(min-width: 900px)');
+  useEscapeClose(onClose);
+  const panelRef = useRef(null);
+  useFocusTrap(panelRef, true);
+
+  const idx = studentList.findIndex(s => s.id === currentId);
+  const student = studentList[idx];
+  const goPrev = () => idx > 0 && onSelect(studentList[idx - 1].id);
+  const goNext = () => idx < studentList.length - 1 && onSelect(studentList[idx + 1].id);
+
+  if (!student) return null;
+
+  const trendStr = statusInfo?.trend == null ? null : statusInfo.trend > 0 ? `▲${Math.abs(statusInfo.trend)}` : statusInfo.trend < 0 ? `▼${Math.abs(statusInfo.trend)}` : '―';
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 199 }} />
+      <div ref={panelRef} role="dialog" aria-modal="true" style={isMobile
+        ? { position: 'fixed', left: 0, right: 0, bottom: 0, maxHeight: '88vh', width: '100%', background: '#fff', borderTopLeftRadius: '16px', borderTopRightRadius: '16px', overflowY: 'auto', zIndex: 200, boxShadow: '0 -4px 20px rgba(0,0,0,0.12)' }
+        : { position: 'fixed', top: 0, right: 0, bottom: 0, width: '420px', background: '#fff', borderLeft: '0.5px solid #E8E6E0', overflowY: 'auto', zIndex: 200, boxShadow: '-4px 0 20px rgba(0,0,0,0.08)' }
+      }>
+        {/* 상단 바 — 이전/다음 학생 이동 + 닫기. 학생 이름/점수는 아래 StudentProfileContent
+            자체 헤더가 이미 보여주므로 여기서는 안 겹치게 순수 네비게이션만 */}
+        <div style={{ position: 'sticky', top: 0, zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: '#fff', borderBottom: '0.5px solid #E8E6E0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <button onClick={goPrev} disabled={idx <= 0} aria-label="이전 학생"
+              style={{ background: 'none', border: 'none', color: idx <= 0 ? '#D4D7DD' : '#374151', cursor: idx <= 0 ? 'not-allowed' : 'pointer', fontSize: '16px', padding: '4px 6px', fontFamily: 'inherit' }}>‹</button>
+            <span style={{ fontSize: '11px', color: '#6B7785', fontWeight: 600 }}>{idx + 1} / {studentList.length}</span>
+            <button onClick={goNext} disabled={idx >= studentList.length - 1} aria-label="다음 학생"
+              style={{ background: 'none', border: 'none', color: idx >= studentList.length - 1 ? '#D4D7DD' : '#374151', cursor: idx >= studentList.length - 1 ? 'not-allowed' : 'pointer', fontSize: '16px', padding: '4px 6px', fontFamily: 'inherit' }}>›</button>
+          </div>
+          <button onClick={onClose} aria-label="닫기"
+            style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#6B7785', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>×</button>
+        </div>
+
+        {/* 기간 상태 배지 — GrowthDashboard(기간 뷰)에서 열었을 때만 statusInfo가 전달됨.
+            DirectorView(오늘 카드)에서는 "기간"이라는 개념이 없어 안 보임 */}
+        {statusInfo && (
+          <div style={{ padding: '12px 16px', borderBottom: '0.5px solid #E8E6E0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: statusInfo.status.bg }}>
+            <span style={{ fontSize: '12px', fontWeight: 700, color: statusInfo.status.color }}>● {statusInfo.status.label}</span>
+            <span style={{ fontSize: '16px', fontWeight: 800, color: statusInfo.status.color, fontVariantNumeric: 'tabular-nums' }}>
+              {statusInfo.avg}%{trendStr && <span style={{ fontSize: '11px', marginLeft: '5px' }}>{trendStr}</span>}
+            </span>
+          </div>
+        )}
+
+        <StudentProfileContent student={student} reports={reports} reviews={reviews} onToast={onToast} academyName={academyName} onEditReviewNote={onEditReviewNote} directorActions={directorActions} />
+      </div>
+    </>
   );
 }
 

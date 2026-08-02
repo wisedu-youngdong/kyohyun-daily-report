@@ -5,7 +5,7 @@ import { FileText, AlertTriangle, Copy, CalendarDays } from 'lucide-react';
 import { kstDay, kstWeekday, toPct, ratingLabel, getKstWeekRange } from '../growth.js';
 import { DIAG_BADGE as DIAG_MAP } from '../diagnosis.js';
 import { T, C, R } from '../tokens.jsx';
-import { StudentProfileModal } from './StudentProfileModal.jsx';
+import { StudentDetailPanel } from './StudentProfileModal.jsx';
 import { groupByClassId, onKeyActivate } from './shared.jsx';
 import GrowthDashboard from './GrowthDashboard.jsx';
 
@@ -36,7 +36,9 @@ export default function DirectorView({ reports, students, classes = [], reportVi
   const [expandedId, setExpandedId] = useState(null);
   const [memos, setMemos] = useState({});
   const [savingMemo, setSavingMemo] = useState(null);
-  const [profileStudent, setProfileStudent] = useState(null);
+  // 종합 프로필 — 재설계 4단계: 이전엔 학생 객체를 통째로 state에 담아 단일 학생만 열 수
+  // 있었는데, id만 들고 이전/다음 이동이 가능한 StudentDetailPanel로 교체
+  const [profileStudentId, setProfileStudentId] = useState(null);
   const [answerDrafts, setAnswerDrafts] = useState({});
   const [savingAnswer, setSavingAnswer] = useState(null);
   const [showAnswered, setShowAnswered] = useState(false);
@@ -126,21 +128,31 @@ export default function DirectorView({ reports, students, classes = [], reportVi
     setSavingMemo(null);
   };
 
+  // 종합 프로필 이전/다음 이동 대상 — 오늘 카드 목록에 뜬 학생들을 카드 순서 그대로, 최소
+  // 정보만 담아 사용(패널이 필요로 하는 건 reports/reviews를 studentId로 다시 거를 수 있는
+  // id뿐이라 students 배열 조회 실패에도 안전)
+  const todayStudentList = [...new Map(todayReports.map(r => [r.studentId, { id: r.studentId, name: r.studentName }])).values()];
+
   // 중앙 1컬럼 880px — 시안 7a 기준. 위→아래로 요약 현황 → 처리할 일(질문) → 참여도 →
   // 데일리 보고서 순으로 우선순위가 잡혀 있어, 폭을 너무 넓히면 한 줄이 길어져 읽기 불편함
   return (
     <div style={{ maxWidth: '880px', margin: '0 auto', padding: '20px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif", boxSizing: 'border-box' }}>
 
-      {/* 학생 종합 프로필 모달 */}
-      {profileStudent && (
-        <StudentProfileModal
-          student={profileStudent}
-          reports={reports.filter(r => r.studentId === profileStudent.id)}
-          reviews={reviews.filter(rv => rv.studentId === profileStudent.id)}
-          onClose={() => setProfileStudent(null)}
+      {/* 학생 종합 프로필 패널 — 재설계 4단계: GrowthDashboard와 같은 공용 StudentDetailPanel.
+          "기간"이라는 개념이 없는 오늘 카드 목록에서 여는 거라 statusInfo는 안 넘김(패널이
+          알아서 상태 배지 줄을 생략함) */}
+      {profileStudentId && (
+        <StudentDetailPanel
+          studentList={todayStudentList}
+          currentId={profileStudentId}
+          onSelect={setProfileStudentId}
+          onClose={() => setProfileStudentId(null)}
+          reports={reports.filter(r => r.studentId === profileStudentId)}
+          reviews={reviews.filter(rv => rv.studentId === profileStudentId)}
           onToast={onToast}
           academyName={academyName}
           onEditReviewNote={onEditReviewNote}
+          directorActions
         />
       )}
 
@@ -365,7 +377,7 @@ export default function DirectorView({ reports, students, classes = [], reportVi
       </div>
 
       {view !== 'today' ? (
-        <GrowthDashboard reports={reports} students={students} period={view} />
+        <GrowthDashboard reports={reports} students={students} period={view} reviews={reviews} onToast={onToast} academyName={academyName} onEditReviewNote={onEditReviewNote} />
       ) : (
       <>
       {/* 헤더 */}
@@ -537,7 +549,7 @@ export default function DirectorView({ reports, students, classes = [], reportVi
 
                   <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
                     <button
-                      onClick={(e) => { e.stopPropagation(); setProfileStudent({ id: r.studentId, name: r.studentName }); }}
+                      onClick={(e) => { e.stopPropagation(); setProfileStudentId(r.studentId); }}
                       style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 700, background: '#EAF0F9', color: T.brand, border: `1px solid ${T.brand}`, borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0 }}>
                       종합 프로필
                     </button>
