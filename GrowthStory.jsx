@@ -1288,7 +1288,7 @@ export default function GrowthStory() {
       <>
         {sectionDivider('KEY METRICS')}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: '14px' }}>
-          {maxScore && (
+          {maxScore != null && (
             <div style={cardTile}>
               <span style={tileLabel}>최고 단원평가</span>
               <span style={tileValue}>{maxScore}<span style={tileUnit}>점</span></span>
@@ -1299,14 +1299,14 @@ export default function GrowthStory() {
               </span>
             </div>
           )}
-          {hwAvg && (
+          {hwAvg != null && (
             <div style={cardTile}>
               <span style={tileLabel}>과제 수행 평균</span>
               <span style={tileValue}>{hwAvg}<span style={tileUnit}>%</span></span>
               <span style={tileSub}>{hwRated.length}회 평균 · 담당교사 관찰</span>
             </div>
           )}
-          {avgScore && (
+          {avgScore != null && (
             <div style={cardTile}>
               <span style={tileLabel}>전체 시험 평균</span>
               <span style={tileValue}>{avgScore}<span style={tileUnit}>점</span></span>

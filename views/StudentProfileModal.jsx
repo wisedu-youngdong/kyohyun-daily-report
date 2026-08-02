@@ -1000,16 +1000,16 @@ function WeeklySummaryCard({ student, reports, academyName }) {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {units.map((u, i) => {
                   const avgScore = u.scores.length ? Math.round(u.scores.reduce((a,b)=>a+b,0)/u.scores.length) : null;
-                  const achieved = avgScore && avgScore >= 80;
-                  const barColor = achieved ? C.successDark : avgScore ? C.warningText : '#0D2D6B';
+                  const achieved = avgScore != null && avgScore >= 80;
+                  const barColor = achieved ? C.successDark : avgScore != null ? C.warningText : '#0D2D6B';
                   return (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <div style={{ width: '3px', height: '34px', background: barColor, borderRadius: '2px', flexShrink: 0 }} />
                       <div style={{ flex: 1 }}>
                         <p style={{ fontSize: '12px', fontWeight: 600, color: '#1A1A1A', margin: '0 0 1px' }}>{u.name}</p>
-                        {avgScore && <p style={{ fontSize: '11px', color: T.textMute, margin: 0 }}>{avgScore}점</p>}
+                        {avgScore != null && <p style={{ fontSize: '11px', color: T.textMute, margin: 0 }}>{avgScore}점</p>}
                       </div>
-                      {avgScore && (
+                      {avgScore != null && (
                         <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '8px', background: achieved ? C.successBg : C.warningBg, color: achieved ? C.successDark : C.warningText, flexShrink: 0 }}>
                           {achieved ? '✓ 목표달성' : '점검 필요'}
                         </span>

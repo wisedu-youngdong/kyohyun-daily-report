@@ -178,10 +178,10 @@ export default function GrowthAward() {
         {/* 수치 그리드 */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '16px', marginBottom: '48px' }}>
           {[
-            { label: '최고 단원평가', value: maxScore ? `${maxScore}점` : '—', note: '100점 만점' },
-            { label: '과제 수행 평균', value: hwAvg ? `${hwAvg}%` : '—', note: '100% 만점' },
+            { label: '최고 단원평가', value: maxScore != null ? `${maxScore}점` : '—', note: '100점 만점' },
+            { label: '과제 수행 평균', value: hwAvg != null ? `${hwAvg}%` : '—', note: '100% 만점' },
             { label: '총 수업 횟수', value: `${sorted.length}회`, note: allAttended ? '전 회 출석' : '출석 기록' },
-            { label: '최저 → 최고', value: allScores.length >= 2 ? `${minScore}→${maxScore}` : maxScore ? `${maxScore}점` : '—', note: '단원평가 변화' },
+            { label: '최저 → 최고', value: allScores.length >= 2 ? `${minScore}→${maxScore}` : maxScore != null ? `${maxScore}점` : '—', note: '단원평가 변화' },
           ].map((s, i) => (
             <div key={i} style={{ background: 'rgba(20,24,38,0.6)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', padding: '20px 16px', textAlign: 'center' }}>
               <p style={{ fontSize: 'clamp(9px, 1.1vw, 11px)', color: 'rgba(255,255,255,0.55)', fontWeight: 600, letterSpacing: '0.1em', marginBottom: '10px' }}>{s.label}</p>

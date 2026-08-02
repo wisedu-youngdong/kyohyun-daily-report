@@ -25,8 +25,20 @@ service cloud.firestore {
       );
     }
     // GrowthStory.jsx의 비로그인 AI 서사 저장 — narrative 필드만 바뀌는 요청만 허용
+    // narrative 필드만 검증 없이 통과시키고 있었음 — reportQuestions.create 등 다른 비인증
+    // 쓰기 규칙은 다 keys().hasOnly()+타입/크기 검증이 있는데 이것만 빠져서, studentId만 알면
+    // 누구나 narrative에 임의 타입·무제한 크기 데이터를 써넣을 수 있었음(공개 성장스토리
+    // 페이지에 그대로 노출됨). GrowthStory.jsx는 항상 4개 필드를 가진 완전한 맵으로 덮어쓰므로
+    // 그 형태로 검증.
     function narrativeOnlyUpdate() {
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['narrative']);
+      let n = request.resource.data.narrative;
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['narrative'])
+        && n is map
+        && n.keys().hasOnly(['chapter1', 'chapter2', 'teacherWord', 'nextChapter'])
+        && n.chapter1 is string && n.chapter1.size() <= 2000
+        && n.chapter2 is string && n.chapter2.size() <= 2000
+        && n.teacherWord is string && n.teacherWord.size() <= 2000
+        && n.nextChapter is string && n.nextChapter.size() <= 2000;
     }
 
     // ── users — 로그인 계정의 role/academyId 정보 ──────

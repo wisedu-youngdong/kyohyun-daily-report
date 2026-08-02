@@ -65,7 +65,7 @@ export default async function handler(req, res) {
   // 액션이라 로그인 필수 — analyze-photo.js/polish.js와 동일한 기준
   if (!(await verifyIdTokenHeader(req))) return res.status(401).json({ error: '로그인이 필요합니다.' });
 
-  const { studentName, milestones, unitScores, teacherNotes, isNewStudent, totalReports, field, currentNarrative } = req.body;
+  const { studentName, milestones = [], unitScores = [], teacherNotes, isNewStudent, totalReports, field, currentNarrative } = req.body;
 
   // 핵심 데이터만 추출
   const lastNote = teacherNotes?.slice(-1)[0] || '';

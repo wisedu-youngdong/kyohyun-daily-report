@@ -1106,13 +1106,18 @@ export default function DiagnosticReportInput({
         // 서버가 내려주는 응답(성공이든 실패 안내든)을 실제로 받아볼 수 있게 함.
         signal: AbortSignal.timeout(90000),
       });
-      if (!response.ok) throw new Error(`서버 오류 (${response.status})`);
-      const data = await response.json();
-      if (data.error) {
+      // 크레딧 부족/체험판 캡 초과 같은 실패는 서버가 4xx로 응답하므로, !response.ok로 먼저
+      // 걸러버리면 아래 data.error의 구체적인 안내 문구 대신 "서버 오류 (402)" 같은 밋밋한
+      // 메시지만 뜬다 — 응답 본문을 먼저 읽어 data.error가 있으면 그걸 우선 쓰고, 파싱 자체가
+      // 안 되는 진짜 예외 상황(네트워크 오류 등)에만 일반 오류로 처리
+      const data = await response.json().catch(() => null);
+      if (data?.error) {
         setPhotoError(data.error);
         // 직전 성공의 측정값을 남겨두면 모델 A 성공 → 모델 B 실패 시 화면엔 여전히 A의
         // 속도·비용이 떠 있어서, A/B 비교를 엉뚱한 숫자로 하게 된다
         setLastAnalyzeMeta(null);
+      } else if (!response.ok || !data) {
+        throw new Error(`서버 오류 (${response.status})`);
       } else {
         setHasChargedAnalysis(true);
         setLastAnalyzeMeta(data.meta || null);

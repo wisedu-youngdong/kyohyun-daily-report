@@ -1,7 +1,12 @@
+import { escapeHtml } from './_lib/email.js';
+
 export default function handler(req, res) {
-  const title = req.query.title || '학생 성장 리포트';
-  const sub   = req.query.sub   || '숫자를 넘어선 아이의 노력, 매 수업 진심으로 기록합니다.';
-  const academyName = req.query.academyName || '데일리 리포트 시스템';
+  // 쿼리로 받은 title/sub/academyName을 이스케이프 없이 SVG에 그대로 꽂았음 — 이 함수는
+  // 인증 없이 누구나 호출 가능해서 </text><script> 같은 값을 넣으면 그대로 삽입될 수 있었음
+  // (같은 og 계열의 ogHelpers.js는 이미 escapeHtml을 쓰고 있었는데 이 파일만 누락돼 있었음)
+  const title = escapeHtml(req.query.title || '학생 성장 리포트');
+  const sub   = escapeHtml(req.query.sub   || '숫자를 넘어선 아이의 노력, 매 수업 진심으로 기록합니다.');
+  const academyName = escapeHtml(req.query.academyName || '데일리 리포트 시스템');
 
   const svg = `<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
   <rect width="1200" height="630" fill="#0D2D6B"/>

@@ -316,12 +316,12 @@ export default async function handler(req, res) {
     const isUnlimited = billingData.unlimited === true;
     const creditBalance = billingData.creditBalance || 0;
     if (!isUnlimited && creditBalance <= 0) {
-      return res.status(200).json({ error: '크레딧이 부족합니다. 원장님께 문의해 충전 후 다시 시도해주세요.' });
+      return res.status(402).json({ error: '크레딧이 부족합니다. 원장님께 문의해 충전 후 다시 시도해주세요.' });
     }
     // 체험 계정(가입 직후, 결제 전) — 사진 장수를 캡으로 묶어 계정당 최악 원가 노출을 통제.
     // 첫 결제 승인 시 handleApprovePaymentRequest가 isTrial을 꺼서 이후엔 걸리지 않음.
     if (billingData.isTrial === true && imageList.length > (billingData.trialPhotoCap || 3)) {
-      return res.status(200).json({ error: `체험판은 한 번에 사진 ${billingData.trialPhotoCap || 3}장까지 분석할 수 있어요. 더 보시려면 크레딧을 충전해주세요.` });
+      return res.status(400).json({ error: `체험판은 한 번에 사진 ${billingData.trialPhotoCap || 3}장까지 분석할 수 있어요. 더 보시려면 크레딧을 충전해주세요.` });
     }
 
     // 사진마다 독립적으로(1장씩) Gemini를 병렬 호출 — 여러 장을 한 번에 한 호출로 보내면
@@ -340,7 +340,7 @@ export default async function handler(req, res) {
     const failIdx = results.findIndex(r => !r.ok);
     if (failIdx !== -1) {
       const prefix = imageList.length > 1 ? `${failIdx + 1}번째 사진 분석 실패 — ` : '';
-      return res.status(200).json({ error: prefix + results[failIdx].error });
+      return res.status(500).json({ error: prefix + results[failIdx].error });
     }
 
     // 각 사진 결과를 병합. photoIndex는 모델이 스스로 알 수 없는 값(한 장씩만 봤으므로)이라
