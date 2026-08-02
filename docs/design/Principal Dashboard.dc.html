@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <meta name="design_doc_mode" content="canvas">
+  <link rel="stylesheet" href="_ds/design-system-291cb5aa-6607-4b67-bfdb-2813f36c6934/tokens/fig-tokens.css">
+  <link rel="stylesheet" href="_ds/design-system-291cb5aa-6607-4b67-bfdb-2813f36c6934/tokens/fig-typography.css">
+  <link rel="stylesheet" href="_ds/design-system-291cb5aa-6607-4b67-bfdb-2813f36c6934/components/fig-tokens.css">
+  <link rel="stylesheet" href="_ds/design-system-291cb5aa-6607-4b67-bfdb-2813f36c6934/components/fig-assets.css">
+  <link rel="stylesheet" href="_ds/design-system-291cb5aa-6607-4b67-bfdb-2813f36c6934/styles.css">
+  <script src="_ds/design-system-291cb5aa-6607-4b67-bfdb-2813f36c6934/_ds_bundle.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #EEF0F4; font-family: 'Pretendard Variable', 'Noto Sans KR', sans-serif; -webkit-font-smoothing: antialiased; }
+    a { color: #0D2D6B; text-decoration: none; }
+    a:hover { color: #14448F; }
+    button { font-family: inherit; cursor: pointer; transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease; }
+    input { font-family: inherit; }
+  </style>
+</helmet>
+
+<section style="padding:36px; display:flex; flex-direction:column; gap:22px;">
+  <div style="display:flex; flex-direction:column; gap:9px; max-width:900px;">
+    <span style="font-size:10px; font-weight:700; letter-spacing:1.6px; color:rgba(55,56,60,0.75);">원장 보고서 · 구조 재설계</span>
+    <span style="font-size:22px; font-weight:700; letter-spacing:-0.4px; color:#171719;">시간축 3개를 1개로, 학생 상세 2벌을 1벌로</span>
+    <span style="font-size:13px; font-weight:500; line-height:1.75; color:rgba(55,56,60,0.75); text-wrap:pretty;">세 안 모두 &ldquo;이번 주 현황&rdquo;은 기간과 무관한 고정 알림으로 두고, 날짜 선택기와 기간 토글을 <strong style="font-weight:700; color:#171719;">하나의 기간 컨트롤</strong>로 합쳤습니다. 각 안의 세그먼트를 눌러 뷰 전환을 확인해 보세요. 학생 수는 42명 기준으로 그렸습니다.</span>
+  </div>
+
+  <div style="display:flex; gap:36px; align-items:flex-start; width:max-content;">
+
+    <div style="flex:0 0 auto; width:1120px; display:flex; flex-direction:column; gap:13px;">
+      <div style="display:flex; align-items:center; gap:9px;">
+        <span style="background:#0D2D6B; color:#fff; font-size:11px; font-weight:700; padding:5px 9px; border-radius:6px;">1a</span>
+        <span style="font-size:15px; font-weight:700; color:#171719;">기간 하나, 뷰 전환</span>
+        <span style="font-size:12px; font-weight:600; color:#8A6A22;">브리핑에 가장 충실</span>
+      </div>
+      <span style="font-size:12.5px; font-weight:500; line-height:1.75; color:rgba(55,56,60,0.75); min-height:60px; text-wrap:pretty;">세그먼트 하나가 화면 아래 전체를 지배합니다. <strong style="font-weight:700; color:#171719;">오늘</strong>이면 그날 리포트 카드 목록, <strong style="font-weight:700; color:#171719;">1주 이상</strong>이면 KPI + 추이 + 학생 표. 두 뷰가 동시에 보이지 않으므로 &ldquo;지금 보는 숫자가 어느 기간인지&rdquo; 헷갈릴 수 없습니다.</span>
+
+      <div data-screen-label="1a" style="width:1120px; background:#F4F6FA; border-radius:16px; overflow:hidden; box-shadow:0 6px 28px rgba(23,23,25,0.12); display:flex; flex-direction:column;">
+        <div style="background:#fff; border-bottom:1px solid #E4E6EB; padding:13px 24px; display:flex; align-items:center; justify-content:space-between; gap:20px;">
+          <div style="display:flex; align-items:center; gap:22px;">
+            <span style="font-size:15px; font-weight:700; letter-spacing:-0.2px; color:#0D2D6B;">교현리포트</span>
+            <div style="display:flex; gap:20px;">
+              <sc-for list="{{ gnb }}" as="g" hint-placeholder-count="5">
+                <span style="font-size:13px; font-weight:{{ g.weight }}; color:{{ g.color }};">{{ g.label }}</span>
+              </sc-for>
+            </div>
+          </div>
+          <span style="font-size:12px; font-weight:600; color:rgba(55,56,60,0.75);">8월 2일 (일) · 원장님</span>
+        </div>
+
+        <div style="flex:1; padding:22px 24px 26px; display:flex; flex-direction:column; gap:18px;">
+
+          <div style="background:#0D2D6B; border-radius:14px; padding:18px 22px; display:flex; align-items:center; justify-content:space-between; gap:24px;">
+            <div style="display:flex; flex-direction:column; gap:7px; min-width:0;">
+              <span style="font-size:10px; font-weight:700; letter-spacing:1.6px; color:#C9A227;">이번 주 챙길 것 · 8월 1주차</span>
+              <span style="font-size:18px; font-weight:700; letter-spacing:-0.3px; color:#fff;">{{ weekTodoHeadline }}</span>
+            </div>
+            <div style="display:flex; gap:9px; flex-shrink:0;">
+              <sc-for list="{{ alerts }}" as="al" hint-placeholder-count="3">
+                <button style="border:none; border-radius:10px; background:{{ al.bg }}; padding:11px 15px; display:flex; flex-direction:column; gap:5px; align-items:flex-start; opacity:{{ al.opacity }};">
+                  <span style="font-size:10.5px; font-weight:600; color:{{ al.labelInk }}; white-space:nowrap;">{{ al.label }}</span>
+                  <span style="font-size:17px; font-weight:700; line-height:1; color:{{ al.ink }};">{{ al.count }}<span style="font-size:10.5px; font-weight:600;">{{ al.unit }}</span></span>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:20px;">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <div style="display:flex; background:#E4E7EE; border-radius:9px; padding:3px; gap:2px;">
+                <sc-for list="{{ segA }}" as="sg" hint-placeholder-count="4">
+                  <button onClick="{{ sg.select }}" style="border:none; border-radius:7px; background:{{ sg.bg }}; color:{{ sg.ink }}; font-size:12.5px; font-weight:700; padding:8px 17px; box-shadow:{{ sg.shadow }}; white-space:nowrap;">{{ sg.label }}</button>
+                </sc-for>
+              </div>
+              <span style="font-size:12px; font-weight:500; color:rgba(55,56,60,0.75);">{{ aRangeLabel }}</span>
+            </div>
+            <sc-if value="{{ aIsDay }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex; align-items:center; gap:6px;">
+                <button style="width:32px; height:32px; border:1px solid #DCDFE4; border-radius:8px; background:#fff; display:flex; align-items:center; justify-content:center; padding:4px;">
+                  <span style="width:24px; height:24px; display:flex; align-items:flex-start; justify-content:flex-start;"><x-import component-from-global-scope="DesignSystem_291cb5.IconNormalChevronLeft" dc-props="{{ iconNavy }}" hint-size="24px,24px"></x-import></span>
+                </button>
+                <span style="font-size:14px; font-weight:700; color:#171719; min-width:120px; text-align:center;">7월 31일 (금)</span>
+                <button style="width:32px; height:32px; border:1px solid #DCDFE4; border-radius:8px; background:#fff; display:flex; align-items:center; justify-content:center; padding:4px;">
+                  <span style="width:24px; height:24px; display:flex; align-items:flex-start; justify-content:flex-start;"><x-import component-from-global-scope="DesignSystem_291cb5.IconNormalChevronRight" dc-props="{{ iconNavy }}" hint-size="24px,24px"></x-import></span>
+                </button>
+              </div>
+            </sc-if>
+          </div>
+
+          <sc-if value="{{ aIsDay }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex; flex-direction:column; gap:14px;">
+              <div style="background:#fff; border:1px solid #E4E6EB; border-radius:12px; padding:16px 22px; display:flex; align-items:center; gap:0;">
+                <sc-for list="{{ dayStats }}" as="d" hint-placeholder-count="4">
+                  <span style="flex:1; display:flex; align-items:baseline; gap:9px; border-left-width:{{ d.divider }}; border-left-style:solid; border-left-color:#EEF0F3; padding-left:{{ d.pad }};">
+                    <span style="font-size:12px; font-weight:600; color:rgba(55,56,60,0.75);">{{ d.label }}</span>
+                    <span style="font-size:21px; font-weight:700; line-height:1; color:{{ d.color }};">{{ d.value }}<span style="font-size:11px; font-weight:600;">{{ d.unit }}</span></span>
+                  </span>
+                </sc-for>
+              </div>
+
+              <div style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px;">
+                <sc-for list="{{ dayCards }}" as="c" hint-placeholder-count="6">
+                  <button style="min-width:0; text-align:left; border:1px solid {{ c.border }}; border-radius:12px; background:{{ c.bg }}; padding:16px 18px; display:flex; flex-direction:column; gap:11px;">
+                    <span style="display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%;">
+                      <span style="display:flex; align-items:baseline; gap:8px; min-width:0;">
+                        <span style="font-size:15px; font-weight:700; color:#171719;">{{ c.name }}</span>
+                        <span style="font-size:11px; font-weight:500; color:rgba(55,56,60,0.75);">{{ c.klass }}</span>
+                      </span>
+                      <span style="background:{{ c.badgeBg }}; color:{{ c.badgeInk }}; font-size:10px; font-weight:700; padding:4px 8px; border-radius:6px; white-space:nowrap;">{{ c.status }}</span>
+                    </span>
+                    <sc-if value="{{ c.hasScore }}" hint-placeholder-val="{{ true }}">
+                      <span style="display:flex; gap:16px; width:100%;">
+                        <span style="flex:1; min-width:0; display:flex; flex-direction:column; gap:5px;">
+                          <span style="display:flex; align-items:baseline; justify-content:space-between; gap:6px;">
+                            <span style="font-size:10.5px; font-weight:600; color:rgba(55,56,60,0.75);">과제</span>
+                            <span style="font-size:12px; font-weight:700; color:#0D2D6B;">{{ c.hw }}</span>
+                          </span>
+                          <span style="height:5px; border-radius:3px; background:#E7EAF2; overflow:hidden; display:flex;"><span style="width:{{ c.hw }}; background:#0D2D6B; display:block;"></span></span>
+                        </span>
+                        <span style="flex:1; min-width:0; display:flex; flex-direction:column; gap:5px;">
+                          <span style="display:flex; align-items:baseline; justify-content:space-between; gap:6px;">
+                            <span style="font-size:10.5px; font-weight:600; color:rgba(55,56,60,0.75);">개념</span>
+                            <span style="font-size:12px; font-weight:700; color:#2E5C9E;">{{ c.cc }}</span>
+                          </span>
+                          <span style="height:5px; border-radius:3px; background:#E7EAF2; overflow:hidden; display:flex;"><span style="width:{{ c.cc }}; background:#2E5C9E; display:block;"></span></span>
+                        </span>
+                      </span>
+                    </sc-if>
+                    <span style="font-size:11.5px; font-weight:500; line-height:1.6; color:rgba(55,56,60,0.75); text-wrap:pretty;">{{ c.note }}</span>
+                  </button>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ aIsRange }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex; flex-direction:column; gap:14px;">
+              <div style="display:grid; grid-template-columns:1.3fr 1fr 1fr; gap:12px;">
+                <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="3">
+                  <div style="min-width:0; border-width:1px; border-style:solid; border-color:{{ k.border }}; border-radius:12px; background:{{ k.bg }}; padding:16px 20px; display:flex; align-items:center; justify-content:space-between; gap:14px;">
+                    <span style="display:flex; flex-direction:column; gap:7px; min-width:0;">
+                      <span style="font-size:11px; font-weight:700; color:{{ k.labelInk }};">{{ k.label }}</span>
+                      <span style="font-size:27px; font-weight:700; line-height:1; letter-spacing:-0.6px; color:{{ k.ink }};">{{ k.value }}<span style="font-size:13px; font-weight:600;">{{ k.unit }}</span></span>
+                      <span style="font-size:11px; font-weight:500; color:rgba(55,56,60,0.75);">{{ k.sub }}</span>
+                    </span>
+                    <sc-if value="{{ k.hasAction }}" hint-placeholder-val="{{ false }}">
+                      <button style="border:none; border-radius:8px; background:{{ k.actionBg }}; color:{{ k.actionInk }}; font-size:12px; font-weight:700; padding:9px 13px; white-space:nowrap; flex-shrink:0;">{{ k.action }}</button>
+                    </sc-if>
+                  </div>
+                </sc-for>
+              </div>
+
+              <div style="background:#fff; border:1px solid #E4E6EB; border-radius:12px; padding:18px 22px 16px; display:flex; flex-direction:column; gap:14px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:16px;">
+                  <span style="font-size:13px; font-weight:700; color:#171719;">개념 이해 평균 추이</span>
+                  <div style="display:flex; gap:14px;">
+                    <sc-for list="{{ legend }}" as="lg" hint-placeholder-count="2">
+                      <span style="display:flex; align-items:center; gap:6px; font-size:11px; font-weight:600; color:rgba(55,56,60,0.75);">
+                        <span style="width:14px; height:2px; border-radius:1px; background:{{ lg.color }}; display:block;"></span>{{ lg.label }}
+                      </span>
+                    </sc-for>
+                  </div>
+                </div>
+                <div style="display:flex; gap:10px;">
+                  <div style="display:flex; flex-direction:column; justify-content:space-between; padding:0 0 18px;">
+                    <sc-for list="{{ yTicks }}" as="y" hint-placeholder-count="4">
+                      <span style="font-size:9.5px; font-weight:600; color:rgba(55,56,60,0.75); line-height:1;">{{ y }}</span>
+                    </sc-for>
+                  </div>
+                  <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:6px;">
+                    <svg viewBox="0 0 960 132" preserveAspectRatio="none" style="width:100%; height:130px; display:block;">
+                      <line x1="0" y1="4" x2="960" y2="4" stroke="#EEF0F3" stroke-width="1"></line>
+                      <line x1="0" y1="66" x2="960" y2="66" stroke="#EEF0F3" stroke-width="1"></line>
+                      <line x1="0" y1="128" x2="960" y2="128" stroke="#E4E6EB" stroke-width="1"></line>
+                      <polyline points="{{ trendLine }}" fill="none" stroke="#0D2D6B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></polyline>
+                      <polyline points="{{ prevLine }}" fill="none" stroke="#9CB0D0" stroke-width="2" stroke-dasharray="5 4" stroke-linecap="round"></polyline>
+                    </svg>
+                    <div style="display:flex; justify-content:space-between;">
+                      <sc-for list="{{ xLabels }}" as="x" hint-placeholder-count="7">
+                        <span style="font-size:9.5px; font-weight:600; color:{{ x.ink }};">{{ x.label }}</span>
+                      </sc-for>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div style="background:#fff; border:1px solid #E4E6EB; border-radius:12px; overflow:hidden; display:flex; flex-direction:column;">
+                <div style="padding:14px 20px; border-bottom:1px solid #EEF0F3; display:flex; align-items:center; justify-content:space-between; gap:16px;">
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <div style="display:flex; align-items:center; gap:7px; border:1px solid #DCDFE4; border-radius:8px; padding:0 11px; background:#fff; width:210px;">
+                      <span style="width:24px; height:24px; display:flex; align-items:flex-start; justify-content:flex-start; flex-shrink:0;"><x-import component-from-global-scope="DesignSystem_291cb5.IconNormalSearch" dc-props="{{ iconGrey }}" hint-size="24px,24px"></x-import></span>
+                      <input placeholder="학생 이름" style="flex:1; min-width:0; border:none; outline:none; padding:8px 0; font-size:12.5px; font-weight:500; color:#171719; background:transparent;" />
+                    </div>
+                    <sc-for list="{{ classChips }}" as="cl" hint-placeholder-count="5">
+                      <button onClick="{{ cl.select }}" style="border-width:1px; border-style:solid; border-color:{{ cl.border }}; border-radius:16px; background:{{ cl.bg }}; color:{{ cl.ink }}; font-size:12px; font-weight:700; padding:7px 13px; white-space:nowrap;">{{ cl.label }}</button>
+                    </sc-for>
+                  </div>
+                  <span style="font-size:11.5px; font-weight:600; color:rgba(55,56,60,0.75);">{{ tableCount }}</span>
+                </div>
+                <div style="display:grid; grid-template-columns:1.4fr 0.9fr 0.7fr 0.7fr 1fr 0.8fr; padding:10px 20px; background:#F7F8FA; border-bottom:1px solid #EEF0F3;">
+                  <sc-for list="{{ tableHead }}" as="h" hint-placeholder-count="6">
+                    <span style="font-size:10.5px; font-weight:700; color:rgba(55,56,60,0.75); text-align:{{ h.align }};">{{ h.label }}</span>
+                  </sc-for>
+                </div>
+                <sc-for list="{{ students }}" as="st" hint-placeholder-count="8">
+                  <button onClick="{{ st.select }}" style="width:100%; text-align:left; border:none; border-bottom:1px solid #F4F5F7; background:{{ st.rowBg }}; border-left-width:3px; border-left-style:solid; border-left-color:{{ st.mark }}; display:grid; grid-template-columns:1.4fr 0.9fr 0.7fr 0.7fr 1fr 0.8fr; align-items:center; padding:12px 20px 12px 17px;">
+                    <span style="font-size:13.5px; font-weight:700; color:#171719;">{{ st.name }}</span>
+                    <span style="font-size:12px; font-weight:500; color:rgba(55,56,60,0.75);">{{ st.klass }}</span>
+                    <span style="font-size:14px; font-weight:700; color:{{ st.scoreInk }}; text-align:right;">{{ st.score }}</span>
+                    <span style="font-size:12px; font-weight:700; color:{{ st.deltaInk }}; text-align:right;">{{ st.delta }}</span>
+                    <span style="display:flex; justify-content:center;">
+                      <svg viewBox="0 0 70 22" style="width:70px; height:22px; display:block;">
+                        <polyline points="{{ st.spark }}" fill="none" stroke="{{ st.sparkInk }}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></polyline>
+                      </svg>
+                    </span>
+                    <span style="display:flex; justify-content:flex-end;">
+                      <span style="background:{{ st.badgeBg }}; color:{{ st.badgeInk }}; font-size:10.5px; font-weight:700; padding:4px 10px; border-radius:6px; white-space:nowrap;">{{ st.status }}</span>
+                    </span>
+                  </button>
+                </sc-for>
+                <div style="padding:13px 20px; display:flex; align-items:center; justify-content:center; gap:8px;">
+                  <sc-for list="{{ pager }}" as="pg" hint-placeholder-count="5">
+                    <span style="min-width:28px; height:28px; border-radius:7px; background:{{ pg.bg }}; color:{{ pg.ink }}; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; padding:0 8px;">{{ pg.label }}</span>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+
+    <div style="flex:0 0 auto; width:1120px; display:flex; flex-direction:column; gap:13px;">
+      <div style="display:flex; align-items:center; gap:9px;">
+        <span style="background:#171719; color:#fff; font-size:11px; font-weight:700; padding:5px 9px; border-radius:6px;">1b</span>
+        <span style="font-size:15px; font-weight:700; color:#171719;">할 일 우선</span>
+      </div>
+      <span style="font-size:12.5px; font-weight:500; line-height:1.75; color:rgba(55,56,60,0.75); min-height:60px; text-wrap:pretty;">알림 배너를 <strong style="font-weight:700; color:#171719;">처리 가능한 목록</strong>으로 확장했습니다. 각 줄이 &ldquo;무엇 · 누구 · 버튼&rdquo;이라 화면을 떠나지 않고 끝납니다. 데이터 블록은 그 아래로 내려가고 기본은 접힘 &mdash; 바쁜 원장이 30초에 끝내는 흐름.</span>
+
+      <div data-screen-label="1b" style="width:1120px; background:#F4F6FA; border-radius:16px; overflow:hidden; box-shadow:0 6px 28px rgba(23,23,25,0.12); display:flex; flex-direction:column;">
+        <div style="background:#fff; border-bottom:1px solid #E4E6EB; padding:13px 24px; display:flex; align-items:center; justify-content:space-between; gap:20px;">
+          <div style="display:flex; align-items:center; gap:22px;">
+            <span style="font-size:15px; font-weight:700; letter-spacing:-0.2px; color:#0D2D6B;">교현리포트</span>
+            <div style="display:flex; gap:20px;">
+              <sc-for list="{{ gnb }}" as="g" hint-placeholder-count="5">
+                <span style="font-size:13px; font-weight:{{ g.weight }}; color:{{ g.color }};">{{ g.label }}</span>
+              </sc-for>
+            </div>
+          </div>
+          <span style="font-size:12px; font-weight:600; color:rgba(55,56,60,0.75);">8월 2일 (일) · 원장님</span>
+        </div>
+
+        <div style="flex:1; padding:22px 24px 26px; display:flex; flex-direction:column; gap:16px;">
+          <div style="display:flex; align-items:baseline; justify-content:space-between; gap:20px;">
+            <span style="font-size:19px; font-weight:700; letter-spacing:-0.3px; color:#171719;">이번 주 챙길 것 <span style="color:#B92C2C;">5</span></span>
+            <span style="font-size:12px; font-weight:500; color:rgba(55,56,60,0.75);">8월 1주차 · 기간 설정과 무관하게 항상 이번 주</span>
+          </div>
+
+          <div style="background:#fff; border:1px solid #E4E6EB; border-radius:12px; overflow:hidden;">
+            <sc-for list="{{ todos }}" as="td" hint-placeholder-count="4">
+              <div style="border-bottom:1px solid #F4F5F7; padding:15px 20px; display:flex; align-items:center; justify-content:space-between; gap:20px; background:{{ td.bg }}; opacity:{{ td.opacity }};">
+                <span style="display:flex; align-items:center; gap:14px; min-width:0;">
+                  <span style="width:4px; height:34px; border-radius:2px; background:{{ td.mark }}; display:block; flex-shrink:0;"></span>
+                  <span style="display:flex; flex-direction:column; gap:5px; min-width:0;">
+                    <span style="font-size:14px; font-weight:700; color:#171719;">{{ td.title }}</span>
+                    <span style="font-size:12px; font-weight:500; color:rgba(55,56,60,0.75); text-wrap:pretty;">{{ td.detail }}</span>
+                  </span>
+                </span>
+                <span style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
+                  <span style="font-size:11.5px; font-weight:600; color:rgba(55,56,60,0.75);">{{ td.meta }}</span>
+                  <sc-if value="{{ td.hasAction }}" hint-placeholder-val="{{ true }}">
+                    <button style="border-width:1px; border-style:solid; border-color:{{ td.btnBorder }}; border-radius:8px; background:{{ td.btnBg }}; color:{{ td.btnInk }}; font-size:12px; font-weight:700; padding:9px 15px; white-space:nowrap;">{{ td.action }}</button>
+                  </sc-if>
+                </span>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="height:1px; background:#E4E6EB; margin:4px 0;"></div>
+
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:20px;">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <span style="font-size:14px; font-weight:700; color:#171719;">학원 지표</span>
+              <div style="display:flex; background:#E4E7EE; border-radius:9px; padding:3px; gap:2px;">
+                <sc-for list="{{ segB }}" as="sg" hint-placeholder-count="4">
+                  <button onClick="{{ sg.select }}" style="border:none; border-radius:7px; background:{{ sg.bg }}; color:{{ sg.ink }}; font-size:12.5px; font-weight:700; padding:8px 17px; box-shadow:{{ sg.shadow }}; white-space:nowrap;">{{ sg.label }}</button>
+                </sc-for>
+              </div>
+              <span style="font-size:12px; font-weight:500; color:rgba(55,56,60,0.75);">{{ bRangeLabel }}</span>
+            </div>
+            <button onClick="{{ toggleB }}" style="border:1px solid #DCDFE4; border-radius:8px; background:#fff; color:#0D2D6B; font-size:12px; font-weight:700; padding:8px 14px; display:flex; align-items:center; gap:5px;">
+              {{ bToggleLabel }}
+              <span style="width:24px; height:24px; display:flex; align-items:flex-start; justify-content:flex-start;"><x-import component-from-global-scope="{{ bCaret }}" dc-props="{{ iconNavy }}" hint-size="24px,24px"></x-import></span>
+            </button>
+          </div>
+
+          <div style="display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px;">
+            <sc-for list="{{ compactKpis }}" as="k" hint-placeholder-count="4">
+              <div style="min-width:0; background:#fff; border-width:1px; border-style:solid; border-color:{{ k.border }}; border-radius:12px; padding:14px 18px; display:flex; flex-direction:column; gap:7px;">
+                <span style="font-size:11px; font-weight:600; color:rgba(55,56,60,0.75);">{{ k.label }}</span>
+                <span style="font-size:24px; font-weight:700; line-height:1; letter-spacing:-0.5px; color:{{ k.ink }};">{{ k.value }}<span style="font-size:12px; font-weight:600;">{{ k.unit }}</span></span>
+                <span style="font-size:11px; font-weight:500; color:{{ k.subInk }};">{{ k.sub }}</span>
+              </div>
+            </sc-for>
+          </div>
+
+          <sc-if value="{{ bOpen }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex; gap:12px; align-items:stretch;">
+              <div style="flex:1.15; min-width:0; background:#fff; border:1px solid #E4E6EB; border-radius:12px; padding:18px 22px 16px; display:flex; flex-direction:column; gap:14px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:16px;">
+                  <span style="font-size:13px; font-weight:700; color:#171719;">개념 이해 평균 추이</span>
+                  <div style="display:flex; gap:14px;">
+                    <sc-for list="{{ legend }}" as="lg" hint-placeholder-count="2">
+                      <span style="display:flex; align-items:center; gap:6px; font-size:11px; font-weight:600; color:rgba(55,56,60,0.75);">
+                        <span style="width:14px; height:2px; border-radius:1px; background:{{ lg.color }}; display:block;"></span>{{ lg.label }}
+                      </span>
+                    </sc-for>
+                  </div>
+                </div>
+                <div style="display:flex; gap:10px;">
+                  <div style="display:flex; flex-direction:column; justify-content:space-between; padding:0 0 18px;">
+                    <sc-for list="{{ yTicks }}" as="y" hint-placeholder-count="4">
+                      <span style="font-size:9.5px; font-weight:600; color:rgba(55,56,60,0.75); line-height:1;">{{ y }}</span>
+                    </sc-for>
+                  </div>
+                  <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:6px;">
+                    <svg viewBox="0 0 480 132" preserveAspectRatio="none" style="width:100%; height:150px; display:block;">
+                      <line x1="0" y1="4" x2="480" y2="4" stroke="#EEF0F3" stroke-width="1"></line>
+                      <line x1="0" y1="66" x2="480" y2="66" stroke="#EEF0F3" stroke-width="1"></line>
+                      <line x1="0" y1="128" x2="480" y2="128" stroke="#E4E6EB" stroke-width="1"></line>
+                      <polyline points="{{ trendLineB }}" fill="none" stroke="#0D2D6B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></polyline>
+                      <polyline points="{{ prevLineB }}" fill="none" stroke="#9CB0D0" stroke-width="2" stroke-dasharray="5 4" stroke-linecap="round"></polyline>
+                    </svg>
+                    <div style="display:flex; justify-content:space-between;">
+                      <sc-for list="{{ xLabels }}" as="x" hint-placeholder-count="7">
+                        <span style="font-size:9.5px; font-weight:600; color:{{ x.ink }};">{{ x.label }}</span>
+                      </sc-for>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div style="flex:1; min-width:0; background:#fff; border:1px solid #E4E6EB; border-radius:12px; overflow:hidden; display:flex; flex-direction:column;">
+                <div style="padding:14px 20px; border-bottom:1px solid #EEF0F3; display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                  <span style="font-size:13px; font-weight:700; color:#171719;">주의가 필요한 학생</span>
+                  <span style="font-size:11.5px; font-weight:600; color:#0D2D6B;">{{ allStudentsLabel }}</span>
+                </div>
+                <sc-for list="{{ watchList }}" as="w" hint-placeholder-count="5">
+                  <button onClick="{{ w.select }}" style="width:100%; text-align:left; border:none; border-bottom:1px solid #F4F5F7; background:#fff; padding:12px 20px; display:flex; align-items:center; justify-content:space-between; gap:14px;">
+                    <span style="display:flex; align-items:baseline; gap:9px; min-width:0;">
+                      <span style="font-size:13.5px; font-weight:700; color:#171719;">{{ w.name }}</span>
+                      <span style="font-size:11px; font-weight:500; color:rgba(55,56,60,0.75);">{{ w.klass }}</span>
+                    </span>
+                    <span style="display:flex; align-items:center; gap:12px; flex-shrink:0;">
+                      <span style="font-size:12px; font-weight:700; color:{{ w.deltaInk }};">{{ w.delta }}</span>
+                      <span style="font-size:14px; font-weight:700; color:#171719; min-width:26px; text-align:right;">{{ w.score }}</span>
+                      <span style="background:{{ w.badgeBg }}; color:{{ w.badgeInk }}; font-size:10.5px; font-weight:700; padding:4px 10px; border-radius:6px; white-space:nowrap;">{{ w.status }}</span>
+                    </span>
+                  </button>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+
+    <div style="flex:0 0 auto; width:1120px; display:flex; flex-direction:column; gap:13px;">
+      <div style="display:flex; align-items:center; gap:9px;">
+        <span style="background:#171719; color:#fff; font-size:11px; font-weight:700; padding:5px 9px; border-radius:6px;">1c</span>
+        <span style="font-size:15px; font-weight:700; color:#171719;">학생 중심 단일 표</span>
+        <span style="font-size:12px; font-weight:600; color:rgba(55,56,60,0.75);">200명 규모 대비</span>
+      </div>
+      <span style="font-size:12.5px; font-weight:500; line-height:1.75; color:rgba(55,56,60,0.75); min-height:60px; text-wrap:pretty;">화면 전체가 하나의 학생 표이고, 왼쪽 레일이 반·상태 필터입니다. 기간을 바꾸면 <strong style="font-weight:700; color:#171719;">표의 열이 바뀝니다</strong>(오늘=오늘 리포트 열, 1개월=변화량·추이 열). 규모가 커질수록 유리하지만 &lsquo;학원 전체 상태&rsquo;는 한 줄로 압축됩니다.</span>
+
+      <div data-screen-label="1c" style="width:1120px; background:#F4F6FA; border-radius:16px; overflow:hidden; box-shadow:0 6px 28px rgba(23,23,25,0.12); display:flex; flex-direction:column;">
+        <div style="background:#fff; border-bottom:1px solid #E4E6EB; padding:13px 24px; display:flex; align-items:center; justify-content:space-between; gap:20px;">
+          <div style="display:flex; align-items:center; gap:22px;">
+            <span style="font-size:15px; font-weight:700; letter-spacing:-0.2px; color:#0D2D6B;">교현리포트</span>
+            <div style="display:flex; gap:20px;">
+              <sc-for list="{{ gnb }}" as="g" hint-placeholder-count="5">
+                <span style="font-size:13px; font-weight:{{ g.weight }}; color:{{ g.color }};">{{ g.label }}</span>
+              </sc-for>
+            </div>
+          </div>
+          <span style="font-size:12px; font-weight:600; color:rgba(55,56,60,0.75);">8월 2일 (일) · 원장님</span>
+        </div>
+
+        <div style="background:#0D2D6B; padding:13px 24px; display:flex; align-items:center; justify-content:space-between; gap:24px;">
+          <div style="display:flex; align-items:center; gap:26px;">
+            <span style="font-size:10px; font-weight:700; letter-spacing:1.6px; color:#C9A227;">이번 주</span>
+            <sc-for list="{{ stripStats }}" as="s" hint-placeholder-count="4">
+              <span style="display:flex; align-items:baseline; gap:7px;">
+                <span style="font-size:11.5px; font-weight:500; color:rgba(255,255,255,0.72);">{{ s.label }}</span>
+                <span style="font-size:16px; font-weight:700; line-height:1; color:{{ s.ink }};">{{ s.value }}<span style="font-size:10px; font-weight:600;">{{ s.unit }}</span></span>
+              </span>
+            </sc-for>
+          </div>
+          <button style="border:none; border-radius:8px; background:#C9A227; color:#3A2E05; font-size:12px; font-weight:700; padding:9px 15px; white-space:nowrap;">{{ weekTodoButton }}</button>
+        </div>
+
+        <div style="flex:1; display:flex; align-items:stretch;">
+          <div style="width:196px; flex-shrink:0; background:#fff; border-right:1px solid #E4E6EB; padding:18px 14px; display:flex; flex-direction:column; gap:20px;">
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <span style="font-size:10px; font-weight:700; letter-spacing:1.3px; color:rgba(55,56,60,0.75); padding-left:10px;">반</span>
+              <sc-for list="{{ railClasses }}" as="rc" hint-placeholder-count="6">
+                <button onClick="{{ rc.select }}" style="width:100%; text-align:left; border:none; border-radius:8px; background:{{ rc.bg }}; padding:9px 10px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                  <span style="font-size:12.5px; font-weight:{{ rc.weight }}; color:{{ rc.ink }};">{{ rc.label }}</span>
+                  <span style="font-size:11px; font-weight:600; color:{{ rc.countInk }};">{{ rc.count }}</span>
+                </button>
+              </sc-for>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <span style="font-size:10px; font-weight:700; letter-spacing:1.3px; color:rgba(55,56,60,0.75); padding-left:10px;">상태</span>
+              <sc-for list="{{ railStatus }}" as="rs" hint-placeholder-count="4">
+                <button style="width:100%; text-align:left; border:none; border-radius:8px; background:transparent; padding:8px 10px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                  <span style="display:flex; align-items:center; gap:8px;">
+                    <span style="width:7px; height:7px; border-radius:50%; background:{{ rs.dot }}; display:block;"></span>
+                    <span style="font-size:12.5px; font-weight:500; color:#171719;">{{ rs.label }}</span>
+                  </span>
+                  <span style="font-size:11px; font-weight:600; color:rgba(55,56,60,0.75);">{{ rs.count }}</span>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="flex:1; min-width:0; padding:18px 24px 24px; display:flex; flex-direction:column; gap:14px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:16px;">
+              <div style="display:flex; align-items:center; gap:12px;">
+                <div style="display:flex; align-items:center; gap:7px; border:1px solid #DCDFE4; border-radius:8px; padding:0 11px; background:#fff; width:230px;">
+                  <span style="width:24px; height:24px; display:flex; align-items:flex-start; justify-content:flex-start; flex-shrink:0;"><x-import component-from-global-scope="DesignSystem_291cb5.IconNormalSearch" dc-props="{{ iconGrey }}" hint-size="24px,24px"></x-import></span>
+                  <input placeholder="학생 이름 검색" style="flex:1; min-width:0; border:none; outline:none; padding:9px 0; font-size:13px; font-weight:500; color:#171719; background:transparent;" />
+                </div>
+                <div style="display:flex; background:#E4E7EE; border-radius:9px; padding:3px; gap:2px;">
+                  <sc-for list="{{ segC }}" as="sg" hint-placeholder-count="4">
+                    <button onClick="{{ sg.select }}" style="border:none; border-radius:7px; background:{{ sg.bg }}; color:{{ sg.ink }}; font-size:12.5px; font-weight:700; padding:8px 16px; box-shadow:{{ sg.shadow }}; white-space:nowrap;">{{ sg.label }}</button>
+                  </sc-for>
+                </div>
+              </div>
+              <span style="font-size:12px; font-weight:600; color:rgba(55,56,60,0.75);">{{ cCountLabel }}</span>
+            </div>
+
+            <div style="background:#fff; border:1px solid #E4E6EB; border-radius:12px; overflow:hidden; display:flex; flex-direction:column;">
+              <div style="display:grid; grid-template-columns:{{ cGrid }}; padding:11px 20px; background:#F7F8FA; border-bottom:1px solid #EEF0F3;">
+                <sc-for list="{{ cHead }}" as="h" hint-placeholder-count="6">
+                  <span style="font-size:10.5px; font-weight:700; color:rgba(55,56,60,0.75); text-align:{{ h.align }};">{{ h.label }}</span>
+                </sc-for>
+              </div>
+              <sc-for list="{{ cRows }}" as="r" hint-placeholder-count="12">
+                <button onClick="{{ r.select }}" style="width:100%; text-align:left; border:none; border-bottom:1px solid #F4F5F7; background:{{ r.rowBg }}; border-left-width:3px; border-left-style:solid; border-left-color:{{ r.mark }}; display:grid; grid-template-columns:{{ cGrid }}; align-items:center; padding:11px 20px 11px 17px;">
+                  <span style="font-size:13.5px; font-weight:700; color:#171719;">{{ r.name }}</span>
+                  <span style="font-size:12px; font-weight:500; color:rgba(55,56,60,0.75);">{{ r.klass }}</span>
+                  <sc-if value="{{ cIsDay }}" hint-placeholder-val="{{ false }}">
+                    <span style="font-size:12.5px; font-weight:600; color:{{ r.todayInk }}; text-align:center;">{{ r.today }}</span>
+                    <span style="font-size:12.5px; font-weight:600; color:rgba(55,56,60,0.9); text-align:center;">{{ r.todayHw }}</span>
+                    <span style="font-size:12px; font-weight:500; color:rgba(55,56,60,0.75); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding-right:12px;">{{ r.todayNote }}</span>
+                  </sc-if>
+                  <sc-if value="{{ cIsRange }}" hint-placeholder-val="{{ true }}">
+                    <span style="font-size:14px; font-weight:700; color:{{ r.scoreInk }}; text-align:right;">{{ r.score }}</span>
+                    <span style="font-size:12px; font-weight:700; color:{{ r.deltaInk }}; text-align:right;">{{ r.delta }}</span>
+                    <span style="display:flex; justify-content:center;">
+                      <svg viewBox="0 0 70 22" style="width:70px; height:22px; display:block;">
+                        <polyline points="{{ r.spark }}" fill="none" stroke="{{ r.sparkInk }}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></polyline>
+                      </svg>
+                    </span>
+                  </sc-if>
+                  <span style="display:flex; justify-content:flex-end;">
+                    <span style="background:{{ r.badgeBg }}; color:{{ r.badgeInk }}; font-size:10.5px; font-weight:700; padding:4px 10px; border-radius:6px; white-space:nowrap;">{{ r.status }}</span>
+                  </span>
+                </button>
+              </sc-for>
+              <div style="padding:13px 20px; display:flex; align-items:center; justify-content:center; gap:8px;">
+                <sc-for list="{{ pager }}" as="pg" hint-placeholder-count="5">
+                  <span style="min-width:28px; height:28px; border-radius:7px; background:{{ pg.bg }}; color:{{ pg.ink }}; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; padding:0 8px;">{{ pg.label }}</span>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="flex:0 0 auto; width:420px; display:flex; flex-direction:column; gap:13px;">
+      <div style="display:flex; align-items:center; gap:9px;">
+        <span style="background:#C9A227; color:#3A2E05; font-size:11px; font-weight:700; padding:5px 9px; border-radius:6px;">공통</span>
+        <span style="font-size:15px; font-weight:700; color:#171719;">학생 상세 통합안</span>
+      </div>
+      <span style="font-size:12.5px; font-weight:500; line-height:1.75; color:rgba(55,56,60,0.75); min-height:60px; text-wrap:pretty;">미니 드로어와 풀 모달을 하나로. <strong style="font-weight:700; color:#171719;">풀 모달의 기능을 드로어 폭</strong>에 담았습니다. 폭 420px 오버레이(본문을 밀지 않음), 상단에 이전/다음 학생 이동, 필터는 목록 위, 이탈 버튼은 하단 보조로 내렸습니다.</span>
+
+      <div data-screen-label="학생 상세" style="width:420px; height:1000px; background:#fff; border-radius:14px; overflow:hidden; box-shadow:0 6px 28px rgba(23,23,25,0.14); display:flex; flex-direction:column;">
+        <div style="padding:16px 20px 14px; border-bottom:1px solid #EEF0F3; display:flex; flex-direction:column; gap:13px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+            <div style="display:flex; align-items:center; gap:4px;">
+              <button style="width:30px; height:30px; border:1px solid #DCDFE4; border-radius:7px; background:#fff; display:flex; align-items:center; justify-content:center; padding:3px;">
+                <span style="width:24px; height:24px; display:flex; align-items:flex-start; justify-content:flex-start;"><x-import component-from-global-scope="DesignSystem_291cb5.IconNormalChevronLeft" dc-props="{{ iconNavy }}" hint-size="24px,24px"></x-import></span>
+              </button>
+              <button style="width:30px; height:30px; border:1px solid #DCDFE4; border-radius:7px; background:#fff; display:flex; align-items:center; justify-content:center; padding:3px;">
+                <span style="width:24px; height:24px; display:flex; align-items:flex-start; justify-content:flex-start;"><x-import component-from-global-scope="DesignSystem_291cb5.IconNormalChevronRight" dc-props="{{ iconNavy }}" hint-size="24px,24px"></x-import></span>
+              </button>
+              <span style="font-size:11.5px; font-weight:600; color:rgba(55,56,60,0.75); margin-left:6px;">경고 목록 1 / 3</span>
+            </div>
+            <button style="width:30px; height:30px; border:none; border-radius:7px; background:#F1F2F5; color:#4B4D52; font-size:14px; font-weight:700;">✕</button>
+          </div>
+          <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:14px;">
+            <div style="display:flex; flex-direction:column; gap:6px; min-width:0;">
+              <span style="display:flex; align-items:center; gap:9px;">
+                <span style="font-size:22px; font-weight:700; letter-spacing:-0.4px; color:#171719;">서우영</span>
+                <span style="background:#FBEDED; color:#B92C2C; font-size:10.5px; font-weight:700; padding:4px 9px; border-radius:6px;">경고</span>
+              </span>
+              <span style="font-size:12px; font-weight:500; color:rgba(55,56,60,0.75);">중2A · 이영동 선생 · 최근 수업 7월 30일</span>
+            </div>
+            <span style="display:flex; align-items:baseline; gap:7px; flex-shrink:0;">
+              <span style="font-size:30px; font-weight:700; line-height:1; letter-spacing:-0.8px; color:#B92C2C;">70<span style="font-size:13px; font-weight:600;">%</span></span>
+              <span style="font-size:13px; font-weight:700; color:#B92C2C;">▼10</span>
+            </span>
+          </div>
+        </div>
+
+        <div style="flex:1; min-height:0; overflow-y:auto; padding:16px 20px 20px; display:flex; flex-direction:column; gap:18px;">
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <span style="font-size:12px; font-weight:700; color:#171719;">최근 6회 개념 이해</span>
+            <div style="border:1px solid #E4E6EB; border-radius:11px; padding:14px 16px 12px; display:flex; flex-direction:column; gap:7px;">
+              <svg viewBox="0 0 340 74" style="width:100%; height:74px; display:block;">
+                <line x1="0" y1="6" x2="340" y2="6" stroke="#EEF0F3" stroke-width="1"></line>
+                <line x1="0" y1="37" x2="340" y2="37" stroke="#EEF0F3" stroke-width="1"></line>
+                <line x1="0" y1="68" x2="340" y2="68" stroke="#E4E6EB" stroke-width="1"></line>
+                <polyline points="{{ panelLine }}" fill="none" stroke="#B92C2C" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></polyline>
+                <sc-for list="{{ panelDots }}" as="pd" hint-placeholder-count="6">
+                  <circle cx="{{ pd.x }}" cy="{{ pd.y }}" r="{{ pd.r }}" fill="#B92C2C" stroke="#fff" stroke-width="{{ pd.stroke }}"></circle>
+                </sc-for>
+              </svg>
+              <div style="display:flex; justify-content:space-between;">
+                <sc-for list="{{ panelX }}" as="px" hint-placeholder-count="6">
+                  <span style="font-size:9.5px; font-weight:600; color:rgba(55,56,60,0.75);">{{ px }}</span>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+              <span style="font-size:12px; font-weight:700; color:#171719;">리포트</span>
+              <div style="display:flex; background:#F1F2F5; border-radius:7px; padding:2px; gap:2px;">
+                <sc-for list="{{ panelSeg }}" as="ps" hint-placeholder-count="3">
+                  <button onClick="{{ ps.select }}" style="border:none; border-radius:5px; background:{{ ps.bg }}; color:{{ ps.ink }}; font-size:11px; font-weight:700; padding:6px 11px; box-shadow:{{ ps.shadow }}; white-space:nowrap;">{{ ps.label }}</button>
+                </sc-for>
+              </div>
+            </div>
+            <sc-for list="{{ panelReports }}" as="pr" hint-placeholder-count="3">
+              <div style="border:1px solid #E4E6EB; border-radius:11px; padding:13px 15px; display:flex; flex-direction:column; gap:9px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+                  <span style="display:flex; align-items:baseline; gap:8px; min-width:0;">
+                    <span style="font-size:13px; font-weight:700; color:#171719;">{{ pr.date }}</span>
+                    <span style="font-size:11px; font-weight:500; color:rgba(55,56,60,0.75); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ pr.range }}</span>
+                  </span>
+                  <span style="background:{{ pr.tagBg }}; color:{{ pr.tagInk }}; font-size:10px; font-weight:700; padding:3px 8px; border-radius:6px; white-space:nowrap; flex-shrink:0;">{{ pr.tag }}</span>
+                </div>
+                <div style="display:flex; gap:14px;">
+                  <span style="flex:1; min-width:0; display:flex; align-items:center; gap:7px;">
+                    <span style="font-size:10px; font-weight:600; color:rgba(55,56,60,0.75); white-space:nowrap;">과제</span>
+                    <span style="flex:1; min-width:0; height:5px; border-radius:3px; background:#E7EAF2; overflow:hidden; display:flex;"><span style="width:{{ pr.hw }}; background:#0D2D6B; display:block;"></span></span>
+                    <span style="font-size:10.5px; font-weight:700; color:#0D2D6B; white-space:nowrap;">{{ pr.hw }}</span>
+                  </span>
+                  <span style="flex:1; min-width:0; display:flex; align-items:center; gap:7px;">
+                    <span style="font-size:10px; font-weight:600; color:rgba(55,56,60,0.75); white-space:nowrap;">개념</span>
+                    <span style="flex:1; min-width:0; height:5px; border-radius:3px; background:#E7EAF2; overflow:hidden; display:flex;"><span style="width:{{ pr.cc }}; background:#2E5C9E; display:block;"></span></span>
+                    <span style="font-size:10.5px; font-weight:700; color:#2E5C9E; white-space:nowrap;">{{ pr.cc }}</span>
+                  </span>
+                </div>
+                <span style="font-size:11.5px; font-weight:500; line-height:1.6; color:rgba(55,56,60,0.75); text-wrap:pretty;">{{ pr.note }}</span>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:9px;">
+            <span style="font-size:12px; font-weight:700; color:#171719;">원장 메모</span>
+            <div style="border:1px solid #E4E6EB; border-radius:11px; background:#F7F8FA; padding:13px 15px; display:flex; flex-direction:column; gap:8px;">
+              <span style="font-size:12px; font-weight:500; line-height:1.7; color:#171719; text-wrap:pretty;">7/28 어머님 통화 &mdash; 여름 특강 문의. 8월 첫째 주에 다시 연락 드리기로 함.</span>
+              <span style="font-size:10.5px; font-weight:600; color:rgba(55,56,60,0.75);">7월 28일 · 원장님</span>
+            </div>
+            <button style="align-self:flex-start; border:1px solid #DCDFE4; border-radius:8px; background:#fff; color:#0D2D6B; font-size:11.5px; font-weight:700; padding:8px 13px;">메모 추가</button>
+          </div>
+        </div>
+
+        <div style="border-top:1px solid #E4E6EB; padding:13px 20px 18px; display:flex; flex-direction:column; gap:9px;">
+          <div style="display:flex; gap:8px;">
+            <button style="flex:1; height:42px; border:none; border-radius:10px; background:#0D2D6B; color:#fff; font-size:13px; font-weight:700;">담당 선생님에게 확인 요청</button>
+            <button style="width:100px; height:42px; border:1px solid #DCDFE4; border-radius:10px; background:#fff; color:#0D2D6B; font-size:13px; font-weight:700;">링크 복사</button>
+          </div>
+          <button style="width:100%; height:36px; border:none; border-radius:9px; background:transparent; color:rgba(55,56,60,0.75); font-size:12px; font-weight:600;">성장 포트폴리오 열기</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1200,&quot;height&quot;:1000}}">
+const NAVY = '#0D2D6B';
+const NAVY_2 = '#2E5C9E';
+const GOLD_INK = '#8A6A22';
+const OFF = 'rgba(55,56,60,0.75)';
+const RED = '#B92C2C';
+const AMBER = '#A9701A';
+const GREEN = '#1E6B4E';
+
+const STATUS = {
+  '경고': { bg: '#FBEDED', ink: RED, mark: RED, dot: RED },
+  '주의': { bg: '#FBF3E4', ink: AMBER, mark: '#D9A441', dot: '#D9A441' },
+  '안정': { bg: '#E8F1EC', ink: GREEN, mark: '#8FC0A9', dot: '#3E9A72' },
+  '데이터 없음': { bg: '#F1F2F5', ink: OFF, mark: '#DCDFE4', dot: '#C9CCD1' }
+};
+
+const STUDENTS = [
+  { name: '서우영', klass: '중2A', score: 70, delta: -10, status: '경고', hist: [80, 78, 75, 72, 80, 70], today: '작성', hw: '50%', note: '평행선 응용에서 실수 반복' },
+  { name: '임서연', klass: '중3B', score: 59, delta: -12, status: '경고', hist: [72, 70, 68, 65, 71, 59], today: '작성', hw: '45%', note: '삼각비 개념 재설명 필요' },
+  { name: '박도윤', klass: '중3A', score: 55, delta: -8, status: '경고', hist: [66, 64, 62, 60, 63, 55], today: '미작성', hw: '—', note: '' },
+  { name: '전사랑', klass: '중2A', score: 65, delta: 10, status: '주의', hist: [52, 55, 58, 55, 55, 65], today: '작성', hw: '70%', note: '지난주 대비 눈에 띄게 회복' },
+  { name: '강민서', klass: '중2B', score: 68, delta: -6, status: '주의', hist: [76, 74, 72, 70, 74, 68], today: '작성', hw: '60%', note: '계산 실수가 늘어남' },
+  { name: '최유진', klass: '중1B', score: 72, delta: -3, status: '주의', hist: [76, 75, 74, 73, 75, 72], today: '작성', hw: '80%', note: '과제는 성실, 응용 보강 필요' },
+  { name: '김호천', klass: '중1B', score: 80, delta: 0, status: '안정', hist: [78, 79, 80, 79, 80, 80], today: '작성', hw: '80%', note: '분수 나눗셈 속도 향상' },
+  { name: '이서준', klass: '중2A', score: 88, delta: 4, status: '안정', hist: [82, 84, 84, 85, 84, 88], today: '작성', hw: '90%', note: '심화 문제까지 완주' },
+  { name: '정하람', klass: '중3A', score: 91, delta: 2, status: '안정', hist: [87, 88, 89, 89, 89, 91], today: '작성', hw: '95%', note: '오답 정리 습관이 자리잡음' },
+  { name: '윤지호', klass: '중1A', score: 84, delta: 7, status: '안정', hist: [75, 77, 78, 80, 77, 84], today: '작성', hw: '85%', note: '집중력이 좋아짐' },
+  { name: '오태윤', klass: '중2B', score: 77, delta: 0, status: '안정', hist: [76, 77, 78, 77, 77, 77], today: '결석', hw: '—', note: '' },
+  { name: '서우성', klass: '중1B', score: null, delta: null, status: '데이터 없음', hist: [], today: '미작성', hw: '—', note: '' }
+];
+
+const COUNT = (fn) => STUDENTS.filter(fn).length;
+const N_WARN = COUNT(s => s.status === '경고');
+const N_WATCH = COUNT(s => s.status === '주의');
+const N_ATTN = N_WARN + N_WATCH;
+const N_STABLE = COUNT(s => s.status === '안정');
+const N_NODATA = COUNT(s => s.status === '데이터 없음');
+const N_WRITTEN = COUNT(s => s.today === '작성');
+const N_MISSING = COUNT(s => s.today === '미작성');
+const N_ABSENT = COUNT(s => s.today === '결석');
+const N_CLASS = STUDENTS.length - N_ABSENT;
+const MISSING_NAMES = STUDENTS.filter(s => s.today === '미작성').map(s => s.name);
+const WRITE_RATE = Math.round((N_WRITTEN / N_CLASS) * 100);
+const N_UNANSWERED = 1;
+const N_ENGAGE = 3;
+const WEEK_TODO = N_MISSING + N_UNANSWERED + N_ENGAGE;
+const CLASS_ORDER = ['중1A', '중1B', '중2A', '중2B', '중3A', '중3B'];
+const CLASS_COUNT = CLASS_ORDER.map(c => COUNT(s => s.klass === c));
+const CHIP_LABELS = ['전체 ' + STUDENTS.length].concat(CLASS_ORDER.map((c, i) => c + ' ' + CLASS_COUNT[i]));
+const RAIL_LABELS = ['전체'].concat(CLASS_ORDER);
+const RAIL_COUNTS = [STUDENTS.length].concat(CLASS_COUNT);
+const CONCEPT_AVG = (() => {
+  const v = STUDENTS.filter(s => s.score !== null).map(s => s.score);
+  return (v.reduce((a, b) => a + b, 0) / v.length).toFixed(1);
+})();
+const CONCEPT_PREV = 70.0;
+const CONCEPT_DELTA = (CONCEPT_AVG - CONCEPT_PREV).toFixed(1);
+
+const X_LABELS = ['7/14', '7/17', '7/21', '7/24', '7/28', '7/31', '8/2'];
+const TREND = [69, 71, 74, 73, 76, 74, 73.4];
+const PREV = [66, 67, 68, 68, 69, 70, 70];
+
+function polyline(values, w, top, bot, lo, hi) {
+  return values.map((v, i) => {
+    const x = (i / (values.length - 1)) * w;
+    const y = bot - ((v - lo) / (hi - lo)) * (bot - top);
+    return x.toFixed(1) + ',' + y.toFixed(1);
+  }).join(' ');
+}
+
+function spark(hist, ink) {
+  if (!hist.length) return { points: '', ink: '#DCDFE4' };
+  return { points: polyline(hist, 68, 4, 18, 50, 95), ink };
+}
+
+const SEG = ['오늘', '1주', '1개월', '3개월'];
+const RANGE_LABEL = ['7월 31일 금요일 수업', '7월 27일 ~ 8월 2일', '7월 3일 ~ 8월 2일', '5월 3일 ~ 8월 2일'];
+
+class Component extends DCLogic {
+  state = { a: 0, b: 1, c: 2, bOpen: true, aClass: 0, cClass: 0, panelSeg: 0 };
+
+  seg(key, labels) {
+    const cur = this.state[key];
+    return (labels || SEG).map((label, i) => ({
+      label,
+      bg: i === cur ? '#fff' : 'transparent',
+      ink: i === cur ? NAVY : OFF,
+      shadow: i === cur ? '0 1px 3px rgba(23,23,25,0.12)' : 'none',
+      select: () => this.setState({ [key]: i })
+    }));
+  }
+
+  rows(selectedIdx) {
+    return STUDENTS.map((s, i) => {
+      const st = STATUS[s.status];
+      const sp = spark(s.hist, st.ink === OFF ? '#DCDFE4' : st.ink);
+      return {
+        name: s.name,
+        klass: s.klass,
+        score: s.score === null ? '—' : s.score,
+        scoreInk: s.score === null ? OFF : '#171719',
+        delta: s.delta === null ? '—' : (s.delta === 0 ? '—' : (s.delta > 0 ? '▲' : '▼') + Math.abs(s.delta)),
+        deltaInk: s.delta === null || s.delta === 0 ? OFF : (s.delta > 0 ? GREEN : RED),
+        spark: sp.points,
+        sparkInk: sp.ink,
+        status: s.status,
+        badgeBg: st.bg,
+        badgeInk: st.ink,
+        mark: st.mark,
+        rowBg: i === selectedIdx ? '#F3F6FC' : '#fff',
+        today: s.today,
+        todayInk: s.today === '작성' ? '#171719' : (s.today === '결석' ? OFF : RED),
+        todayHw: s.hw,
+        todayNote: s.note || '—',
+        select: () => {}
+      };
+    });
+  }
+
+  renderVals() {
+    const s = this.state;
+    const aIsDay = s.a === 0;
+    const cIsDay = s.c === 0;
+
+    const dayReports = STUDENTS.filter(x => x.today === '작성');
+
+    return {
+      weekTodoHeadline: '처리할 항목 ' + WEEK_TODO + '건이 남아 있습니다',
+      weekTodoButton: '챙길 것 ' + WEEK_TODO + '건 열기',
+      allStudentsLabel: '전체 ' + STUDENTS.length + '명 보기',
+      gnb: ['대시보드', '리포트', '학습기록', '원장분석', '관리'].map(label => ({
+        label,
+        weight: label === '원장분석' ? 700 : 500,
+        color: label === '원장분석' ? NAVY : OFF
+      })),
+      iconNavy: { style: { color: NAVY } },
+      iconGrey: { style: { color: OFF } },
+
+      alerts: [
+        { label: '리포트 미작성', count: N_MISSING, unit: '건', bg: '#C9A227', ink: '#3A2E05', labelInk: 'rgba(58,46,5,0.78)', opacity: 1 },
+        { label: '미답변 질문', count: N_UNANSWERED, unit: '건', bg: 'rgba(255,255,255,0.14)', ink: '#fff', labelInk: 'rgba(255,255,255,0.72)', opacity: 1 },
+        { label: '참여도 조정', count: N_ENGAGE, unit: '명', bg: 'rgba(255,255,255,0.14)', ink: '#fff', labelInk: 'rgba(255,255,255,0.72)', opacity: 1 },
+        { label: '답변 완료', count: 0, unit: '건', bg: 'rgba(255,255,255,0.09)', ink: 'rgba(255,255,255,0.86)', labelInk: 'rgba(255,255,255,0.78)', opacity: 1 }
+      ],
+
+      segA: this.seg('a'),
+      aIsDay,
+      aIsRange: !aIsDay,
+      aRangeLabel: RANGE_LABEL[s.a],
+
+      dayStats: [
+        { label: '수업', value: N_CLASS, unit: '건', color: '#171719', divider: '0px', pad: '0' },
+        { label: '리포트 작성', value: N_WRITTEN, unit: '건', color: NAVY, divider: '1px', pad: '22px' },
+        { label: '미작성', value: N_MISSING, unit: '건', color: RED, divider: '1px', pad: '22px' },
+        { label: '결석', value: N_ABSENT, unit: '명', color: '#171719', divider: '1px', pad: '22px' }
+      ],
+
+      dayCards: dayReports.map(x => {
+        const st = STATUS[x.status];
+        return {
+          name: x.name,
+          klass: x.klass,
+          status: x.status,
+          badgeBg: st.bg,
+          badgeInk: st.ink,
+          bg: '#fff',
+          border: x.status === '경고' ? '#F0D3D3' : '#E4E6EB',
+          hasScore: true,
+          hw: x.hw,
+          cc: x.score + '%',
+          note: x.note
+        };
+      }),
+
+      kpis: [
+        { label: '관심 필요', value: N_ATTN, unit: '명', sub: '경고 ' + N_WARN + ' · 주의 ' + N_WATCH, bg: '#FDF1F1', border: '#F0D3D3', ink: RED, labelInk: RED, hasAction: true, action: '목록 보기', actionBg: RED, actionInk: '#fff' },
+        { label: '개념 이해 평균', value: CONCEPT_AVG, unit: '%', sub: '지난 기간 ' + CONCEPT_PREV.toFixed(1) + ' · ▲' + CONCEPT_DELTA, bg: '#fff', border: '#E4E6EB', ink: '#171719', labelInk: OFF, hasAction: false },
+        { label: '리포트 미작성', value: N_MISSING, unit: '건', sub: '7월 31일 · ' + MISSING_NAMES.join(', '), bg: '#fff', border: '#E4E6EB', ink: GOLD_INK, labelInk: OFF, hasAction: true, action: '요청', actionBg: '#F5EEDC', actionInk: GOLD_INK }
+      ],
+
+      compactKpis: [
+        { label: '관심 필요', value: N_ATTN, unit: '명', sub: '경고 ' + N_WARN + ' · 주의 ' + N_WATCH, ink: RED, subInk: OFF, border: '#F0D3D3' },
+        { label: '개념 이해 평균', value: CONCEPT_AVG, unit: '%', sub: '▲' + CONCEPT_DELTA + ' 지난 기간 대비', ink: '#171719', subInk: GREEN, border: '#E4E6EB' },
+        { label: '리포트 작성률', value: WRITE_RATE, unit: '%', sub: N_CLASS + '건 중 ' + N_WRITTEN + '건', ink: '#171719', subInk: OFF, border: '#E4E6EB' },
+        { label: '재원생', value: STUDENTS.length, unit: '명', sub: CLASS_ORDER.length + '개 반', ink: '#171719', subInk: OFF, border: '#E4E6EB' }
+      ],
+
+      legend: [
+        { label: '이번 기간', color: NAVY },
+        { label: '지난 기간', color: '#9CB0D0' }
+      ],
+      yTicks: ['100', '75', '50'],
+      xLabels: X_LABELS.map((label, i) => ({ label, ink: i === X_LABELS.length - 1 ? NAVY : OFF })),
+      trendLine: polyline(TREND, 960, 4, 128, 50, 100),
+      prevLine: polyline(PREV, 960, 4, 128, 50, 100),
+      trendLineB: polyline(TREND, 480, 4, 128, 50, 100),
+      prevLineB: polyline(PREV, 480, 4, 128, 50, 100),
+
+      classChips: CHIP_LABELS.map((label, i) => ({
+        label,
+        bg: i === s.aClass ? NAVY : '#fff',
+        ink: i === s.aClass ? '#fff' : '#4B4D52',
+        border: i === s.aClass ? NAVY : '#DCDFE4',
+        select: () => this.setState({ aClass: i })
+      })),
+      tableCount: STUDENTS.length + '명 · 관심 필요 순',
+      tableHead: [
+        { label: '학생', align: 'left' },
+        { label: '반', align: 'left' },
+        { label: '개념', align: 'right' },
+        { label: '변화', align: 'right' },
+        { label: '추이', align: 'center' },
+        { label: '상태', align: 'right' }
+      ],
+      students: this.rows(-1),
+      pager: ['‹', '1', '2', '3', '4', '›'].map(label => ({
+        label,
+        bg: label === '1' ? NAVY : 'transparent',
+        ink: label === '1' ? '#fff' : OFF
+      })),
+
+      todos: [
+        { title: '리포트 미작성 ' + N_MISSING + '건', detail: MISSING_NAMES.join(' · ') + ' · 7월 31일 수업', meta: '이영동 선생', mark: RED, bg: '#fff', opacity: 1, hasAction: true, action: '작성 요청', btnBg: RED, btnInk: '#fff', btnBorder: RED },
+        { title: '학부모 질문 1건 미답변', detail: '전사랑 어머님 · “여름 특강 일정이 궁금합니다”', meta: '2일 경과', mark: '#C9A227', bg: '#fff', opacity: 1, hasAction: true, action: '답변하기', btnBg: '#fff', btnInk: NAVY, btnBorder: '#DCDFE4' },
+        { title: '학부모 참여도 조정 필요 ' + N_ENGAGE + '명', detail: '2주 이상 리포트를 열람하지 않음', meta: '서우성 외 2명', mark: '#C9A227', bg: '#fff', opacity: 1, hasAction: true, action: '명단 보기', btnBg: '#fff', btnInk: NAVY, btnBorder: '#DCDFE4' },
+        { title: '답변 완료', detail: '이번 주 처리한 학부모 질문이 없습니다', meta: '0건', mark: '#E4E6EB', bg: '#FAFBFC', opacity: 1, hasAction: false, action: '', btnBg: '#fff', btnInk: OFF, btnBorder: '#DCDFE4' }
+      ],
+
+      segB: this.seg('b'),
+      bRangeLabel: RANGE_LABEL[s.b],
+      bOpen: s.bOpen,
+      bToggleLabel: s.bOpen ? '지표 접기' : '지표 펼치기',
+      bCaret: s.bOpen ? 'DesignSystem_291cb5.IconNormalChevronUp' : 'DesignSystem_291cb5.IconNormalChevronDown',
+      toggleB: () => this.setState(st => ({ bOpen: !st.bOpen })),
+      watchList: STUDENTS.filter(x => x.status === '경고' || x.status === '주의').map(x => {
+        const st = STATUS[x.status];
+        return {
+          name: x.name,
+          klass: x.klass,
+          score: x.score,
+          delta: (x.delta > 0 ? '▲' : '▼') + Math.abs(x.delta),
+          deltaInk: x.delta > 0 ? GREEN : RED,
+          status: x.status,
+          badgeBg: st.bg,
+          badgeInk: st.ink,
+          select: () => {}
+        };
+      }),
+
+      stripStats: [
+        { label: '리포트', value: N_WRITTEN, unit: '건', ink: '#fff' },
+        { label: '작성률', value: WRITE_RATE, unit: '%', ink: '#fff' },
+        { label: '개념 평균', value: CONCEPT_AVG, unit: '%', ink: '#fff' },
+        { label: '관심 필요', value: N_ATTN, unit: '명', ink: '#C9A227' }
+      ],
+      railClasses: RAIL_LABELS.map((label, i) => {
+        const counts = RAIL_COUNTS;
+        const on = i === s.cClass;
+        return {
+          label,
+          count: counts[i],
+          bg: on ? '#EFF3FA' : 'transparent',
+          ink: on ? NAVY : '#171719',
+          countInk: on ? NAVY : OFF,
+          weight: on ? 700 : 500,
+          select: () => this.setState({ cClass: i })
+        };
+      }),
+      railStatus: [
+        { label: '경고', count: N_WARN, dot: RED },
+        { label: '주의', count: N_WATCH, dot: '#D9A441' },
+        { label: '안정', count: N_STABLE, dot: '#3E9A72' },
+        { label: '데이터 없음', count: N_NODATA, dot: '#C9CCD1' }
+      ],
+      segC: this.seg('c'),
+      cIsDay,
+      cIsRange: !cIsDay,
+      cCountLabel: (cIsDay ? '7월 31일' : RANGE_LABEL[s.c]) + ' · ' + STUDENTS.length + '명',
+      cGrid: cIsDay ? '1.1fr 0.6fr 0.6fr 0.6fr 1.6fr 0.7fr' : '1.1fr 0.6fr 0.6fr 0.6fr 0.9fr 0.7fr',
+      cHead: cIsDay
+        ? [{ label: '학생', align: 'left' }, { label: '반', align: 'left' }, { label: '오늘', align: 'center' }, { label: '과제', align: 'center' }, { label: '코멘트', align: 'left' }, { label: '상태', align: 'right' }]
+        : [{ label: '학생', align: 'left' }, { label: '반', align: 'left' }, { label: '개념', align: 'right' }, { label: '변화', align: 'right' }, { label: '추이', align: 'center' }, { label: '상태', align: 'right' }],
+      cRows: this.rows(0),
+
+      panelSeg: this.seg('panelSeg', ['전체', '최근 1개월', '최근 3개월']),
+      panelLine: polyline([80, 78, 75, 72, 80, 70], 340, 6, 68, 50, 90),
+      panelDots: [80, 78, 75, 72, 80, 70].map((v, i, arr) => ({
+        x: ((i / (arr.length - 1)) * 340).toFixed(1),
+        y: (68 - ((v - 50) / 40) * 62).toFixed(1),
+        r: i === arr.length - 1 ? 4 : 2.6,
+        stroke: i === arr.length - 1 ? 2 : 0
+      })),
+      panelX: ['7/14', '7/17', '7/21', '7/24', '7/28', '7/30'],
+      panelReports: [
+        { date: '7월 30일', range: '개념원리 2-2 · 도형의 닮음', tag: '응용 부족', tagBg: '#FBEDED', tagInk: RED, hw: '50%', cc: '70%', note: '평행선과 선분의 길이의 비에서 곱셈 실수가 반복됐습니다.' },
+        { date: '7월 29일', range: '개념원리 2-2 · 평행선', tag: '계산 실수', tagBg: '#FBF3E4', tagInk: GOLD_INK, hw: '60%', cc: '80%', note: '사다리꼴 응용은 아직 어려워하지만 기본은 안정적입니다.' },
+        { date: '7월 28일', range: '개념원리 2-2 · 도형의 닮음', tag: '개념 완벽', tagBg: '#E8F1EC', tagInk: GREEN, hw: '65%', cc: '80%', note: '닮음비 개념을 스스로 설명할 수 있게 됐습니다.' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

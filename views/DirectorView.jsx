@@ -7,6 +7,7 @@ import { DIAG_BADGE as DIAG_MAP } from '../diagnosis.js';
 import { T, C, R } from '../tokens.jsx';
 import { StudentProfileModal } from './StudentProfileModal.jsx';
 import { groupByClassId, onKeyActivate } from './shared.jsx';
+import GrowthDashboard from './GrowthDashboard.jsx';
 
 // 두 Firestore Timestamp(초 단위) 사이 경과 시간을 "N분/N시간/N일" 중 가장 자연스러운 단위로 표시
 function formatElapsed(fromSeconds, toSeconds) {
@@ -19,7 +20,18 @@ function formatElapsed(fromSeconds, toSeconds) {
 }
 
 export default function DirectorView({ reports, students, classes = [], reportViews = [], reportQuestions = [], reviews = [], onToast, academyId, academyName, onEditReviewNote }) {
-  const [selectedDate, setSelectedDate] = useState(kstDay(Date.now() / 1000));
+  // 기간 컨트롤 통합(재설계 1단계) — 예전엔 날짜 선택기(이 화면)와 기간 토글(GrowthDashboard)이
+  // 완전히 분리된 state라 서로 반응하지 않았음. 이제 이 view 하나가 "오늘 카드 목록"과
+  // "기간 KPI/추이/표"(GrowthDashboard에 위임) 중 무엇을 보여줄지 전체를 결정한다 — 두 뷰가
+  // 동시에 보이는 일이 없어야 "지금 보는 숫자가 어느 기간인지" 헷갈릴 수 없다는 게 재설계 핵심.
+  const [view, setView] = useState('today'); // 'today' | 'week' | 'month' | '3month'
+  // 기본값은 오늘이 아니라 "가장 최근 수업이 있었던 날" — 오늘 수업이 없는 날(주말 등) 열면
+  // 늘 텅 빈 화면부터 보이던 문제 해결. reports는 dataReady 이후에만 이 컴포넌트가 마운트되므로
+  // 최초 렌더 시점엔 이미 로드돼 있음(App.jsx의 dataReady 게이트).
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const latestSeconds = reports.reduce((max, r) => (r.createdAt?.seconds > max ? r.createdAt.seconds : max), 0);
+    return latestSeconds > 0 ? kstDay(latestSeconds) : kstDay(Date.now() / 1000);
+  });
   const dateInputRef = React.useRef(null);
   const [expandedId, setExpandedId] = useState(null);
   const [memos, setMemos] = useState({});
@@ -87,7 +99,21 @@ export default function DirectorView({ reports, students, classes = [], reportVi
     if (!s.scheduleDays || s.scheduleDays.length === 0) return true;
     return s.scheduleDays.includes(selectedDow);
   });
+  // 수업이 아예 없는 날(주말·휴원)과 수업은 있었는데 리포트가 없는 날을 구분하기 위한 판정 —
+  // scheduleDays 미설정 학생은 항상 "수업 있음"으로 간주(기존 컨벤션과 동일)
+  const anyScheduledToday = students.some(s => !s.scheduleDays || s.scheduleDays.length === 0 || s.scheduleDays.includes(selectedDow));
   const totalAbsent = todayReports.filter(r => r.attendance === '결석').length;
+
+  const todayStr = kstDay(Date.now() / 1000);
+  const shiftDate = (deltaDays) => {
+    const d = new Date(`${selectedDate}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + deltaDays);
+    setSelectedDate(d.toISOString().split('T')[0]);
+  };
+  const fmtDateShort = (dateStr) => {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' });
+  };
 
   const handleMemoSave = async (reportId, memo) => {
     setSavingMemo(reportId);
@@ -98,11 +124,6 @@ export default function DirectorView({ reports, students, classes = [], reportVi
       onToast?.('메모 저장에 실패했습니다. 잠시 후 다시 시도해주세요.', 'error');
     }
     setSavingMemo(null);
-  };
-
-  const fmtDate = (dateStr) => {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' });
   };
 
   // 중앙 1컬럼 880px — 시안 7a 기준. 위→아래로 요약 현황 → 처리할 일(질문) → 참여도 →
@@ -372,31 +393,48 @@ export default function DirectorView({ reports, students, classes = [], reportVi
         );
       })()}
 
+      {/* 기간 컨트롤 — 예전의 날짜 선택기(이 화면 전용)와 기간 토글(GrowthDashboard 전용)을
+          하나로 통합. "오늘"이면 아래에 날짜별 리포트 카드, 그 외엔 GrowthDashboard의
+          KPI/추이/학생표로 완전히 전환된다(둘이 동시에 보이지 않음). */}
+      <div style={{ display: 'flex', gap: '6px', marginBottom: '20px' }}>
+        {[['today', '오늘'], ['week', '1주'], ['month', '1개월'], ['3month', '3개월']].map(([k, l]) => (
+          <button key={k} onClick={() => setView(k)} style={{
+            padding: '7px 16px', fontSize: '13px', fontWeight: 700, borderRadius: '20px', cursor: 'pointer', fontFamily: 'inherit',
+            border: `1.5px solid ${view === k ? '#0D2D6B' : '#E8E6E0'}`,
+            background: view === k ? '#0D2D6B' : '#fff',
+            color: view === k ? '#fff' : '#6B7280',
+          }}>{l}</button>
+        ))}
+      </div>
+
+      {view !== 'today' ? (
+        <GrowthDashboard reports={reports} students={students} period={view} />
+      ) : (
+      <>
       {/* 헤더 */}
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', marginBottom: '20px' }}>
         <div>
           <p style={{ fontSize: '11px', color: '#6B7280', letterSpacing: '0.06em', textTransform: 'uppercase', margin: '0 0 4px' }}>학부모 공유</p>
           <p style={{ fontFamily: R.serif, fontSize: '22px', fontWeight: 800, color: '#1A1A1A', letterSpacing: '-0.01em', margin: 0 }}>원장님 데일리 보고서</p>
         </div>
-        <div>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 700, color: '#374151', borderBottom: '1.5px solid #1A1A1A', paddingBottom: '3px', cursor: 'pointer' }}>
-            {/* 네이티브 달력 아이콘은 확대해도 안에 그림이 안 커져서 휑해 보임 — 아예 숨기고
-                lucide 아이콘으로 대체. 아이콘 클릭 시 showPicker()로 같은 달력을 띄움. */}
-            <style>{`.dv-date-input::-webkit-calendar-picker-indicator { display: none; }`}</style>
-            <input ref={dateInputRef} type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="dv-date-input"
-              style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: '16px', fontFamily: 'inherit', color: 'inherit', fontWeight: 700, cursor: 'pointer', width: '132px', flexShrink: 0 }}
-            />
-            <CalendarDays size={20} strokeWidth={2}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+          {/* 날짜 네비게이션 — 달력에서 하루씩 고르던 것을 ‹ › 이전/다음 날짜 이동으로 교체(오늘
+              뷰 안에서만 나타남). 특정 날짜로 바로 점프해야 할 때를 위해 숨김 date input +
+              달력 아이콘은 그대로 남겨둠(기존 showPicker() 방식 재사용). */}
+          <button onClick={() => shiftDate(-1)} aria-label="이전 날짜"
+            style={{ background: 'none', border: 'none', color: '#374151', cursor: 'pointer', fontSize: '16px', padding: '4px 6px', fontFamily: 'inherit' }}>‹</button>
+          <span style={{ fontSize: '15px', fontWeight: 700, color: '#1A1A1A', minWidth: '112px', textAlign: 'center' }}>{fmtDateShort(selectedDate)}</span>
+          <button onClick={() => shiftDate(1)} disabled={selectedDate >= todayStr} aria-label="다음 날짜"
+            style={{ background: 'none', border: 'none', color: selectedDate >= todayStr ? '#D4D7DD' : '#374151', cursor: selectedDate >= todayStr ? 'not-allowed' : 'pointer', fontSize: '16px', padding: '4px 6px', fontFamily: 'inherit' }}>›</button>
+          <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', marginLeft: '4px' }}>
+            <style>{`.dv-date-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }`}</style>
+            <input ref={dateInputRef} type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="dv-date-input" tabIndex={-1} />
+            <CalendarDays size={18} strokeWidth={2}
               onClick={() => dateInputRef.current?.showPicker ? dateInputRef.current.showPicker() : dateInputRef.current?.focus()}
               style={{ color: '#0D2D6B', cursor: 'pointer', flexShrink: 0 }} />
           </label>
-          <p style={{ fontSize: '11px', color: '#6C7586', margin: '6px 0 0', textAlign: 'right' }}>
-            날짜를 클릭하면 다른 날짜의 보고서를 볼 수 있어요
-          </p>
         </div>
       </div>
-
-      <p style={{ fontSize: '16px', fontWeight: 700, color: '#5A6472', margin: '0 0 14px' }}>{fmtDate(selectedDate)}</p>
 
       {/* 핵심 지표 — 0은 옅게, 미작성 건수만 경고색으로 눈에 띄게 */}
       <div style={{ display: 'flex', gap: '28px', flexWrap: 'wrap', background: '#FAFBFC', border: '1px solid #EEF0F3', borderRadius: '14px', padding: '16px 18px', marginBottom: '20px' }}>
@@ -431,8 +469,17 @@ export default function DirectorView({ reports, students, classes = [], reportVi
         {todayReports.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '48px 20px', color: '#6C7586', background: '#fff', borderRadius: '14px', border: '0.5px solid #E8E6E0', gridColumn: '1 / -1' }}>
             <FileText size={28} style={{ marginBottom: '8px' }} />
-            <p style={{ fontSize: '14px', fontWeight: 600, margin: '0 0 4px' }}>이 날짜의 리포트가 없습니다</p>
-            <p style={{ fontSize: '12px', margin: 0 }}>다른 날짜를 선택해보세요</p>
+            {anyScheduledToday ? (
+              <>
+                <p style={{ fontSize: '14px', fontWeight: 600, margin: '0 0 4px' }}>이 날짜의 리포트가 없습니다</p>
+                <p style={{ fontSize: '12px', margin: 0 }}>다른 날짜를 선택해보세요</p>
+              </>
+            ) : (
+              <>
+                <p style={{ fontSize: '14px', fontWeight: 600, margin: '0 0 4px' }}>이 날은 예정된 수업이 없어요</p>
+                <p style={{ fontSize: '12px', margin: 0 }}>학생들의 수업 요일에 포함되지 않은 날짜예요</p>
+              </>
+            )}
           </div>
         ) : cardItems.map(item => {
           if (item.type === 'header') {
@@ -755,6 +802,8 @@ export default function DirectorView({ reports, students, classes = [], reportVi
             })}
           </div>
         </div>
+      )}
+      </>
       )}
     </div>
   );

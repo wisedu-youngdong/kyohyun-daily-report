@@ -33,7 +33,6 @@ const DiagnosticReportInput = React.lazy(() => import('./DiagnosticReportInput')
 const SettingsView = React.lazy(() => import('./views/SettingsView.jsx'));
 const StudentsView = React.lazy(() => import('./views/StudentsView.jsx'));
 const HistoryView = React.lazy(() => import('./views/HistoryView.jsx'));
-const GrowthDashboard = React.lazy(() => import('./views/GrowthDashboard.jsx'));
 const DirectorView = React.lazy(() => import('./views/DirectorView.jsx'));
 const WeeklyReviewView = React.lazy(() => import('./views/WeeklyReviewView.jsx'));
 
@@ -948,7 +947,6 @@ export default function App() {
               {activeSubTab.insight === 'director' && (dataReady
                 ? <React.Suspense fallback={<SkeletonBlock rows={4} cardHeight={70} />}>
                     <DirectorView reports={visibleReports} students={visibleStudents} classes={classes} reportViews={reportViews} reportQuestions={reportQuestions} reviews={reviews} onToast={showAppToast} academyId={academyId} academyName={academyName} onEditReviewNote={handleEditReviewNote} />
-                    <GrowthDashboard reports={visibleReports} students={visibleStudents} />
                   </React.Suspense>
                 : <SkeletonBlock rows={4} cardHeight={70} />
               )}

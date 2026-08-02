@@ -5,11 +5,13 @@ import { useMediaQuery } from '../hooks.js';
 import { C } from '../tokens.jsx';
 import { onKeyActivate } from './shared.jsx';
 
-export default function GrowthDashboard({ reports, students }) {
+// period는 이제 DirectorView가 소유(재설계 1단계 — 기간 컨트롤 통합, 오늘/1주/1개월/3개월
+// 세그먼트 하나가 이 컴포넌트를 렌더할지 말지까지 결정). 이 컴포넌트는 더 이상 자체 기간
+// 토글을 그리지 않고 prop으로 받은 값만 따른다.
+export default function GrowthDashboard({ reports, students, period }) {
   // App.jsx의 isPc(900px)와 기준 통일 — 앱 전체에서 PC/모바일 판정 기준이 화면마다
   // 제각각(768 vs 900)이면 중간 폭에서 레이아웃이 서로 어긋나는 문제가 생기기 쉬움
   const isMobile = !useMediaQuery('(min-width: 900px)');
-  const [period, setPeriod] = React.useState('week');
   const [sortMode, setSortMode] = React.useState('decline');
   const [selId, setSelId] = React.useState(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
@@ -17,7 +19,11 @@ export default function GrowthDashboard({ reports, students }) {
   const [storyPeriod, setStoryPeriod] = React.useState('all'); // 성장 포트폴리오 열기 전 선택하는 기간
   const svgRef = React.useRef(null);
 
-  const PERIODS = { week: 7, '2week': 14, month: 30, '3month': 90 };
+  // 기간이 바뀌면(부모의 세그먼트 클릭) 이전 선택 학생/드로어는 초기화 — 예전엔 버튼 onClick
+  // 안에서 직접 했는데, 이제 버튼 자체가 이 컴포넌트에 없어서 effect로 옮김
+  React.useEffect(() => { setSelId(null); setDrawerOpen(false); }, [period]);
+
+  const PERIODS = { week: 7, month: 30, '3month': 90 };
 
   // 과제/개념 평가는 구 리포트(1~5)와 신규 리포트(0~100)가 섞여 있으므로,
   // 이 컴포넌트 내 모든 계산이 일관되도록 조회 시점에 0~100(%) 기준으로 정규화한다.
@@ -59,9 +65,6 @@ export default function GrowthDashboard({ reports, students }) {
     if (trend3 < 0 || a < 70) return { label: '주의', color: C.warningText, bg: '#FAEEDA', border: '#EF9F27' };
     return { label: '안정', color: C.successDark, bg: C.successBg, border: C.successDark };
   }, [getStudentReports]);
-
-  // 탭 전환 시 완전 초기화
-  const handlePeriod = (p) => { setPeriod(p); setSelId(null); setDrawerOpen(false); };
 
   // 정렬 — 화면 표시(getTrend)와 정렬 기준 통일 + null → 맨 뒤
   const sortedStudents = React.useMemo(() => {
@@ -125,32 +128,20 @@ export default function GrowthDashboard({ reports, students }) {
     // 문제. DirectorView 쪽에 맞춤(반대가 아닌 이유: DirectorView가 먼저 렌더되는 주 화면)
     <div style={{ maxWidth: '880px', margin: '0 auto', padding: '20px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>
 
-      {/* TOP 위젯 + 기간 필터 */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px', marginBottom: '12px', flexWrap: 'wrap' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '8px', flex: 1, minWidth: '280px' }}>
-          {[
-            { label: '🚨 관심 필요', value: `${atRisk}명`, sub: `주의 ${caution}명 포함`, c: C.errorDark, bg: '#FCEBEB', bd: C.errorDark },
-            { label: '전체 평균', value: `${overallAvg}%`, sub: periodLabel, c: '#0D2D6B', bg: '#fff', bd: '#E8E6E0' },
-            { label: '총 학생', value: `${students.length}명`, sub: '등록', c: '#1A1A1A', bg: '#fff', bd: '#E8E6E0' },
-            { label: '최고 성취', value: bestStudent?.name || '-', sub: `${bestStudent ? getAvg(bestStudent.id) : 0}%`, c: bestStudent ? getStatus(bestStudent.id).color : '#6B7785', bg: '#fff', bd: '#E8E6E0' },
-          ].map((w, i) => (
-            <div key={i} style={{ background: w.bg, border: `1px solid ${w.bd}`, borderRadius: '10px', padding: '10px 12px' }}>
-              <p style={{ fontSize: '10px', color: w.c, margin: '0 0 3px', fontWeight: 700 }}>{w.label}</p>
-              <p style={{ fontSize: '18px', fontWeight: 800, color: w.c, margin: 0, fontVariantNumeric: 'tabular-nums' }}>{w.value}</p>
-              <p style={{ fontSize: '10px', color: '#6B7785', margin: '3px 0 0' }}>{w.sub}</p>
-            </div>
-          ))}
-        </div>
-        <div style={{ display: 'flex', gap: '5px', flexShrink: 0 }}>
-          {[['week','1주'],['2week','2주'],['month','1개월'],['3month','3개월']].map(([k, l]) => (
-            <button key={k} onClick={() => handlePeriod(k)} style={{
-              padding: '5px 11px', fontSize: '11px', borderRadius: '20px', cursor: 'pointer', fontFamily: 'inherit',
-              border: `1.5px solid ${period === k ? '#0D2D6B' : '#E8E6E0'}`,
-              background: period === k ? '#0D2D6B' : '#fff',
-              color: period === k ? '#fff' : '#6B7280',
-            }}>{l}</button>
-          ))}
-        </div>
+      {/* TOP 위젯 — 기간 필터는 이제 DirectorView의 통합 세그먼트가 담당(더 이상 여기서 안 그림) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '8px', marginBottom: '12px' }}>
+        {[
+          { label: '🚨 관심 필요', value: `${atRisk}명`, sub: `주의 ${caution}명 포함`, c: C.errorDark, bg: '#FCEBEB', bd: C.errorDark },
+          { label: '전체 평균', value: `${overallAvg}%`, sub: periodLabel, c: '#0D2D6B', bg: '#fff', bd: '#E8E6E0' },
+          { label: '총 학생', value: `${students.length}명`, sub: '등록', c: '#1A1A1A', bg: '#fff', bd: '#E8E6E0' },
+          { label: '최고 성취', value: bestStudent?.name || '-', sub: `${bestStudent ? getAvg(bestStudent.id) : 0}%`, c: bestStudent ? getStatus(bestStudent.id).color : '#6B7785', bg: '#fff', bd: '#E8E6E0' },
+        ].map((w, i) => (
+          <div key={i} style={{ background: w.bg, border: `1px solid ${w.bd}`, borderRadius: '10px', padding: '10px 12px' }}>
+            <p style={{ fontSize: '10px', color: w.c, margin: '0 0 3px', fontWeight: 700 }}>{w.label}</p>
+            <p style={{ fontSize: '18px', fontWeight: 800, color: w.c, margin: 0, fontVariantNumeric: 'tabular-nums' }}>{w.value}</p>
+            <p style={{ fontSize: '10px', color: '#6B7785', margin: '3px 0 0' }}>{w.sub}</p>
+          </div>
+        ))}
       </div>
 
       {/* 메인 그래프 — 전체 평균 단일선 */}
