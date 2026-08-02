@@ -59,6 +59,7 @@ export default function GrowthStory() {
   const [regenField, setRegenField] = useState(null); // 항목별 재생성 진행 중인 필드 키
   const [editing, setEditing] = useState(null);
   const [showAllUnits, setShowAllUnits] = useState(false);
+  const [unitPhotoIdx, setUnitPhotoIdx] = useState({}); // 단원별 정리 카드 — 단원 key -> 현재 보여줄 사진 인덱스
   const [completedReviews, setCompletedReviews] = useState([]); // 복습 효과 증명 그래프용
   const [trendTooltip, setTrendTooltip] = useState(null); // 성적 추이 차트 — 탭해서 선택된 지점의 인덱스
   const [editText, setEditText] = useState('');
@@ -258,6 +259,54 @@ export default function GrowthStory() {
   const unitScores = Object.values(unitScoreMap)
     .sort((a, b) => b.lastSeconds - a.lastSeconds)
     .map(({ label, scores }) => ({ unit: label, scores }));
+
+  // 단원별 정리 카드 — 사진+평균 이해도+코멘트를 단원 단위로 묶어서 보여줌(상담용, 2026-08-02
+  // 결정: 텍스트로만 설명하던 걸 사진·차트·코멘트로 객관적으로 보여주고 싶다는 요청).
+  // 위 단원별 시험 점수 집계와 같은 방식으로 단원을 식별하되(findUnitKey→extractUnitNumbers→
+  // 원문 순), 시험 본 날만 잡는 unitScoreMap과 달리 이건 매 리포트(사진·이해도·코멘트가 남는
+  // 평상시 수업)를 전부 대상으로 함 — 실제로 매일 기록되는 건 시험이 아니라 숙제 체크이기 때문.
+  const resolveUnitGroups = (r) => {
+    const unitLabel = (r.unit && r.unit.trim()) || (r.textbook && r.textbook.trim());
+    if (!unitLabel) return [];
+    const nameKey = r.unitKey || findUnitKey(r.subject || '수학', r.unit || '');
+    if (nameKey) return [{ key: nameKey, label: unitLabel }];
+    const unitNumbers = extractUnitNumbers(r.unit || '');
+    if (unitNumbers.length > 0) {
+      return unitNumbers.map(num => ({
+        key: `num|${r.subject || '수학'}|${r.textbook || ''}|${num}`,
+        label: `${r.textbook ? r.textbook + ' · ' : ''}${num}단원`,
+      }));
+    }
+    return [{ key: unitLabel, label: unitLabel }];
+  };
+  const unitCardMap = {};
+  sorted.forEach(r => {
+    resolveUnitGroups(r).forEach(({ key, label }) => {
+      if (!unitCardMap[key]) unitCardMap[key] = { label, reports: [], lastSeconds: 0 };
+      unitCardMap[key].reports.push(r);
+      unitCardMap[key].lastSeconds = Math.max(unitCardMap[key].lastSeconds, r.createdAt?.seconds || 0);
+    });
+  });
+  const unitCards = Object.entries(unitCardMap)
+    .sort((a, b) => b[1].lastSeconds - a[1].lastSeconds)
+    .map(([key, { label, reports }]) => {
+      const asc = [...reports].sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+      const conceptPcts = asc.filter(r => r.conceptRating != null).map(r => toPct(r.conceptRating));
+      const homeworkPcts = asc.filter(r => r.homeworkRating != null).map(r => toPct(r.homeworkRating));
+      const photoReports = asc.filter(r => r.photoUrls?.length > 0);
+      // 코멘트는 이 단원에서 가장 최근에 남긴 것 하나만 — 지어내지 않고 실제 작성분 그대로(무과장 원칙)
+      const latestWithNote = [...asc].reverse().find(r => r.teacherNote?.trim());
+      const tagCount = {};
+      asc.forEach(r => (r.diagnosis || []).forEach(d => { tagCount[d.key] = (tagCount[d.key] || 0) + 1; }));
+      return {
+        key, label, count: asc.length,
+        avgConcept: conceptPcts.length ? Math.round(conceptPcts.reduce((a, b) => a + b, 0) / conceptPcts.length) : null,
+        avgHomework: homeworkPcts.length ? Math.round(homeworkPcts.reduce((a, b) => a + b, 0) / homeworkPcts.length) : null,
+        photoReports,
+        comment: latestWithNote?.teacherNote || '',
+        topTags: Object.entries(tagCount).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k]) => k),
+      };
+    });
 
   // 전체 평균 추이 (차수별)
   const allScores = sorted.filter(r => r.hasTest && r.testScore).map(r => Number(r.testScore));
@@ -1087,6 +1136,76 @@ export default function GrowthStory() {
         );
         })();
 
+        // 단원별 정리 페이지 — 상담 중에 "여기는 잘했고 여기는 아직"을 사진+숫자+코멘트로
+        // 바로 보여주기 위함(2026-08-02 결정). 사진은 기본 최근 것을 보여주되, 화살표로
+        // 그 단원에서 찍은 다른 사진으로 바로 넘겨볼 수 있음(상담 중 즉석 대응).
+        const unitCardsContent = unitCards.length === 0 ? null : (
+          <>
+            {sectionDivider('단원별 정리')}
+            <p style={{ fontSize: '13px', color: '#6C7586', margin: '-4px 0 0', lineHeight: 1.6 }}>
+              단원마다 실제로 남긴 사진·이해도·코멘트를 모았어요
+            </p>
+            {unitCards.map(u => {
+              const rawIdx = unitPhotoIdx[u.key] ?? (u.photoReports.length - 1);
+              const photoIdx = Math.max(0, Math.min(u.photoReports.length - 1, rawIdx));
+              const photo = u.photoReports[photoIdx];
+              const goPhoto = (delta) => setUnitPhotoIdx(prev => ({ ...prev, [u.key]: Math.max(0, Math.min(u.photoReports.length - 1, photoIdx + delta)) }));
+              return (
+                <div key={u.key} style={{ background: '#fff', border: '1px solid #EEECEA', borderRadius: '14px', overflow: 'hidden' }}>
+                  {photo && (
+                    <div style={{ position: 'relative', height: '180px', background: R.navy }}>
+                      <img src={photo.photoUrls[0]} alt={u.label} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                      {u.photoReports.length > 1 && (
+                        <>
+                          <button onClick={() => goPhoto(-1)} disabled={photoIdx === 0} aria-label="이전 사진"
+                            style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', width: '30px', height: '30px', borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.45)', color: '#fff', cursor: photoIdx === 0 ? 'default' : 'pointer', opacity: photoIdx === 0 ? 0.35 : 1, fontSize: '15px', fontFamily: 'inherit', lineHeight: 1 }}>‹</button>
+                          <button onClick={() => goPhoto(1)} disabled={photoIdx === u.photoReports.length - 1} aria-label="다음 사진"
+                            style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', width: '30px', height: '30px', borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.45)', color: '#fff', cursor: photoIdx === u.photoReports.length - 1 ? 'default' : 'pointer', opacity: photoIdx === u.photoReports.length - 1 ? 0.35 : 1, fontSize: '15px', fontFamily: 'inherit', lineHeight: 1 }}>›</button>
+                          <span style={{ position: 'absolute', right: '8px', bottom: '8px', background: 'rgba(0,0,0,0.5)', color: '#fff', fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '10px' }}>{fmtDate(photo)}</span>
+                        </>
+                      )}
+                    </div>
+                  )}
+                  <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                      <span style={{ fontSize: '15px', fontWeight: 700, color: '#171719' }}>{u.label}</span>
+                      <span style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(55,56,60,0.6)' }}>{u.count}회 수업</span>
+                    </div>
+                    {(u.avgConcept != null || u.avgHomework != null) && (
+                      <div style={{ display: 'flex', gap: '18px' }}>
+                        {u.avgConcept != null && (
+                          <span style={{ display: 'flex', alignItems: 'baseline', gap: '5px' }}>
+                            <span style={{ fontSize: '11px', color: 'rgba(55,56,60,0.6)' }}>개념 이해</span>
+                            <span style={{ fontSize: '17px', fontWeight: 700, color: R.navy }}>{u.avgConcept}%</span>
+                          </span>
+                        )}
+                        {u.avgHomework != null && (
+                          <span style={{ display: 'flex', alignItems: 'baseline', gap: '5px' }}>
+                            <span style={{ fontSize: '11px', color: 'rgba(55,56,60,0.6)' }}>과제 수행</span>
+                            <span style={{ fontSize: '17px', fontWeight: 700, color: R.navy }}>{u.avgHomework}%</span>
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {u.topTags.length > 0 && (
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                        {u.topTags.map(k => {
+                          const t = DIAG_COLORS[k];
+                          if (!t) return null;
+                          return <span key={k} style={{ fontSize: '11px', fontWeight: 700, color: t.color, background: t.bg, border: `1px solid ${t.border}`, padding: '3px 9px', borderRadius: '20px' }}>{t.label}</span>;
+                        })}
+                      </div>
+                    )}
+                    {u.comment && (
+                      <p style={{ fontSize: '13px', color: '#2C2C2C', lineHeight: 1.7, margin: 0 }}>{u.comment.split('\n')[0]}</p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </>
+        );
+
         // 자주 나온 약점 유형 — 페이지 2 독립 차트는 제거하고 4페이지 '다음 목표' 한 줄
         // 요약으로 흡수(승인된 결정, 정보량 절감). 집계 자체는 이미 로드된 sorted로, 새 조회 없음.
         const diagCount = {};
@@ -1312,6 +1431,7 @@ export default function GrowthStory() {
         // 약점 유형은 더 이상 이 페이지에 없음(4페이지 '다음 목표'로 흡수)
         const pages = [
           { key: 'milestone', label: '성장 마일스톤', content: (<>{aiGenButtonContent}{milestoneContent}</>) },
+          unitCardsContent && { key: 'units', label: '단원별 정리', content: unitCardsContent },
           (scoreTrendContent || unitTrendContent) && { key: 'trend', label: '평가 추이', content: (<>{scoreTrendContent}{unitTrendContent}</>) },
           { key: 'metrics', label: '핵심 지표', content: (<>{reviewEffectContent}{keyMetricsContent}</>) },
           { key: 'closing', label: '선생님 한마디', content: (<>{teacherWordContent}{nextChapterContent}</>) },
