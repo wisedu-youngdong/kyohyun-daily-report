@@ -36,6 +36,11 @@ export default function WeeklyReviewView({ reports = [], students = [], classes 
   const [weekOffset, setWeekOffset] = useState(0);
   const week = getKstWeekRange(weekOffset);
   const todayDow = new Date(Date.now() + 9 * 3600 * 1000).getUTCDay();
+  // 지난 주(weekOffset > 0, "다음 주" 버튼도 0에서 멈추므로 미래 주는 없음)는 이미 전체가 다
+  // 지난 상태인데, isReadyToSend에 실제 "오늘 요일"을 그대로 넘기면 예를 들어 오늘이 화요일일 때
+  // 지난주를 봐도 "화요일까지만 지남" 기준이 적용돼 지난주 수/금 세션이 비어 있어도 아직 안 지난
+  // 것처럼 취급돼 "발송 준비 완료"가 잘못 뜰 수 있었음. 이번 주가 아니면 일요일(전체 통과) 기준 사용.
+  const readinessRefDow = weekOffset === 0 ? todayDow : 0;
 
   const weeklyStudents = students
     .filter(s => !s.archived)
@@ -155,7 +160,7 @@ export default function WeeklyReviewView({ reports = [], students = [], classes 
               const draft = draftFor(student.id);
               const sessions = draft?.sessions || [];
               const scheduledCount = student.scheduleDays?.length > 0 ? student.scheduleDays.length : sessions.length;
-              const ready = draft ? isReadyToSend(student, sessions, todayDow) : false;
+              const ready = draft ? isReadyToSend(student, sessions, readinessRefDow) : false;
               const isExpanded = expandedId === draft?.id;
               const allPhotos = sessions.flatMap(s => s.photoUrls || []);
               const edit = draft ? getEdit(draft, sessions) : null;
