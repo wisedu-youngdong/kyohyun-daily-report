@@ -690,6 +690,11 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
 // 실제 내용은 StudentProfileContent를 그대로 씀(PC 인라인 패널과 동일 소스).
 // ============================================================
 export function StudentProfileModal({ student, reports, reviews = [], onClose, onToast, academyName, onEditReviewNote }) {
+  // 모바일에서는 어차피 620px 중앙 모달이 화면을 거의 다 덮으면서도 진짜 전체화면은
+  // 아니었음(여백+블러+둥근모서리로 "모달"인 척만 함) — 실사용 요청으로 모바일은 진짜
+  // 전체화면(여백·블러·모서리 없음)으로, 데스크톱(퇴원생 행처럼 PC 마스터-디테일을 안 타는
+  // 예외 케이스에서만 열림)은 기존 중앙 모달을 유지
+  const isMobile = !useMediaQuery('(min-width: 900px)');
   useEscapeClose(onClose);
   const wrapperPanelRef = useRef(null);
   useFocusTrap(wrapperPanelRef, true);
@@ -707,6 +712,14 @@ export function StudentProfileModal({ student, reports, reviews = [], onClose, o
     return () => window.removeEventListener('popstate', handlePop);
   }, []);
 
+  if (isMobile) {
+    return (
+      <div ref={wrapperPanelRef} role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, background: '#fff', zIndex: 1000, overflowY: 'auto' }}>
+        <StudentProfileContent student={student} reports={reports} reviews={reviews} onClose={onClose} onToast={onToast} academyName={academyName} onEditReviewNote={onEditReviewNote} />
+      </div>
+    );
+  }
+
   return (
     <div role="dialog" aria-modal="true" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px', backdropFilter: 'blur(4px)' }}
       onClick={onClose}>
@@ -719,23 +732,30 @@ export function StudentProfileModal({ student, reports, reviews = [], onClose, o
 }
 
 // ============================================================
-// 학생 상세 패널 — 재설계 4단계. 예전엔 "학생 상세를 보는 방법"이 두 벌이었음
-// (GrowthDashboard의 미니 사이드 드로어 vs 이 파일의 풀 모달인 StudentProfileModal).
-// 기능이 더 많은 StudentProfileContent를 그대로 쓰고, 폭 420px 오버레이(본문을 안 미는
-// 방식)로 통일 + 이전/다음 학생 이동을 추가했다. GrowthDashboard(학생 표 행 클릭)와
-// DirectorView(오늘자 카드의 "종합 프로필" 버튼) 양쪽에서 공용으로 씀.
+// 학생 경량 서랍 — 재설계 (실사용 피드백 반영, 2차 조정). GrowthDashboard 학생 표를
+// "훑어보는" 용도라 풀 프로필(StudentProfileContent, 페이지 한 장 분량)을 그대로 넣지
+// 않는다. 지표 3개 + 최근 3회 수업 기록만 보여주고, 더 보려면 하단 링크로 학생관리의
+// 전체 화면(인라인/모바일 풀스크린)으로 넘어간다. 표를 계속 보면서 다음 학생을 바로
+// 누를 수 있어야 하므로 배경 딤도 없앰 — 대신 왼쪽 테두리+그림자로 층만 구분.
 // ============================================================
-export function StudentDetailPanel({ studentList, currentId, onSelect, onClose, reports, reviews = [], onToast, academyName, onEditReviewNote, statusInfo, directorActions = false }) {
+export function StudentDetailPanel({ studentList, currentId, onSelect, onClose, onOpenFull, reports, statusInfo }) {
   const isMobile = !useMediaQuery('(min-width: 900px)');
   useEscapeClose(onClose);
   const panelRef = useRef(null);
-  useFocusTrap(panelRef, true);
 
-  // 모바일 뒤로가기 지원 — StudentProfileModal(기존 620px 모달)에 있던 걸 여기 빼먹었던
-  // 버그. 일반 사용자는 × 버튼보다 스마트폰 뒤로가기(제스처/버튼)를 먼저 쓰기 때문에,
-  // 그 뒤로가기가 SPA 자체를 벗어나지 않고 이 패널만 닫도록 history 한 칸을 미리 쌓아둔다.
-  // mount 시 1회만 실행(prev/next로 학생을 넘겨도 다시 안 쌓임 — 뒤로가기 한 번은
-  // "이전 학생"이 아니라 "패널 닫기"여야 함)
+  // 바깥 클릭으로 닫힘 — 배경 딤(오버레이)이 없어서 오버레이의 onClick으로는 못 잡고,
+  // 문서 전체에 리스너를 달아 패널 바깥 클릭만 감지한다
+  useEffect(() => {
+    const handleOutside = (e) => {
+      if (panelRef.current && !panelRef.current.contains(e.target)) onClose();
+    };
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [onClose]);
+
+  // 모바일 뒤로가기 지원 — 일반 사용자는 × 버튼보다 스마트폰 뒤로가기(제스처/버튼)를
+  // 먼저 쓰기 때문에, 그 뒤로가기가 SPA 자체를 벗어나지 않고 이 서랍만 닫도록 history
+  // 한 칸을 미리 쌓아둔다. mount 시 1회만(prev/next로 학생을 넘겨도 다시 안 쌓임)
   useEffect(() => {
     history.pushState(null, '', window.location.href);
     history.pushState({ modal: 'studentDetail' }, '', window.location.href);
@@ -749,6 +769,7 @@ export function StudentDetailPanel({ studentList, currentId, onSelect, onClose, 
 
   const idx = studentList.findIndex(s => s.id === currentId);
   const student = studentList[idx];
+  const hasMultiple = studentList.length > 1;
   const goPrev = () => idx > 0 && onSelect(studentList[idx - 1].id);
   const goNext = () => idx < studentList.length - 1 && onSelect(studentList[idx + 1].id);
 
@@ -756,44 +777,93 @@ export function StudentDetailPanel({ studentList, currentId, onSelect, onClose, 
 
   const trendStr = statusInfo?.trend == null ? null : statusInfo.trend > 0 ? `▲${Math.abs(statusInfo.trend)}` : statusInfo.trend < 0 ? `▼${Math.abs(statusInfo.trend)}` : '―';
 
+  // 지표 3개 — StudentProfileContent 상단 지표와 동일한 계산(전체 기간 평균)
+  const sorted = [...reports]
+    .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0))
+    .map(r => ({ ...r, conceptRating: r.conceptRating == null ? null : toPct(r.conceptRating), homeworkRating: r.homeworkRating == null ? null : toPct(r.homeworkRating) }));
+  const conceptRated = sorted.filter(r => r.conceptRating != null);
+  const homeworkRated = sorted.filter(r => r.homeworkRating != null);
+  const avgConcept = conceptRated.length ? Math.round(conceptRated.reduce((s, r) => s + r.conceptRating, 0) / conceptRated.length) : 0;
+  const avgHomework = homeworkRated.length ? Math.round(homeworkRated.reduce((s, r) => s + r.homeworkRating, 0) / homeworkRated.length) : 0;
+  const attendanceRated = sorted.filter(r => r.attendance != null);
+  const attendanceRate = attendanceRated.length ? Math.round(attendanceRated.filter(r => r.attendance === '정시').length / attendanceRated.length * 100) : 0;
+  const recent3 = [...sorted].reverse().slice(0, 3);
+  const fmtDate = (r) => r.createdAt?.seconds ? new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' }) : '';
+
   return (
-    <>
-      {/* 0.4 알파로는 이 앱의 밝은 톤(흰 배경+파스텔) 위에서 "배경이 비활성화됐다"는 느낌이
-          잘 안 나서(실사용 피드백 — 왼쪽 화면이 그대로 열려있는 것처럼 보임), 기존
-          StudentProfileModal(620px 중앙 모달)의 blur 처리를 여기도 맞춤 */}
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(3px)', zIndex: 199 }} />
-      <div ref={panelRef} role="dialog" aria-modal="true" style={isMobile
-        ? { position: 'fixed', left: 0, right: 0, bottom: 0, maxHeight: '88vh', width: '100%', background: '#fff', borderTopLeftRadius: '16px', borderTopRightRadius: '16px', overflowY: 'auto', zIndex: 200, boxShadow: '0 -4px 20px rgba(0,0,0,0.12)' }
-        : { position: 'fixed', top: 0, right: 0, bottom: 0, width: '420px', background: '#fff', borderLeft: '0.5px solid #E8E6E0', overflowY: 'auto', zIndex: 200, boxShadow: '-4px 0 20px rgba(0,0,0,0.08)' }
-      }>
-        {/* 상단 바 — 이전/다음 학생 이동 + 닫기. 학생 이름/점수는 아래 StudentProfileContent
-            자체 헤더가 이미 보여주므로 여기서는 안 겹치게 순수 네비게이션만 */}
-        <div style={{ position: 'sticky', top: 0, zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: '#fff', borderBottom: '0.5px solid #E8E6E0' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+    <div ref={panelRef} role="dialog" aria-modal="true" style={isMobile
+      ? { position: 'fixed', left: 0, right: 0, bottom: 0, maxHeight: '70vh', width: '100%', background: '#fff', borderTopLeftRadius: '16px', borderTopRightRadius: '16px', borderTop: `1px solid ${C.primary}30`, overflowY: 'auto', zIndex: 200, boxShadow: '0 -6px 24px rgba(23,23,25,0.14)' }
+      : { position: 'fixed', top: 0, right: 0, bottom: 0, width: '420px', background: '#fff', borderLeft: `1px solid ${C.primary}30`, overflowY: 'auto', zIndex: 200, boxShadow: '-6px 0 24px rgba(23,23,25,0.10)' }
+    }>
+      {/* 상단 바 — 닫기는 왼쪽, 이전/다음은 오른쪽(실사용 피드백: 한쪽에 몰리면 오조작 위험) */}
+      <div style={{ position: 'sticky', top: 0, zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: '#fff', borderBottom: '0.5px solid #E8E6E0' }}>
+        <button onClick={onClose} aria-label="닫기"
+          style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#6B7785', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent', flexShrink: 0 }}>×</button>
+        <span style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {student.name}{hasMultiple ? ` · ${idx + 1}/${studentList.length}` : ''}
+        </span>
+        {hasMultiple ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '2px', flexShrink: 0 }}>
             <button onClick={goPrev} disabled={idx <= 0} aria-label="이전 학생"
               style={{ background: 'none', border: 'none', color: idx <= 0 ? '#D4D7DD' : '#374151', cursor: idx <= 0 ? 'not-allowed' : 'pointer', fontSize: '16px', padding: '4px 6px', fontFamily: 'inherit' }}>‹</button>
-            <span style={{ fontSize: '11px', color: '#6B7785', fontWeight: 600 }}>{idx + 1} / {studentList.length}</span>
             <button onClick={goNext} disabled={idx >= studentList.length - 1} aria-label="다음 학생"
               style={{ background: 'none', border: 'none', color: idx >= studentList.length - 1 ? '#D4D7DD' : '#374151', cursor: idx >= studentList.length - 1 ? 'not-allowed' : 'pointer', fontSize: '16px', padding: '4px 6px', fontFamily: 'inherit' }}>›</button>
           </div>
-          <button onClick={onClose} aria-label="닫기"
-            style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#6B7785', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>×</button>
+        ) : <div style={{ width: '36px', flexShrink: 0 }} />}
+      </div>
+
+      {/* 기간 상태 배지 — GrowthDashboard(기간 뷰)에서 열었을 때만 statusInfo가 전달됨 */}
+      {statusInfo && (
+        <div style={{ padding: '12px 16px', borderBottom: '0.5px solid #E8E6E0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: statusInfo.status.bg }}>
+          <span style={{ fontSize: '12px', fontWeight: 700, color: statusInfo.status.color }}>● {statusInfo.status.label}</span>
+          <span style={{ fontSize: '16px', fontWeight: 800, color: statusInfo.status.color, fontVariantNumeric: 'tabular-nums' }}>
+            {statusInfo.avg}%{trendStr && <span style={{ fontSize: '11px', marginLeft: '5px' }}>{trendStr}</span>}
+          </span>
+        </div>
+      )}
+
+      <div style={{ padding: '18px 16px' }}>
+        {/* 지표 3개 */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '8px', marginBottom: '18px' }}>
+          {[
+            { label: '개념 이해', value: `${avgConcept}%`, color: avgConcept >= 80 ? C.successDark : avgConcept >= 60 ? C.warningText : C.errorDark },
+            { label: '과제 수행', value: `${avgHomework}%`, color: avgHomework >= 80 ? C.successDark : C.warningText },
+            { label: '정시 출석', value: `${attendanceRate}%`, color: attendanceRate >= 90 ? C.successDark : attendanceRate >= 70 ? C.warningText : C.errorDark },
+          ].map((item, i) => (
+            <div key={i} style={{ border: '0.5px solid #E8E6E0', borderRadius: '10px', padding: '10px', textAlign: 'center' }}>
+              <p style={{ fontSize: '9px', color: T.textMute, margin: '0 0 3px', letterSpacing: '0.06em' }}>{item.label}</p>
+              <p style={{ fontSize: '17px', fontWeight: 800, color: item.color, margin: 0, fontVariantNumeric: 'tabular-nums' }}>{item.value}</p>
+            </div>
+          ))}
         </div>
 
-        {/* 기간 상태 배지 — GrowthDashboard(기간 뷰)에서 열었을 때만 statusInfo가 전달됨.
-            DirectorView(오늘 카드)에서는 "기간"이라는 개념이 없어 안 보임 */}
-        {statusInfo && (
-          <div style={{ padding: '12px 16px', borderBottom: '0.5px solid #E8E6E0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: statusInfo.status.bg }}>
-            <span style={{ fontSize: '12px', fontWeight: 700, color: statusInfo.status.color }}>● {statusInfo.status.label}</span>
-            <span style={{ fontSize: '16px', fontWeight: 800, color: statusInfo.status.color, fontVariantNumeric: 'tabular-nums' }}>
-              {statusInfo.avg}%{trendStr && <span style={{ fontSize: '11px', marginLeft: '5px' }}>{trendStr}</span>}
-            </span>
-          </div>
-        )}
+        {/* 최근 3회 수업 기록 */}
+        <p style={{ fontSize: '11px', color: T.textMute, fontWeight: 700, letterSpacing: '0.06em', margin: '0 0 8px' }}>최근 수업 기록</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '7px', marginBottom: '18px' }}>
+          {recent3.length === 0 ? (
+            <p style={{ fontSize: '12px', color: T.textMute, margin: 0 }}>아직 기록된 수업이 없습니다</p>
+          ) : recent3.map((r, i) => (
+            <div key={i} style={{ background: '#FAFAF8', border: '0.5px solid #E5E7EB', borderRadius: '8px', padding: '9px 10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: '#1A1A1A' }}>{fmtDate(r)}</span>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {r.homeworkRating != null && <span style={{ fontSize: '10px', color: T.textSub }}>과제 <strong style={{ color: '#0D2D6B' }}>{r.homeworkRating}%</strong></span>}
+                  {r.conceptRating != null && <span style={{ fontSize: '10px', color: T.textSub }}>개념 <strong style={{ color: '#0D2D6B' }}>{r.conceptRating}%</strong></span>}
+                </div>
+              </div>
+              {(r.textbook || r.unit) && (
+                <p style={{ fontSize: '10px', color: T.textMute, margin: 0 }}>{[r.textbook, r.unit].filter(Boolean).join(' · ')}</p>
+              )}
+            </div>
+          ))}
+        </div>
 
-        <StudentProfileContent student={student} reports={reports} reviews={reviews} onToast={onToast} academyName={academyName} onEditReviewNote={onEditReviewNote} directorActions={directorActions} />
+        <button onClick={() => { onOpenFull?.(student.id); onClose(); }}
+          style={{ width: '100%', padding: '11px', background: 'none', border: `1px solid ${C.primary}`, borderRadius: '8px', color: C.primary, fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+          종합 프로필 전체 보기 →
+        </button>
       </div>
-    </>
+    </div>
   );
 }
 

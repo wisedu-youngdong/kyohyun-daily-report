@@ -188,6 +188,17 @@ export default function App() {
     if (sub) setSubTab(tab, sub);
   };
 
+  // 학생 종합 프로필 "전체 보기" — 재설계 후속 조정: 원장분석의 경량 서랍/카드에서
+  // "종합 프로필 전체 보기"를 누르면 새 라우트를 만드는 대신 이미 있는 학생관리 탭의
+  // 깊은 화면(PC 인라인 마스터-디테일, 모바일 풀스크린)으로 이동한다 — 이 앱의 인증된
+  // 화면들은 URL이 없는 순수 state 라우팅이라, 새 인증 라우트를 만드는 것보다 훨씬 가볍다.
+  const [pendingStudentProfileId, setPendingStudentProfileId] = useState(null);
+  const handleOpenStudentProfile = (studentId) => {
+    setActiveTab('manage');
+    setSubTab('manage', 'students');
+    setPendingStudentProfileId(studentId);
+  };
+
   // 예전엔 로그인만 하면 조회만 해도 탭을 닫거나 뒤로가기할 때마다 항상 경고가 떴음(+모바일
   // 뒤로가기 자체를 앱 전역에서 막아버림) — 정작 데이터 유실을 막아야 할 리포트 작성 화면은
   // DiagnosticReportInput.jsx 자체에 isDirty 기반 beforeunload 경고가 이미 따로 있어서
@@ -946,7 +957,7 @@ export default function App() {
             <div style={{ marginTop: '12px' }}>
               {activeSubTab.insight === 'director' && (dataReady
                 ? <React.Suspense fallback={<SkeletonBlock rows={4} cardHeight={70} />}>
-                    <DirectorView reports={visibleReports} students={visibleStudents} classes={classes} reportViews={reportViews} reportQuestions={reportQuestions} reviews={reviews} onToast={showAppToast} academyId={academyId} academyName={academyName} onEditReviewNote={handleEditReviewNote} />
+                    <DirectorView reports={visibleReports} students={visibleStudents} classes={classes} reportViews={reportViews} reportQuestions={reportQuestions} reviews={reviews} onToast={showAppToast} academyId={academyId} academyName={academyName} onEditReviewNote={handleEditReviewNote} onOpenStudentProfile={handleOpenStudentProfile} />
                   </React.Suspense>
                 : <SkeletonBlock rows={4} cardHeight={70} />
               )}
@@ -974,7 +985,7 @@ export default function App() {
             <div style={{ marginTop: '12px' }}>
               {activeSubTab.manage === 'students' && (dataReady
                 ? <React.Suspense fallback={<SkeletonBlock rows={5} cardHeight={56} />}>
-                    <StudentsView students={studentsWithContact} reports={reports} reviews={reviews} onSave={handleSaveStudent} onDelete={handleDeleteStudent} onRestore={handleRestoreStudent} teachers={teachers} classes={classes} currentTeacherId={userTeacherId} isDirector={isDirector} onToast={showAppToast} academyName={academyName} onEditReviewNote={handleEditReviewNote} />
+                    <StudentsView students={studentsWithContact} reports={reports} reviews={reviews} onSave={handleSaveStudent} onDelete={handleDeleteStudent} onRestore={handleRestoreStudent} teachers={teachers} classes={classes} currentTeacherId={userTeacherId} isDirector={isDirector} onToast={showAppToast} academyName={academyName} onEditReviewNote={handleEditReviewNote} initialSelectedId={pendingStudentProfileId} onConsumeInitialSelect={() => setPendingStudentProfileId(null)} />
                   </React.Suspense>
                 : <SkeletonBlock rows={5} cardHeight={56} />
               )}

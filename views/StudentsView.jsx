@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Pencil, AlertTriangle } from 'lucide-react';
 import { isNewStudent } from '../growth.js';
 import { T, C } from '../tokens.jsx';
@@ -11,7 +11,7 @@ import { useMediaQuery } from '../hooks.js';
 // (UsageMonitoring.jsx의 recharts와 같은 패턴)
 const BulkStudentImport = React.lazy(() => import('./BulkStudentImport.jsx'));
 
-export default function StudentsView({ students, reports, reviews = [], onSave, onDelete, onRestore, teachers = [], classes = [], currentTeacherId = null, isDirector = false, onToast, academyName = null, onEditReviewNote }) {
+export default function StudentsView({ students, reports, reviews = [], onSave, onDelete, onRestore, teachers = [], classes = [], currentTeacherId = null, isDirector = false, onToast, academyName = null, onEditReviewNote, initialSelectedId = null, onConsumeInitialSelect }) {
   const [showAddStudent, setShowAddStudent] = useState(false);
   const [showBulkImport, setShowBulkImport] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
@@ -70,6 +70,20 @@ export default function StudentsView({ students, reports, reviews = [], onSave, 
   const isWide = useMediaQuery('(min-width: 900px)');
   const [selectedId, setSelectedId] = useState(null);
   const selectedStudent = filtered.find(s => s.id === selectedId) || (isWide ? filtered[0] : null);
+
+  // 다른 화면(원장분석 경량 서랍의 "종합 프로필 전체 보기" 등)에서 특정 학생을 미리
+  // 선택한 채로 이 탭에 진입할 때 — PC는 마스터-디테일 오른쪽에 바로 뜨고, 모바일은
+  // 풀스크린으로 바로 열림. 한 번 처리하면 부모의 pending 값을 비워 재진입 시 안 남게 함
+  useEffect(() => {
+    if (!initialSelectedId) return;
+    if (isWide) {
+      setSelectedId(initialSelectedId);
+    } else {
+      const s = students.find(st => st.id === initialSelectedId);
+      if (s) setProfileStudent(s);
+    }
+    onConsumeInitialSelect?.();
+  }, [initialSelectedId]);
 
   const rosterList = filtered.length === 0
     ? (

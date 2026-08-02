@@ -8,7 +8,7 @@ import { StudentDetailPanel } from './StudentProfileModal.jsx';
 // period는 이제 DirectorView가 소유(재설계 1단계 — 기간 컨트롤 통합, 오늘/1주/1개월/3개월
 // 세그먼트 하나가 이 컴포넌트를 렌더할지 말지까지 결정). 이 컴포넌트는 더 이상 자체 기간
 // 토글을 그리지 않고 prop으로 받은 값만 따른다.
-export default function GrowthDashboard({ reports, students, period, classes = [], reviews, onToast, academyName, onEditReviewNote }) {
+export default function GrowthDashboard({ reports, students, period, classes = [], onOpenStudentProfile }) {
   // App.jsx의 isPc(900px)와 기준 통일 — 앱 전체에서 PC/모바일 판정 기준이 화면마다
   // 제각각(768 vs 900)이면 중간 폭에서 레이아웃이 서로 어긋나는 문제가 생기기 쉬움
   const isMobile = !useMediaQuery('(min-width: 900px)');
@@ -404,12 +404,8 @@ export default function GrowthDashboard({ reports, students, period, classes = [
           currentId={selId}
           onSelect={setSelId}
           onClose={() => setSelId(null)}
+          onOpenFull={onOpenStudentProfile}
           reports={reports.filter(r => r.studentId === selId)}
-          reviews={(reviews || []).filter(rv => rv.studentId === selId)}
-          onToast={onToast}
-          academyName={academyName}
-          onEditReviewNote={onEditReviewNote}
-          directorActions
           statusInfo={{ status: getStatus(selId), avg: getAvg(selId), trend: getTrend(selId) }}
         />
       )}
