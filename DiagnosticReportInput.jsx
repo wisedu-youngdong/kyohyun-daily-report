@@ -436,6 +436,10 @@ export default function DiagnosticReportInput({
   const weeklyDraftIdRef = React.useRef(null);
   const [weeklySessions, setWeeklySessions] = useState([]);
   const [staleWeeklyDraft, setStaleWeeklyDraft] = useState(null); // 지난주 이전에 발송 안 된 열린 draft(있으면 배너로 안내)
+  // 사진 분석 결과 — 아래 자동저장 useEffect가 의존성으로 참조하기 때문에(자동저장 대상에
+  // 사진분석 결과가 빠지면 방금 분석한 결과가 다음 자동저장까지 안 반영되는 stale closure
+  // 버그), 원래 있던 "사진 분석" 섹션(더 아래)보다 먼저 선언해야 함
+  const [photoAnalysis, setPhotoAnalysis] = useState(null);
   // 학생 선택 변경 시 헤더에 알림
   React.useEffect(() => {
     if (!studentId) return;
@@ -444,7 +448,7 @@ export default function DiagnosticReportInput({
       handleAutoSave();
     }, 30000);
     return () => clearTimeout(autoSaveTimer.current);
-  }, [studentId, teacherNote, homeworkRating, conceptRating, selectedTags, textbook, unit, pages, subject, attendance, arrivalTime, hasTest, testName, testScore, testRound, nextPlan, nextPlanDetail]);
+  }, [studentId, teacherNote, homeworkRating, conceptRating, selectedTags, textbook, unit, pages, subject, attendance, arrivalTime, departureTime, hasTest, testName, testScore, testRound, nextPlan, nextPlanDetail, photoAnalysis]);
 
   // 학생만 선택하고 아무것도 입력하지 않아도 30초 뒤 자동저장이 돌아 빈 초안이 생기던 문제 —
   // 실제로 뭔가 입력된 게 있을 때만 자동저장하도록 최소 하나의 필드 확인
@@ -651,7 +655,6 @@ export default function DiagnosticReportInput({
   // 사진 분석 (다중 업로드 — 최대 10장)
   const [photos, setPhotos] = useState([]); // [{ preview, blob }]
   const [analyzingPhoto, setAnalyzingPhoto] = useState(false);
-  const [photoAnalysis, setPhotoAnalysis] = useState(null);
   // 사진 분석은 건당 크레딧이 나가는 유료 호출이라, 이번 리포트(같은 학생/세션)에서 이미
   // 한 번 성공적으로 차감됐는지 추적 — 사진을 지우고 새로 올려도(photoAnalysis는 초기화되지만)
   // 이 플래그는 유지해서 재분석 시 "크레딧 또 나간다" 경고를 띄울 수 있게 함. 학생 전환/새
