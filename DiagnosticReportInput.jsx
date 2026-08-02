@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { C, R, RADIUS2, TYPE, SHADOW, deriveSkinColors } from './tokens.jsx';
 import { resolveBookSections } from './photoSections.js';
-import { calculateReportPoints, toPct, ratingLabel, kstDay, kstWeekday, getKstWeekRange, isReportSent } from './growth.js';
+import { toPct, ratingLabel, kstDay, kstWeekday, getKstWeekRange, isHandledToday } from './growth.js';
 import { DIAG_LABELS as diagLabels, WRONG_TAGS, WRONG_TAG_LABELS } from './diagnosis.js';
 import { findUnitKey, getUnits, getCourses } from './curriculum.js';
 import { storage, auth } from './firebase.js';
@@ -1332,7 +1332,6 @@ export default function DiagnosticReportInput({
         })(),
         isDraft: false, // 최종 저장 — 이 시점에 복습 일정 생성
       };
-      reportPayload.points = calculateReportPoints(reportPayload);
       const savedId = await onSave(reportPayload);
       const savedStudentId = studentId;
       draftIdRef.current = null;
@@ -1375,7 +1374,6 @@ export default function DiagnosticReportInput({
   // 별도 API 없이 이미 내려오는 students/reports prop만으로 계산
   const todayKstStr = kstDay(Date.now() / 1000);
   const isScheduledToday = (s) => !s.scheduleDays || s.scheduleDays.length === 0 || s.scheduleDays.includes(kstWeekday(Date.now() / 1000));
-  const isHandledToday = (r) => isReportSent(r) || (r.attendance === '결석' && r.isDraft !== true);
   const todayReportsAll = reports.filter(r => r.createdAt?.seconds && isHandledToday(r) && kstDay(r.createdAt.seconds) === todayKstStr);
   const hasWeeklySessionToday = (r) => r.reportType === 'weekly' && (r.sessions || []).some(s => s.date === todayKstStr);
   const doneOfStudent = (s) => todayReportsAll.some(r => r.studentId === s.id) || reports.some(r => r.studentId === s.id && hasWeeklySessionToday(r));

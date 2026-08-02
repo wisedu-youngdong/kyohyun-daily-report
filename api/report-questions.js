@@ -17,8 +17,12 @@ export default async function handler(req, res) {
     }
 
     const db = getAdminDb();
+    // limit 없이 전체를 돌려주면 한 리포트에 질문이 비정상적으로 쌓였을 때(버그·남용)
+    // 응답 페이로드가 무제한으로 커질 수 있어 상한을 둠 — 정상 사용 범위(한 리포트당
+    // 질문 몇 건)를 넉넉히 웃도는 값
     const snap = await db.collection('academies').doc(academyId).collection('reportQuestions')
       .where('reportId', '==', reportId)
+      .limit(200)
       .get();
 
     // 학부모 화면에 필요한 필드만 반환 — studentId 등은 노출하지 않음

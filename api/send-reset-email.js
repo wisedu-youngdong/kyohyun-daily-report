@@ -14,18 +14,22 @@ const RESET_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 async function checkAndBumpRateLimit(db, email) {
   const key = email.toLowerCase().trim();
   const ref = db.collection('_rateLimits').doc(`resetEmail_${key}`);
-  const snap = await ref.get();
-  const now = Date.now();
-  if (snap.exists) {
-    const data = snap.data();
-    if (now - data.windowStart < RESET_RATE_LIMIT_WINDOW_MS) {
-      if (data.count >= RESET_RATE_LIMIT_MAX) return false;
-      await ref.update({ count: FieldValue.increment(1) });
-      return true;
+  // get+판단+write를 트랜잭션으로 묶음 — 순차 await였을 때는 동시 요청이 모두 같은
+  // 스냅샷을 읽어 시간당 3건 제한이 무력화될 수 있었음(레이스 컨디션).
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const now = Date.now();
+    if (snap.exists) {
+      const data = snap.data();
+      if (now - data.windowStart < RESET_RATE_LIMIT_WINDOW_MS) {
+        if (data.count >= RESET_RATE_LIMIT_MAX) return false;
+        tx.update(ref, { count: FieldValue.increment(1) });
+        return true;
+      }
     }
-  }
-  await ref.set({ count: 1, windowStart: now });
-  return true;
+    tx.set(ref, { count: 1, windowStart: now });
+    return true;
+  });
 }
 
 function buildResetEmailHtml({ resetLink }) {

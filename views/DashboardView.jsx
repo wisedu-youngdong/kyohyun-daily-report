@@ -1,6 +1,6 @@
 import React from 'react';
 import { X, Check } from 'lucide-react';
-import { kstDay, kstWeekday, isReportSent } from '../growth.js';
+import { kstDay, kstWeekday, isReportSent, isHandledToday } from '../growth.js';
 import { T, C, RADIUS2 } from '../tokens.jsx';
 import { AVATARS, StatCard, onKeyActivate } from './shared.jsx';
 import { useMediaQuery, useEscapeClose, useFocusTrap } from '../hooks.js';
@@ -86,10 +86,7 @@ export default function DashboardView({ students, reports, classes = [], reportV
   };
 
   // 발송 완료 판정 + 날짜 비교 — 리포트 탭 상태바/원장 보고서와 동일한 공용 기준(growth.js) 사용.
-  // 결석 처리는 teacherNote 없이 출결만 채운 리포트라 isReportSent 기준으론 안 걸러지므로,
-  // "오늘 결석으로 처리됨(초안 아님)"도 완료로 별도 인정 — 안 그러면 결석 처리해도 계속 "대기"로 남음
   const todayKst = kstDay(Date.now() / 1000);
-  const isHandledToday = (r) => isReportSent(r) || (r.attendance === '결석' && r.isDraft !== true);
   const todayReports = reports.filter(r => r.createdAt?.seconds && isHandledToday(r) && kstDay(r.createdAt.seconds) === todayKst);
   // 주간형(reportType==='weekly') 리포트는 한 주 내내 isDraft:true라서(원장이 발송할 때만 false로
   // 바뀜) 위 todayReports 기준으론 절대 안 걸림 — 오늘 세션을 실제로 저장했는지는 컨테이너의

@@ -6,7 +6,7 @@ import { escapeHtml } from './email.js';
 const PROJECT = 'kyohyun-daily-report';
 
 export async function fetchAcademyIdFromIndex(indexCollection, id) {
-  const url = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents/${indexCollection}/${id}`;
+  const url = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents/${indexCollection}/${encodeURIComponent(id)}`;
   const res = await fetch(url);
   if (!res.ok) return null;
   const data = await res.json();
@@ -14,8 +14,10 @@ export async function fetchAcademyIdFromIndex(indexCollection, id) {
 }
 
 // path 예: 'students/abc123', 'reports/abc123' — academies/{academyId}/ 아래 문서를 조회
+// path 세그먼트(예: 'students/abc123')는 호출부에서 이미 id를 encodeURIComponent해서
+// 넘겨줘야 함 — 여기서 통째로 인코딩하면 컬렉션명과의 구분자 '/'까지 %2F로 깨짐
 export async function fetchAcademyDocFields(academyId, path) {
-  const url = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents/academies/${academyId}/${path}`;
+  const url = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents/academies/${encodeURIComponent(academyId)}/${path}`;
   const res = await fetch(url);
   if (!res.ok) return null;
   const data = await res.json();
@@ -26,7 +28,7 @@ export async function fetchAcademyDocFields(academyId, path) {
 // 써서 별도 복합 인덱스 배포 없이 동작하게 함(firestore.indexes.json은 git push로 자동배포
 // 안 됨 — firestore.rules와 같은 함정). createdAt만 선택 조회해 응답을 가볍게 유지.
 export async function fetchReportDateRange(academyId, studentId) {
-  const url = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents/academies/${academyId}:runQuery`;
+  const url = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents/academies/${encodeURIComponent(academyId)}:runQuery`;
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

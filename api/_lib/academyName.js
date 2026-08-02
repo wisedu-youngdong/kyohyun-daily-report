@@ -4,7 +4,7 @@ export async function fetchAcademyName(academyId) {
   if (!academyId) return null;
   try {
     const PROJECT = 'kyohyun-daily-report';
-    const url = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents/academies/${academyId}`;
+    const url = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents/academies/${encodeURIComponent(academyId)}`;
     const res = await fetch(url);
     if (!res.ok) return null;
     const data = await res.json();

@@ -19,9 +19,13 @@ export default async function handler(req, res) {
     }
 
     const db = getAdminDb();
+    // limit 없이 전체를 돌려주면 학생 한 명의 복습 이력이 비정상적으로 쌓였을 때
+    // 응답 페이로드가 무제한으로 커질 수 있어 상한을 둠 — 그래프 표시 목적상
+    // 정상 사용 범위를 넉넉히 웃도는 값
     const snap = await db.collection('academies').doc(academyId).collection('reviews')
       .where('studentId', '==', studentId)
       .where('status', '==', 'done')
+      .limit(200)
       .get();
 
     const reviews = snap.docs.map(d => {

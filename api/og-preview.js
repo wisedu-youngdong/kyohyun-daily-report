@@ -17,7 +17,7 @@ async function loadReportPreview(id) {
   const academyId = await fetchAcademyIdFromIndex('reportIndex', id);
   if (academyId) {
     academyName = await fetchAcademyName(academyId);
-    const f = await fetchAcademyDocFields(academyId, `reports/${id}`);
+    const f = await fetchAcademyDocFields(academyId, `reports/${encodeURIComponent(id)}`);
     if (f) {
       studentName = f.studentName?.stringValue || '학생';
       unit        = f.unit?.stringValue || '';
@@ -48,7 +48,7 @@ async function loadStudentNamePreview(id, { title, ogTitleSuffix, ogSub, redirec
   const academyId = await fetchAcademyIdFromIndex('studentIndex', id);
   if (academyId) {
     academyName = await fetchAcademyName(academyId);
-    const fields = await fetchAcademyDocFields(academyId, `students/${id}`);
+    const fields = await fetchAcademyDocFields(academyId, `students/${encodeURIComponent(id)}`);
     studentName = fields?.name?.stringValue || '학생';
   }
   return {
@@ -111,7 +111,9 @@ const KIND_LOADERS = {
 
 export default async function handler(req, res) {
   const { kind, id } = req.query;
-  const loader = KIND_LOADERS[kind];
+  // Object.prototype 상속 속성(constructor/toString 등)이 kind로 들어오면 KIND_LOADERS[kind]가
+  // truthy를 반환해 화이트리스트를 우회할 수 있어 hasOwnProperty로 실제 등록된 키인지 확인
+  const loader = Object.prototype.hasOwnProperty.call(KIND_LOADERS, kind) ? KIND_LOADERS[kind] : null;
   // partner는 id 없이 정적 문구만 쓰므로 id 필수 체크에서 예외
   if (!loader || (!id && kind !== 'partner')) return res.status(400).send('Bad Request');
 

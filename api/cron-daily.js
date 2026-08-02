@@ -72,9 +72,14 @@ export async function sendMorningBriefing(db, academyId, academy, todayStr, toda
   // (createdAt은 안 바뀜) 위 당일 범위 쿼리로는 아예 안 잡힘 — 게다가 발송 전까지 항상
   // isDraft:true라 sent 판정에도 안 걸림. DashboardView.jsx의 hasWeeklySessionToday와 동일한
   // 방식(sessions[].date가 오늘 KST 날짜인지)으로 별도 확인
+  // 원장이 발송 안 하고 방치한 오래된 주간 draft는 자동으로 정리되지 않아 이 쿼리가 매일
+  // 전체를 다시 읽는다 — createdAt range로 최근 것만 거르려면 새 복합 인덱스 배포가 필요해
+  // 위험도 대비 이득이 낮으므로, 우선 limit으로 최악의 경우 읽기량에 상한만 둔다.
+  // ponytail: 500건 캡. 학원당 방치 draft가 이 이상 누적되면 별도 정리 배치가 필요.
   const weeklySnap = await db.collection('academies').doc(academyId).collection('reports')
     .where('reportType', '==', 'weekly')
     .where('isDraft', '==', true)
+    .limit(500)
     .get();
   weeklySnap.docs.forEach(d => {
     const r = d.data();
