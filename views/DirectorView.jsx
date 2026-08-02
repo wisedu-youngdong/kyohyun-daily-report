@@ -108,9 +108,12 @@ export default function DirectorView({ reports, students, classes = [], teachers
     d.setUTCDate(d.getUTCDate() + deltaDays);
     setSelectedDate(d.toISOString().split('T')[0]);
   };
+  // toLocaleDateString은 옵션에 timeZone을 안 주면 브라우저의 로컬 타임존을 따름 — 이 앱은
+  // KST 고정이 원칙(growth.js의 kstDay 등)인데 이 화면만 그 규칙이 빠져 있었음. 원장님 기기가
+  // KST가 아니면(해외 등) 날짜가 하루 밀려 보이거나, 학부모에게 나가는 문구까지 틀릴 수 있었음.
   const fmtDateShort = (dateStr) => {
     const d = new Date(dateStr);
-    return d.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' });
+    return d.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short', timeZone: 'Asia/Seoul' });
   };
 
   const handleMemoSave = async (reportId, memo) => {
@@ -187,7 +190,10 @@ export default function DirectorView({ reports, students, classes = [], teachers
           <div style={{ background: '#F6F8FC', border: '1px solid #E6EBF4', borderLeft: '3px solid #0D2D6B', borderRadius: '14px', marginBottom: '20px', overflow: 'hidden' }}>
             <div style={{ padding: '18px 20px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: '6px' }}>
               <p style={{ fontSize: '15px', fontWeight: 700, color: '#0D2D6B', margin: 0 }}>이번 주 챙길 것 · {todoCount}건</p>
-              <span style={{ fontSize: '11px', color: '#6C7586' }}>{week.label} · 기간 설정과 무관하게 항상 이번 주</span>
+              {/* "항상 이번 주"는 미작성·질문 두 줄에만 해당 — 참여도 줄은 아래 자체 각주("최근
+                  발송 N건 이상")대로 원래부터 전체 기간 기준(표본이 적으면 판단이 흔들려서
+                  일부러 넓게 봄). 캡션이 세 줄 다 "이번 주"라고 뭉뚱그려 오해 소지가 있었음 */}
+              <span style={{ fontSize: '11px', color: '#6C7586' }}>{week.label} · 미작성·질문은 이번 주, 참여도는 최근 활동 기준</span>
             </div>
 
             {/* 이번 주 미제출 — "오늘" 뷰 KPI의 "리포트 미작성"(그 날 하루 기준)과는 다른 개념이라
@@ -215,7 +221,7 @@ export default function DirectorView({ reports, students, classes = [], teachers
                     const sourceReport = reports.find(r => r.id === q.reportId);
                     const reportDateStr = sourceReport?.createdAt?.seconds ? kstDay(sourceReport.createdAt.seconds) : null;
                     const reportLabel = sourceReport
-                      ? `${new Date(reportDateStr).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} 리포트${sourceReport.unit ? ` · ${sourceReport.unit}` : (sourceReport.textbook ? ` · ${sourceReport.textbook}` : '')}`
+                      ? `${new Date(reportDateStr).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', timeZone: 'Asia/Seoul' })} 리포트${sourceReport.unit ? ` · ${sourceReport.unit}` : (sourceReport.textbook ? ` · ${sourceReport.textbook}` : '')}`
                       : '원본 리포트를 찾을 수 없음';
                     return (
                     <div key={q.id} style={{ background: '#fff', borderRadius: '8px', padding: '10px 12px' }}>
@@ -229,7 +235,7 @@ export default function DirectorView({ reports, students, classes = [], teachers
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
                           {reportDateStr && (
                             <button onClick={() => { setView('today'); setSelectedDate(reportDateStr); }}
-                              style={{ background: 'none', border: 'none', color: T.brand, fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>
+                              style={{ background: 'none', border: 'none', color: C.primary, fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>
                               그 날짜로 이동
                             </button>
                           )}
@@ -305,7 +311,7 @@ export default function DirectorView({ reports, students, classes = [], teachers
                   {answered.map(q => {
                     const sourceReport = reports.find(r => r.id === q.reportId);
                     const reportLabel = sourceReport?.createdAt?.seconds
-                      ? `${new Date(kstDay(sourceReport.createdAt.seconds)).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} 리포트`
+                      ? `${new Date(kstDay(sourceReport.createdAt.seconds)).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', timeZone: 'Asia/Seoul' })} 리포트`
                       : '원본 리포트를 찾을 수 없음';
                     return (
                       <div key={q.id} style={{ background: '#FAFAFA', border: '0.5px solid #E8E6E0', borderRadius: '8px', padding: '10px 12px' }}>
@@ -373,7 +379,9 @@ export default function DirectorView({ reports, students, classes = [], teachers
             style={{ background: 'none', border: 'none', color: selectedDate >= todayStr ? '#D4D7DD' : '#374151', cursor: selectedDate >= todayStr ? 'not-allowed' : 'pointer', fontSize: '16px', padding: '4px 6px', fontFamily: 'inherit' }}>›</button>
           <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', marginLeft: '4px' }}>
             <style>{`.dv-date-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }`}</style>
-            <input ref={dateInputRef} type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="dv-date-input" tabIndex={-1} />
+            {/* max 없으면 옆의 "다음 날짜" 화살표(todayStr 이상이면 비활성)와 달리 달력
+                아이콘으로는 미래 날짜를 고를 수 있어, 같은 상태로 가는 두 경로의 규칙이 달랐음 */}
+            <input ref={dateInputRef} type="date" value={selectedDate} max={todayStr} onChange={e => setSelectedDate(e.target.value)} className="dv-date-input" tabIndex={-1} />
             <CalendarDays size={18} strokeWidth={2}
               role="button" tabIndex={0} aria-label="날짜 선택"
               onClick={() => dateInputRef.current?.showPicker ? dateInputRef.current.showPicker() : dateInputRef.current?.focus()}
@@ -442,8 +450,10 @@ export default function DirectorView({ reports, students, classes = [], teachers
           const goodDiag = (r.diagnosis || []).filter(d => d.key === 'perfect');
           const mainDiag = r.diagnosis?.[0];
           const borderColor = weakDiag.length > 0 ? C.errorDark : goodDiag.length > 0 ? C.successDark : '#E8E6E0';
+          // timeZone 고정 필수 — 이 값이 학부모에게 실제로 나가는 카톡 복사 텍스트에도 그대로
+          // 쓰인다(아래 dateStr 참조). 원장님 기기가 KST가 아니면 문구 날짜가 틀릴 수 있었음.
           const dateStr = r.createdAt?.seconds
-            ? new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })
+            ? new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short', timeZone: 'Asia/Seoul' })
             : '';
 
           // 열람 여부 확인
@@ -451,7 +461,7 @@ export default function DirectorView({ reports, students, classes = [], teachers
           const isViewed = views.length > 0;
           const lastView = isViewed ? views.sort((a, b) => (b.viewedAt?.seconds || 0) - (a.viewedAt?.seconds || 0))[0] : null;
           const lastViewTime = lastView?.viewedAt?.seconds
-            ? new Date(lastView.viewedAt.seconds * 1000).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+            ? new Date(lastView.viewedAt.seconds * 1000).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Seoul' })
             : '';
           const viewSrc = lastView?.src === 'kakao' ? '카카오' : lastView?.src === 'copy' ? '링크복사' : '직접';
 
@@ -463,10 +473,14 @@ export default function DirectorView({ reports, students, classes = [], teachers
             <div key={r.id} style={{ background: '#fff', border: `0.5px solid ${borderColor}`, borderRadius: '14px', overflow: 'hidden', gridColumn: isOpen ? '1 / -1' : 'auto' }}>
 
               {/* 요약 행 — 안에 종합 프로필 버튼·성장 포트폴리오 링크가 따로 있어 role="button"은
-                  안 씀(중첩 시맨틱 충돌). tabIndex+onKeyDown으로 키보드 포커스·Enter/Space만 추가 */}
+                  안 씀(중첩 시맨틱 충돌). tabIndex+onKeyDown으로 키보드 포커스·Enter/Space만 추가.
+                  중첩된 버튼/링크는 onClick에서 stopPropagation하지만 keydown은 그대로 버블링돼
+                  이 div까지 올라오므로(React 합성 이벤트는 버블 단계에서 잡힘), 키보드로 그
+                  버튼/링크에 Enter를 눌러도 의도한 동작 대신 카드가 접히기만 했음 —
+                  e.target===e.currentTarget로 이 div 자체에서 시작된 keydown만 처리하도록 제한 */}
               <div tabIndex={0} style={{ padding: '12px 14px', cursor: 'pointer' }}
                 onClick={() => setExpandedId(expandedId === r.id ? null : r.id)}
-                onKeyDown={onKeyActivate(() => setExpandedId(expandedId === r.id ? null : r.id))}>
+                onKeyDown={(e) => { if (e.target === e.currentTarget) onKeyActivate(() => setExpandedId(expandedId === r.id ? null : r.id))(e); }}>
 
                 {/* 상단: 학생명 + 열람배지 */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
@@ -486,7 +500,7 @@ export default function DirectorView({ reports, students, classes = [], teachers
                       결석 처리된 날은 평가/열람 자체가 의미가 없어서 다른 배지보다 우선 표시 */}
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', flexShrink: 0 }}>
                     {unansweredCount > 0 && (
-                      <span style={{ fontSize: '10px', fontWeight: 700, color: T.brand, background: '#EAF0F9', padding: '2px 8px', borderRadius: '10px' }}>질문 {unansweredCount}건</span>
+                      <span style={{ fontSize: '10px', fontWeight: 700, color: C.primary, background: '#EAF0F9', padding: '2px 8px', borderRadius: '10px' }}>질문 {unansweredCount}건</span>
                     )}
                     {r.attendance === '결석' ? (
                       <span style={{ fontSize: '10px', fontWeight: 700, color: C.errorDark, background: C.errorBg, padding: '2px 8px', borderRadius: '10px' }}>결석</span>
@@ -531,7 +545,7 @@ export default function DirectorView({ reports, students, classes = [], teachers
                         서랍을 한 번 더 거치지 않고 깊은 화면으로 바로 보내는 게 더 맞음 */}
                     <button
                       onClick={(e) => { e.stopPropagation(); onOpenStudentProfile?.(r.studentId); }}
-                      style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 700, background: '#EAF0F9', color: T.brand, border: `1px solid ${T.brand}`, borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                      style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 700, background: '#EAF0F9', color: C.primary, border: `1px solid ${C.primary}`, borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0 }}>
                       종합 프로필
                     </button>
                     {/* 원장분석에서 성장 포트폴리오로 갈 방법이 없었음 — 성장 대시보드/학생관리
@@ -589,7 +603,7 @@ export default function DirectorView({ reports, students, classes = [], teachers
                   {/* 다음 수업 계획 */}
                   {r.nextPlan && (
                     <div style={{ marginBottom: '12px', padding: '8px 12px', background: '#EAF0F9', borderRadius: '8px' }}>
-                      <p style={{ fontSize: '11px', color: T.brand, fontWeight: 600, margin: '0 0 3px', letterSpacing: '0.06em' }}>다음 수업 계획</p>
+                      <p style={{ fontSize: '11px', color: C.primary, fontWeight: 600, margin: '0 0 3px', letterSpacing: '0.06em' }}>다음 수업 계획</p>
                       <p style={{ fontSize: '12px', fontWeight: 600, color: '#0D2D6B', margin: 0 }}>{r.nextPlan}{r.nextPlanDetail ? ` · ${r.nextPlanDetail}` : ''}</p>
                     </div>
                   )}
@@ -666,7 +680,7 @@ export default function DirectorView({ reports, students, classes = [], teachers
                     <p style={{ fontSize: '11px', color: T.textMute, fontWeight: 600, margin: '0 0 7px', letterSpacing: '0.06em' }}>학부모 전송 미리보기</p>
                     {/* 미리보기 카드 */}
                     <div style={{ background: '#F5F8FF', border: '1px solid #C5D5F0', borderRadius: '10px', padding: '12px 14px', marginBottom: '8px' }}>
-                      <p style={{ fontSize: '11px', color: T.brand, fontWeight: 700, margin: '0 0 6px' }}>📋 {academyName || '데일리 리포트'} 수업 리포트</p>
+                      <p style={{ fontSize: '11px', color: C.primary, fontWeight: 700, margin: '0 0 6px' }}>📋 {academyName || '데일리 리포트'} 수업 리포트</p>
                       <p style={{ fontSize: '13px', fontWeight: 800, color: '#0D2D6B', margin: '0 0 4px' }}>{r.studentName} 학생 · {dateStr}</p>
                       <div style={{ display: 'flex', gap: '10px', margin: '0 0 6px', flexWrap: 'wrap' }}>
                         {r.homeworkRating != null && <span style={{ fontSize: '11px', color: '#5A6472' }}>과제 {toPct(r.homeworkRating)}%</span>}
