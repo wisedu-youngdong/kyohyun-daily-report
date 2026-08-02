@@ -19,7 +19,7 @@ const FIELD_RULES = {
   returning: {
     chapter1: 'chapter1(도전의 시작): 위 데이터에서 이 학생이 처음 맞섰던 실제 단원명을 1회 이상 그대로 인용해, 그 단원에서 맞서온 구체적인 약점과 극복 의지를 2문장으로. "첫 수업" 언급 금지. AI냄새 금지.',
     chapter2: 'chapter2(변화): 이 학생의 초기 약점 단원을 언급하며, 그 약점이 위 데이터의 가장 최근 단원(실제 단원명·점수 인용)에서 오답 개수·점수 같은 구체적 수치로 어떻게 나아졌는지만 담담하게 2문장으로. "논리적 훈련", "체계 완성", "사고력" 같은 추상적 인과관계 서술 금지 — 관찰된 수치 변화만 쓸 것. 두 단원명이 반드시 서로 달라야 함.',
-    teacherWord: 'teacherWord: 반드시 이 구조를 따를 것 — "[수업 기간/횟수] 동안 [구체적 지표: 단원명·정답률·점수 등]가 [구체적 수치]로 변화했다 → [그 변화가 학부모 입장에서 뭘 의미하는지 담담히] → [그래서 앞으로 이렇게 지도하겠다]". 위 데이터에 나온 실제 수치·단원명을 최소 2개 인용. "고집"/"끈기"/"집요함" 같은 성격 형용사는 그 자체로 쓰지 말 것 — 정 필요하면 방금 인용한 구체적 수치 바로 뒤에만("OO단원 정답률이 X%에서 Y%로 오른 데서 보이듯" 식으로) 붙일 것. 담담하고 구체적으로, 가벼운 칭찬 금지. 2~3문장.',
+    teacherWord: 'teacherWord: 반드시 이 순서로 자연스러운 문장을 이어 쓸 것(순서 설명이지 그대로 옮겨 적을 서식이 아님 — 대괄호나 화살표 같은 구조 기호는 절대 출력하지 말 것) — 먼저 수업 기간이나 횟수를 언급하고, 그 동안 구체적 지표(단원명·정답률·점수 등)가 어떤 수치로 변화했는지 짚은 뒤, 그 변화가 학부모 입장에서 뭘 의미하는지 담담히 해석하고, 마지막으로 앞으로 어떻게 지도할지 이어 쓸 것. 위 데이터에 나온 실제 수치·단원명을 최소 2개 인용. "고집"/"끈기"/"집요함" 같은 성격 형용사는 그 자체로 쓰지 말 것 — 정 필요하면 방금 인용한 구체적 수치 바로 뒤에만("OO단원 정답률이 X%에서 Y%로 오른 데서 보이듯" 식으로) 붙일 것. 담담하고 구체적으로, 가벼운 칭찬 금지. 2~3문장.',
     nextChapter: 'nextChapter: 다음 극복 과제 1문장. 위 데이터에 나온 실제 단원명/유형 포함.',
   },
 };
@@ -50,6 +50,13 @@ async function callGemini(prompt, maxOutputTokens) {
   const text = textPart?.text || parts.map(p => p.text || '').join('');
   if (!text) throw new Error('응답 없음');
   return text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+}
+
+// FIELD_RULES 프롬프트가 구조 설명용으로 "[구체적 지표]" 같은 대괄호 placeholder를 예시로 쓰다 보니,
+// 모델이 가끔 그 대괄호 서식을 그대로 옮겨 적어서 학부모 화면에 "[...]"가 그대로 노출된 적 있음.
+// 프롬프트에서 대괄호 예시를 없앴지만, 재발 방지용으로 최종 응답에도 남아있는지 방어적으로 확인.
+function hasLeakedPlaceholder(text) {
+  return /\[[^[\]]{2,30}\]/.test(String(text || ''));
 }
 
 export default async function handler(req, res) {
@@ -119,6 +126,10 @@ JSON만 반환 (코드블록 없이, 순수 JSON만): {"text":"..."}`;
         console.error(`항목별 재생성(${field}) 파싱 실패. 응답 앞 300자:`, cleaned.slice(0, 300));
         return res.status(500).json({ error: '응답이 잘렸거나 형식이 맞지 않습니다. 다시 시도해주세요.' });
       }
+      if (hasLeakedPlaceholder(text)) {
+        console.error(`항목별 재생성(${field}) 대괄호 placeholder 누출:`, text);
+        return res.status(500).json({ error: '생성 결과에 형식 오류가 있습니다. 다시 시도해주세요.' });
+      }
       return res.status(200).json({ text });
     } catch (e) {
       return res.status(500).json({ error: e.message });
@@ -150,7 +161,7 @@ JSON만 반환 (코드블록 없이, 순수 JSON만): {"chapter1":"...","chapter
       });
       return result;
     };
-    const isComplete = (obj) => REQUIRED_FIELDS.every(k => obj[k]);
+    const isComplete = (obj) => REQUIRED_FIELDS.every(k => obj[k] && !hasLeakedPlaceholder(obj[k]));
 
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
