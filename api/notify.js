@@ -107,12 +107,12 @@ async function handleQuestionNotify(req, res, db) {
   }
   const directorEmail = snap.docs[0].data().email;
 
-  const ok = await sendViaResend({
+  await sendViaResend({
     to: directorEmail,
     subject: `[데일리 리포트 시스템] ${studentName} 리포트에 질문이 왔어요`,
     html: buildQuestionEmailHtml({ studentName, questionText }),
   });
-  res.status(200).json({ ok: true, notified: ok });
+  res.status(200).json({ ok: true, notified: true });
 }
 
 async function handleNewSignupNotify(req, res, db) {
@@ -144,7 +144,7 @@ async function handleNewSignupNotify(req, res, db) {
     return res.status(200).json({ ok: true, notified: false });
   }
 
-  const ok = await sendViaResend({
+  await sendViaResend({
     to: adminEmails,
     subject: `[데일리 리포트 시스템] 새 가입 신청 — ${data.academyName || '학원'}`,
     html: buildNewSignupRequestEmailHtml({
@@ -152,7 +152,7 @@ async function handleNewSignupNotify(req, res, db) {
       directorName: data.directorName || '', phone: data.phone || '',
     }),
   });
-  res.status(200).json({ ok: true, notified: ok });
+  res.status(200).json({ ok: true, notified: true });
 }
 
 async function handleSignupDecisionNotify(req, res, db, type) {
@@ -175,8 +175,8 @@ async function handleSignupDecisionNotify(req, res, db, type) {
     ? '[데일리 리포트 시스템] 가입 신청이 승인됐어요'
     : '[데일리 리포트 시스템] 가입 신청 검토 결과 안내';
 
-  const ok = await sendViaResend({ to: email, subject, html });
-  res.status(200).json({ ok: true, notified: ok });
+  await sendViaResend({ to: email, subject, html });
+  res.status(200).json({ ok: true, notified: true });
 }
 
 export default async function handler(req, res) {

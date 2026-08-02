@@ -69,7 +69,7 @@ export async function sendViaResend({ to, subject, html }) {
   if (!resendRes.ok) {
     const errText = await resendRes.text();
     console.error('Resend 발송 실패:', resendRes.status, errText.slice(0, 300));
-    return false;
+    throw new Error(`Resend 발송 실패: ${resendRes.status}`);
   }
   return true;
 }
