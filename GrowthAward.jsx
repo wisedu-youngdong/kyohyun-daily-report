@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { db } from './firebase';
 import { collection, getDoc, getDocs, query, where, doc, limit } from 'firebase/firestore';
 import { useMediaQuery } from './hooks.js';
-import { toPct, fetchAcademyBranding } from './growth.js';
+import { toPct, fetchAcademyBranding, flattenReportsForAnalysis } from './growth.js';
 import { R } from './tokens.jsx';
 
 export default function GrowthAward() {
@@ -31,10 +31,14 @@ export default function GrowthAward() {
         const rSnap = await getDocs(query(collection(db, 'academies', academyId, 'reports'), where('studentId', '==', studentId), limit(200)));
         // isDraft !== true — 필드 자체가 없는 예전 리포트까지 제외되는 걸 막기 위해 클라이언트에서 거름
         // (Firestore where('isDraft','==',false)는 필드 없는 문서를 통째로 제외해버림)
-        const rList = rSnap.docs
-          .map(d => ({ id: d.id, ...d.data() }))
-          .filter(r => r.isDraft !== true)
-          .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+        // 주간형 리포트는 최상위에 attendance/conceptRating/homeworkRating/testScore가 없어서
+        // (세션마다 달라 대표값이 없음), 아래 통계 전부가 주간형 학생만 "—"로 비어 보이는 문제가
+        // 있었음 — AnalysisView.jsx/GrowthDashboard.jsx와 동일하게 세션 단위로 펼쳐서 해결.
+        const rList = flattenReportsForAnalysis(
+          rSnap.docs
+            .map(d => ({ id: d.id, ...d.data() }))
+            .filter(r => r.isDraft !== true)
+        ).sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
         setReports(rList);
       } catch (e) {
         console.error(e);
@@ -61,10 +65,11 @@ export default function GrowthAward() {
   const hwAvg = hwRated.length > 0
     ? Math.round(hwRated.reduce((s, r) => s + r.homeworkRating, 0) / hwRated.length)
     : null;
-  const allAttended = sorted.length > 0 && sorted.every(r => r.attendance === '출석');
+  // 실제 출결 값은 '정시'/'지각'/'결석'/'조퇴'(growth.js ATTENDANCE_POINTS 참고) — 존재하지 않는
+  // '출석' 값과 비교하고 있어서 "전 회 출석" 배지가 항상 표시되지 않는 죽은 코드였음.
+  // 지각/조퇴도 결석은 아니므로("전 회 출석"은 무결석을 의미), 결석이 아닌지로 판정.
+  const allAttended = sorted.length > 0 && sorted.every(r => r.attendance != null && r.attendance !== '결석');
   const bestReport = [...sorted].sort((a, b) => (b.conceptRating || 0) - (a.conceptRating || 0))[0];
-  const rawTeacherName = sorted[sorted.length - 1]?.teacherName || '';
-  const teacherName = rawTeacherName ? rawTeacherName.replace(/선생님?$/, '').trim() + ' 선생님' : '담당 교사';
 
   // 마일스톤
   const milestones = [];
@@ -186,14 +191,15 @@ export default function GrowthAward() {
           ))}
         </div>
 
-        {/* 인용구 */}
+        {/* 성장 메시지 — 실제로 선생님이 이 문장을 말한 적은 없으므로(모든 학생에게 동일하게
+            노출되는 고정 문구), 특정 선생님이 직접 한 말처럼 보이는 따옴표 장식·개인 서명을
+            빼고 학원 명의로 정직하게 표기 */}
         <div style={{ textAlign: 'center', marginBottom: '48px', padding: '0 20px' }}>
-          <p style={{ fontSize: 'clamp(16px, 2.5vw, 26px)', color: '#fff', lineHeight: 1.8, fontWeight: 500, wordBreak: 'keep-all', position: 'relative', display: 'inline-block' }}>
-            <span style={{ position: 'absolute', top: '-20px', left: '-20px', fontSize: '60px', color: 'rgba(201,162,39,0.12)', fontFamily: 'Georgia, serif', lineHeight: 1 }}>"</span>
+          <p style={{ fontSize: 'clamp(16px, 2.5vw, 26px)', color: '#fff', lineHeight: 1.8, fontWeight: 500, wordBreak: 'keep-all' }}>
             {student.name}이(가) 바뀐 건 점수가 아닙니다.<br />
             <span style={{ color: R.gold, fontWeight: 700 }}>문제를 스스로 바라보는 시선</span>이 바뀌었습니다.
           </p>
-          <p style={{ fontSize: 'clamp(11px, 1.5vw, 14px)', color: 'rgba(255,255,255,0.5)', marginTop: '16px', letterSpacing: '0.06em' }}>— {teacherName}</p>
+          <p style={{ fontSize: 'clamp(11px, 1.5vw, 14px)', color: 'rgba(255,255,255,0.5)', marginTop: '16px', letterSpacing: '0.06em' }}>— {academyName || '데일리 리포트 시스템'} 드림</p>
         </div>
 
         {/* 푸터 */}
