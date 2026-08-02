@@ -16,7 +16,7 @@ import {
   FileText, Sparkles, Send, Plus, X, Check,
   UserPlus, GraduationCap, Info, Star, AlertTriangle, Palette
 } from 'lucide-react';
-import { C, R, RADIUS2, TYPE, SHADOW, textSafeColor, deriveSkinColors } from './tokens.jsx';
+import { C, R, RADIUS2, TYPE, SHADOW, deriveSkinColors } from './tokens.jsx';
 import { resolveBookSections } from './photoSections.js';
 import { calculateReportPoints, toPct, ratingLabel, kstDay, kstWeekday, getKstWeekRange, isReportSent } from './growth.js';
 import { DIAG_LABELS as diagLabels, WRONG_TAGS, WRONG_TAG_LABELS } from './diagnosis.js';
@@ -311,7 +311,7 @@ function PhotoBoxOverlay({ src, items, onToggle }) {
         style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '4px', display: 'block' }} />
       {rect && items.map((item) => {
         const [ymin, xmin, ymax, xmax] = item.box_2d;
-        const boxColor = item.status === 'wrong' ? '#E53E3E' : '#009652';
+        const boxColor = item.status === 'wrong' ? TOKENS.errorBorder : TOKENS.success;
         return (
           <div key={item.key} onClick={(e) => { e.stopPropagation(); onToggle(item); }}
             title={`${item.number}번 · 클릭하면 ${item.sourceType === 'calculation' ? '결과에서 제외' : '정답⇄오답 전환'}`}
@@ -720,6 +720,10 @@ export default function DiagnosticReportInput({
   // 새 탭 대신 앱 안에서 원본 크기로 보여주는 라이트박스로 대체
   const [zoomedPhoto, setZoomedPhoto] = useState(null); // { src, photoIndex } | null — photoIndex는 박스 오버레이가 그 사진에 해당하는 항목만 골라내는 데 씀
   useEscapeClose(() => setZoomedPhoto(null), !!zoomedPhoto);
+  // 같은 파일의 AlertModal/단원표 오버레이는 다 있는 focus trap이 이 라이트박스만 빠져 있어서
+  // Tab이 배경 페이지로 빠져나갈 수 있었음
+  const zoomedPhotoRef = React.useRef(null);
+  useFocusTrap(zoomedPhotoRef, !!zoomedPhoto);
   // AI가 문항별로 무엇을 보고 어떻게 판단했는지(rawObservations) — 평소엔 접어두고, 결과가
   // 이상할 때(예: 문항이 빠짐) 펼쳐서 AI가 그 번호를 아예 검토했는지, 왜 뺐는지 바로 확인용
   const [showRawObservations, setShowRawObservations] = useState(false);
@@ -1515,6 +1519,27 @@ export default function DiagnosticReportInput({
     const patch = customFromPointer(e, 'hue');
     setCustomHsv(prev => ({ ...prev, [customTarget]: { ...prev[customTarget], ...patch } }));
   };
+  // 키보드 접근성 — 방향키로 채도/명도(사각형), 색상(슬라이더) 조정. Shift로 큰 폭 이동
+  const customStepSv = (e) => {
+    const step = e.shiftKey ? 0.1 : 0.02;
+    let { s, v } = customActiveHsv;
+    if (e.key === 'ArrowRight') s = Math.min(1, s + step);
+    else if (e.key === 'ArrowLeft') s = Math.max(0, s - step);
+    else if (e.key === 'ArrowUp') v = Math.min(1, v + step);
+    else if (e.key === 'ArrowDown') v = Math.max(0, v - step);
+    else return;
+    e.preventDefault();
+    setCustomHsv(prev => ({ ...prev, [customTarget]: { ...prev[customTarget], s, v } }));
+  };
+  const customStepHue = (e) => {
+    const step = e.shiftKey ? 20 : 5;
+    let h = customActiveHsv.h;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') h = Math.min(360, h + step);
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') h = Math.max(0, h - step);
+    else return;
+    e.preventDefault();
+    setCustomHsv(prev => ({ ...prev, [customTarget]: { ...prev[customTarget], h } }));
+  };
 
   // 토스트 색상 — 화면 전역에서 쓰는 TOKENS 성공/실패/경고 어휘와 통일
   const toastColors = {
@@ -1532,7 +1557,7 @@ export default function DiagnosticReportInput({
       {/* 사진 확대 보기 — 새 탭 대신 앱 안 라이트박스(위 zoomedPhoto 참고). AI가 인식한 문항
           위치를 박스로 겹쳐 보여줘서, 텍스트 카드 대신 실제 사진과 바로 대조 확인할 수 있게 함 */}
       {zoomedPhoto && (
-        <div role="dialog" aria-modal="true" onClick={() => setZoomedPhoto(null)}
+        <div ref={zoomedPhotoRef} role="dialog" aria-modal="true" onClick={() => setZoomedPhoto(null)}
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
           {/* width/height:100% + objectFit:contain — maxWidth/maxHeight만 쓰면 원본이 뷰포트보다
               작을 때(예: 압축된 사진) 늘어나지 않고 원래 크기 그대로 작게 떠서 확대한 의미가 없어짐 */}
@@ -1935,7 +1960,7 @@ export default function DiagnosticReportInput({
                         <div style={{ padding: '16px 18px 0' }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                             <p style={{ fontSize: '14px', fontWeight: 800, margin: 0 }}>표준 단원표에서 찾기</p>
-                            <button type="button" onClick={() => setUnitPickerOpen(false)}
+                            <button type="button" onClick={() => setUnitPickerOpen(false)} aria-label="닫기"
                               style={{ width: '36px', height: '36px', border: 'none', background: 'none', color: '#9AA0AA', fontSize: '20px', cursor: 'pointer', borderRadius: '8px' }}>✕</button>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', border: `1.5px solid ${TOKENS.brand}`, borderRadius: '10px', padding: '9px 12px', marginBottom: '12px' }}>
@@ -2226,7 +2251,7 @@ export default function DiagnosticReportInput({
                           <div className="fallback-label" style={{ display: 'none' }} />
                           <span style={{ position: 'absolute', bottom: '4px', left: '4px', background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: `${RADIUS2.badge}px` }}>{i + 1}</span>
                           {!analyzingPhoto && (
-                            <button onClick={() => removeOnePhoto(i)} title="사진 삭제" style={{
+                            <button onClick={() => removeOnePhoto(i)} title="사진 삭제" aria-label="사진 삭제" style={{
                               position: 'absolute', top: '2px', right: '2px', background: 'rgba(0,0,0,0.55)',
                               border: 'none', borderRadius: '50%', width: '32px', height: '32px', color: '#fff', cursor: 'pointer',
                               display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent'
@@ -2313,9 +2338,9 @@ export default function DiagnosticReportInput({
                         const matches = (w) => w.number === item.number && w.sectionIdx === item.sectionIdx;
                         return (
                           <div key={`${item.sectionIdx ?? 'x'}-${item.number ?? idx}`} style={{
-                            border: item.confidence === 'low' ? `1px solid ${TOKENS.warnBorder}` : `1px solid ${C.danger}30`,
+                            border: item.confidence === 'low' ? `1px solid ${TOKENS.warnBorder}` : `1px solid ${TOKENS.errorBorder}30`,
                             borderRadius: `${RADIUS2.thumbnail}px`, padding: '14px',
-                            background: item.confidence === 'low' ? TOKENS.warnBg : C.dangerBg,
+                            background: item.confidence === 'low' ? TOKENS.warnBg : TOKENS.errorBg,
                           }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
                               <span style={{ background: TOKENS.errorBorder, color: '#fff', fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px' }}>
@@ -2324,12 +2349,12 @@ export default function DiagnosticReportInput({
                               <span style={{ fontSize: '11px', color: TOKENS.textSub, flex: '1 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.type}</span>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto', flexShrink: 0 }}>
                                 {item.correctRate && (
-                                  <span style={{ fontSize: '10px', color: C.danger, fontWeight: 600 }}>
+                                  <span style={{ fontSize: '10px', color: TOKENS.error, fontWeight: 600 }}>
                                     정답률 {item.correctRate}
                                   </span>
                                 )}
                                 <button type="button" onClick={() => removeAnalyzedItem(item.sectionIdx, item.number)}
-                                  title="이 문항 결과에서 제외"
+                                  title="이 문항 결과에서 제외" aria-label="이 문항 결과에서 제외"
                                   style={{
                                     flexShrink: 0, width: '22px', height: '22px', borderRadius: '6px',
                                     border: `1px solid ${TOKENS.errorBorder}40`, background: 'transparent', color: TOKENS.errorBorder,
@@ -2612,7 +2637,7 @@ export default function DiagnosticReportInput({
                                   )}
                                 </div>
                                 <button type="button" onClick={() => removeAnalyzedItem(si, p.number)}
-                                  title="이 문항 결과에서 제외"
+                                  title="이 문항 결과에서 제외" aria-label="이 문항 결과에서 제외"
                                   style={{
                                     marginLeft: 'auto', flexShrink: 0, width: '28px', height: '28px', borderRadius: '8px',
                                     border: `1px solid ${TOKENS.border}`, background: 'transparent', color: TOKENS.textMute,
@@ -2680,7 +2705,7 @@ export default function DiagnosticReportInput({
                                           {p.note && <span style={{ display: 'block', color: TOKENS.textSub }}>{p.note}</span>}
                                         </p>
                                         <button type="button" onClick={() => removeAnalyzedItem(si, p.number)}
-                                          title="이 문항 결과에서 제외"
+                                          title="이 문항 결과에서 제외" aria-label="이 문항 결과에서 제외"
                                           style={{
                                             flexShrink: 0, width: '22px', height: '22px', borderRadius: '6px',
                                             border: `1px solid ${TOKENS.border}`, background: 'transparent', color: TOKENS.textMute,
@@ -2877,10 +2902,10 @@ export default function DiagnosticReportInput({
                     {selectedTags.map((tag, idx) => {
                       const tagDef = DIAGNOSIS_TAGS.find(t => t.key === tag.key);
                       return (
-                        <div key={idx} style={{ background: '#fff', borderRadius: `${RADIUS2.thumbnail}px`, padding: '14px' }}>
+                        <div key={tag.key} style={{ background: '#fff', borderRadius: `${RADIUS2.thumbnail}px`, padding: '14px' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                             <span style={tagStyle(tagDef.color, true)}>{tagDef.label}</span>
-                            <button onClick={() => toggleTag(tag.key)} title="태그 제거" style={{ background: 'none', border: 'none', color: TOKENS.textMute, cursor: 'pointer', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}><X size={14} /></button>
+                            <button onClick={() => toggleTag(tag.key)} title="태그 제거" aria-label="태그 제거" style={{ background: 'none', border: 'none', color: TOKENS.textMute, cursor: 'pointer', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}><X size={14} /></button>
                           </div>
                           <div style={{ display: 'flex', gap: '5px', marginBottom: '5px' }}>
                             <input value={tag.unit} onChange={(e) => updateTagDetail(idx, 'unit', e.target.value)} placeholder="단원 (예: 4단원)" style={{ ...inputStyle, fontSize: '16px', padding: '6px 10px', minWidth: 0 }} />
@@ -3076,6 +3101,8 @@ export default function DiagnosticReportInput({
                 <div
                   onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); customPickSv(e); }}
                   onPointerMove={(e) => { if (e.buttons === 1) customPickSv(e); }}
+                  onKeyDown={customStepSv}
+                  tabIndex={0} role="slider" aria-label="채도·명도" aria-valuetext={`채도 ${Math.round(customActiveHsv.s * 100)}%, 명도 ${Math.round(customActiveHsv.v * 100)}%`}
                   style={{
                     position: 'relative', width: '100%', height: '132px', borderRadius: '10px', cursor: 'crosshair',
                     backgroundColor: customHueHex,
@@ -3092,6 +3119,8 @@ export default function DiagnosticReportInput({
                 <div
                   onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); customPickHue(e); }}
                   onPointerMove={(e) => { if (e.buttons === 1) customPickHue(e); }}
+                  onKeyDown={customStepHue}
+                  tabIndex={0} role="slider" aria-label="색상" aria-valuemin={0} aria-valuemax={360} aria-valuenow={Math.round(customActiveHsv.h)}
                   style={{
                     position: 'relative', width: '100%', height: '16px', borderRadius: '8px', cursor: 'pointer',
                     background: 'linear-gradient(to right, #f00 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00 100%)',
@@ -3117,14 +3146,13 @@ export default function DiagnosticReportInput({
             homeworkRating={homeworkRating} conceptRating={conceptRating}
             hasTest={hasTest} testName={testName} testScore={testScore}
             textbook={textbook} unit={unit} pages={pages}
-            diagnosis={selectedTags}
             teacherNote={aiPolishedNote || teacherNote}
             summary={summary}
             wrongItems={wrongItems}
             nextPlan={nextPlan} nextPlanDetail={nextPlanDetail}
             skin={selectedSkin === 'custom' ? { key: 'custom', main: customPrimaryHex, accent: customAccentHex }
               : selectedSkin === 'global' && globalSkin ? globalSkin : SKINS[selectedSkin] || SKINS.navy}
-            academyName={academyName} academyPhone={academyPhone}
+            academyName={academyName}
           />
         </div>
       </div>
@@ -3178,7 +3206,7 @@ export function deriveColorsToSkin(mainHex) {
 // 레이아웃은 무관) — 지금은 PublicReport와 동일한 레터헤드 구조에 skin.main/accent로 색만
 // 입힌다. PublicReport에 없는 기능(아바타 등)은 미리보기에서도 뺐다 — 안 그러면 반대로
 // "미리보기엔 있는데 실제론 없는" 거짓말이 생김.
-function ParentCard({ student, teacher, attendance, arrivalTime, departureTime, homeworkRating, conceptRating, hasTest, testName, testScore, textbook, unit, pages, diagnosis, teacherNote, summary, wrongItems, nextPlan, nextPlanDetail, skin, academyName = null, academyPhone = null }) {
+function ParentCard({ student, teacher, attendance, arrivalTime, departureTime, homeworkRating, conceptRating, hasTest, testName, testScore, textbook, unit, pages, teacherNote, summary, wrongItems, nextPlan, nextPlanDetail, skin, academyName = null }) {
   const [noteOpen, setNoteOpen] = React.useState(false);
   const today = new Date();
   const dateStr = `${today.getMonth() + 1}월 ${today.getDate()}일 (${'일월화수목금토'[today.getDay()]})`;
