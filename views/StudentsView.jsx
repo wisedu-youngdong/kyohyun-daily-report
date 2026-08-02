@@ -7,8 +7,13 @@ import { AVATARS, onKeyActivate } from './shared.jsx';
 import { StudentProfileModal, StudentProfileContent } from './StudentProfileModal.jsx';
 import { useMediaQuery } from '../hooks.js';
 
+// xlsx 파싱 라이브러리를 물고 있어서, 안 쓰는 사람은 번들에서 빠지게 지연 로드
+// (UsageMonitoring.jsx의 recharts와 같은 패턴)
+const BulkStudentImport = React.lazy(() => import('./BulkStudentImport.jsx'));
+
 export default function StudentsView({ students, reports, reviews = [], onSave, onDelete, onRestore, teachers = [], classes = [], currentTeacherId = null, isDirector = false, onToast, academyName = null, onEditReviewNote }) {
   const [showAddStudent, setShowAddStudent] = useState(false);
+  const [showBulkImport, setShowBulkImport] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
   const [profileStudent, setProfileStudent] = useState(null);
@@ -190,6 +195,12 @@ export default function StudentsView({ students, reports, reviews = [], onSave, 
             {showArchived ? '← 현재 학생' : `보관함 ${archivedCount}`}
           </button>
         )}
+        {!showArchived && isDirector && (
+          <button onClick={() => setShowBulkImport(true)}
+            style={{ background: '#fff', color: C.primary, border: `1px solid ${C.primary}`, borderRadius: '9px', padding: '8px 12px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+            엑셀로 일괄 등록
+          </button>
+        )}
         {!showArchived && (
           <button onClick={() => setShowAddStudent(true)}
             style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: '9px', padding: '8px 14px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -254,6 +265,21 @@ export default function StudentsView({ students, reports, reviews = [], onSave, 
           academyName={academyName}
           onEditReviewNote={onEditReviewNote}
         />
+      )}
+
+      {/* 학생 일괄 등록 — 엑셀 양식 다운로드 → 업로드 → 미리보기 → 기존 handleSaveStudent를
+          행마다 반복 호출(신규 등록과 완전히 같은 저장 경로, 별도 배치 로직 안 만듦) */}
+      {showBulkImport && (
+        <React.Suspense fallback={null}>
+          <BulkStudentImport
+            classes={classes} teachers={teachers} onToast={onToast}
+            onClose={() => setShowBulkImport(false)}
+            onSave={async (newStudent) => {
+              const assignedTeacherId = newStudent.assignedTeacherId || (isDirector ? '' : currentTeacherId || '');
+              await onSave({ ...newStudent, assignedTeacherId });
+            }}
+          />
+        </React.Suspense>
       )}
 
       {/* 학생 등록 모달 — 리포트 작성 화면과 동일한 컴포넌트 재사용 */}
