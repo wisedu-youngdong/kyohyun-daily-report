@@ -742,7 +742,10 @@ export function StudentDetailPanel({ studentList, currentId, onSelect, onClose, 
 
   return (
     <>
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 199 }} />
+      {/* 0.4 알파로는 이 앱의 밝은 톤(흰 배경+파스텔) 위에서 "배경이 비활성화됐다"는 느낌이
+          잘 안 나서(실사용 피드백 — 왼쪽 화면이 그대로 열려있는 것처럼 보임), 기존
+          StudentProfileModal(620px 중앙 모달)의 blur 처리를 여기도 맞춤 */}
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(3px)', zIndex: 199 }} />
       <div ref={panelRef} role="dialog" aria-modal="true" style={isMobile
         ? { position: 'fixed', left: 0, right: 0, bottom: 0, maxHeight: '88vh', width: '100%', background: '#fff', borderTopLeftRadius: '16px', borderTopRightRadius: '16px', overflowY: 'auto', zIndex: 200, boxShadow: '0 -4px 20px rgba(0,0,0,0.12)' }
         : { position: 'fixed', top: 0, right: 0, bottom: 0, width: '420px', background: '#fff', borderLeft: '0.5px solid #E8E6E0', overflowY: 'auto', zIndex: 200, boxShadow: '-4px 0 20px rgba(0,0,0,0.08)' }
