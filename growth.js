@@ -60,6 +60,30 @@ export function isReportSent(r) {
   return !!(r?.teacherNote && r.teacherNote.trim()) && !r?.isDraft;
 }
 
+// 주간형(reportType==='weekly') 리포트는 문서 1개 안에 여러 날짜의 sessions[]가 들어있고,
+// homeworkRating/conceptRating/attendance/hasTest/testScore 같은 값은 세션마다 따로 있어서
+// 최상위 필드엔 아예 없다("대표값이 없어서"). "리포트 문서 1개 = 하루치 기록 1개"를 전제로
+// 최상위 필드만 읽는 집계 로직(평균·차트·추세 등)에 주간 리포트를 그대로 섞으면, 있는 데이터를
+// 놓고도 없는 것처럼 0%/빈 값으로 나온다 — 예를 들어 AnalysisView.jsx가 이 문제를 겪었음.
+// 매일형은 그대로 두고, 주간형만 세션 하나하나를 리포트 하나처럼 펼쳐서 나머지 집계 로직이
+// 수정 없이 그대로 처리할 수 있게 한다(StudentProfileModal.jsx의 WeeklySummaryCard가 이미
+// 쓰던 방식을 공용화 — 새로 만든 로직 아님).
+export function flattenReportsForAnalysis(reports) {
+  return reports.flatMap(r => {
+    if (r.reportType !== 'weekly') return [r];
+    return (r.sessions || []).map(s => ({
+      ...s,
+      id: `${r.id}-${s.date}`,
+      studentId: r.studentId,
+      teacherName: r.teacherName,
+      teacherId: r.teacherId,
+      isDraft: r.isDraft,
+      reportType: 'weekly',
+      createdAt: { seconds: Math.floor(new Date(`${s.date}T00:00:00+09:00`).getTime() / 1000) },
+    }));
+  });
+}
+
 // 과제/개념 평가 척도 변환 — 구 리포트(1~5)와 신규 리포트(0~100, 10단위)가 섞여 있음.
 // 구 값은 항상 1~5, 신규 값은 항상 0 또는 10의 배수라 겹치지 않으므로 안전하게 구분 가능.
 export function toPct(rating) {

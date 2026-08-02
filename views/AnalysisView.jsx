@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend
 } from 'recharts';
-import { toPct, kstDay, getKstWeekRange } from '../growth.js';
+import { toPct, kstDay, getKstWeekRange, flattenReportsForAnalysis } from '../growth.js';
 import { findUnitKey } from '../curriculum.js';
 import { DIAG_LABELS as TAG_LABELS, DIAG_SOFT as DIAG_SOFT_COLORS, WRONG_TAGS } from '../diagnosis.js';
 import { T, C, RADIUS2 } from '../tokens.jsx';
@@ -170,8 +170,11 @@ function InsightCard({ reports }) {
 export default function AnalysisView({ students, reports }) {
   const [selectedId, setSelectedId] = useState('');
   // 초안(isDraft)은 아직 학부모에게 발송되지 않은 미완성 리포트라 통계에서 제외 —
-  // 안 하면 발송 80% + 초안 60% 같은 값이 섞여 평균이 실제보다 낮게 나옴(DirectorView와 동일 기준)
-  const studentReports = reports.filter(r => r.studentId === selectedId && !r.isDraft);
+  // 안 하면 발송 80% + 초안 60% 같은 값이 섞여 평균이 실제보다 낮게 나옴(DirectorView와 동일 기준).
+  // 주간형 리포트는 flattenReportsForAnalysis가 세션 단위로 펼쳐줘서, 아래 모든 집계(평균·차트·
+  // 인사이트·단원별 통계)가 매일형과 똑같은 방식으로 그대로 처리된다 — 예전엔 최상위
+  // homeworkRating/conceptRating/attendance가 주간형엔 아예 없어서 전부 "0%"로 잘못 표시됐음.
+  const studentReports = flattenReportsForAnalysis(reports.filter(r => r.studentId === selectedId && !r.isDraft));
 
   // ── 기간 설정 (월간 고정 버튼 + 커스텀 기간) ──
   const [periodMode, setPeriodMode] = useState('all'); // all | thisMonth | lastMonth | custom

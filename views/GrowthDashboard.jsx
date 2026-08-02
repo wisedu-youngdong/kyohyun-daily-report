@@ -1,5 +1,5 @@
 import React from 'react';
-import { toPct, kstDay, kstWeekday } from '../growth.js';
+import { toPct, kstDay, kstWeekday, flattenReportsForAnalysis } from '../growth.js';
 import { useMediaQuery } from '../hooks.js';
 import { C } from '../tokens.jsx';
 import { onKeyActivate } from './shared.jsx';
@@ -38,18 +38,24 @@ export default function GrowthDashboard({ reports, students, period, classes = [
 
   const PERIODS = { week: 7, month: 30, '3month': 90 };
 
+  // 주간형 리포트는 최상위 conceptRating/homeworkRating/attendance가 없어서(세션마다 값이
+  // 달라 대표값이 없음), 아래 필터들의 "r.conceptRating != null" 조건에 전부 걸려 제외된다 —
+  // 즉 주간형 학원 학생은 이 화면 어디서도 안 잡히고 계속 "데이터없음"으로만 보였다.
+  // AnalysisView.jsx와 같은 방식으로 세션 단위로 펼쳐서, 나머지 로직은 수정 없이 그대로 씀.
+  const flatReports = React.useMemo(() => flattenReportsForAnalysis(reports), [reports]);
+
   // 과제/개념 평가는 구 리포트(1~5)와 신규 리포트(0~100)가 섞여 있으므로,
   // 이 컴포넌트 내 모든 계산이 일관되도록 조회 시점에 0~100(%) 기준으로 정규화한다.
   const getStudentReports = React.useCallback((studentId) => {
     const cutoff = Date.now() - PERIODS[period] * 24 * 60 * 60 * 1000;
-    return reports
+    return flatReports
       // 초안(isDraft)은 아직 발송 전 미완성 리포트라 성장 추이/평균에서 제외(AnalysisView와 동일 기준)
       .filter(r => r.studentId === studentId && !r.isDraft && r.createdAt?.seconds * 1000 >= cutoff && r.conceptRating != null)
       .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0))
       // homeworkRating은 null(미입력)일 수 있는데 toPct(null)이 0을 돌려줘서 그대로 쓰면
       // "과제 0%"로 확정 표시되던 문제 — null은 그대로 보존
       .map(r => ({ ...r, conceptRating: toPct(r.conceptRating), homeworkRating: r.homeworkRating == null ? null : toPct(r.homeworkRating) }));
-  }, [reports, period]);
+  }, [flatReports, period]);
 
   const avg = (arr) => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length * 10) / 10 : 0;
 
@@ -128,7 +134,7 @@ export default function GrowthDashboard({ reports, students, period, classes = [
 
   // 전체 평균 데이터 포인트 생성
   const globalPoints = React.useMemo(() => {
-    const allRs = reports.filter(r => {
+    const allRs = flatReports.filter(r => {
       const cutoff = Date.now() - PERIODS[period] * 24 * 60 * 60 * 1000;
       return r.createdAt?.seconds * 1000 >= cutoff && r.conceptRating != null;
     }).sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
@@ -141,7 +147,7 @@ export default function GrowthDashboard({ reports, students, period, classes = [
       byDay[d].push(toPct(r.conceptRating));
     });
     return Object.entries(byDay).map(([date, vals]) => ({ date, avg: avg(vals) }));
-  }, [reports, period]);
+  }, [flatReports, period]);
 
   // 기간 날짜 계산
   const periodLabel = React.useMemo(() => {
@@ -170,7 +176,7 @@ export default function GrowthDashboard({ reports, students, period, classes = [
   // 허위 비교가 되므로 델타 자체를 안 보여준다(있는 척 안 함).
   const periodMs = PERIODS[period] * 24 * 60 * 60 * 1000;
   const getAvgInRange = (sid, startMs, endMs) => avg(
-    reports
+    flatReports
       .filter(r => r.studentId === sid && !r.isDraft && r.createdAt?.seconds * 1000 >= startMs && r.createdAt.seconds * 1000 < endMs && r.conceptRating != null)
       .map(r => toPct(r.conceptRating))
   );
@@ -184,7 +190,7 @@ export default function GrowthDashboard({ reports, students, period, classes = [
     const days = PERIODS[period];
     const cutoffSeconds = Math.floor(Date.now() / 1000) - days * 86400;
     const reportedSet = new Set();
-    reports.forEach(r => {
+    flatReports.forEach(r => {
       if (!r.createdAt?.seconds || r.createdAt.seconds < cutoffSeconds) return;
       reportedSet.add(`${r.studentId}|${kstDay(r.createdAt.seconds)}`);
     });
@@ -202,7 +208,7 @@ export default function GrowthDashboard({ reports, students, period, classes = [
       });
     }
     return { missing: expected - written, rate: expected > 0 ? Math.round(written / expected * 100) : null };
-  }, [reports, students, period]);
+  }, [flatReports, students, period]);
 
   return (
     // DirectorView와 같은 스크롤 안에 이어 붙어 렌더링되는 화면(App.jsx 원장분석 › 원장 보고서
@@ -488,7 +494,7 @@ export default function GrowthDashboard({ reports, students, period, classes = [
           onSelect={setSelId}
           onClose={() => setSelId(null)}
           onOpenFull={onOpenStudentProfile}
-          reports={reports.filter(r => r.studentId === selId)}
+          reports={flatReports.filter(r => r.studentId === selId)}
           statusInfo={{ status: getStatus(selId), avg: getAvg(selId), trend: getTrend(selId) }}
         />
       )}
