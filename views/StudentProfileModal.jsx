@@ -731,6 +731,22 @@ export function StudentDetailPanel({ studentList, currentId, onSelect, onClose, 
   const panelRef = useRef(null);
   useFocusTrap(panelRef, true);
 
+  // 모바일 뒤로가기 지원 — StudentProfileModal(기존 620px 모달)에 있던 걸 여기 빼먹었던
+  // 버그. 일반 사용자는 × 버튼보다 스마트폰 뒤로가기(제스처/버튼)를 먼저 쓰기 때문에,
+  // 그 뒤로가기가 SPA 자체를 벗어나지 않고 이 패널만 닫도록 history 한 칸을 미리 쌓아둔다.
+  // mount 시 1회만 실행(prev/next로 학생을 넘겨도 다시 안 쌓임 — 뒤로가기 한 번은
+  // "이전 학생"이 아니라 "패널 닫기"여야 함)
+  useEffect(() => {
+    history.pushState(null, '', window.location.href);
+    history.pushState({ modal: 'studentDetail' }, '', window.location.href);
+    const handlePop = () => {
+      history.pushState(null, '', window.location.href);
+      onClose();
+    };
+    window.addEventListener('popstate', handlePop);
+    return () => window.removeEventListener('popstate', handlePop);
+  }, []);
+
   const idx = studentList.findIndex(s => s.id === currentId);
   const student = studentList[idx];
   const goPrev = () => idx > 0 && onSelect(studentList[idx - 1].id);
