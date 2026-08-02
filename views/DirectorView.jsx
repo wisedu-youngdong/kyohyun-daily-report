@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { db } from '../firebase';
 import { updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { FileText, AlertTriangle, Copy, Bell, CalendarDays, MessageCircle } from 'lucide-react';
-import { kstDay, toPct, ratingLabel } from '../growth.js';
+import { kstDay, kstWeekday, toPct, ratingLabel, getKstWeekRange } from '../growth.js';
 import { DIAG_BADGE as DIAG_MAP } from '../diagnosis.js';
 import { T, C, R } from '../tokens.jsx';
 import { StudentProfileModal } from './StudentProfileModal.jsx';
@@ -75,6 +75,18 @@ export default function DirectorView({ reports, students, classes = [], reportVi
   const maxDiag = diagEntries[0]?.[1] || 1;
 
   const totalOnTime = todayReports.filter(r => r.attendance === '정시').length;
+
+  // 리포트 미작성 — 예전엔 "전체 학생 수 - 오늘 작성 건수" 뺄셈이라, 수업이 없는 날(주말 등)에도
+  // 전원이 미작성으로 잡히는 버그가 있었음(예: 일요일에 총 수업 0인데 미작성 4건). 위 "이번 주
+  // 현황" 위젯의 스케줄 판정과 동일하게, 선택한 날짜가 그 학생의 수업 요일일 때만(또는 스케줄
+  // 미설정 시 기존처럼 매일 대상) 미작성으로 센다.
+  const selectedDow = new Date(`${selectedDate}T00:00:00Z`).getUTCDay();
+  const reportedStudentIds = new Set(todayReports.map(r => r.studentId));
+  const notWrittenStudents = students.filter(s => {
+    if (reportedStudentIds.has(s.id)) return false;
+    if (!s.scheduleDays || s.scheduleDays.length === 0) return true;
+    return s.scheduleDays.includes(selectedDow);
+  });
   const totalAbsent = todayReports.filter(r => r.attendance === '결석').length;
 
   const handleMemoSave = async (reportId, memo) => {
@@ -113,20 +125,13 @@ export default function DirectorView({ reports, students, classes = [], reportVi
 
       {/* 이번 주 현황 위젯 */}
       {(() => {
-        const now = new Date();
-        // 일요일엔 getDay()===0이라 "-getDay()+1"이 +1(내일)이 돼서 weekStart가 미래로 감 —
-        // 일요일만 예외로 -6(지난 월요일)을 쓰도록 보정
-        const mondayOffset = now.getDay() === 0 ? -6 : 1 - now.getDay();
-        const weekStart = new Date(now);
-        weekStart.setDate(now.getDate() + mondayOffset); // 월요일
-        weekStart.setHours(0, 0, 0, 0);
-        const weekNum = Math.ceil((now.getDate() + mondayOffset) / 7);
-        const weekLabel = `${now.getMonth() + 1}월 ${weekNum}주차`;
+        // 주차 계산을 로컬로 재구현하면서 "이번 달 날짜 + 월요일 보정"이 음수가 되는 케이스
+        // (이번 주 월요일이 지난달인 경우, 예: 8/2 일요일 → 월요일 7/27)를 놓쳐 "0주차"로
+        // 표시되는 버그가 있었음. AnalysisView/WeeklyReviewView가 이미 쓰는 공용 헬퍼로 교체.
+        const week = getKstWeekRange(0);
+        const weekLabel = week.label;
 
-        const weekReports = reports.filter(r => {
-          const ts = r.createdAt?.seconds * 1000 || 0;
-          return ts >= weekStart.getTime();
-        });
+        const weekReports = reports.filter(r => r.createdAt?.seconds && kstDay(r.createdAt.seconds) >= week.startStr);
 
         const weekStudentIds = [...new Set(weekReports.map(r => r.studentId))];
         // 주간 리포트는 최상위 attendance가 없음(세션마다 다를 수 있어 대표값 없음) — 분모에서 제외
@@ -138,7 +143,7 @@ export default function DirectorView({ reports, students, classes = [], reportVi
         // 미제출 — 이번 주 리포트가 없는 학생 중, 스케줄 요일이 이번 주에 이미 한 번이라도
         // 지났는데도(오늘 포함) 리포트가 없는 경우만. 스케줄 미설정(레거시 포함)은 기존처럼 매일 대상 유지.
         // 화목토 학생이 월요일 아침이라 아직 이번 주 수업이 시작도 안 됐는데 미제출로 뜨는 걸 방지.
-        const todayDow = now.getDay(); // 0=일...6=토, 위 weekStart 계산과 동일 기준
+        const todayDow = kstWeekday(Date.now() / 1000); // 0=일...6=토, KST 기준(로컬 타임존 의존 제거)
         const dowRank = (d) => (d + 6) % 7; // 월요일=0 기준으로 재정렬해 "이미 지난 요일인지" 비교
         const noReportStudents = students.filter(s => {
           if (weekStudentIds.includes(s.id)) return false;
@@ -151,7 +156,7 @@ export default function DirectorView({ reports, students, classes = [], reportVi
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '16px' }}>
               <p style={{ fontSize: '15px', fontWeight: 700, color: '#0D2D6B', margin: 0 }}>이번 주 현황 · {weekLabel}</p>
               <span style={{ fontSize: '12px', color: '#6C7586' }}>
-                {weekStart.getMonth() + 1}/{weekStart.getDate()} 기준
+                {week.rangeLabel}
               </span>
             </div>
 
@@ -399,7 +404,7 @@ export default function DirectorView({ reports, students, classes = [], reportVi
           { label: '총 수업', num: todayReports.length, unit: '회' },
           { label: '정시 출석', num: totalOnTime, unit: '명' },
           { label: '결석', num: totalAbsent, unit: '명' },
-          { label: '리포트 미작성', num: Math.max(0, students.length - todayReports.length), unit: '건', warnIfNonZero: true },
+          { label: '리포트 미작성', num: notWrittenStudents.length, unit: '건', warnIfNonZero: true },
         ].map((item, i) => {
           const isZero = item.num === 0;
           const color = item.warnIfNonZero && !isZero ? C.warningText : isZero ? '#D4D7DD' : '#1A1A1A';
