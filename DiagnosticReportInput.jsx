@@ -457,7 +457,7 @@ export default function DiagnosticReportInput({
       handleAutoSave();
     }, 30000);
     return () => clearTimeout(autoSaveTimer.current);
-  }, [studentId, teacherNote, homeworkRating, conceptRating, selectedTags, textbook, unit, pages, subject, attendance, arrivalTime, departureTime, hasTest, testName, testScore, testRound, nextPlan, nextPlanDetail, photoAnalysis]);
+  }, [studentId, teacherId, teacherNote, homeworkRating, conceptRating, selectedTags, textbook, unit, pages, subject, curriculumCourseOverride, attendance, arrivalTime, departureTime, hasTest, testName, testScore, testRound, nextPlan, nextPlanDetail, photoAnalysis]);
 
   // 학생만 선택하고 아무것도 입력하지 않아도 30초 뒤 자동저장이 돌아 빈 초안이 생기던 문제 —
   // 실제로 뭔가 입력된 게 있을 때만 자동저장하도록 최소 하나의 필드 확인
@@ -494,7 +494,13 @@ export default function DiagnosticReportInput({
   // 선생님이 같이 푼 문제라 평가에서 빼고 싶은 경우 등). 정답↔오답 토글과 달리 행 자체를
   // problemTypes/weakDetail에서 지우고, 남아있던 wrongItems 항목도 같이 정리
   const removeAnalyzedItem = (si, number) => {
-    if (!window.confirm(`${number}번 문항을 결과에서 완전히 제외할까요?\n(교재 예제, 선생님과 같이 푼 문제 등 학생 채점 대상이 아닐 때 사용)`)) return;
+    // 이미 태그/메모를 입력해둔 문항이면 그 내용도 함께 사라진다는 걸 구체적으로 알려줌 —
+    // 예전엔 문구가 항상 똑같아서, 입력해둔 내용이 있는지 확인창만 봐서는 알 수 없었음
+    const existing = wrongItems.find(w => w.number === number && w.sectionIdx === si);
+    const hasManualInput = existing && (existing.tags.length > 0 || existing.memo?.trim());
+    const confirmMsg = `${number}번 문항을 결과에서 완전히 제외할까요?\n(교재 예제, 선생님과 같이 푼 문제 등 학생 채점 대상이 아닐 때 사용)`
+      + (hasManualInput ? '\n\n⚠️ 입력해둔 태그/메모도 함께 삭제됩니다.' : '');
+    if (!window.confirm(confirmMsg)) return;
     setPhotoAnalysis(prev => ({
       ...prev,
       sections: prev.sections.map((s, sIdx) => sIdx !== si ? s : {
@@ -510,6 +516,15 @@ export default function DiagnosticReportInput({
   // 이 함수 하나만 호출하게 해서, {number, sectionIdx} 매칭 로직이 두 군데로 갈라지는(그래서
   // 한쪽만 고치고 다른 쪽을 안 고쳐서 다시 버그가 나는) 일을 방지
   const toggleProblemResult = (si, p) => {
+    // 오답→정답으로 바뀌면 아래에서 wrongItems가 그 항목을 지우는데, 이미 입력해둔 태그/메모가
+    // 있어도 확인 없이 조용히 같이 사라졌음. "결과에서 제외"/"다시 분석" 버튼은 이미 이런 확인이
+    // 있는데, 카드에서 가장 크고 자주 누르는 이 토글 버튼만 빠져 있었음.
+    if (p.result === '약점') {
+      const existing = wrongItems.find(w => w.number === p.number && w.sectionIdx === si);
+      if (existing && (existing.tags.length > 0 || existing.memo?.trim())) {
+        if (!window.confirm(`${p.number}번 문항에 입력한 태그/메모가 함께 삭제됩니다. 정답으로 바꿀까요?`)) return;
+      }
+    }
     let becameWrong = false;
     setPhotoAnalysis(prev => ({
       ...prev,
@@ -982,8 +997,18 @@ export default function DiagnosticReportInput({
     const currentCount = photosRef.current.length;
     const remaining = MAX_PHOTOS - currentCount;
     if (newFiles.length === 0 || remaining <= 0) return;
+    // 사진 추가는 아래서 photoAnalysis만 비우고 wrongItems는 그대로 뒀었음 — 오답 편집 UI는
+    // photoAnalysis가 없으면 화면에서 통째로 사라지지만 wrongItems는 state에 남아있어서,
+    // 재분석 없이 바로 저장하면 더 이상 보이지도 수정할 수도 없는 오래된 태그/메모가 그대로
+    // 리포트에 실릴 수 있었음 — removeOnePhoto와 동일하게 확인 + 완전 초기화로 맞춤
+    if (photoAnalysis && !window.confirm(
+      hasChargedAnalysis
+        ? '사진을 추가하면 지금까지의 분석 결과와 오답 태그/메모가 모두 초기화돼요.\n\n⚠️ 다시 분석하면 분석 1회가 더 차감돼요. 계속할까요?'
+        : '사진을 추가하면 지금까지의 분석 결과와 오답 태그/메모가 모두 초기화됩니다. 계속할까요?'
+    )) return;
     const filesToProcess = newFiles.slice(0, remaining);
     setPhotoAnalysis(null);
+    setWrongItems([]);
     setPhotoError('');
     // 파일 선택 즉시 모든 파일을 ArrayBuffer로 병렬 변환
     // 모바일에서 File 객체가 타임아웃으로 무효화되는 것을 방지
@@ -1079,7 +1104,11 @@ export default function DiagnosticReportInput({
 
   // Gemini Vision 분석 요청 (mode: 'auto'|'calculation'|'concept'|'mock_exam' — 재지정 시 override로 재호출)
   // 여러 장을 한 번에 보내 페이지 간 연산 집계를 누적한다.
-  const handleAnalyzePhoto = async (modeOverride) => {
+  // skipChargeConfirm — "결과가 다르다면 다시 분석" 버튼은 클릭 시점에 태그/메모/다듬기
+  // 초기화 확인을 이미 자체적으로 띄우는데, 이 함수도 hasChargedAnalysis면 크레딧 재차감을
+  // 또 확인해서 같은 클릭에 네이티브 confirm이 연달아 두 번 뜨는 문제가 있었음 — 호출부가
+  // 이미 (하나로 합친 문구로) 확인을 받았다는 걸 알려주면 여기서는 중복 확인을 건너뜀
+  const handleAnalyzePhoto = async (modeOverride, skipChargeConfirm = false) => {
     if (photos.length === 0) return;
     // 수정 모드에서 불러온 기존 사진은 base64가 없음(이미 Storage에 있는 URL만 보유) —
     // 그대로 보내면 빈 이미지가 전송돼 분석이 깨지므로 분석 가능한 사진만 골라 보냄
@@ -1091,7 +1120,7 @@ export default function DiagnosticReportInput({
     // 사진 분석은 건당 크레딧이 나가는 호출 — 이 리포트에서 이미 한 번 성공해서 차감됐다면
     // (사진을 지우고 새로 올렸어도 이 세션에서 재분석하는 거라면) 한 번 더 크레딧이 나간다는 걸
     // 분명히 알려주고 확인받음. 다듬기(코멘트 생성/학부모 톤)는 여기 안 걸림 — 무제한 무료.
-    if (hasChargedAnalysis && !window.confirm('사진을 다시 분석하면 분석 1회가 더 차감돼요. 계속할까요?')) {
+    if (!skipChargeConfirm && hasChargedAnalysis && !window.confirm('사진을 다시 분석하면 분석 1회가 더 차감돼요. 계속할까요?')) {
       return;
     }
     setAnalyzingPhoto(true);
@@ -1185,6 +1214,9 @@ export default function DiagnosticReportInput({
     setPhotoAnalysis(null); setPhotoError('');
     setWrongItems([]);
     setHasChargedAnalysis(false);
+    // "이 사진은 숙제/테스트/기타" 선택도 사진에 딸린 맥락이라 같이 리셋 — 안 그러면 이전
+    // 학생의 선택이 다음 학생에게 남아 /api/polish에 잘못된 contentType으로 전달됨
+    setPhotoContentType('');
   };
 
   // "전체 지우기" 버튼 전용 — 이미 크레딧이 나간 분석이 있으면 지우기 전에 한 번 더 크게 확인
@@ -1243,7 +1275,7 @@ export default function DiagnosticReportInput({
         setHasTest(false); setTestName(''); setTestScore(''); setTestRound('');
         setCurriculumCourseOverride(null); setUnitPickerOpen(false); setUnitPickerCourse(null);
         setSelectedTags([]); setTeacherNote(''); setAiPolishedNote('');
-        setAttendance('정시'); setArrivalTime('15:30');
+        setAttendance('정시'); setArrivalTime('15:30'); setDepartureTime('');
         removeAllPhotos();
         setLastSaved(null);
         // 4단계: 학생 큐에 다음 미완료 학생이 있으면 자동 전환("저장하고 다음 학생")
@@ -1313,7 +1345,7 @@ export default function DiagnosticReportInput({
         onEditDone();
         showToast('리포트가 수정됐습니다!', 'success');
       } else {
-        setAttendance('정시'); setArrivalTime('15:30');
+        setAttendance('정시'); setArrivalTime('15:30'); setDepartureTime('');
         // 4단계: 학생 큐에 다음 미완료 학생이 있으면 자동 전환("저장하고 다음 학생")
         const nextStudent = findNextQueueStudent(savedStudentId);
         if (nextStudent) {
@@ -1363,6 +1395,10 @@ export default function DiagnosticReportInput({
       draftIdRef.current = null; // 이전 학생 draft에 이어쓰지 않도록
       weeklyDraftIdRef.current = null;
       setWeeklySessions([]); setStaleWeeklyDraft(null);
+      // 출결/등하원 시각 리셋 — 예전엔 이 블록에서 안 지워서, 저장 없이 학생만 바꾸면
+      // 이전 학생의 지각/조퇴/등하원 시각이 다음 학생 폼에 그대로 남아 확인 없이 저장하면
+      // 잘못된 출결이 학부모에게 그대로 나갈 수 있었음
+      setAttendance('정시'); setArrivalTime('15:30'); setDepartureTime('');
       setHomeworkRating(null); setConceptRating(null);
       setHasTest(false); setTestScore(''); setTestName(''); setTestRound('');
       setTextbook(''); setSubject('수학'); setUnit(''); setPages('');
@@ -1370,7 +1406,7 @@ export default function DiagnosticReportInput({
       setTeacherNote(''); setSelectedTags([]);
       setAiPolishedNote(''); setSummary('');
       setNextPlan(''); setNextPlanDetail('');
-      setPhotos([]); setPhotoAnalysis(null);
+      setPhotos([]); setPhotoAnalysis(null); setPhotoContentType('');
       setWrongItems([]);
       setHasChargedAnalysis(false);
       setLastSaved(null);
@@ -2454,12 +2490,19 @@ export default function DiagnosticReportInput({
                         <button type="button" onClick={() => {
                           const hasManualInput = wrongItems.some(w => w.tags.length > 0 || w.memo?.trim());
                           const willClearComment = !!aiPolishedNote;
-                          const confirmMsg = hasManualInput
-                            ? `오답 카드에 입력한 태그/메모${willClearComment ? ', AI 다듬기 결과' : ''}가 초기화됩니다. 다시 분석할까요?`
-                            : willClearComment ? 'AI 다듬기 결과가 초기화됩니다. 다시 분석할까요?' : null;
+                          // 태그/메모/다듬기 초기화 안내와 크레딧 재차감 안내를 한 confirm으로
+                          // 합침 — 예전엔 이 버튼의 확인 다음에 handleAnalyzePhoto가 크레딧
+                          // 확인을 또 띄워서 같은 클릭에 네이티브 확인창이 두 번 연달아 떴음
+                          const resetParts = [];
+                          if (hasManualInput) resetParts.push('오답 카드에 입력한 태그/메모');
+                          if (willClearComment) resetParts.push('AI 다듬기 결과');
+                          const msgLines = [];
+                          if (resetParts.length > 0) msgLines.push(`${resetParts.join(', ')}가 초기화됩니다.`);
+                          if (hasChargedAnalysis) msgLines.push('⚠️ 분석 1회가 더 차감돼요.');
+                          const confirmMsg = msgLines.length > 0 ? `${msgLines.join('\n')} 다시 분석할까요?` : null;
                           if (confirmMsg && !window.confirm(confirmMsg)) return;
                           setAiPolishedNote('');
-                          handleAnalyzePhoto('auto');
+                          handleAnalyzePhoto('auto', true);
                         }} disabled={analyzingPhoto}
                           style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '10px', padding: '5px 10px', fontSize: '11px', fontWeight: 700, border: `1px solid ${TOKENS.success}`, borderRadius: '20px', background: '#fff', color: TOKENS.success, cursor: analyzingPhoto ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: analyzingPhoto ? 0.6 : 1 }}>
                           <Sparkles size={11} /> 결과가 다르다면 다시 분석
@@ -2537,7 +2580,12 @@ export default function DiagnosticReportInput({
                               // 버그가 있었음 — sectionIdx(si)까지 같이 매칭해서 섹션별로 독립되게 함
                               const wrongItem = p.result === '약점' ? wrongItems.find(w => w.number === p.number && w.sectionIdx === si) : null;
                               return (
-                              <div key={i} style={{
+                              // number만으로도 이 섹션 안에서는 유일해야 하지만, 다른 오답 카드
+                              // 리스트(leftover 등)와 동일하게 si까지 합성해 안전하게 키를 만듦 —
+                              // 예전엔 배열 index를 썼는데, 문항 제외(removeAnalyzedItem)로 앞쪽
+                              // 항목이 빠지면 뒤쪽 항목들 index가 당겨지면서 메모 입력 포커스가
+                              // 엉뚱한 문항으로 이어질 수 있었음
+                              <div key={`${si}-${p.number}`} style={{
                                 padding: '6px 0', borderBottom: i < (sec.problemTypes || []).length - 1 ? `1px solid ${TOKENS.border}` : 'none',
                                 fontSize: '12px',
                                 ...(p.confidence === 'low' ? { background: TOKENS.warnBg, border: `1px solid ${TOKENS.warnBorder}`, borderRadius: '10px', padding: '8px' } : {}),
