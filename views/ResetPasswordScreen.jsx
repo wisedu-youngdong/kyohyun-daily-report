@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { auth } from '../firebase';
 import { verifyPasswordResetCode, confirmPasswordReset } from 'firebase/auth';
-import { R, C } from '../tokens.jsx';
+import { R, C, RADIUS2 } from '../tokens.jsx';
 
 // 비밀번호 재설정 메일 링크의 착지 화면 — Firebase 기본 무브랜딩 페이지 대신
 // LoginScreen.jsx와 동일한 레터헤드 톤으로 구성. api/send-reset-email.js의
@@ -53,7 +53,7 @@ export default function ResetPasswordScreen() {
   const inputStyle = {
     width: '100%', padding: '12px 14px', fontSize: '16px', fontWeight: 500,
     fontFamily: R.body, color: R.ink, background: '#fff',
-    border: `1px solid ${R.rule}`, borderRadius: '6px', outline: 'none',
+    border: `1px solid ${R.rule}`, borderRadius: `${RADIUS2.input}px`, outline: 'none',
     boxSizing: 'border-box', transition: 'border-color .15s, box-shadow .15s',
   };
   const focusInput = (e) => { e.target.style.borderColor = R.navy; e.target.style.boxShadow = `0 0 0 3px ${R.navy}1A`; };
@@ -67,7 +67,7 @@ export default function ResetPasswordScreen() {
     }}>
       <div style={{
         width: '100%', maxWidth: '400px', background: '#fff',
-        border: `1px solid ${R.rule}`, borderTop: `3px solid ${R.navy}`, borderRadius: '4px',
+        border: `1px solid ${R.rule}`, borderTop: `3px solid ${R.navy}`, borderRadius: `${RADIUS2.card}px`,
         boxShadow: `0 2px 20px ${R.navy}12`, overflow: 'hidden',
       }}>
         <div style={{ padding: '26px 36px 22px', borderBottom: `1px solid ${R.rule}`, textAlign: 'center' }}>
@@ -90,12 +90,12 @@ export default function ResetPasswordScreen() {
 
           {status === 'invalid' && (
             <>
-              <p style={{ fontSize: '13px', fontWeight: 600, color: C.errorDark, background: '#FDEAEA', padding: '10px 12px', borderRadius: '6px', margin: '0 0 16px', lineHeight: 1.6 }}>
+              <p style={{ fontSize: '13px', fontWeight: 600, color: C.errorDark, background: '#FDEAEA', padding: '10px 12px', borderRadius: `${RADIUS2.input}px`, margin: '0 0 16px', lineHeight: 1.6 }}>
                 링크가 만료됐거나 이미 사용됐어요. 로그인 화면에서 재설정 메일을 다시 요청해주세요.
               </p>
               <a href="/" style={{
                 display: 'block', textAlign: 'center', width: '100%', padding: '13px', fontSize: '14px', fontWeight: 700,
-                fontFamily: R.body, borderRadius: '6px', background: R.navy, color: '#fff', textDecoration: 'none',
+                fontFamily: R.body, borderRadius: `${RADIUS2.input}px`, background: R.navy, color: '#fff', textDecoration: 'none',
                 boxSizing: 'border-box',
               }}>
                 로그인 화면으로
@@ -108,7 +108,7 @@ export default function ResetPasswordScreen() {
               <div style={{ marginBottom: '16px' }}>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: R.ink, marginBottom: '7px' }}>새 비밀번호</label>
                 <input
-                  type="password" value={password}
+                  type="password" autoComplete="new-password" value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   onFocus={focusInput} onBlur={blurInput}
                   placeholder="6자 이상 입력" required
@@ -118,7 +118,7 @@ export default function ResetPasswordScreen() {
               <div style={{ marginBottom: '16px' }}>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: R.ink, marginBottom: '7px' }}>새 비밀번호 확인</label>
                 <input
-                  type="password" value={confirmPassword}
+                  type="password" autoComplete="new-password" value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   onFocus={focusInput} onBlur={blurInput}
                   placeholder="다시 한 번 입력" required
@@ -126,7 +126,7 @@ export default function ResetPasswordScreen() {
                 />
               </div>
               {error && (
-                <p style={{ fontSize: '12px', fontWeight: 600, color: C.errorDark, margin: '0 0 16px', background: '#FDEAEA', padding: '8px 12px', borderRadius: '6px' }}>
+                <p style={{ fontSize: '12px', fontWeight: 600, color: C.errorDark, margin: '0 0 16px', background: '#FDEAEA', padding: '8px 12px', borderRadius: `${RADIUS2.input}px` }}>
                   {error}
                 </p>
               )}
@@ -135,7 +135,7 @@ export default function ResetPasswordScreen() {
                 onMouseLeave={(e) => { if (status !== 'submitting') e.currentTarget.style.background = R.navy; }}
                 style={{
                   width: '100%', padding: '13px', fontSize: '14px', fontWeight: 700,
-                  fontFamily: R.body, border: 'none', borderRadius: '6px',
+                  fontFamily: R.body, border: 'none', borderRadius: `${RADIUS2.input}px`,
                   background: status === 'submitting' ? R.inkMute : R.navy, color: '#fff',
                   cursor: status === 'submitting' ? 'not-allowed' : 'pointer', marginTop: '6px',
                   transition: 'background .15s',
@@ -147,12 +147,12 @@ export default function ResetPasswordScreen() {
 
           {status === 'done' && (
             <>
-              <p style={{ fontSize: '13px', fontWeight: 600, color: C.successDark, background: C.successBg, padding: '10px 12px', borderRadius: '6px', margin: '0 0 16px', textAlign: 'center' }}>
+              <p style={{ fontSize: '13px', fontWeight: 600, color: C.successDark, background: C.successBg, padding: '10px 12px', borderRadius: `${RADIUS2.input}px`, margin: '0 0 16px', textAlign: 'center' }}>
                 비밀번호가 변경됐습니다.
               </p>
               <a href="/" style={{
                 display: 'block', textAlign: 'center', width: '100%', padding: '13px', fontSize: '14px', fontWeight: 700,
-                fontFamily: R.body, borderRadius: '6px', background: R.navy, color: '#fff', textDecoration: 'none',
+                fontFamily: R.body, borderRadius: `${RADIUS2.input}px`, background: R.navy, color: '#fff', textDecoration: 'none',
                 boxSizing: 'border-box',
               }}>
                 로그인 화면으로

@@ -22,7 +22,6 @@ export default function GrowthDashboard({ reports, students, period, classes = [
   const [teacherFilter, setTeacherFilter] = React.useState('all'); // 'all' | 'unassigned' | teacherId — StudentsView.jsx와 동일한 값 체계
   const [selId, setSelId] = React.useState(null);
   const [tooltip, setTooltip] = React.useState(null);
-  const svgRef = React.useRef(null);
   const tableRef = React.useRef(null);
 
   // 기간이 바뀌면(부모의 세그먼트 클릭) 이전 선택 학생은 초기화 — 예전엔 버튼 onClick
@@ -244,7 +243,7 @@ export default function GrowthDashboard({ reports, students, period, classes = [
           {
             label: '개념 이해 평균', value: overallAvg != null ? `${overallAvg}%` : '—',
             sub: avgDelta === null ? periodLabel : `지난 기간 ${prevOverallAvg}% · ${avgDelta > 0 ? '▲' : avgDelta < 0 ? '▼' : '—'}${Math.abs(avgDelta)}`,
-            c: '#0D2D6B', bg: '#fff', bd: '#E8E6E0',
+            c: C.primary, bg: '#fff', bd: '#E8E6E0',
           },
           { label: '총 학생', value: `${students.length}명`, sub: '등록', c: '#1A1A1A', bg: '#fff', bd: '#E8E6E0' },
           {
@@ -269,7 +268,7 @@ export default function GrowthDashboard({ reports, students, period, classes = [
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px', flexWrap: 'wrap' }}>
           <p style={{ fontSize: '12px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>학급 평균 추이</p>
           <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <div style={{ width: '18px', height: '2.5px', background: '#0D2D6B', borderRadius: '2px' }} />
+            <div style={{ width: '18px', height: '2.5px', background: C.primary, borderRadius: '2px' }} />
             <span style={{ fontSize: '10px', color: '#6B7785' }}>전체 평균</span>
           </div>
           {selId && selStatus && (
@@ -296,13 +295,13 @@ export default function GrowthDashboard({ reports, students, period, classes = [
               <>
                 <polyline
                   points={globalPoints.map((p, i) => toXY(i, p.avg, globalPoints.length).join(',')).join(' ')}
-                  fill="none" stroke="#0D2D6B" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round"
+                  fill="none" stroke={C.primary} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round"
                 />
                 {globalPoints.map((p, i) => {
                   const [x, y] = toXY(i, p.avg, globalPoints.length);
                   return (
                     <circle key={i} cx={x} cy={y} r={i === globalPoints.length - 1 ? 4.5 : 8}
-                      fill={i === globalPoints.length - 1 ? '#0D2D6B' : 'transparent'}
+                      fill={i === globalPoints.length - 1 ? C.primary : 'transparent'}
                       stroke="none"
                       onMouseEnter={(e) => setTooltip({ x: e.clientX, y: e.clientY, text: `${p.date} · 평균 ${p.avg}%` })}
                       onMouseLeave={() => setTooltip(null)}
@@ -313,7 +312,7 @@ export default function GrowthDashboard({ reports, students, period, classes = [
                 {(() => {
                   const last = globalPoints[globalPoints.length - 1];
                   const [lx, ly] = toXY(globalPoints.length - 1, last.avg, globalPoints.length);
-                  return <text x={lx+7} y={ly+4} fontSize="10" fontWeight="700" fill="#0D2D6B">{last.avg}</text>;
+                  return <text x={lx+7} y={ly+4} fontSize="10" fontWeight="700" fill={C.primary}>{last.avg}</text>;
                 })()}
               </>
             )}
@@ -350,15 +349,15 @@ export default function GrowthDashboard({ reports, students, period, classes = [
           <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
             <button onClick={() => setClassFilter('')} style={{
               padding: '5px 12px', fontSize: '11px', fontWeight: 700, borderRadius: '20px', cursor: 'pointer', fontFamily: 'inherit',
-              border: `1.5px solid ${classFilter === '' ? '#0D2D6B' : '#E8E6E0'}`,
-              background: classFilter === '' ? '#0D2D6B' : '#fff',
+              border: `1.5px solid ${classFilter === '' ? C.primary : '#E8E6E0'}`,
+              background: classFilter === '' ? C.primary : '#fff',
               color: classFilter === '' ? '#fff' : '#6B7280',
             }}>전체</button>
             {classes.slice(0, 6).map(c => (
               <button key={c.id} onClick={() => setClassFilter(c.id)} style={{
                 padding: '5px 12px', fontSize: '11px', fontWeight: 700, borderRadius: '20px', cursor: 'pointer', fontFamily: 'inherit',
-                border: `1.5px solid ${classFilter === c.id ? '#0D2D6B' : '#E8E6E0'}`,
-                background: classFilter === c.id ? '#0D2D6B' : '#fff',
+                border: `1.5px solid ${classFilter === c.id ? C.primary : '#E8E6E0'}`,
+                background: classFilter === c.id ? C.primary : '#fff',
                 color: classFilter === c.id ? '#fff' : '#6B7280',
               }}>{c.name}</button>
             ))}
@@ -374,8 +373,8 @@ export default function GrowthDashboard({ reports, students, period, classes = [
           {[{ id: 'all', name: '전체 선생님' }, { id: 'unassigned', name: '미배정' }, ...teachers].map(t => (
             <button key={t.id} onClick={() => setTeacherFilter(t.id)} style={{
               padding: '5px 12px', fontSize: '11px', fontWeight: 700, borderRadius: '20px', cursor: 'pointer', fontFamily: 'inherit',
-              border: `1.5px solid ${teacherFilter === t.id ? '#0D2D6B' : '#E8E6E0'}`,
-              background: teacherFilter === t.id ? '#0D2D6B' : '#fff',
+              border: `1.5px solid ${teacherFilter === t.id ? C.primary : '#E8E6E0'}`,
+              background: teacherFilter === t.id ? C.primary : '#fff',
               color: teacherFilter === t.id ? '#fff' : '#6B7280',
             }}>{t.name}</button>
           ))}
@@ -388,8 +387,8 @@ export default function GrowthDashboard({ reports, students, period, classes = [
         {[['risk','관심 필요 순'],['decline','하락 폭 큰 순'],['score','점수 높은 순'],['name','이름순']].map(([m, l]) => (
           <button key={m} onClick={() => setSortMode(m)} style={{
             padding: '4px 10px', fontSize: '11px', borderRadius: '20px', cursor: 'pointer', fontFamily: 'inherit',
-            border: `1.5px solid ${sortMode === m ? '#0D2D6B' : '#E8E6E0'}`,
-            background: sortMode === m ? '#0D2D6B' : '#fff',
+            border: `1.5px solid ${sortMode === m ? C.primary : '#E8E6E0'}`,
+            background: sortMode === m ? C.primary : '#fff',
             color: sortMode === m ? '#fff' : '#6B7280',
           }}>{l}</button>
         ))}

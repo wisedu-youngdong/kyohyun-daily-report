@@ -291,9 +291,11 @@ export default function AnalysisView({ students, reports }) {
                   unitMap[key].total += 100;
                 }
               });
-              const units = Object.values(unitMap)
-                .filter(u => u.total > 0)
-                .map(u => ({ ...u, pct: Math.round(u.correct / u.total * 100) }))
+              const units = Object.entries(unitMap)
+                .filter(([, u]) => u.total > 0)
+                // React key는 표시 라벨(u.name)이 아니라 실제 그룹핑 키를 써야 함 — 이름이 같은
+                // 서로 다른 unitKey가 있으면 라벨이 우연히 겹쳐 key 충돌이 날 수 있음
+                .map(([unitKey, u]) => ({ ...u, unitKey, pct: Math.round(u.correct / u.total * 100) }))
                 .sort((a, b) => a.pct - b.pct);
               if (units.length === 0) return null;
               return (
@@ -309,7 +311,7 @@ export default function AnalysisView({ students, reports }) {
                         const isWorst = i === 0;
                         const barColor = isWorst ? C.error : C.primary;
                         return (
-                          <div key={u.name}>
+                          <div key={u.unitKey}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                               <span style={{ fontSize: '11px', color: T.text, fontWeight: isWorst ? 700 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>{u.name}</span>
                               <span style={{ fontSize: '11px', fontWeight: 700, color: barColor, flexShrink: 0 }}>{u.pct}%{u.pct >= TARGET ? ' ✓' : ''}</span>
@@ -329,8 +331,6 @@ export default function AnalysisView({ students, reports }) {
 
             {/* 오답 유형 */}
             {(() => {
-              const DIAG_COLORS = DIAG_SOFT_COLORS;
-
               // 오답 유형별 집계 + 단원 매핑 — unitKey 기준으로 그룹핑, 표시는 라벨 텍스트 사용
               const diagMap = {};
               periodReports.forEach(r => {
@@ -357,7 +357,7 @@ export default function AnalysisView({ students, reports }) {
                   <p style={{ fontSize: '12px', fontWeight: 700, margin: '0 0 12px' }}>반복 오답 유형</p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                     {diagList.map(([key, val], i) => {
-                      const info = DIAG_COLORS[key] || { label: key, color: '#4A4A4A' };
+                      const info = DIAG_SOFT_COLORS[key] || { label: key, color: '#4A4A4A' };
                       // 단원별 TOP 2
                       const topUnits = Object.entries(val.units)
                         .sort((a, b) => b[1].count - a[1].count)
@@ -484,8 +484,11 @@ export default function AnalysisView({ students, reports }) {
               });
             });
 
-            const unitList = Object.values(unitGroups)
-              .filter(u => u.total > 0)
+            // React key는 표시 라벨(u.label)이 아니라 실제 그룹핑 키(unitKey)를 써야 함 —
+            // 이름이 같은 서로 다른 unitKey가 있으면 라벨이 우연히 겹쳐 key 충돌이 날 수 있음
+            const unitList = Object.entries(unitGroups)
+              .filter(([, u]) => u.total > 0)
+              .map(([unitKey, u]) => ({ ...u, unitKey }))
               .sort((a, b) => b.total - a.total);
             if (unitList.length === 0) return null;
 
@@ -499,7 +502,7 @@ export default function AnalysisView({ students, reports }) {
                     .sort((a, b) => b[1].count - a[1].count)
                     .slice(0, 3);
                   return (
-                    <div key={u.label} style={{ background: T.bg, borderRadius: `${RADIUS2.card}px`, padding: '14px 16px', border: `1px solid ${T.border}` }}>
+                    <div key={u.unitKey} style={{ background: T.bg, borderRadius: `${RADIUS2.card}px`, padding: '14px 16px', border: `1px solid ${T.border}` }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                         <span style={{ fontSize: '12px', fontWeight: 700, color: T.text }}>{u.label}</span>
                         <span style={{ fontSize: '11px', color: T.textMute }}>오답 {u.total}건</span>

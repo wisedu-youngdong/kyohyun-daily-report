@@ -17,9 +17,6 @@ export default class ErrorBoundary extends React.Component {
 
   render() {
     if (this.state.error) {
-      if (this.props.fallback) {
-        return this.props.fallback(this.state.error, () => this.setState({ error: null }));
-      }
       return (
         <div style={{
           minHeight: this.props.minHeight ?? '100dvh',

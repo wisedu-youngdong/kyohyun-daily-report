@@ -149,9 +149,9 @@ export default function WeeklyReviewView({ reports = [], students = [], classes 
       </div>
 
       {staleDrafts.length > 0 && weekOffset === 0 && (
-        <div style={{ background: '#FFF8E7', border: '1px solid #F5D76E', borderRadius: '12px', padding: '12px 14px', marginBottom: '16px' }}>
+        <div style={{ background: C.warningBg, border: `1px solid ${C.warningText}40`, borderRadius: '12px', padding: '12px 14px', marginBottom: '16px' }}>
           <p style={{ fontSize: '12px', fontWeight: 700, color: C.warningText, margin: '0 0 4px' }}>⚠ 지난주 이전에 발송하지 못한 리포트가 {staleDrafts.length}건 있어요</p>
-          <p style={{ fontSize: '11px', color: '#8A6A2A', margin: 0, lineHeight: 1.6 }}>
+          <p style={{ fontSize: '11px', color: C.warningText, margin: 0, lineHeight: 1.6 }}>
             {staleDrafts.map(r => r.studentName).join(', ')} — 주 선택기에서 해당 주로 이동해 확인해주세요.
           </p>
         </div>
@@ -164,7 +164,10 @@ export default function WeeklyReviewView({ reports = [], students = [], classes 
             {g.students.map(student => {
               const draft = draftFor(student.id);
               const sessions = draft?.sessions || [];
-              const scheduledCount = student.scheduleDays?.length > 0 ? student.scheduleDays.length : sessions.length;
+              // scheduleDays 미설정이면 "몇 회가 예정돼 있었는지" 자체를 모름 — sessions.length로
+              // 대체하면 분자·분모가 항상 같아져("3/3회") 실제로는 진행률을 전혀 모르는 상태가
+              // "전부 다 했다"처럼 보였음. null로 두고 표시 쪽에서 분모 없이 보여줌
+              const scheduledCount = student.scheduleDays?.length > 0 ? student.scheduleDays.length : null;
               const ready = draft ? isReadyToSend(student, sessions, readinessRefDow) : false;
               const isExpanded = expandedId === draft?.id;
               const allPhotos = sessions.flatMap(s => s.photoUrls || []);
@@ -178,7 +181,7 @@ export default function WeeklyReviewView({ reports = [], students = [], classes 
                     disabled={!draft}
                     style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 14px', background: 'none', border: 'none', cursor: draft ? 'pointer' : 'default', fontFamily: 'inherit', textAlign: 'left' }}>
                     <span style={{ fontSize: '13px', fontWeight: 700, color: T.text, flex: 1 }}>{student.name}</span>
-                    <span style={{ fontSize: '11px', color: T.textMute }}>{sessions.length}/{scheduledCount}회</span>
+                    <span style={{ fontSize: '11px', color: T.textMute }}>{sessions.length}{scheduledCount != null ? `/${scheduledCount}` : ''}회</span>
                     <span style={{
                       fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '10px',
                       background: !draft ? '#F3F4F6' : ready ? C.successBg : C.warningBg,
