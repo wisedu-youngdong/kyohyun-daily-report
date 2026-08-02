@@ -126,7 +126,7 @@ export function StudentModal({ student, onClose, onSubmit, teachers = [], classe
   const showTeacherPicker = teachers.length > 0 && isDirector && !classId;
 
   return (
-    <div role="dialog" aria-modal="true" style={overlayStyle} onClick={onClose}>
+    <div role="dialog" aria-modal="true" aria-label={isEdit ? '학생 정보 수정' : '새 학생 등록'} style={overlayStyle} onClick={onClose}>
       <div ref={modalPanelRef} style={modalStyle} onClick={(e) => e.stopPropagation()}>
         <div style={modalHeaderStyle}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

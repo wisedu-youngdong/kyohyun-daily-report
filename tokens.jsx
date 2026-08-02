@@ -28,7 +28,7 @@ export const C = {
 
 // 관리자 화면(App.jsx) 팔레트
 export const T = {
-  brand: '#185FA5', brandLight: '#E6F1FB', brandBg: '#F0F7FC',
+  brand: '#185FA5', brandLight: '#E6F1FB',
   text: '#1A1A1A', textSub: '#6B7280', textMute: '#6C7586',
   border: '#E5E7EB', bg: '#FFFFFF', bgSoft: '#F9FAFB',
 };
@@ -46,16 +46,11 @@ export const R = {
   body: "'Pretendard Variable', Pretendard, sans-serif",
 };
 
-export const RADIUS = { sm: 8, md: 12, lg: 16, pill: 20 };
-
 // 컴포넌트 역할별 radius 스케일 (스펙 섹션 4) — badge/chip/input처럼 역할이 명확한 곳에 적용
 export const RADIUS2 = {
   badge: 4, chip: 6, input: 8, iconBg: 10, thumbnail: 12,
   card: 14, panel: 16, pill: 20, avatar: '50%',
 };
-
-// spacing 스케일 (스펙 섹션 5, base-4)
-export const SPACING = [4, 6, 8, 10, 12, 14, 16, 20, 24, 32, 40, 48, 56, 64];
 
 // 타이포그래피 스케일 (스펙 섹션 6). Display/H2/H3는 학부모 리포트(PublicReport/
 // GrowthStory)처럼 "리포트 타이틀"급 헤딩이 실제로 있는 화면 기준 — 관리자
@@ -75,11 +70,6 @@ export const SHADOW = {
   1: '0 1px 3px rgba(0,0,0,0.08)',
   2: '0 4px 12px rgba(0,0,0,0.14)',
   3: '0 20px 50px rgba(0,0,0,0.2)',
-};
-
-export const FONT = {
-  body: "'Pretendard Variable', Pretendard, sans-serif",
-  serif: R.serif,
 };
 
 // 학생이 직접 고른 스킨의 accent 색(skin.accent)은 배경/테두리용 옅은 톤도 섞여있어

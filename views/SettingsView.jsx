@@ -84,23 +84,13 @@ function deriveColors(mainHex) {
   const toHex = (r,g,b) => '#' + [r,g,b].map(v =>
     Math.round(Math.max(0,Math.min(255,v))).toString(16).padStart(2,'0')
   ).join('');
-  const lum = 0.299*r + 0.587*g + 0.114*b;
+  // 예전엔 미리보기 카드 하나에 쓸 색까지 15개를 한꺼번에 계산했는데, 실제로 읽히는 건
+  // headerBg/cardDark/cardLight/textDark 4개뿐이었음(나머지 11개는 죽은 코드) — 쓰는 것만 남김
   return {
-    main:      mainHex,
     headerBg:  `linear-gradient(155deg, ${toHex(r-20,g-20,b-20)}, ${mainHex}, ${toHex(r+30,g+30,b+30)})`,
     cardDark:  mainHex,
     cardLight: toHex(r+140,g+140,b+140),
     textDark:  '#ffffff',
-    textLight: lum > 128 ? T.text : toHex(r-60,g-60,b-60),
-    subDark:   'rgba(255,255,255,0.55)',
-    subLight:  toHex(r+60,g+60,b+60),
-    nextBg:    mainHex,
-    footerText: toHex(r+80,g+80,b+80),
-    commentBorder: mainHex,
-    commentBg: toHex(r+150,g+150,b+150),
-    tagBg:     toHex(r+150,g+150,b+150),
-    tagBorder: toHex(r+100,g+100,b+100),
-    tagText:   lum > 128 ? T.text : toHex(r-40,g-40,b-40),
   };
 }
 
@@ -436,7 +426,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
     setDeletingRequestId(req.id);
     setSignupActionResult('');
     try {
-      const idToken = await auth.currentUser.getIdToken();
+      const idToken = await auth.currentUser?.getIdToken();
       const res = await fetch('/api/delete-signup-request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
@@ -848,6 +838,9 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
       }
       setAccountResult(`${newTeacherName} 강사 계정 생성 완료!`);
       setAccountSuccess(true);
+      // 이 화면의 다른 저장 성공 배너(phoneSaved 등)는 2초 후 자동으로 사라지는데 이것만
+      // 영구히 남아있어서 UX가 갈렸음 — 동일하게 맞춤(실패 메시지는 그대로 유지)
+      setTimeout(() => setAccountResult(''), 2000);
       setNewTeacherEmail(''); setNewTeacherPassword(''); setNewTeacherName('');
     } catch (e) {
       const msg = e.code === 'auth/email-already-in-use' ? '이미 사용 중인 이메일입니다.' : e.message;
@@ -1158,7 +1151,9 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
           </div>
           <div style={{ flex: 1 }}>
             <p style={{ fontSize: '12px', fontWeight: 700, color: T.text, margin: '0 0 2px' }}>메인 컬러</p>
-            <p style={{ fontSize: '11px', fontWeight: 600, color: '#9B80C0', margin: 0, fontFamily: 'monospace' }}>{globalColor}</p>
+            {/* 흰 배경에서 대비비 미달(약 3.4:1, WCAG AA 4.5:1 기준)이던 연보라 대신, 같은 파일
+                아래 배지에 이미 쓰던 진보라(#6B3FA0)로 통일 — 톤은 유지하면서 대비만 확보 */}
+            <p style={{ fontSize: '11px', fontWeight: 600, color: '#6B3FA0', margin: 0, fontFamily: 'monospace' }}>{globalColor}</p>
           </div>
           <button
             onClick={() => colorInputRef.current?.click()}
@@ -1169,7 +1164,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
 
         {/* 파생 색상 미리보기 */}
         <div style={{ background: '#F8F6FC', borderRadius: '12px', padding: '12px', marginBottom: '14px' }}>
-          <p style={{ fontSize: '10px', fontWeight: 700, color: '#7A6B99', letterSpacing: '0.1em', marginBottom: '8px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>자동 파생 색상</p>
+          <p style={{ fontSize: '10px', fontWeight: 700, color: '#6B3FA0', letterSpacing: '0.1em', marginBottom: '8px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>자동 파생 색상</p>
           {[
             { label: '헤더 배경', color: derived.headerBg, text: '그라디언트' },
             { label: '다크 카드', color: derived.cardDark },
@@ -1181,7 +1176,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
               <span style={{ fontSize: '11px', fontWeight: 600, color: T.textSub, flex: 1 }}>{item.label}</span>
               {item.text
                 ? <span style={{ fontSize: '10px', fontWeight: 700, color: '#6B3FA0', background: '#F0E8FF', padding: '2px 7px', borderRadius: '6px' }}>{item.text}</span>
-                : <span style={{ fontSize: '10px', fontWeight: 600, color: '#7A6B99', fontFamily: 'monospace' }}>{item.color}</span>
+                : <span style={{ fontSize: '10px', fontWeight: 600, color: '#6B3FA0', fontFamily: 'monospace' }}>{item.color}</span>
               }
             </div>
           ))}
@@ -1259,9 +1254,9 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
         <div style={{ borderTop: '1px dashed #E5E7EB', paddingTop: '14px' }}>
           <p style={{ fontSize: '11px', fontWeight: 700, color: '#374151', marginBottom: '10px' }}>새 강사 계정 생성</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <input value={newTeacherName} onChange={e => setNewTeacherName(e.target.value)} placeholder="강사 이름 (예: 영동 선생님)" style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
-            <input value={newTeacherEmail} onChange={e => setNewTeacherEmail(e.target.value)} placeholder="이메일" type="email" style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
-            <input value={newTeacherPassword} onChange={e => setNewTeacherPassword(e.target.value)} placeholder="비밀번호 (6자 이상)" type="password" style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
+            <input value={newTeacherName} onChange={e => setNewTeacherName(e.target.value)} placeholder="강사 이름 (예: 영동 선생님)" aria-label="강사 이름" style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
+            <input value={newTeacherEmail} onChange={e => setNewTeacherEmail(e.target.value)} placeholder="이메일" aria-label="강사 이메일" type="email" autoComplete="off" style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
+            <input value={newTeacherPassword} onChange={e => setNewTeacherPassword(e.target.value)} placeholder="비밀번호 (6자 이상)" aria-label="강사 비밀번호" type="password" autoComplete="new-password" style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
             <button onClick={handleCreateTeacherAccount} disabled={accountCreating} style={{ background: accountCreating ? T.border : C.successDark, color: '#fff', border: 'none', borderRadius: '10px', padding: '11px', fontSize: '13px', fontWeight: 700, cursor: accountCreating ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
               {accountCreating ? '생성 중...' : '강사 계정 생성'}
             </button>
@@ -1289,7 +1284,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
           <div style={{ background: C.primaryLight, borderRadius: '12px', padding: '14px', marginBottom: '14px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
               <p style={{ fontSize: '12px', fontWeight: 700, color: C.primary, margin: 0 }}>반 사용법</p>
-              <button type="button" onClick={() => setShowClassGuide(false)} title="닫기" style={{ background: 'none', border: 'none', color: C.primary, cursor: 'pointer', padding: '2px', display: 'flex' }}>
+              <button type="button" onClick={() => setShowClassGuide(false)} title="닫기" aria-label="닫기" style={{ background: 'none', border: 'none', color: C.primary, cursor: 'pointer', padding: '2px', display: 'flex' }}>
                 <X size={14} />
               </button>
             </div>
@@ -1368,7 +1363,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
         <div style={{ borderTop: '1px dashed #E5E7EB', paddingTop: '14px' }}>
           <p style={{ fontSize: '11px', fontWeight: 700, color: '#374151', marginBottom: '10px' }}>새 반 만들기</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <input value={newClassName} onChange={e => setNewClassName(e.target.value)} placeholder="반 이름 (예: 화목반)" style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
+            <input value={newClassName} onChange={e => setNewClassName(e.target.value)} placeholder="반 이름 (예: 화목반)" aria-label="반 이름" style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
             <select value={newClassTeacherId} onChange={e => setNewClassTeacherId(e.target.value)} style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', background: '#fff', color: '#374151' }}>
               <option value="">담당 강사 선택</option>
               {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -1675,12 +1670,12 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
           <p style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>새 학원 추가</p>
           <p style={{ fontSize: '11px', color: T.textSub, fontWeight: 500, marginBottom: '14px' }}>분양할 학원의 데이터 공간과 첫 원장 계정을 만듭니다.</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <input value={newAcademyName} onChange={e => setNewAcademyName(e.target.value)} placeholder="학원 이름 (예: 데카르트학원)" style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
-            <input value={newAcademyId} onChange={e => { setNewAcademyId(e.target.value); setAcademyIdTouched(true); }} placeholder="학원 ID (영문 소문자/숫자/하이픈)" style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'monospace', outline: 'none' }} />
+            <input value={newAcademyName} onChange={e => setNewAcademyName(e.target.value)} placeholder="학원 이름 (예: 데카르트학원)" aria-label="학원 이름" style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
+            <input value={newAcademyId} onChange={e => { setNewAcademyId(e.target.value); setAcademyIdTouched(true); }} placeholder="학원 ID (영문 소문자/숫자/하이픈)" aria-label="학원 ID" style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'monospace', outline: 'none' }} />
             <div style={{ height: '1px', background: '#F3F4F6', margin: '4px 0' }} />
-            <input value={newDirectorName} onChange={e => setNewDirectorName(e.target.value)} placeholder="원장 이름" style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
-            <input value={newDirectorEmail} onChange={e => setNewDirectorEmail(e.target.value)} placeholder="원장 이메일" type="email" style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
-            <input value={newDirectorPassword} onChange={e => setNewDirectorPassword(e.target.value)} placeholder="비밀번호 (6자 이상)" type="password" style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
+            <input value={newDirectorName} onChange={e => setNewDirectorName(e.target.value)} placeholder="원장 이름" aria-label="원장 이름" style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
+            <input value={newDirectorEmail} onChange={e => setNewDirectorEmail(e.target.value)} placeholder="원장 이메일" aria-label="원장 이메일" type="email" autoComplete="off" style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
+            <input value={newDirectorPassword} onChange={e => setNewDirectorPassword(e.target.value)} placeholder="비밀번호 (6자 이상)" aria-label="원장 비밀번호" type="password" autoComplete="new-password" style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
             <button onClick={handleCreateAcademy} disabled={academyCreating} style={{ background: academyCreating ? T.border : C.primary, color: '#fff', border: 'none', borderRadius: '10px', padding: '11px', fontSize: '13px', fontWeight: 700, cursor: academyCreating ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
               {academyCreating ? '생성 중...' : '학원 생성'}
             </button>
