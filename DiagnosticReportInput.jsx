@@ -396,6 +396,11 @@ export default function DiagnosticReportInput({
   const [unitPickerOpen, setUnitPickerOpen] = useState(false);
   const [unitPickerSearch, setUnitPickerSearch] = useState('');
   const [unitPickerCourse, setUnitPickerCourse] = useState(null); // 오버레이 안에서 보고 있는 과정
+  // 이 파일의 다른 오버레이(AlertModal, 사진 라이트박스)는 Escape 닫기·포커스 트랩이 있는데
+  // 표준 단원표 오버레이만 빠져 있었음 — 같은 방식으로 맞춤
+  const unitPickerRef = React.useRef(null);
+  useEscapeClose(() => setUnitPickerOpen(false), unitPickerOpen);
+  useFocusTrap(unitPickerRef, unitPickerOpen);
 
   const [attendance, setAttendance] = useState('정시');
   const [arrivalTime, setArrivalTime] = useState('15:30');
@@ -1885,7 +1890,8 @@ export default function DiagnosticReportInput({
                   return (
                     <div onClick={(e) => { if (e.target === e.currentTarget) setUnitPickerOpen(false); }}
                       style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', zIndex: 1000, display: 'flex', alignItems: isWide ? 'center' : 'flex-end', justifyContent: 'center', padding: isWide ? '24px' : 0 }}>
-                      <div style={{ background: '#fff', width: '100%', maxWidth: '520px', borderRadius: isWide ? '16px' : '18px 18px 0 0', maxHeight: isWide ? '80vh' : '86dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                      <div ref={unitPickerRef} role="dialog" aria-modal="true" aria-label="표준 단원표에서 찾기"
+                        style={{ background: '#fff', width: '100%', maxWidth: '520px', borderRadius: isWide ? '16px' : '18px 18px 0 0', maxHeight: isWide ? '80vh' : '86dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                         <div style={{ padding: '16px 18px 0' }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                             <p style={{ fontSize: '14px', fontWeight: 800, margin: 0 }}>표준 단원표에서 찾기</p>
@@ -3142,7 +3148,7 @@ function ParentCard({ student, teacher, attendance, arrivalTime, departureTime, 
   const INK = '#171719';
   const INK_SOFT = 'rgba(55,56,60,0.75)';
   const CARD_BORDER = '#E4E6EB';
-  const teacherSuffix = /선생님?$/.test(teacher?.name || '') ? '' : ' 선생님';
+  const teacherSuffix = /선생님$/.test(teacher?.name || '') ? '' : ' 선생님';
 
   const noteParagraphs = (teacherNote || '').split('\n').filter(Boolean);
   const noteLead = noteParagraphs[0] || '';

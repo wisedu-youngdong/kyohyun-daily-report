@@ -1124,8 +1124,8 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
         <div style={{ background: '#F8F6FC', borderRadius: '12px', padding: '12px', marginBottom: '14px' }}>
           <p style={{ fontSize: '10px', fontWeight: 700, color: '#7A6B99', letterSpacing: '0.1em', marginBottom: '8px', fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>자동 파생 색상</p>
           {[
-            { label: '헤더 배경', color: globalColor },
-            { label: '다크 카드', color: globalColor },
+            { label: '헤더 배경', color: derived.headerBg, text: '그라디언트' },
+            { label: '다크 카드', color: derived.cardDark },
             { label: '라이트 카드', color: derived.cardLight },
             { label: '텍스트 자동 대비', color: derived.textDark, text: '자동 계산' },
           ].map((item, i) => (

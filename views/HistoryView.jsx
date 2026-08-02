@@ -728,7 +728,7 @@ export default function HistoryView({ reports, students, classes = [], reportVie
 
           {/* 상태 탭 */}
           <div style={{ display: 'flex', gap: '4px', background: '#F1F2F5', borderRadius: '8px', padding: '4px' }}>
-            {[['all', '전체'], ['draft', '작성 중'], ['viewed', '열람 완료']].map(([key, label]) => (
+            {[['all', '전체'], ['draft', '작성 중'], ['viewed', '열람 완료'], ['absent', '결석']].map(([key, label]) => (
               <button key={key} onClick={() => setStatusTab(key)}
                 style={{ flex: 1, minWidth: 0, border: 'none', borderRadius: '6px', background: statusTab === key ? '#fff' : 'transparent', color: statusTab === key ? C.primary : 'rgba(55,56,60,0.75)', fontSize: '12px', fontWeight: 700, padding: '7px 4px', cursor: 'pointer', fontFamily: 'inherit' }}>
                 {label}

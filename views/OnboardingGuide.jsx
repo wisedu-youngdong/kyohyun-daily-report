@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useMediaQuery } from '../hooks.js';
+import React, { useState, useEffect, useRef } from 'react';
+import { useMediaQuery, useEscapeClose, useFocusTrap } from '../hooks.js';
 import { onKeyActivate } from './shared.jsx';
 
 // 신규 학원 시작 가이드 — 가입 승인 직후 첫 로그인에서 한 번 뜨고, 건너뛰어도 완전히 사라지지
@@ -70,13 +70,21 @@ export default function OnboardingGuide({
     if (view === 'widget' && shouldStayHidden) setView('hidden');
   }, [shouldStayHidden, view]);
 
-  if (!isDirector || view === 'hidden') return null;
-
   const dismissPromptTo = (next) => {
     userInteracted.current = true;
     if (!promptShown) onDismissPrompt?.();
     setView(next);
   };
+
+  // 이 컴포넌트의 모달(prompt/checklist)에는 앱의 다른 모달과 달리 Escape 닫기/포커스
+  // 트랩/role=dialog가 빠져 있었음 — 같은 방식으로 맞춤. Escape/배경클릭은 상단 ✕나
+  // "아니요/나중에" 버튼과 동일하게 위젯으로 내려감(닫아도 완전히 안 사라지고 재오픈 가능하므로 안전)
+  const modalRef = useRef(null);
+  const isModalOpen = view === 'prompt' || view === 'checklist';
+  useEscapeClose(() => dismissPromptTo('widget'), isModalOpen);
+  useFocusTrap(modalRef, isModalOpen);
+
+  if (!isDirector || view === 'hidden') return null;
 
   const goToItem = (item) => {
     userInteracted.current = true;
@@ -99,8 +107,9 @@ export default function OnboardingGuide({
 
   if (view === 'prompt') {
     return (
-      <div style={{ position: 'fixed', inset: 0, background: OVERLAY, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', zIndex: 2000 }}>
-        <div style={modalBase}>
+      <div onClick={() => dismissPromptTo('widget')}
+        style={{ position: 'fixed', inset: 0, background: OVERLAY, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', zIndex: 2000 }}>
+        <div ref={modalRef} role="dialog" aria-modal="true" aria-label="처음이신가요?" onClick={e => e.stopPropagation()} style={modalBase}>
           <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: NAVY_SOFT, color: NAVY, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', margin: '0 auto 14px' }}>🧭</div>
           <h2 style={{ fontSize: '16.5px', fontWeight: 800, margin: '0 0 8px', letterSpacing: '-0.01em', color: TEXT }}>처음이신가요?</h2>
           <p style={{ fontSize: '12.5px', color: TEXT_SUB, lineHeight: 1.65, margin: '0 0 20px' }}>학생 등록부터 첫 리포트 발송까지, 4단계로 짧게 안내해드릴게요. 1분이면 충분해요.</p>
@@ -113,8 +122,10 @@ export default function OnboardingGuide({
 
   if (view === 'checklist') {
     return (
-      <div style={{ position: 'fixed', inset: 0, background: OVERLAY, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', zIndex: 2000 }}>
-        <div style={{ ...modalBase, maxWidth: '380px', textAlign: 'left', padding: '22px 22px 18px' }}>
+      <div onClick={() => dismissPromptTo('widget')}
+        style={{ position: 'fixed', inset: 0, background: OVERLAY, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', zIndex: 2000 }}>
+        <div ref={modalRef} role="dialog" aria-modal="true" aria-label="시작 가이드" onClick={e => e.stopPropagation()}
+          style={{ ...modalBase, maxWidth: '380px', textAlign: 'left', padding: '22px 22px 18px' }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px', marginBottom: '4px' }}>
             <h2 style={{ fontSize: '15.5px', fontWeight: 800, margin: 0, color: TEXT }}>시작 가이드</h2>
             <button onClick={() => dismissPromptTo('widget')} title="나중에 계속하기"

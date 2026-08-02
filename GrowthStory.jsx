@@ -642,7 +642,7 @@ export default function GrowthStory() {
   );
 
   const teacherName = sorted[sorted.length - 1]?.teacherName || '';
-  const teacherDisplay = teacherName ? teacherName.replace(/선생님?$/, '').trim() + ' 선생님' : '담당 교사';
+  const teacherDisplay = teacherName ? teacherName.replace(/선생님$/, '').trim() + ' 선생님' : '담당 교사';
 
   // 카드 폭 420→680px 확대(2026-07-31 성장 포트폴리오 개선) — 개별 섹션이 크림 배경(#F5F5F0)
   // 위에 떠 있는 흰 카드로 바뀌어 "인쇄된 한 장" 느낌에서 "앨범" 느낌으로. 흰 배경 위 골드

@@ -148,10 +148,13 @@ export default function DirectorView({ reports, students, classes = [], teachers
           return s.scheduleDays.some(d => dowRank(d) <= dowRank(todayDow));
         });
 
-        const pending = reportQuestions
+        // 카드 제목이 "항상 이번 주"라고 안내하는데, 질문 목록만 기간 제한이 없어서 지난 주
+        // 이전 질문까지 계속 섞여 나오던 불일치 — weekReports와 동일하게 askedAt 기준 이번 주로 제한
+        const weekQuestions = reportQuestions.filter(q => q.askedAt?.seconds && kstDay(q.askedAt.seconds) >= week.startStr);
+        const pending = weekQuestions
           .filter(q => !q.answerText)
           .sort((a, b) => (b.askedAt?.seconds || 0) - (a.askedAt?.seconds || 0));
-        const answered = reportQuestions
+        const answered = weekQuestions
           .filter(q => q.answerText)
           .sort((a, b) => (b.answeredAt?.seconds || 0) - (a.answeredAt?.seconds || 0));
 
@@ -471,7 +474,7 @@ export default function DirectorView({ reports, students, classes = [], teachers
                     </div>
                     <div>
                       <p style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A', margin: 0 }}>{r.studentName}</p>
-                      <p style={{ fontSize: '10px', color: '#6B7785', margin: 0 }}>{r.teacherName}{/선생님?$/.test(r.teacherName || '') ? '' : ' 선생님'}</p>
+                      <p style={{ fontSize: '10px', color: '#6B7785', margin: 0 }}>{r.teacherName}{/선생님$/.test(r.teacherName || '') ? '' : ' 선생님'}</p>
                     </div>
                   </div>
 

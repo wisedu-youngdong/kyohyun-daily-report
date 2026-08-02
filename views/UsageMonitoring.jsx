@@ -33,6 +33,9 @@ export default function UsageMonitoring({ month, onMonthChange }) {
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
+    // 월 이동 시 이전 값을 안 지우면, 통계 카드는 로딩 중 "-"로 바뀌는데 그 아래 차트·순위는
+    // 이전 달 데이터가 그대로 남아 화면 안에서 로딩 처리가 반쪽으로 섞여 보임
+    setData(null);
     try {
       const idToken = await auth.currentUser.getIdToken();
       const res = await fetch(`/api/usage-monitoring?month=${month}`, {

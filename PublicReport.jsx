@@ -188,7 +188,7 @@ export default function PublicReport() {
 
   const homeworkPct = toPct(r.homeworkRating);
   const conceptPct = toPct(r.conceptRating);
-  const teacherSuffix = /선생님?$/.test(r.teacherName || '') ? '' : ' 선생님';
+  const teacherSuffix = /선생님$/.test(r.teacherName || '') ? '' : ' 선생님';
 
   // 스킨 6색 — 저장된 건 주조색/포인트색 2개(skin.main/accent)뿐이라 나머지(second/tint/track/
   // bannerLabel)는 여기서 파생 계산한다. 스킨 없는 기존 리포트는 기본 네이비+골드로 계산됨.

@@ -107,12 +107,24 @@ export default function BulkStudentImport({ onClose, onSave, classes = [], teach
 
   const handleImport = async () => {
     setImporting(true);
+    // 한 행이라도 실패(네트워크/규칙 거부 등)하면 예외가 루프 밖으로 빠져나가 setImporting(false)가
+    // 영원히 안 불려서 "등록 중..." 스피너에 멈춰있던 문제 — 행별로 감싸서 실패해도 나머지
+    // 행은 계속 진행하고, 끝나면 실패 건수를 알려준다
+    let failCount = 0;
     for (let i = 0; i < validRows.length; i++) {
-      await onSave(validRows[i].payload);
+      try {
+        await onSave(validRows[i].payload);
+      } catch (e) {
+        console.error('학생 등록 실패:', validRows[i].payload?.name, e);
+        failCount++;
+      }
       setProgress(i + 1);
     }
     setImporting(false);
     setDone(true);
+    if (failCount > 0) {
+      onToast?.(`${failCount}명 등록에 실패했어요. 다시 시도해주세요.`, 'error');
+    }
   };
 
   return (
