@@ -8,11 +8,14 @@ import { StudentDetailPanel } from './StudentProfileModal.jsx';
 // period는 이제 DirectorView가 소유(재설계 1단계 — 기간 컨트롤 통합, 오늘/1주/1개월/3개월
 // 세그먼트 하나가 이 컴포넌트를 렌더할지 말지까지 결정). 이 컴포넌트는 더 이상 자체 기간
 // 토글을 그리지 않고 prop으로 받은 값만 따른다.
-export default function GrowthDashboard({ reports, students, period, reviews, onToast, academyName, onEditReviewNote }) {
+export default function GrowthDashboard({ reports, students, period, classes = [], reviews, onToast, academyName, onEditReviewNote }) {
   // App.jsx의 isPc(900px)와 기준 통일 — 앱 전체에서 PC/모바일 판정 기준이 화면마다
   // 제각각(768 vs 900)이면 중간 폭에서 레이아웃이 서로 어긋나는 문제가 생기기 쉬움
   const isMobile = !useMediaQuery('(min-width: 900px)');
-  const [sortMode, setSortMode] = React.useState('decline');
+  // 재설계 5단계(확장성) — 기본 정렬을 "관심 필요 순"(경고→주의→안정→데이터없음)으로 바꿈
+  const [sortMode, setSortMode] = React.useState('risk');
+  const [search, setSearch] = React.useState('');
+  const [classFilter, setClassFilter] = React.useState(''); // '' = 전체
   const [selId, setSelId] = React.useState(null);
   const [tooltip, setTooltip] = React.useState(null);
   const svgRef = React.useRef(null);
@@ -65,9 +68,31 @@ export default function GrowthDashboard({ reports, students, period, reviews, on
     return { label: '안정', color: C.successDark, bg: C.successBg, border: C.successDark };
   }, [getStudentReports]);
 
+  // 검색 + 반 필터 — 재설계 5단계. 지금은 학생 수가 적어 체감이 크지 않지만, 학원 규모가
+  // 커질수록(제안서 기준 42명→200명) 스캔보다 빠른 좁히기 수단이 필요해짐
+  const RISK_RANK = { '경고': 0, '주의': 1, '안정': 2, '데이터없음': 3 };
+  const filteredStudents = React.useMemo(() => {
+    return students.filter(s => {
+      if (classFilter && s.classId !== classFilter) return false;
+      if (search.trim() && !s.name.includes(search.trim())) return false;
+      return true;
+    });
+  }, [students, classFilter, search]);
+
   // 정렬 — 화면 표시(getTrend)와 정렬 기준 통일 + null → 맨 뒤
   const sortedStudents = React.useMemo(() => {
-    const list = [...students];
+    const list = [...filteredStudents];
+    if (sortMode === 'risk') {
+      return list.sort((a, b) => {
+        const ra = RISK_RANK[getStatus(a.id).label] ?? 9, rb = RISK_RANK[getStatus(b.id).label] ?? 9;
+        if (ra !== rb) return ra - rb;
+        const da = getTrend(a.id), db = getTrend(b.id);
+        if (da === null && db === null) return 0;
+        if (da === null) return 1;
+        if (db === null) return -1;
+        return da - db; // 같은 상태 안에서는 하락 폭 큰 순
+      });
+    }
     if (sortMode === 'decline') {
       return list.sort((a, b) => {
         const da = getTrend(a.id), db = getTrend(b.id);
@@ -79,7 +104,7 @@ export default function GrowthDashboard({ reports, students, period, reviews, on
     }
     if (sortMode === 'score') return list.sort((a, b) => getAvg(b.id) - getAvg(a.id));
     return list.sort((a, b) => a.name.localeCompare(b.name, 'ko'));
-  }, [students, period, sortMode, getTrend, getAvg]);
+  }, [filteredStudents, period, sortMode, getTrend, getAvg, getStatus]);
 
   // 전체 평균 데이터 포인트 생성
   const globalPoints = React.useMemo(() => {
@@ -242,10 +267,36 @@ export default function GrowthDashboard({ reports, students, period, reviews, on
         </div>
       </div>
 
+      {/* 검색 + 반 필터 — 학생 수가 늘어날 학원 대비. 반 칩은 최대 6개까지만 보여줌(제안서
+          기준) — 그 이상이면 칩 UI 자체가 스캔 속도를 못 따라가서 이후 좌측 레일 등으로
+          다시 설계해야 함 */}
+      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' }}>
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="학생 이름 검색"
+          style={{ flex: '1 1 160px', minWidth: 0, padding: '6px 10px', fontSize: '12px', border: '1px solid #E8E6E0', borderRadius: '20px', fontFamily: 'inherit', outline: 'none' }} />
+        {classes.length > 0 && (
+          <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+            <button onClick={() => setClassFilter('')} style={{
+              padding: '5px 12px', fontSize: '11px', fontWeight: 700, borderRadius: '20px', cursor: 'pointer', fontFamily: 'inherit',
+              border: `1.5px solid ${classFilter === '' ? '#0D2D6B' : '#E8E6E0'}`,
+              background: classFilter === '' ? '#0D2D6B' : '#fff',
+              color: classFilter === '' ? '#fff' : '#6B7280',
+            }}>전체</button>
+            {classes.slice(0, 6).map(c => (
+              <button key={c.id} onClick={() => setClassFilter(c.id)} style={{
+                padding: '5px 12px', fontSize: '11px', fontWeight: 700, borderRadius: '20px', cursor: 'pointer', fontFamily: 'inherit',
+                border: `1.5px solid ${classFilter === c.id ? '#0D2D6B' : '#E8E6E0'}`,
+                background: classFilter === c.id ? '#0D2D6B' : '#fff',
+                color: classFilter === c.id ? '#fff' : '#6B7280',
+              }}>{c.name}</button>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* 정렬 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', flexWrap: 'wrap' }}>
         <p style={{ fontSize: '11px', color: '#6B7785', margin: 0 }}>정렬:</p>
-        {[['decline','하락 폭 큰 순'],['score','점수 높은 순'],['name','이름순']].map(([m, l]) => (
+        {[['risk','관심 필요 순'],['decline','하락 폭 큰 순'],['score','점수 높은 순'],['name','이름순']].map(([m, l]) => (
           <button key={m} onClick={() => setSortMode(m)} style={{
             padding: '4px 10px', fontSize: '11px', borderRadius: '20px', cursor: 'pointer', fontFamily: 'inherit',
             border: `1.5px solid ${sortMode === m ? '#0D2D6B' : '#E8E6E0'}`,
@@ -337,7 +388,9 @@ export default function GrowthDashboard({ reports, students, period, reviews, on
           );
         })}
         {sortedStudents.length === 0 && (
-          <p style={{ textAlign: 'center', color: '#6B7785', fontSize: '12px', padding: '32px 0' }}>등록된 학생이 없습니다</p>
+          <p style={{ textAlign: 'center', color: '#6B7785', fontSize: '12px', padding: '32px 0' }}>
+            {students.length === 0 ? '등록된 학생이 없습니다' : '검색·필터 조건에 맞는 학생이 없습니다'}
+          </p>
         )}
       </div>
 

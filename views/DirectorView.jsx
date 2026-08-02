@@ -377,7 +377,7 @@ export default function DirectorView({ reports, students, classes = [], reportVi
       </div>
 
       {view !== 'today' ? (
-        <GrowthDashboard reports={reports} students={students} period={view} reviews={reviews} onToast={onToast} academyName={academyName} onEditReviewNote={onEditReviewNote} />
+        <GrowthDashboard reports={reports} students={students} period={view} classes={classes} reviews={reviews} onToast={onToast} academyName={academyName} onEditReviewNote={onEditReviewNote} />
       ) : (
       <>
       {/* 헤더 */}
