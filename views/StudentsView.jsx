@@ -38,7 +38,7 @@ export default function StudentsView({ students, reports, reviews = [], onSave, 
     return Math.floor((Date.now() - last.createdAt.seconds * 1000) / 86400000);
   };
 
-  // 검색 + 정렬 — 보관된 학생은 "보관함 보기"를 켰을 때만
+  // 검색 + 정렬 — 퇴원생은 "퇴원생 보기"를 켰을 때만
   const filtered = students
     .filter(s => showArchived ? s.archived : !s.archived)
     .filter(s => {
@@ -82,7 +82,7 @@ export default function StudentsView({ students, reports, reviews = [], onSave, 
         : (
           <div style={{ background: '#fff', borderRadius: '16px', border: `1px solid ${T.border}`, padding: '60px 20px', textAlign: 'center' }}>
             <p style={{ color: T.textSub, fontSize: '13px', margin: '0 0 12px' }}>
-              {showArchived ? '보관된 학생이 없습니다' : '등록된 학생이 없습니다'}
+              {showArchived ? '퇴원생이 없습니다' : '등록된 학생이 없습니다'}
             </p>
             {!showArchived && (
               <button onClick={() => setShowAddStudent(true)}
@@ -104,7 +104,7 @@ export default function StudentsView({ students, reports, reviews = [], onSave, 
           const isSelected = isWide && !s.archived && selectedStudent?.id === s.id;
           const activateRow = () => isWide && !s.archived ? setSelectedId(s.id) : setProfileStudent(s);
           return (
-            // 카드 안에 수정/삭제/복원 버튼이 따로 있어 role="button"은 안 씀 —
+            // 카드 안에 수정/퇴원/재원 버튼이 따로 있어 role="button"은 안 씀 —
             // tabIndex+onKeyDown으로 키보드 포커스·Enter/Space 조작만 추가
             <div key={s.id} tabIndex={0} onKeyDown={onKeyActivate(activateRow)}
               style={{
@@ -138,7 +138,7 @@ export default function StudentsView({ students, reports, reviews = [], onSave, 
                   <button
                     onClick={(e) => { e.stopPropagation(); onRestore?.(s.id); }}
                     style={{ background: C.primaryLight, border: 'none', color: C.primary, fontSize: '12px', fontWeight: 700, padding: '10px 14px', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
-                    ↩ 복원
+                    ↩ 재원 처리
                   </button>
                 ) : (<>
                 <button
@@ -150,7 +150,7 @@ export default function StudentsView({ students, reports, reviews = [], onSave, 
                   <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
                     <button onClick={() => { onDelete(s.id); setDeleteConfirm(null); }}
                       style={{ background: C.warningText, border: 'none', color: '#fff', fontSize: '11px', fontWeight: 700, padding: '10px 12px', borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit' }}>
-                      보관 확인
+                      퇴원 확인
                     </button>
                     <button onClick={() => setDeleteConfirm(null)}
                       style={{ background: '#F3F4F6', border: 'none', color: '#6B7280', fontSize: '11px', fontWeight: 600, padding: '10px 12px', borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -159,7 +159,7 @@ export default function StudentsView({ students, reports, reviews = [], onSave, 
                   </div>
                 ) : (
                   <button onClick={(e) => { e.stopPropagation(); askDeleteConfirm(s.id); }}
-                    title="목록에서 숨기기 (기록은 보관됨)"
+                    title="퇴원 처리 (기록은 보관됨)"
                     style={{ background: 'none', border: 'none', color: T.textMute, fontSize: '18px', cursor: 'pointer', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, WebkitTapHighlightColor: 'transparent' }}>×</button>
                 )}
                 </>)}
@@ -186,13 +186,13 @@ export default function StudentsView({ students, reports, reviews = [], onSave, 
   const header = (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', gap: '8px' }}>
       <h2 style={{ fontSize: '20px', fontWeight: 700, letterSpacing: '-0.02em', margin: 0 }}>
-        {showArchived ? '보관된 학생' : '학생 관리'}
+        {showArchived ? '퇴원생' : '학생 관리'}
       </h2>
       <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
         {archivedCount > 0 && (
           <button onClick={() => { setShowArchived(v => !v); setSearch(''); }}
             style={{ background: showArchived ? C.infoBg : '#fff', color: showArchived ? C.infoDark : T.textSub, border: `1px solid ${T.border}`, borderRadius: '9px', padding: '8px 12px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-            {showArchived ? '← 현재 학생' : `보관함 ${archivedCount}`}
+            {showArchived ? '← 재원생' : `퇴원생 ${archivedCount}`}
           </button>
         )}
         {!showArchived && isDirector && (

@@ -383,24 +383,25 @@ export default function App() {
     alert('저장 실패: ' + e.message);
   }
 };
-  // 소프트 삭제 — 학생 문서를 지우면 그 학생의 리포트가 studentId만 든 채 고아가 되고
+  // 퇴원 처리(소프트 삭제) — 학생 문서를 지우면 그 학생의 리포트가 studentId만 든 채 고아가 되고
   // (학부모에게 이미 나간 공개 링크도 그대로 열림), 복구도 불가능. archived 플래그로 숨김 처리.
+  // UI 용어는 "퇴원/재원"으로 학원 언어에 맞췄지만 데이터 구조는 그대로 archived 재사용(2026-08-02).
   const handleDeleteStudent = async (id) => {
     try {
       await updateDoc(doc(db, 'academies', academyId, 'students', id), { archived: true, archivedAt: serverTimestamp() });
-      showAppToast('학생을 목록에서 숨겼습니다. 리포트 기록은 그대로 보관됩니다.');
+      showAppToast('퇴원 처리했습니다. 리포트 기록은 그대로 보관됩니다.');
     } catch (e) {
-      console.error('학생 삭제 실패:', e);
-      showAppToast('학생 삭제에 실패했습니다.', 'error');
+      console.error('학생 퇴원 처리 실패:', e);
+      showAppToast('퇴원 처리에 실패했습니다.', 'error');
     }
   };
   const handleRestoreStudent = async (id) => {
     try {
       await updateDoc(doc(db, 'academies', academyId, 'students', id), { archived: false });
-      showAppToast('학생을 목록에 다시 표시합니다.');
+      showAppToast('재원 처리했습니다.');
     } catch (e) {
-      console.error('학생 복원 실패:', e);
-      showAppToast('학생 복원에 실패했습니다.', 'error');
+      console.error('학생 재원 처리 실패:', e);
+      showAppToast('재원 처리에 실패했습니다.', 'error');
     }
   };
 
