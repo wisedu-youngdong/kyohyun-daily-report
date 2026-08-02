@@ -11,7 +11,7 @@ const DEFAULT_THRESHOLDS = { warningAvg: 50, cautionAvg: 70, dropThreshold: 20 }
 // period는 이제 DirectorView가 소유(재설계 1단계 — 기간 컨트롤 통합, 오늘/1주/1개월/3개월
 // 세그먼트 하나가 이 컴포넌트를 렌더할지 말지까지 결정). 이 컴포넌트는 더 이상 자체 기간
 // 토글을 그리지 않고 prop으로 받은 값만 따른다.
-export default function GrowthDashboard({ reports, students, period, classes = [], onOpenStudentProfile, statusThresholds }) {
+export default function GrowthDashboard({ reports, students, period, classes = [], teachers = [], onOpenStudentProfile, statusThresholds }) {
   // App.jsx의 isPc(900px)와 기준 통일 — 앱 전체에서 PC/모바일 판정 기준이 화면마다
   // 제각각(768 vs 900)이면 중간 폭에서 레이아웃이 서로 어긋나는 문제가 생기기 쉬움
   const isMobile = !useMediaQuery('(min-width: 900px)');
@@ -19,6 +19,7 @@ export default function GrowthDashboard({ reports, students, period, classes = [
   const [sortMode, setSortMode] = React.useState('risk');
   const [search, setSearch] = React.useState('');
   const [classFilter, setClassFilter] = React.useState(''); // '' = 전체
+  const [teacherFilter, setTeacherFilter] = React.useState('all'); // 'all' | 'unassigned' | teacherId — StudentsView.jsx와 동일한 값 체계
   const [selId, setSelId] = React.useState(null);
   const [tooltip, setTooltip] = React.useState(null);
   const svgRef = React.useRef(null);
@@ -81,10 +82,12 @@ export default function GrowthDashboard({ reports, students, period, classes = [
   const filteredStudents = React.useMemo(() => {
     return students.filter(s => {
       if (classFilter && s.classId !== classFilter) return false;
+      if (teacherFilter === 'unassigned' && s.assignedTeacherId) return false;
+      if (teacherFilter !== 'all' && teacherFilter !== 'unassigned' && s.assignedTeacherId !== teacherFilter) return false;
       if (search.trim() && !s.name.includes(search.trim())) return false;
       return true;
     });
-  }, [students, classFilter, search]);
+  }, [students, classFilter, teacherFilter, search]);
 
   // 정렬 — 화면 표시(getTrend)와 정렬 기준 통일 + null → 맨 뒤
   const sortedStudents = React.useMemo(() => {
@@ -299,6 +302,22 @@ export default function GrowthDashboard({ reports, students, period, classes = [
           </div>
         )}
       </div>
+
+      {/* 선생님 필터 — 미뤄뒀던 결정 항목. 반이 없거나 선생님이 여러 반을 겸임하는 학원에서
+          반 필터만으론 "이 선생님 학생만" 걸러볼 방법이 없었음. StudentsView.jsx와 동일한
+          'all'/'unassigned'/teacherId 값 체계라 필터 동작이 학생관리 탭과 일관됨 */}
+      {teachers.length > 0 && (
+        <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginBottom: '8px' }}>
+          {[{ id: 'all', name: '전체 선생님' }, { id: 'unassigned', name: '미배정' }, ...teachers].map(t => (
+            <button key={t.id} onClick={() => setTeacherFilter(t.id)} style={{
+              padding: '5px 12px', fontSize: '11px', fontWeight: 700, borderRadius: '20px', cursor: 'pointer', fontFamily: 'inherit',
+              border: `1.5px solid ${teacherFilter === t.id ? '#0D2D6B' : '#E8E6E0'}`,
+              background: teacherFilter === t.id ? '#0D2D6B' : '#fff',
+              color: teacherFilter === t.id ? '#fff' : '#6B7280',
+            }}>{t.name}</button>
+          ))}
+        </div>
+      )}
 
       {/* 정렬 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', flexWrap: 'wrap' }}>
