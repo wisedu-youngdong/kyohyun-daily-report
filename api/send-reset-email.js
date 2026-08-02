@@ -109,8 +109,15 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
   try {
-    const { email } = req.body || {};
-    if (!email || typeof email !== 'string') {
+    const { email: rawEmail } = req.body || {};
+    if (!rawEmail || typeof rawEmail !== 'string') {
+      return res.status(400).json({ error: '이메일이 필요합니다.' });
+    }
+    // rate limit 키 계산(checkAndBumpRateLimit)은 내부적으로 trim해서 쓰는데, 실제 Firebase
+    // Auth 호출엔 원본을 그대로 넘기면 앞뒤 공백 있는 입력에서 카운트와 발송 결과가 어긋날 수
+    // 있어 여기서 한 번만 trim해 이후 전부 동일한 값을 쓰게 함
+    const email = rawEmail.trim();
+    if (!email) {
       return res.status(400).json({ error: '이메일이 필요합니다.' });
     }
 

@@ -6,6 +6,7 @@
 //      라이브 페이지 링크만 보냄 — GrowthAward.jsx가 매 방문마다 최신 데이터로 직접 계산해서
 //      보여주므로 별도 저장이 필요 없음)
 // Vercel Hobby 플랜 서버리스 함수 12개 제한 때문에(CLAUDE.md 참고) 새 파일 하나로 두 작업을 묶음.
+import { timingSafeEqual } from 'crypto';
 import { getFirestore } from 'firebase-admin/firestore';
 import { ensureAdminApp } from './_lib/adminApp.js';
 import { escapeHtml, INK, INK_SOFT, INK_MUTE, emailShell, ctaButton, sendViaResend } from './_lib/email.js';
@@ -45,7 +46,7 @@ function buildBriefingEmailHtml({ todayStr, totalScheduled, pending, unanswered 
   });
 }
 
-export async function sendMorningBriefing(db, academyId, academy, todayStr, todayDow) {
+export async function sendMorningBriefing(db, academyId, todayStr, todayDow) {
   const directorEmail = await getDirectorEmail(db, academyId);
   if (!directorEmail) return false;
 
@@ -157,8 +158,12 @@ export async function sendMonthlyAward(db, academyId, now) {
 export default async function handler(req, res) {
   // Vercel Cron이 호출할 때 CRON_SECRET 환경변수가 설정돼 있으면 Authorization: Bearer
   // 헤더에 자동으로 실어 보내줌 — 이 값이 없거나 안 맞으면 아무나(URL을 아는 사람) 이 엔드포인트를
-  // 두드려 대량 메일을 보낼 수 있으므로 반드시 검증
-  if (!process.env.CRON_SECRET || req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
+  // 두드려 대량 메일을 보낼 수 있으므로 반드시 검증. 문자열 !== 비교는 타이밍 공격에 노출되므로
+  // timingSafeEqual 사용(길이가 다르면 그 자체로 비교 없이 실패 처리)
+  const expected = Buffer.from(`Bearer ${process.env.CRON_SECRET || ''}`);
+  const actual = Buffer.from(req.headers.authorization || '');
+  const authorized = !!process.env.CRON_SECRET && expected.length === actual.length && timingSafeEqual(expected, actual);
+  if (!authorized) {
     return res.status(401).json({ error: 'unauthorized' });
   }
 
@@ -177,7 +182,7 @@ export default async function handler(req, res) {
     if (academy.status === 'suspended') continue;
 
     try {
-      if (await sendMorningBriefing(db, academyId, academy, todayStr, todayDow)) results.briefingsSent++;
+      if (await sendMorningBriefing(db, academyId, todayStr, todayDow)) results.briefingsSent++;
     } catch (e) {
       console.error(`아침 브리핑 발송 실패 academyId=${academyId}:`, e.message);
       results.errors.push(`briefing:${academyId}`);

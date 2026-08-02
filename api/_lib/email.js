@@ -55,7 +55,7 @@ export function emailShell({ title, bodyHtml }) {
 export function ctaButton(href, label) {
   return `<table role="presentation" cellpadding="0" cellspacing="0">
     <tr><td style="background:${NAVY};border-radius:8px;">
-      <a href="${href}" style="display:inline-block;padding:12px 24px;font-size:13px;font-weight:700;color:#ffffff;text-decoration:none;font-family:${FONT_STACK};">${label}</a>
+      <a href="${escapeHtml(href)}" style="display:inline-block;padding:12px 24px;font-size:13px;font-weight:700;color:#ffffff;text-decoration:none;font-family:${FONT_STACK};">${label}</a>
     </td></tr>
   </table>`;
 }
