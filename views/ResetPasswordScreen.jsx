@@ -35,8 +35,18 @@ export default function ResetPasswordScreen() {
       await confirmPasswordReset(auth, oobCode, password);
       setStatus('done');
     } catch (err) {
-      setError('비밀번호 변경에 실패했습니다. 링크가 만료됐을 수 있어요 — 다시 요청해주세요.');
-      setStatus('form');
+      // 코드 검증(verifyPasswordResetCode)은 통과했어도, 입력하는 사이에 만료되거나 다른
+      // 탭에서 이미 써버렸으면 여기서 실패할 수 있음 — 이 경우 'form'에 그대로 두면 같은
+      // (이미 무효화된) 코드로 재제출을 반복하는 것 말고는 빠져나갈 방법이 없었음.
+      // 'invalid' 화면으로 넘겨서 "로그인 화면으로" 버튼(재요청 경로)을 쓸 수 있게 함.
+      if (err.code === 'auth/expired-action-code' || err.code === 'auth/invalid-action-code') {
+        setStatus('invalid');
+      } else {
+        setError(err.code === 'auth/weak-password'
+          ? '비밀번호가 너무 약해요. 다른 비밀번호를 입력해주세요.'
+          : '비밀번호 변경에 실패했습니다. 잠시 후 다시 시도해주세요.');
+        setStatus('form');
+      }
     }
   };
 

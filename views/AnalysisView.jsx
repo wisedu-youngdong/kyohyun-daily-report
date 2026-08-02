@@ -265,7 +265,10 @@ export default function AnalysisView({ students, reports }) {
                   return attendanceRated.length ? Math.round(attendanceRated.filter(r => r.attendance === '정시').length / attendanceRated.length * 100) : 0;
                 })()} unit="%" />
               </div>
-              <HomeworkTestChart reports={periodReports} />
+              {/* key로 학생/기간이 바뀔 때마다 강제 리마운트 — 안 그러면 차트 내부의
+                  weekOffset(주간 이동) state가 그대로 남아서, 다른 학생/기간으로 바꿔도
+                  엉뚱한 과거 주를 계속 보여줄 수 있었음 */}
+              <HomeworkTestChart key={`${selectedId}-${periodMode}-${customStart}-${customEnd}`} reports={periodReports} />
               <InsightCard reports={periodReports} />
             </>
           )}

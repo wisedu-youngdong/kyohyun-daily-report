@@ -38,7 +38,16 @@ export default function LoginScreen() {
         else localStorage.removeItem(LAST_EMAIL_KEY); // 체크 해제하고 로그인하면 이전에 기억해둔 것도 잊음
       } catch { /* 저장 실패해도 로그인 자체엔 지장 없음 */ }
     } catch (err) {
-      setError('이메일 또는 비밀번호가 올바르지 않습니다.');
+      // 이메일/비밀번호 오류는 계정 존재 여부가 드러나지 않게 일부러 뭉뚱그림(Firebase Auth
+      // 자체도 auth/invalid-credential 하나로 통일해서 줌) — 다만 네트워크/과다시도처럼
+      // "이메일·비밀번호와 무관한" 실패까지 똑같이 안내하면 엉뚱한 재입력만 반복하게 되므로 분리
+      if (err.code === 'auth/too-many-requests') {
+        setError('로그인 시도가 너무 많습니다. 잠시 후 다시 시도해주세요.');
+      } else if (err.code === 'auth/network-request-failed') {
+        setError('네트워크 연결을 확인해주세요.');
+      } else {
+        setError('이메일 또는 비밀번호가 올바르지 않습니다.');
+      }
     }
     setLoading(false);
   };
@@ -57,10 +66,13 @@ export default function LoginScreen() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       });
-      if (!res.ok) throw new Error(`서버 오류 (${res.status})`);
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || '재설정 이메일 발송에 실패했습니다. 잠시 후 다시 시도해주세요.');
       setResetMessage('비밀번호 재설정 링크를 이메일로 보냈습니다. 메일함을 확인해주세요.');
     } catch (err) {
-      setError('재설정 이메일 발송에 실패했습니다. 이메일 주소를 확인해주세요.');
+      // 서버가 준 구체적인 실패 사유가 있으면 그대로 보여줌 — 예전엔 원인과 무관하게 항상
+      // "이메일 주소를 확인해주세요"로 뭉뚱그려서, 이메일을 맞게 썼는데도 계속 고쳐 쓰게 만들었음
+      setError(err.message || '재설정 이메일 발송에 실패했습니다. 잠시 후 다시 시도해주세요.');
     }
     setResetLoading(false);
   };

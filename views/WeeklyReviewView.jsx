@@ -51,9 +51,14 @@ export default function WeeklyReviewView({ reports = [], students = [], classes 
     (r.sessions || []).some(s => s.date >= week.startStr && s.date <= week.endStr)
   );
 
-  // 이번 주 범위와 안 겹치는, 아직 발송 안 된 열린 주간 draft — 놓치고 있는 지난주 이전 리포트
+  // 이번 주 범위와 안 겹치는, 아직 발송 안 된 열린 주간 draft — 놓치고 있는 지난주 이전 리포트.
+  // weeklyStudents에 없는 학생(보관 처리됐거나 그 사이 daily로 전환된 경우)의 draft는 제외 —
+  // 안 그러면 배너가 "해당 주로 이동해 확인해주세요"라고 안내하는데, 그 학생은 어떤 주를 봐도
+  // 이 화면 목록에 아예 안 뜨는 화면과 맞지 않는(고칠 방법 없는) 안내가 계속 남아있었음
+  const weeklyStudentIds = new Set(weeklyStudents.map(s => s.id));
   const staleDrafts = reports.filter(r =>
     r.reportType === 'weekly' && r.isDraft === true &&
+    weeklyStudentIds.has(r.studentId) &&
     (r.sessions || []).length > 0 &&
     !(r.sessions || []).some(s => s.date >= week.startStr && s.date <= week.endStr)
   );

@@ -26,8 +26,10 @@ export default function GrowthDashboard({ reports, students, period, classes = [
   const tableRef = React.useRef(null);
 
   // 기간이 바뀌면(부모의 세그먼트 클릭) 이전 선택 학생은 초기화 — 예전엔 버튼 onClick
-  // 안에서 직접 했는데, 이제 버튼 자체가 이 컴포넌트에 없어서 effect로 옮김
-  React.useEffect(() => { setSelId(null); }, [period]);
+  // 안에서 직접 했는데, 이제 버튼 자체가 이 컴포넌트에 없어서 effect로 옮김.
+  // 반/선생님/검색 필터도 마찬가지로 초기화 — 안 그러면 필터에 걸려 표에서 사라진 학생의
+  // 상세 패널이 이유 설명 없이 그대로 열려있는 채로 남아있었음
+  React.useEffect(() => { setSelId(null); }, [period, classFilter, teacherFilter, search]);
 
   // 페이지네이션 — 미뤄뒀던 결정 항목. 지금 학생 수(4명)엔 아무 효과가 없고, PAGE_SIZE를
   // 넘는 학원에서만 컨트롤이 나타남(이전/다음 이동은 페이지가 아니라 전체 정렬 목록 기준—
@@ -46,18 +48,29 @@ export default function GrowthDashboard({ reports, students, period, classes = [
 
   // 과제/개념 평가는 구 리포트(1~5)와 신규 리포트(0~100)가 섞여 있으므로,
   // 이 컴포넌트 내 모든 계산이 일관되도록 조회 시점에 0~100(%) 기준으로 정규화한다.
+  // 학생당 결과를 캐시 — getAvg/getTrend/getDecline/getStatus가 각자 독립적으로
+  // getStudentReports(sid)를 호출해서, 학생 한 명당 같은 필터+정렬+매핑이 렌더링 한 번에
+  // 여러 번(표 한 행에서만 5번) 반복되고 있었음(학생 수가 늘수록 체감되는 낭비).
+  // flatReports/period가 바뀌면 새 Map으로 자동 무효화됨.
+  const studentReportsCache = React.useMemo(() => new Map(), [flatReports, period]);
   const getStudentReports = React.useCallback((studentId) => {
+    if (studentReportsCache.has(studentId)) return studentReportsCache.get(studentId);
     const cutoff = Date.now() - PERIODS[period] * 24 * 60 * 60 * 1000;
-    return flatReports
+    const result = flatReports
       // 초안(isDraft)은 아직 발송 전 미완성 리포트라 성장 추이/평균에서 제외(AnalysisView와 동일 기준)
       .filter(r => r.studentId === studentId && !r.isDraft && r.createdAt?.seconds * 1000 >= cutoff && r.conceptRating != null)
       .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0))
       // homeworkRating은 null(미입력)일 수 있는데 toPct(null)이 0을 돌려줘서 그대로 쓰면
       // "과제 0%"로 확정 표시되던 문제 — null은 그대로 보존
       .map(r => ({ ...r, conceptRating: toPct(r.conceptRating), homeworkRating: r.homeworkRating == null ? null : toPct(r.homeworkRating) }));
-  }, [flatReports, period]);
+    studentReportsCache.set(studentId, result);
+    return result;
+  }, [flatReports, period, studentReportsCache]);
 
-  const avg = (arr) => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length * 10) / 10 : 0;
+  // 빈 배열(데이터 없음)과 "평균이 진짜 0"을 구분하기 위해 데이터 없음은 null로 반환 —
+  // 예전엔 둘 다 0이라 개념이해 평균이 정말 0%인 학생이 "데이터없음"과 똑같이 취급돼
+  // 전체 평균 집계(overallAvg 등)에서 조용히 빠지고, 화면엔 "-"로 표시됐음
+  const avg = (arr) => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length * 10) / 10 : null;
 
   const getDecline = React.useCallback((sid) => {
     const rs = getStudentReports(sid);
@@ -169,7 +182,7 @@ export default function GrowthDashboard({ reports, students, period, classes = [
 
   const atRisk = students.filter(s => getStatus(s.id).label === '경고').length;
   const caution = students.filter(s => getStatus(s.id).label === '주의').length;
-  const overallAvg = avg(students.map(s => getAvg(s.id)).filter(v => v > 0));
+  const overallAvg = avg(students.map(s => getAvg(s.id)).filter(v => v != null));
 
   // 지난 기간 대비 — "개념 이해 평균" KPI 부제용. 같은 길이의 직전 구간(예: 이번 주 대비 지난 주)
   // 평균과 비교한다. 직전 구간에 데이터가 아예 없으면(신규 학원 등) 0에서 급증한 것처럼 보이는
@@ -180,8 +193,8 @@ export default function GrowthDashboard({ reports, students, period, classes = [
       .filter(r => r.studentId === sid && !r.isDraft && r.createdAt?.seconds * 1000 >= startMs && r.createdAt.seconds * 1000 < endMs && r.conceptRating != null)
       .map(r => toPct(r.conceptRating))
   );
-  const prevOverallAvg = avg(students.map(s => getAvgInRange(s.id, Date.now() - periodMs * 2, Date.now() - periodMs)).filter(v => v > 0));
-  const avgDelta = prevOverallAvg > 0 ? Math.round((overallAvg - prevOverallAvg) * 10) / 10 : null;
+  const prevOverallAvg = avg(students.map(s => getAvgInRange(s.id, Date.now() - periodMs * 2, Date.now() - periodMs)).filter(v => v != null));
+  const avgDelta = prevOverallAvg != null && overallAvg != null ? Math.round((overallAvg - prevOverallAvg) * 10) / 10 : null;
 
   // 기간별 리포트 미작성 — 미뤄뒀던 결정 항목. "오늘" 뷰의 미작성(하루 기준)과 같은
   // scheduleDays 판정을, 선택된 기간(1주/1개월/3개월)의 매일에 대해 반복해서 합산한다.
@@ -229,7 +242,7 @@ export default function GrowthDashboard({ reports, students, period, classes = [
             onClick: () => { setSortMode('decline'); tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); },
           },
           {
-            label: '개념 이해 평균', value: `${overallAvg}%`,
+            label: '개념 이해 평균', value: overallAvg != null ? `${overallAvg}%` : '—',
             sub: avgDelta === null ? periodLabel : `지난 기간 ${prevOverallAvg}% · ${avgDelta > 0 ? '▲' : avgDelta < 0 ? '▼' : '—'}${Math.abs(avgDelta)}`,
             c: '#0D2D6B', bg: '#fff', bd: '#E8E6E0',
           },
@@ -241,6 +254,8 @@ export default function GrowthDashboard({ reports, students, period, classes = [
           },
         ].map((w, i) => (
           <div key={i} onClick={w.onClick}
+            role={w.onClick ? 'button' : undefined} tabIndex={w.onClick ? 0 : undefined}
+            onKeyDown={w.onClick ? onKeyActivate(w.onClick) : undefined}
             style={{ background: w.bg, border: `1px solid ${w.bd}`, borderRadius: '10px', padding: '10px 12px', cursor: w.onClick ? 'pointer' : 'default' }}>
             <p style={{ fontSize: '10px', color: w.c, margin: '0 0 3px', fontWeight: 700 }}>{w.label}</p>
             <p style={{ fontSize: '18px', fontWeight: 800, color: w.c, margin: 0, fontVariantNumeric: 'tabular-nums' }}>{w.value}</p>
@@ -432,7 +447,7 @@ export default function GrowthDashboard({ reports, students, period, classes = [
                 )}
               </div>
               <div style={{ textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontSize: '15px', fontWeight: 700, color: status.color, fontVariantNumeric: 'tabular-nums' }}>{a || '-'}</span>
+                <span style={{ fontSize: '15px', fontWeight: 700, color: status.color, fontVariantNumeric: 'tabular-nums' }}>{a != null ? a : '-'}</span>
               </div>
               <div style={{ textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <span style={{ fontSize: '13px', fontWeight: 700, color: trendColor }}>{trendStr}</span>
