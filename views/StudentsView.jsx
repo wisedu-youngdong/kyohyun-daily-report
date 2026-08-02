@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Pencil, AlertTriangle } from 'lucide-react';
-import { isNewStudent } from '../growth.js';
+import { isNewStudent, flattenReportsForAnalysis } from '../growth.js';
 import { T, C } from '../tokens.jsx';
 import { StudentModal } from './StudentModal.jsx';
 import { AVATARS, onKeyActivate } from './shared.jsx';
@@ -31,9 +31,15 @@ export default function StudentsView({ students, reports, reviews = [], onSave, 
 
   const archivedCount = students.filter(s => s.archived).length;
 
+  // 자동저장 draft(isDraft: true)는 아직 발송 전 상태라 "완료된 리포트" 판정(개수·최근
+  // 발송일·N주째 미작성 경고 등)에 섞이면 안 됨 — 이 화면 전체가 그 필터를 빠뜨리고 있었음
+  // (AnalysisView.jsx 등 다른 화면은 이미 !r.isDraft로 거르고 있음). 예를 들어 자동저장만
+  // 되고 실제로는 발송 안 한 오늘 자 draft가 있으면 "N주째 리포트 없음" 경고가 안 뜸.
+  const sentReports = reports.filter(r => !r.isDraft);
+
   // 마지막 리포트 기준 경과일 — "2주째 리포트 없음" 신호에 사용
   const daysSinceLastReport = (sid) => {
-    const last = reports.filter(r => r.studentId === sid).sort((a,b) => (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0))[0];
+    const last = sentReports.filter(r => r.studentId === sid).sort((a,b) => (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0))[0];
     if (!last?.createdAt?.seconds) return null;
     return Math.floor((Date.now() - last.createdAt.seconds * 1000) / 86400000);
   };
@@ -54,11 +60,11 @@ export default function StudentsView({ students, reports, reviews = [], onSave, 
     .sort((a, b) => {
       if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '');
       if (sortBy === 'reports') {
-        return reports.filter(r => r.studentId === b.id).length - reports.filter(r => r.studentId === a.id).length;
+        return sentReports.filter(r => r.studentId === b.id).length - sentReports.filter(r => r.studentId === a.id).length;
       }
       if (sortBy === 'recent') {
-        const aLast = reports.filter(r => r.studentId === a.id).sort((x,y) => (y.createdAt?.seconds||0)-(x.createdAt?.seconds||0))[0]?.createdAt?.seconds || 0;
-        const bLast = reports.filter(r => r.studentId === b.id).sort((x,y) => (y.createdAt?.seconds||0)-(x.createdAt?.seconds||0))[0]?.createdAt?.seconds || 0;
+        const aLast = sentReports.filter(r => r.studentId === a.id).sort((x,y) => (y.createdAt?.seconds||0)-(x.createdAt?.seconds||0))[0]?.createdAt?.seconds || 0;
+        const bLast = sentReports.filter(r => r.studentId === b.id).sort((x,y) => (y.createdAt?.seconds||0)-(x.createdAt?.seconds||0))[0]?.createdAt?.seconds || 0;
         return bLast - aLast;
       }
       return 0;
@@ -110,7 +116,7 @@ export default function StudentsView({ students, reports, reviews = [], onSave, 
     : (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
         {filtered.map(s => {
-          const sReports = reports.filter(r => r.studentId === s.id);
+          const sReports = sentReports.filter(r => r.studentId === s.id);
           const assignedTeacher = teachers.find(t => t.id === s.assignedTeacherId);
           const daysSince = daysSinceLastReport(s.id);
           const isStale = !s.archived && (daysSince === null ? false : daysSince >= 14);
@@ -272,7 +278,7 @@ export default function StudentsView({ students, reports, reviews = [], onSave, 
       {profileStudent && (
         <StudentProfileModal
           student={profileStudent}
-          reports={reports.filter(r => r.studentId === profileStudent.id)}
+          reports={flattenReportsForAnalysis(sentReports.filter(r => r.studentId === profileStudent.id))}
           reviews={reviews.filter(rv => rv.studentId === profileStudent.id)}
           onClose={() => setProfileStudent(null)}
           onToast={onToast}
@@ -351,7 +357,7 @@ export default function StudentsView({ students, reports, reviews = [], onSave, 
               ? (
                 <StudentProfileContent
                   student={selectedStudent}
-                  reports={reports.filter(r => r.studentId === selectedStudent.id)}
+                  reports={flattenReportsForAnalysis(sentReports.filter(r => r.studentId === selectedStudent.id))}
                   reviews={reviews.filter(rv => rv.studentId === selectedStudent.id)}
                   onToast={onToast}
                   academyName={academyName}
