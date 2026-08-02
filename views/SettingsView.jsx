@@ -101,7 +101,9 @@ function deriveColors(mainHex) {
   };
 }
 
-export default function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDeleteTeacher, classes = [], onSaveClass, onDeleteClass, logoUrl, onSaveLogo, onDeleteLogo, academyId, academyPhone, academySkinColor, academySubjects, academyReportMode = 'daily', isPlatformAdmin = false, onToast, onReopenGuide }) {
+const DEFAULT_STATUS_THRESHOLDS = { warningAvg: 50, cautionAvg: 70, dropThreshold: 20 };
+
+export default function SettingsView({ students, onSaveStudent, teachers, onSaveTeacher, onDeleteTeacher, classes = [], onSaveClass, onDeleteClass, logoUrl, onSaveLogo, onDeleteLogo, academyId, academyPhone, academySkinColor, academySubjects, academyReportMode = 'daily', academyStatusThresholds, isPlatformAdmin = false, onToast, onReopenGuide }) {
   // 플랫폼 관리 섹션(가입신청/새학원/분양학원)이 늘어나면서 학원 설정과 한 페이지에 다 있으면
   // 스크롤이 너무 길어져 탭으로 분리 — 플랫폼 관리자가 아니면 애초에 두 번째 탭 내용이 없으니 탭 자체를 안 보여줌
   const [settingsTab, setSettingsTab] = React.useState('academy'); // 'academy' | 'platform'
@@ -158,6 +160,43 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
       onToast?.('리포트 작성 방식 저장에 실패했습니다. 잠시 후 다시 시도해주세요.', 'error');
     }
     setReportModeSaving(false);
+  };
+
+  // 원장분석(GrowthDashboard) 학생 표의 경고/주의/안정 판정 기준 — 미설정 학원은 기본값
+  // 그대로 씀. 문자열로 들고 있다가 저장 시점에만 숫자로 변환(입력 중 빈 칸/부분 입력을
+  // 매 keystroke마다 강제로 숫자 변환하면 "5" 입력하다 중간에 지워지는 문제가 생김)
+  const thresholdsInit = { ...DEFAULT_STATUS_THRESHOLDS, ...academyStatusThresholds };
+  const [warningAvgInput, setWarningAvgInput] = React.useState(String(thresholdsInit.warningAvg));
+  const [cautionAvgInput, setCautionAvgInput] = React.useState(String(thresholdsInit.cautionAvg));
+  const [dropThresholdInput, setDropThresholdInput] = React.useState(String(thresholdsInit.dropThreshold));
+  const [thresholdsSaving, setThresholdsSaving] = React.useState(false);
+  const [thresholdsSaved, setThresholdsSaved] = React.useState(false);
+  React.useEffect(() => {
+    const t = { ...DEFAULT_STATUS_THRESHOLDS, ...academyStatusThresholds };
+    setWarningAvgInput(String(t.warningAvg));
+    setCautionAvgInput(String(t.cautionAvg));
+    setDropThresholdInput(String(t.dropThreshold));
+  }, [academyStatusThresholds]);
+  const saveThresholds = async () => {
+    const warningAvg = Number(warningAvgInput);
+    const cautionAvg = Number(cautionAvgInput);
+    const dropThreshold = Number(dropThresholdInput);
+    if ([warningAvg, cautionAvg, dropThreshold].some(n => !Number.isFinite(n) || n < 0 || n > 100)) {
+      onToast?.('0~100 사이 숫자로 입력해주세요.', 'error'); return;
+    }
+    if (warningAvg >= cautionAvg) {
+      onToast?.('경고 기준은 주의 기준보다 낮아야 해요.', 'error'); return;
+    }
+    setThresholdsSaving(true);
+    try {
+      await setDoc(doc(db, 'academies', academyId), { statusThresholds: { warningAvg, cautionAvg, dropThreshold } }, { merge: true });
+      setThresholdsSaved(true);
+      setTimeout(() => setThresholdsSaved(false), 2000);
+    } catch (e) {
+      console.error('판정 기준 저장 실패:', e);
+      onToast?.('판정 기준 저장에 실패했습니다. 잠시 후 다시 시도해주세요.', 'error');
+    }
+    setThresholdsSaving(false);
   };
 
   const savePhone = async () => {
@@ -980,6 +1019,34 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
             분석 차감은 리포트 발송이 아니라 사진 분석 시점 기준이에요. 월·수·금 세 번 분석하면 리포트는 1건이어도 3회가 사용돼요.
           </p>
         )}
+      </div>
+
+      {/* 경고/주의 판정 기준 — 원장분석(원장 보고서 › 1주/1개월/3개월) 학생 표의 상태 배지가
+          이 값으로 갈린다. 예전엔 코드에 하드코딩(50/70/20)이라 학원마다 다른 기준을 원해도
+          바꿀 방법이 없었음. */}
+      <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB', marginBottom: '14px' }}>
+        <p style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>경고/주의 판정 기준</p>
+        <p style={{ fontSize: '11px', color: '#6B7280', margin: '0 0 14px', lineHeight: 1.6 }}>
+          원장분석의 학생 표에서 "경고·주의·안정" 상태를 가르는 기준이에요. 개념 이해 평균이
+          아래 값 미만이거나, 최근 3회 대비 하락 폭이 크면 경고/주의로 표시됩니다.
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '10px' }}>
+          {[
+            { label: '경고 기준 — 개념 이해 평균이 이 값(%) 미만이면 경고', value: warningAvgInput, onChange: setWarningAvgInput },
+            { label: '주의 기준 — 개념 이해 평균이 이 값(%) 미만이면 주의', value: cautionAvgInput, onChange: setCautionAvgInput },
+            { label: '급락 기준 — 최근 3회 대비 이 값(%p) 이상 떨어지면 경고', value: dropThresholdInput, onChange: setDropThresholdInput },
+          ].map((f, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <p style={{ flex: 1, fontSize: '12px', color: '#374151', margin: 0, lineHeight: 1.5 }}>{f.label}</p>
+              <input type="number" min="0" max="100" value={f.value} onChange={(e) => f.onChange(e.target.value)}
+                style={{ width: '70px', flexShrink: 0, padding: '8px 10px', fontSize: '14px', border: '1px solid #E5E7EB', borderRadius: '8px', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', textAlign: 'right' }} />
+            </div>
+          ))}
+        </div>
+        <button onClick={saveThresholds} disabled={thresholdsSaving}
+          style={{ padding: '9px 16px', fontSize: '12px', fontWeight: 700, borderRadius: '9px', border: 'none', background: thresholdsSaving ? '#E5E7EB' : (thresholdsSaved ? C.success : C.primary), color: thresholdsSaving ? '#6C7586' : '#fff', cursor: thresholdsSaving ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+          {thresholdsSaving ? '저장 중...' : thresholdsSaved ? '✓ 저장됨' : '저장'}
+        </button>
       </div>
 
       {/* 로고 삭제 확인 모달 — 헤더 전체에 반영되는 변화라 인라인 재클릭보다 명확하게 */}

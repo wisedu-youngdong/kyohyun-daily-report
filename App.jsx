@@ -136,6 +136,8 @@ export default function App() {
   const [academySubjects, setAcademySubjects] = useState(null);
   // 'daily'(기본, 1:1 매일 리포트) | 'weekly'(그룹수업 학원용 — 세션별 메모를 원장이 모아 주 1회 발송)
   const [academyReportMode, setAcademyReportMode] = useState('daily');
+  // 원장분석 학생 표의 경고/주의/안정 판정 기준 — 미설정이면 GrowthDashboard의 기본값을 그대로 씀(null)
+  const [academyStatusThresholds, setAcademyStatusThresholds] = useState(null);
   const [academyCreatedAt, setAcademyCreatedAt] = useState(null);
   const [onboardingPromptShown, setOnboardingPromptShown] = useState(true); // 필드 없는(기존) 학원은 기본 true=이미 봄 취급
 
@@ -154,12 +156,13 @@ export default function App() {
         setAcademyStatus(data.status || 'active');
         setAcademySubjects(Array.isArray(data.subjects) && data.subjects.length > 0 ? data.subjects : null);
         setAcademyReportMode(data.reportMode === 'weekly' ? 'weekly' : 'daily');
+        setAcademyStatusThresholds(data.statusThresholds || null);
         setAcademyCreatedAt(data.createdAt?.seconds || null);
         // 필드가 아예 없으면(기존 학원) true로 취급해 시작 가이드가 안 뜨게 함 —
         // 새로 만든 학원만 handleCreateAcademy/handleApproveSignup에서 명시적으로 false를 심어둠
         setOnboardingPromptShown(data.onboardingPromptShown !== false);
       },
-      () => { setLogoUrl(null); setAcademyName(null); setAcademyPhone(null); setAcademySkinColor(null); setAcademyStatus(null); setAcademySubjects(null); setAcademyReportMode('daily'); setAcademyCreatedAt(null); setOnboardingPromptShown(true); }
+      () => { setLogoUrl(null); setAcademyName(null); setAcademyPhone(null); setAcademySkinColor(null); setAcademyStatus(null); setAcademySubjects(null); setAcademyReportMode('daily'); setAcademyStatusThresholds(null); setAcademyCreatedAt(null); setOnboardingPromptShown(true); }
     );
     return () => unsub();
   }, [academyId]);
@@ -957,7 +960,7 @@ export default function App() {
             <div style={{ marginTop: '12px' }}>
               {activeSubTab.insight === 'director' && (dataReady
                 ? <React.Suspense fallback={<SkeletonBlock rows={4} cardHeight={70} />}>
-                    <DirectorView reports={visibleReports} students={visibleStudents} classes={classes} reportViews={reportViews} reportQuestions={reportQuestions} reviews={reviews} onToast={showAppToast} academyId={academyId} academyName={academyName} onEditReviewNote={handleEditReviewNote} onOpenStudentProfile={handleOpenStudentProfile} />
+                    <DirectorView reports={visibleReports} students={visibleStudents} classes={classes} reportViews={reportViews} reportQuestions={reportQuestions} reviews={reviews} onToast={showAppToast} academyId={academyId} academyName={academyName} onEditReviewNote={handleEditReviewNote} onOpenStudentProfile={handleOpenStudentProfile} statusThresholds={academyStatusThresholds} />
                   </React.Suspense>
                 : <SkeletonBlock rows={4} cardHeight={70} />
               )}
@@ -991,7 +994,7 @@ export default function App() {
               )}
               {activeSubTab.manage === 'settings' && (dataReady
                 ? <React.Suspense fallback={<SkeletonBlock rows={4} cardHeight={70} />}>
-                    <SettingsView students={students} onSaveStudent={handleSaveStudent} teachers={teachers} onSaveTeacher={handleSaveTeacher} onDeleteTeacher={handleDeleteTeacher} classes={classes} onSaveClass={handleSaveClass} onDeleteClass={handleDeleteClass} logoUrl={logoUrl} onSaveLogo={handleSaveLogo} onDeleteLogo={handleDeleteLogo} academyId={academyId} academyPhone={academyPhone} academySkinColor={academySkinColor} academySubjects={academySubjects} academyReportMode={academyReportMode} isPlatformAdmin={isPlatformAdmin} onToast={showAppToast} onReopenGuide={() => setOnboardingReopenSignal(s => s + 1)} />
+                    <SettingsView students={students} onSaveStudent={handleSaveStudent} teachers={teachers} onSaveTeacher={handleSaveTeacher} onDeleteTeacher={handleDeleteTeacher} classes={classes} onSaveClass={handleSaveClass} onDeleteClass={handleDeleteClass} logoUrl={logoUrl} onSaveLogo={handleSaveLogo} onDeleteLogo={handleDeleteLogo} academyId={academyId} academyPhone={academyPhone} academySkinColor={academySkinColor} academySubjects={academySubjects} academyReportMode={academyReportMode} academyStatusThresholds={academyStatusThresholds} isPlatformAdmin={isPlatformAdmin} onToast={showAppToast} onReopenGuide={() => setOnboardingReopenSignal(s => s + 1)} />
                   </React.Suspense>
                 : <SkeletonBlock rows={4} cardHeight={70} />
               )}

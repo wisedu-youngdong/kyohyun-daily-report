@@ -18,7 +18,7 @@ function formatElapsed(fromSeconds, toSeconds) {
   return `${Math.round(diffHour / 24)}일`;
 }
 
-export default function DirectorView({ reports, students, classes = [], reportViews = [], reportQuestions = [], reviews = [], onToast, academyId, academyName, onEditReviewNote, onOpenStudentProfile }) {
+export default function DirectorView({ reports, students, classes = [], reportViews = [], reportQuestions = [], reviews = [], onToast, academyId, academyName, onEditReviewNote, onOpenStudentProfile, statusThresholds }) {
   // 기간 컨트롤 통합(재설계 1단계) — 예전엔 날짜 선택기(이 화면)와 기간 토글(GrowthDashboard)이
   // 완전히 분리된 state라 서로 반응하지 않았음. 이제 이 view 하나가 "오늘 카드 목록"과
   // "기간 KPI/추이/표"(GrowthDashboard에 위임) 중 무엇을 보여줄지 전체를 결정한다 — 두 뷰가
@@ -350,7 +350,7 @@ export default function DirectorView({ reports, students, classes = [], reportVi
       </div>
 
       {view !== 'today' ? (
-        <GrowthDashboard reports={reports} students={students} period={view} classes={classes} onOpenStudentProfile={onOpenStudentProfile} />
+        <GrowthDashboard reports={reports} students={students} period={view} classes={classes} onOpenStudentProfile={onOpenStudentProfile} statusThresholds={statusThresholds} />
       ) : (
       <>
       {/* 헤더 */}
