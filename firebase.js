@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
-import { getAuth, connectAuthEmulator, createUserWithEmailAndPassword, signOut, inMemoryPersistence, browserLocalPersistence, setPersistence } from "firebase/auth";
+import { getAuth, connectAuthEmulator, createUserWithEmailAndPassword, deleteUser, signOut, inMemoryPersistence, browserLocalPersistence, setPersistence } from "firebase/auth";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
@@ -55,6 +55,10 @@ export async function createUserWithoutSignIn(email, password) {
   const secondaryAuth = await getSecondaryAuth();
   const cred = await createUserWithEmailAndPassword(secondaryAuth, email, password);
   const uid = cred.user.uid;
+  // 계정 생성 직후 Firestore 쓰기(users/{uid} 등)가 실패하면 role 없는 고아 Auth 계정이 남아,
+  // 같은 이메일로 재시도해도 auth/email-already-in-use로 막혀버림 — 호출부가 실패 시 바로
+  // 되돌릴 수 있게 rollback을 함께 반환. signOut 전에 만들어야 cred.user가 아직 유효함.
+  const rollback = () => deleteUser(cred.user).catch(() => {});
   try { await signOut(secondaryAuth); } catch { /* uid는 이미 발급됨, 무시 */ }
-  return uid;
+  return { uid, rollback };
 }

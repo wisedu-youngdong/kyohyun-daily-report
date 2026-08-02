@@ -1,6 +1,6 @@
 import React from 'react';
 import { db, auth, createUserWithoutSignIn } from '../firebase';
-import { collection, addDoc, doc, getDoc, getDocs, setDoc, serverTimestamp, getCountFromServer, increment, query, orderBy, limit, where } from 'firebase/firestore';
+import { collection, addDoc, doc, getDoc, getDocs, setDoc, writeBatch, serverTimestamp, getCountFromServer, increment, query, orderBy, limit, where } from 'firebase/firestore';
 import { Pencil, AlertTriangle, Check, HelpCircle, X } from 'lucide-react';
 import { T, C } from '../tokens.jsx';
 import { PRESET_SKINS, onKeyActivate } from './shared.jsx';
@@ -91,7 +91,7 @@ function deriveColors(mainHex) {
     cardDark:  mainHex,
     cardLight: toHex(r+140,g+140,b+140),
     textDark:  '#ffffff',
-    textLight: lum > 128 ? '#1A1A1A' : toHex(r-60,g-60,b-60),
+    textLight: lum > 128 ? T.text : toHex(r-60,g-60,b-60),
     subDark:   'rgba(255,255,255,0.55)',
     subLight:  toHex(r+60,g+60,b+60),
     nextBg:    mainHex,
@@ -100,7 +100,7 @@ function deriveColors(mainHex) {
     commentBg: toHex(r+150,g+150,b+150),
     tagBg:     toHex(r+150,g+150,b+150),
     tagBorder: toHex(r+100,g+100,b+100),
-    tagText:   lum > 128 ? '#1A1A1A' : toHex(r-40,g-40,b-40),
+    tagText:   lum > 128 ? T.text : toHex(r-40,g-40,b-40),
   };
 }
 
@@ -285,11 +285,18 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
   const handleApplyGradeBump = async () => {
     if (!gradeBumpPreview || gradeBumpPreview.changes.length === 0) return;
     setGradeBumping(true);
-    await Promise.all(gradeBumpPreview.changes.map(c => onSaveStudent({ id: c.id, school: c.to })));
-    setGradeBumping(false);
-    setGradeBumpResult(`${gradeBumpPreview.changes.length}명의 학년을 올렸습니다.`);
-    setGradeBumpPreview(null);
-    setTimeout(() => setGradeBumpResult(''), 3000);
+    try {
+      // onSaveStudent(App.jsx handleSaveStudent) 자체가 실패를 내부에서 alert()로 처리하고
+      // 절대 reject하지 않지만, 그 계약이 바뀌거나 다른 예외가 나면 setGradeBumping(false)가
+      // 영영 안 불려서 모달이 멈추고(취소 버튼·Esc 모두 gradeBumping 조건에 막힘) 빠져나갈
+      // 방법이 없어짐 — finally로 방어
+      await Promise.all(gradeBumpPreview.changes.map(c => onSaveStudent({ id: c.id, school: c.to })));
+      setGradeBumpResult(`${gradeBumpPreview.changes.length}명의 학년을 올렸습니다.`);
+      setGradeBumpPreview(null);
+      setTimeout(() => setGradeBumpResult(''), 3000);
+    } finally {
+      setGradeBumping(false);
+    }
   };
 
   // 새 학원 추가 (플랫폼 관리자 전용)
@@ -347,38 +354,43 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
       // 1. ID 중복 체크
       const existing = await getDoc(doc(db, 'academies', trimmedId));
       if (existing.exists()) throw new Error('이미 사용 중인 학원 ID입니다.');
-      // 2. academies/{id} 브랜딩 문서 — handleCreateAcademy와 동일한 형태.
-      //    onboardingPromptShown: false로 시작해야 첫 로그인 때 시작 가이드가 뜸(기존 학원은
-      //    이 필드 자체가 없어서 자동으로 안 뜸 — App.jsx가 필드 부재를 "이미 봤음"으로 취급)
-      await setDoc(doc(db, 'academies', trimmedId), {
+      // 2~5. 학원 문서 생성부터 신청 상태 갱신까지 하나의 배치로 원자적 처리 — 예전엔 각각
+      // 별도 await라 중간 단계(예: billing/teachers/users 중 하나)가 실패하면 반쯤 만들어진
+      // 학원이 이 academyId를 영구 점유해(재시도 시 위 "이미 사용 중" 체크에 막힘) 복구
+      // 불가능한 상태가 됐음. teacherRef ID는 addDoc 대신 미리 생성해 배치에 포함시킴.
+      const teacherRef = doc(collection(db, 'academies', trimmedId, 'teachers'));
+      const batch = writeBatch(db);
+      // academies/{id} 브랜딩 문서 — handleCreateAcademy와 동일한 형태.
+      // onboardingPromptShown: false로 시작해야 첫 로그인 때 시작 가이드가 뜸(기존 학원은
+      // 이 필드 자체가 없어서 자동으로 안 뜸 — App.jsx가 필드 부재를 "이미 봤음"으로 취급)
+      batch.set(doc(db, 'academies', trimmedId), {
         academyName: req.academyName, globalSkinColor: DEFAULT_SKIN_COLOR, createdAt: serverTimestamp(),
         onboardingPromptShown: false,
         // 가입 신청서에서 고른 초기값 — 이후엔 설정 화면에서 언제든 변경 가능(위 "리포트 작성 방식" 카드).
         // 구 신청 문서(이 필드 추가 전)는 undefined일 수 있어 매일형으로 방어
         ...(req.reportMode === 'weekly' ? { reportMode: 'weekly' } : {}),
       });
-      // 2.5. 체험 크레딧 5건 지급 — 결제 전에도 낯선 원장이 자기 학생 사진으로 직접 품질을
-      //      느껴볼 수 있게 함. isTrial:true일 때 api/analyze-photo.js가 사진 3장(TRIAL_PHOTO_CAP)
-      //      까지만 허용 — 5장 분석 원가(약 193원)가 아니라 3장(약 117원)으로 계정당 최악 노출을
-      //      묶어둠(5회 x 3장 = 최대 약 585원). 첫 결제 승인 시 handleApprovePaymentRequest가
-      //      isTrial을 false로 꺼서 캡을 해제함.
-      await setDoc(doc(db, 'academies', trimmedId, 'private', 'billing'), {
+      // 체험 크레딧 5건 지급 — 결제 전에도 낯선 원장이 자기 학생 사진으로 직접 품질을
+      // 느껴볼 수 있게 함. isTrial:true일 때 api/analyze-photo.js가 사진 3장(TRIAL_PHOTO_CAP)
+      // 까지만 허용 — 5장 분석 원가(약 193원)가 아니라 3장(약 117원)으로 계정당 최악 노출을
+      // 묶어둠(5회 x 3장 = 최대 약 585원). 첫 결제 승인 시 handleApprovePaymentRequest가
+      // isTrial을 false로 꺼서 캡을 해제함.
+      batch.set(doc(db, 'academies', trimmedId, 'private', 'billing'), {
         creditBalance: TRIAL_CREDIT_GRANT, isTrial: true, trialPhotoCap: TRIAL_PHOTO_CAP, updatedAt: serverTimestamp(),
       });
-      // 3. 원장 본인의 teachers 레코드
-      const teacherRef = await addDoc(collection(db, 'academies', trimmedId, 'teachers'), {
-        name: req.directorName, createdAt: serverTimestamp(),
-      });
-      // 4. users/{uid} — 신청 시점에 이미 만들어진 계정을 활성화(role/academyId 채워넣기).
-      //    handleCreateAcademy와 달리 여기선 Auth 계정을 새로 만들지 않음(이미 있음).
-      await setDoc(doc(db, 'users', req.uid), {
+      // 원장 본인의 teachers 레코드
+      batch.set(teacherRef, { name: req.directorName, createdAt: serverTimestamp() });
+      // users/{uid} — 신청 시점에 이미 만들어진 계정을 활성화(role/academyId 채워넣기).
+      // handleCreateAcademy와 달리 여기선 Auth 계정을 새로 만들지 않음(이미 있음).
+      batch.set(doc(db, 'users', req.uid), {
         role: 'director', teacherId: teacherRef.id, academyId: trimmedId, email: req.email,
         status: null, createdAt: serverTimestamp(),
       }, { merge: true });
-      // 5. 신청 문서 상태 갱신 — academyId를 같이 남겨야 승인 후에도 "이 신청이 어느 학원이 됐는지" 추적 가능
-      await setDoc(doc(db, 'academySignupRequests', req.uid), {
+      // 신청 문서 상태 갱신 — academyId를 같이 남겨야 승인 후에도 "이 신청이 어느 학원이 됐는지" 추적 가능
+      batch.set(doc(db, 'academySignupRequests', req.uid), {
         status: 'approved', academyId: trimmedId, reviewedAt: serverTimestamp(), reviewedBy: auth.currentUser?.email || null,
       }, { merge: true });
+      await batch.commit();
       logPlatformEvent('signup_approved', { academyId: trimmedId, academyName: req.academyName });
       notifySignupDecision('signup-approved', req);
       setSignupActionResult(`${req.academyName} 승인 완료! (ID: ${trimmedId})`);
@@ -477,6 +489,10 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
   const [pendingRequests, setPendingRequests] = React.useState([]); // 관리자용 — 전체 학원 대기 목록
   const [resolvingReqId, setResolvingReqId] = React.useState(null);
   const [bonusChecked, setBonusChecked] = React.useState({}); // { [requestId]: boolean } 승인 시 첫결제 보너스 적용 여부
+  // 결제 거절 확인 — 이 화면의 다른 파괴적 액션(강사/반 삭제)과 동일한 "재클릭 확인" 패턴으로
+  // 통일. 예전엔 이 버튼만 네이티브 window.confirm이라 스타일이 다르고 Escape/포커스 트랩
+  // 대상에서도 벗어나 있었음
+  const [confirmingRejectId, setConfirmingRejectId] = React.useState(null);
 
   const loadMyBillingAndRequests = React.useCallback(async () => {
     if (!academyId) return;
@@ -540,18 +556,23 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
     setResolvingReqId(req.id);
     try {
       const grantAmount = applyBonus ? Math.round(req.packageSize * 1.5) : req.packageSize;
-      await setDoc(doc(db, 'academies', req.academyId, 'private', 'billing'), {
+      // 잔액 증가 → 이력 기록 → 요청 상태 변경 3단계가 각각 별도 await였음 — 마지막 상태
+      // 변경만 실패해도 요청이 대기 큐에 그대로 남아(성공 경로에서만 필터링됨), 관리자가
+      // "승인"을 다시 누르면 크레딧이 한 번 더 늘어날 수 있었음. 하나의 배치로 원자적 처리.
+      const batch = writeBatch(db);
+      batch.set(doc(db, 'academies', req.academyId, 'private', 'billing'), {
         creditBalance: increment(grantAmount), creditPackage: req.packageSize, updatedAt: serverTimestamp(),
         isTrial: false, // 실결제 승인 시점에 체험 사진 캡 해제
       }, { merge: true });
-      await addDoc(collection(db, 'academies', req.academyId, 'paymentHistory'), {
+      batch.set(doc(collection(db, 'academies', req.academyId, 'paymentHistory')), {
         packageSize: grantAmount, amount: req.amount, method: 'bank_transfer',
         memo: [req.note, applyBonus ? '첫 결제 50% 보너스 적용' : ''].filter(Boolean).join(' · '),
         grantedAt: serverTimestamp(),
       });
-      await setDoc(doc(db, 'academies', req.academyId, 'paymentRequests', req.id), {
+      batch.set(doc(db, 'academies', req.academyId, 'paymentRequests', req.id), {
         status: 'approved', resolvedAt: serverTimestamp(),
       }, { merge: true });
+      await batch.commit();
       logPlatformEvent('credit_granted', {
         academyId: req.academyId, academyName: req.academyName,
         detail: `${grantAmount}건 · ${req.amount.toLocaleString()}원${applyBonus ? ' (첫결제 보너스)' : ''}`,
@@ -569,7 +590,12 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
   };
 
   const handleRejectPaymentRequest = async (req) => {
-    if (!window.confirm(`${req.academyName}의 입금 확인 요청을 거절할까요?`)) return;
+    if (confirmingRejectId !== req.id) {
+      setConfirmingRejectId(req.id);
+      setTimeout(() => setConfirmingRejectId(prev => prev === req.id ? null : prev), 3000);
+      return;
+    }
+    setConfirmingRejectId(null);
     setResolvingReqId(req.id);
     try {
       await setDoc(doc(db, 'academies', req.academyId, 'paymentRequests', req.id), {
@@ -642,12 +668,16 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
     if (!pkg || !amount) return;
     setCreditGranting(true);
     try {
-      await setDoc(doc(db, 'academies', targetAcademyId, 'private', 'billing'), {
+      // 잔액 증가와 이력 기록이 각각 별도 await라, 이력 기록만 실패하면 잔액은 늘었는데
+      // 장부(paymentHistory)엔 안 남는 불일치가 생길 수 있었음 — 배치로 원자적 처리
+      const batch = writeBatch(db);
+      batch.set(doc(db, 'academies', targetAcademyId, 'private', 'billing'), {
         creditBalance: increment(pkg), creditPackage: pkg, updatedAt: serverTimestamp(),
       }, { merge: true });
-      await addDoc(collection(db, 'academies', targetAcademyId, 'paymentHistory'), {
+      batch.set(doc(collection(db, 'academies', targetAcademyId, 'paymentHistory')), {
         packageSize: pkg, amount, method: 'bank_transfer', memo: creditMemo.trim(), grantedAt: serverTimestamp(),
       });
+      await batch.commit();
       logPlatformEvent('credit_granted', {
         academyId: targetAcademyId,
         academyName: academyList.find(a => a.id === targetAcademyId)?.academyName || targetAcademyId,
@@ -802,13 +832,20 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
       // 1. Firebase Auth 계정 생성 — 관리자 본인 세션을 안 바꾸는 헬퍼 사용
       //    (createUserWithEmailAndPassword(auth, ...)를 그냥 쓰면 새로 만든 계정으로
       //    즉시 로그인 세션이 전환돼버리는 SDK 특성이 있어서, 별도 App 인스턴스로 우회)
-      const newUid = await createUserWithoutSignIn(newTeacherEmail, newTeacherPassword);
-      // 2. 학원 소속 teachers 서브컬렉션에 강사 추가
-      const teacherRef = await addDoc(collection(db, 'academies', academyId, 'teachers'), { name: newTeacherName, createdAt: serverTimestamp() });
-      // 3. users/{uid} 고정 경로에 role·academyId 저장 (uid를 문서 ID로 써야
-      //    보안 규칙에서 "내 문서인지"를 get()으로 안전하게 확인할 수 있음 — 자동 ID였으면
-      //    list 권한을 열어줘야 해서 다른 학원 직원 이메일까지 노출됐을 것)
-      await setDoc(doc(db, 'users', newUid), { role: 'teacher', teacherId: teacherRef.id, academyId, email: newTeacherEmail, createdAt: serverTimestamp() });
+      const { uid: newUid, rollback } = await createUserWithoutSignIn(newTeacherEmail, newTeacherPassword);
+      try {
+        // 2. 학원 소속 teachers 서브컬렉션에 강사 추가
+        const teacherRef = await addDoc(collection(db, 'academies', academyId, 'teachers'), { name: newTeacherName, createdAt: serverTimestamp() });
+        // 3. users/{uid} 고정 경로에 role·academyId 저장 (uid를 문서 ID로 써야
+        //    보안 규칙에서 "내 문서인지"를 get()으로 안전하게 확인할 수 있음 — 자동 ID였으면
+        //    list 권한을 열어줘야 해서 다른 학원 직원 이메일까지 노출됐을 것)
+        await setDoc(doc(db, 'users', newUid), { role: 'teacher', teacherId: teacherRef.id, academyId, email: newTeacherEmail, createdAt: serverTimestamp() });
+      } catch (e) {
+        // Firestore 쓰기가 실패하면 role 없는 고아 Auth 계정이 남아 같은 이메일로 재시도가
+        // auth/email-already-in-use로 막혀버림 — 방금 만든 계정을 바로 되돌림
+        await rollback();
+        throw e;
+      }
       setAccountResult(`${newTeacherName} 강사 계정 생성 완료!`);
       setAccountSuccess(true);
       setNewTeacherEmail(''); setNewTeacherPassword(''); setNewTeacherName('');
@@ -841,22 +878,29 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
       if (existing.exists()) throw new Error('이미 사용 중인 학원 ID입니다.');
       // 2. 원장 Auth 계정 생성 — 실패 가능성이 가장 높은 단계를 Firestore 쓰기보다 먼저 수행해서,
       //    여기서 실패하면 Firestore에 아무 흔적도 안 남고 재시도가 항상 깨끗하게 시작되게 함
-      const newUid = await createUserWithoutSignIn(newDirectorEmail, newDirectorPassword);
-      // 3. academies/{id} 브랜딩 문서 — onboardingPromptShown: false로 시작해야
-      //    첫 로그인 때 시작 가이드가 뜸(기존 학원은 필드 자체가 없어서 자동으로 안 뜸)
-      await setDoc(doc(db, 'academies', trimmedId), {
-        academyName: trimmedName, globalSkinColor: DEFAULT_SKIN_COLOR, createdAt: serverTimestamp(),
-        onboardingPromptShown: false,
-      });
-      // 4. 원장 본인의 teachers 레코드 — 리포트 작성 시 담당 강사(teacherId) 선택이 필수라서,
-      //    직접 리포트를 쓰려면 원장도 강사 레코드가 있어야 함
-      const teacherRef = await addDoc(collection(db, 'academies', trimmedId, 'teachers'), {
-        name: newDirectorName.trim(), createdAt: serverTimestamp(),
-      });
-      // 5. users/{uid} — 이 문서가 있어야 로그인 시 unauthorized 화면을 벗어남
-      await setDoc(doc(db, 'users', newUid), {
-        role: 'director', teacherId: teacherRef.id, academyId: trimmedId, email: newDirectorEmail, createdAt: serverTimestamp(),
-      });
+      const { uid: newUid, rollback } = await createUserWithoutSignIn(newDirectorEmail, newDirectorPassword);
+      try {
+        // 3. academies/{id} 브랜딩 문서 — onboardingPromptShown: false로 시작해야
+        //    첫 로그인 때 시작 가이드가 뜸(기존 학원은 필드 자체가 없어서 자동으로 안 뜸)
+        await setDoc(doc(db, 'academies', trimmedId), {
+          academyName: trimmedName, globalSkinColor: DEFAULT_SKIN_COLOR, createdAt: serverTimestamp(),
+          onboardingPromptShown: false,
+        });
+        // 4. 원장 본인의 teachers 레코드 — 리포트 작성 시 담당 강사(teacherId) 선택이 필수라서,
+        //    직접 리포트를 쓰려면 원장도 강사 레코드가 있어야 함
+        const teacherRef = await addDoc(collection(db, 'academies', trimmedId, 'teachers'), {
+          name: newDirectorName.trim(), createdAt: serverTimestamp(),
+        });
+        // 5. users/{uid} — 이 문서가 있어야 로그인 시 unauthorized 화면을 벗어남
+        await setDoc(doc(db, 'users', newUid), {
+          role: 'director', teacherId: teacherRef.id, academyId: trimmedId, email: newDirectorEmail, createdAt: serverTimestamp(),
+        });
+      } catch (e) {
+        // Firestore 쓰기가 실패하면 role 없는 고아 Auth 계정이 남아 같은 이메일로 재시도가
+        // auth/email-already-in-use로 막혀버림 — 방금 만든 계정을 바로 되돌림
+        await rollback();
+        throw e;
+      }
       logPlatformEvent('academy_created', { academyId: trimmedId, academyName: trimmedName });
       setAcademyResult(`${trimmedName} 학원 생성 완료! (ID: ${trimmedId})`);
       setAcademySuccess(true);
@@ -892,7 +936,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
   return (
     <div style={{ padding: '20px', maxWidth: settingsTab === 'platform' ? '900px' : '600px', margin: '0 auto', boxSizing: 'border-box', transition: 'max-width 0.15s ease' }}>
       <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '4px', letterSpacing: '-0.02em' }}>설정</h2>
-      <p style={{ fontSize: '12px', color: '#6B7280', marginBottom: '16px', fontWeight: 500 }}>학원 기본 정보와 색상을 설정하세요. 학생별로 다르게 설정할 수 있습니다.</p>
+      <p style={{ fontSize: '12px', color: T.textSub, marginBottom: '16px', fontWeight: 500 }}>학원 기본 정보와 색상을 설정하세요. 학생별로 다르게 설정할 수 있습니다.</p>
 
       {isPlatformAdmin && (
         <div style={{ display: 'flex', gap: '6px', marginBottom: '18px' }}>
@@ -905,7 +949,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                 padding: '8px 16px', fontSize: '13px', fontWeight: 700, borderRadius: '9px', cursor: 'pointer', fontFamily: 'inherit',
                 border: settingsTab === t.key ? `1.5px solid ${C.primary}` : '1px solid #E5E7EB',
                 background: settingsTab === t.key ? C.primaryLight : '#fff',
-                color: settingsTab === t.key ? C.primary : '#6B7280',
+                color: settingsTab === t.key ? C.primary : T.textSub,
               }}>
               {t.label}
             </button>
@@ -919,7 +963,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
         <div style={{ background: '#fff', borderRadius: '16px', padding: '14px 18px', border: '1px solid #E5E7EB', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
           <div>
             <p style={{ fontSize: '13px', fontWeight: 700, margin: '0 0 2px' }}>시작 가이드</p>
-            <p style={{ fontSize: '11px', color: '#6B7280', margin: 0 }}>학생 등록·리포트 작성 등 4단계 안내를 다시 볼 수 있어요.</p>
+            <p style={{ fontSize: '11px', color: T.textSub, margin: 0 }}>학생 등록·리포트 작성 등 4단계 안내를 다시 볼 수 있어요.</p>
           </div>
           <button onClick={onReopenGuide}
             style={{ padding: '8px 14px', fontSize: '12px', fontWeight: 700, borderRadius: '9px', border: `1px solid ${C.primary}`, background: '#fff', color: C.primary, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0 }}>
@@ -931,11 +975,11 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
       {/* 학원 로고 */}
       <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB', marginBottom: '14px' }}>
         <p style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>학원 로고</p>
-        <p style={{ fontSize: '11px', color: '#6B7280', margin: '0 0 14px', lineHeight: 1.6 }}>
+        <p style={{ fontSize: '11px', color: T.textSub, margin: '0 0 14px', lineHeight: 1.6 }}>
           앱 상단 헤더에 표시됩니다. 텍스트 없이 아이콘/마크만 있는 정사각형 이미지가 가장 깔끔하게 나옵니다.
         </p>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <div style={{ width: '56px', height: '56px', borderRadius: '14px', background: logoUrl ? 'transparent' : '#F9FAFB', border: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
+          <div style={{ width: '56px', height: '56px', borderRadius: '14px', background: logoUrl ? 'transparent' : T.bgSoft, border: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
             {logoUrl
               ? <img src={logoUrl} alt="현재 로고" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               : <span style={{ fontSize: '10px', color: '#6C7586' }}>미설정</span>}
@@ -944,7 +988,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
             <input ref={logoInputRef} type="file" accept="image/*" style={{ display: 'none' }}
               onChange={(e) => { const f = e.target.files?.[0]; if (f) handleLogoFile(f); e.target.value = ''; }} />
             <button onClick={() => logoInputRef.current?.click()} disabled={logoUploading}
-              style={{ padding: '9px 16px', fontSize: '12px', fontWeight: 700, borderRadius: '9px', border: `1px solid ${C.primary}`, background: logoUploading ? '#F9FAFB' : C.primaryLight, color: logoUploading ? '#6C7586' : C.primary, cursor: logoUploading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+              style={{ padding: '9px 16px', fontSize: '12px', fontWeight: 700, borderRadius: '9px', border: `1px solid ${C.primary}`, background: logoUploading ? T.bgSoft : C.primaryLight, color: logoUploading ? '#6C7586' : C.primary, cursor: logoUploading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
               {logoUploading ? '업로드 중...' : logoUrl ? '로고 변경' : '로고 업로드'}
             </button>
             {logoUrl && (
@@ -961,14 +1005,14 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
       {/* 학원 연락처 — 리포트 작성 화면 미리보기 푸터에 표시. 미설정 시 그냥 표시 안 함 */}
       <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB', marginBottom: '14px' }}>
         <p style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>학원 연락처</p>
-        <p style={{ fontSize: '11px', color: '#6B7280', margin: '0 0 14px', lineHeight: 1.6 }}>
+        <p style={{ fontSize: '11px', color: T.textSub, margin: '0 0 14px', lineHeight: 1.6 }}>
           리포트 작성 화면의 미리보기 카드 하단에 표시됩니다. 비워두면 표시되지 않습니다.
         </p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
           <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="예: 031-000-0000"
             style={{ flex: '1 1 160px', minWidth: 0, padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
           <button onClick={savePhone} disabled={phoneSaving}
-            style={{ flexShrink: 0, padding: '9px 16px', fontSize: '12px', fontWeight: 700, borderRadius: '9px', border: 'none', background: phoneSaving ? '#E5E7EB' : (phoneSaved ? C.success : C.primary), color: phoneSaving ? '#6C7586' : '#fff', cursor: phoneSaving ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+            style={{ flexShrink: 0, padding: '9px 16px', fontSize: '12px', fontWeight: 700, borderRadius: '9px', border: 'none', background: phoneSaving ? T.border : (phoneSaved ? C.success : C.primary), color: phoneSaving ? '#6C7586' : '#fff', cursor: phoneSaving ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
             {phoneSaving ? '저장 중...' : phoneSaved ? '✓ 저장됨' : '저장'}
           </button>
         </div>
@@ -978,14 +1022,14 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
           단, 표준 단원표(교재/단원 자동완성)는 수학·영어에만 있어 다른 과목은 직접 입력 방식으로 동작 */}
       <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB', marginBottom: '14px' }}>
         <p style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>과목 목록</p>
-        <p style={{ fontSize: '11px', color: '#6B7280', margin: '0 0 14px', lineHeight: 1.6 }}>
+        <p style={{ fontSize: '11px', color: T.textSub, margin: '0 0 14px', lineHeight: 1.6 }}>
           리포트 작성 화면의 과목 선택 버튼에 표시됩니다. 쉼표(,)로 구분해서 입력하세요.
         </p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
           <input value={subjectsInput} onChange={(e) => setSubjectsInput(e.target.value)} placeholder="예: 수학, 영어, 국어, 기타"
             style={{ flex: '1 1 160px', minWidth: 0, padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
           <button onClick={saveSubjects} disabled={subjectsSaving}
-            style={{ flexShrink: 0, padding: '9px 16px', fontSize: '12px', fontWeight: 700, borderRadius: '9px', border: 'none', background: subjectsSaving ? '#E5E7EB' : (subjectsSaved ? C.success : C.primary), color: subjectsSaving ? '#6C7586' : '#fff', cursor: subjectsSaving ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+            style={{ flexShrink: 0, padding: '9px 16px', fontSize: '12px', fontWeight: 700, borderRadius: '9px', border: 'none', background: subjectsSaving ? T.border : (subjectsSaved ? C.success : C.primary), color: subjectsSaving ? '#6C7586' : '#fff', cursor: subjectsSaving ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
             {subjectsSaving ? '저장 중...' : subjectsSaved ? '✓ 저장됨' : '저장'}
           </button>
         </div>
@@ -995,7 +1039,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
           모아서 주 1회 발송). 반별로 다르게 쓰고 싶으면 반 관리 목록에서 개별 오버라이드 가능 */}
       <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB', marginBottom: '14px' }}>
         <p style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>리포트 작성 방식</p>
-        <p style={{ fontSize: '11px', color: '#6B7280', margin: '0 0 14px', lineHeight: 1.6 }}>
+        <p style={{ fontSize: '11px', color: T.textSub, margin: '0 0 14px', lineHeight: 1.6 }}>
           학원 기본값이에요. 반이 많고 인원이 큰 수업만 따로 "주간형"으로 바꾸고 싶다면 아래 반 관리에서 반별로 설정할 수 있어요.
         </p>
         <div style={{ display: 'flex', gap: '6px' }}>
@@ -1029,7 +1073,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
           바꿀 방법이 없었음. */}
       <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB', marginBottom: '14px' }}>
         <p style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>경고/주의 판정 기준</p>
-        <p style={{ fontSize: '11px', color: '#6B7280', margin: '0 0 14px', lineHeight: 1.6 }}>
+        <p style={{ fontSize: '11px', color: T.textSub, margin: '0 0 14px', lineHeight: 1.6 }}>
           원장분석의 학생 표에서 "경고·주의·안정" 상태를 가르는 기준이에요. 개념 이해 평균이
           아래 값 미만이거나, 최근 3회 대비 하락 폭이 크면 경고/주의로 표시됩니다.
         </p>
@@ -1047,7 +1091,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
           ))}
         </div>
         <button onClick={saveThresholds} disabled={thresholdsSaving}
-          style={{ padding: '9px 16px', fontSize: '12px', fontWeight: 700, borderRadius: '9px', border: 'none', background: thresholdsSaving ? '#E5E7EB' : (thresholdsSaved ? C.success : C.primary), color: thresholdsSaving ? '#6C7586' : '#fff', cursor: thresholdsSaving ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+          style={{ padding: '9px 16px', fontSize: '12px', fontWeight: 700, borderRadius: '9px', border: 'none', background: thresholdsSaving ? T.border : (thresholdsSaved ? C.success : C.primary), color: thresholdsSaving ? '#6C7586' : '#fff', cursor: thresholdsSaving ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
           {thresholdsSaving ? '저장 중...' : thresholdsSaved ? '✓ 저장됨' : '저장'}
         </button>
       </div>
@@ -1058,11 +1102,11 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
           onClick={() => setShowLogoDeleteConfirm(false)}>
           <div ref={logoDeleteRef} onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: '16px', padding: '28px 24px', width: '100%', maxWidth: '320px', textAlign: 'center', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
             <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: C.dangerBg, border: `2px solid ${C.danger}`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px', fontSize: '22px', color: C.danger, fontWeight: 700 }}>!</div>
-            <p style={{ fontSize: '15px', fontWeight: 700, color: '#1A1A1A', margin: '0 0 6px' }}>학원 로고를 삭제할까요?</p>
-            <p style={{ fontSize: '12px', color: '#6B7280', margin: '0 0 20px', lineHeight: 1.6 }}>삭제하면 앱 상단 헤더가 기본 아이콘으로 바뀝니다.</p>
+            <p style={{ fontSize: '15px', fontWeight: 700, color: T.text, margin: '0 0 6px' }}>학원 로고를 삭제할까요?</p>
+            <p style={{ fontSize: '12px', color: T.textSub, margin: '0 0 20px', lineHeight: 1.6 }}>삭제하면 앱 상단 헤더가 기본 아이콘으로 바뀝니다.</p>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button onClick={() => setShowLogoDeleteConfirm(false)}
-                style={{ flex: 1, padding: '11px', fontSize: '13px', fontWeight: 700, borderRadius: '10px', border: '1px solid #E5E7EB', background: '#fff', color: '#6B7280', cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ flex: 1, padding: '11px', fontSize: '13px', fontWeight: 700, borderRadius: '10px', border: '1px solid #E5E7EB', background: '#fff', color: T.textSub, cursor: 'pointer', fontFamily: 'inherit' }}>
                 취소
               </button>
               <button onClick={() => { onDeleteLogo(); setShowLogoDeleteConfirm(false); }}
@@ -1077,13 +1121,13 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
       {/* 학원 기본 스킨 */}
       <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB', marginBottom: '14px' }}>
         <p style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>학원 기본 스킨</p>
-        <p style={{ fontSize: '11px', color: '#6B7280', margin: '0 0 14px', lineHeight: 1.6 }}>
+        <p style={{ fontSize: '11px', color: T.textSub, margin: '0 0 14px', lineHeight: 1.6 }}>
           리포트 작성 화면의 미리보기 카드 기본 색상입니다. 리포트 작성 시 "학원 기본" 스킨으로 표시되며,
           학생별 개별 색상이 설정된 학생에게는 개별 색상이 우선 적용됩니다.
         </p>
 
         {/* 프리셋 */}
-        <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 700, marginBottom: '8px' }}>프리셋 선택</p>
+        <p style={{ fontSize: '11px', color: T.textSub, fontWeight: 700, marginBottom: '8px' }}>프리셋 선택</p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '16px' }}>
           {PRESET_SKINS.map(sk => (
             <div
@@ -1098,22 +1142,22 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
               }}
             >
               <div style={{ height: '32px', background: sk.main }}></div>
-              <div style={{ padding: '5px 4px', background: '#F9FAFB', textAlign: 'center' }}>
-                <span style={{ fontSize: '10px', fontWeight: 700, color: globalColor === sk.main ? C.infoDark : '#6B7280' }}>{sk.name}</span>
+              <div style={{ padding: '5px 4px', background: T.bgSoft, textAlign: 'center' }}>
+                <span style={{ fontSize: '10px', fontWeight: 700, color: globalColor === sk.main ? C.infoDark : T.textSub }}>{sk.name}</span>
               </div>
             </div>
           ))}
         </div>
 
         {/* 커스텀 컬러피커 */}
-        <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 700, marginBottom: '8px' }}>직접 선택</p>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: '#F9FAFB', borderRadius: '12px', padding: '12px', marginBottom: '14px' }}>
+        <p style={{ fontSize: '11px', color: T.textSub, fontWeight: 700, marginBottom: '8px' }}>직접 선택</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: T.bgSoft, borderRadius: '12px', padding: '12px', marginBottom: '14px' }}>
           <div style={{ position: 'relative', width: '44px', height: '44px', borderRadius: '12px', background: globalColor, flexShrink: 0, border: '2px solid rgba(0,0,0,0.08)', overflow: 'hidden' }}>
             <input ref={colorInputRef} type="color" value={globalColor} onChange={(e) => setGlobalColor(e.target.value)}
               style={{ position: 'absolute', inset: '-4px', width: 'calc(100% + 8px)', height: 'calc(100% + 8px)', border: 'none', padding: 0, cursor: 'pointer', opacity: 0 }} />
           </div>
           <div style={{ flex: 1 }}>
-            <p style={{ fontSize: '12px', fontWeight: 700, color: '#1A1A1A', margin: '0 0 2px' }}>메인 컬러</p>
+            <p style={{ fontSize: '12px', fontWeight: 700, color: T.text, margin: '0 0 2px' }}>메인 컬러</p>
             <p style={{ fontSize: '11px', fontWeight: 600, color: '#9B80C0', margin: 0, fontFamily: 'monospace' }}>{globalColor}</p>
           </div>
           <button
@@ -1134,7 +1178,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
           ].map((item, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: i < 3 ? '7px' : 0 }}>
               <div style={{ width: '26px', height: '26px', borderRadius: '7px', background: item.color, border: '1.5px solid rgba(0,0,0,0.06)', flexShrink: 0 }}></div>
-              <span style={{ fontSize: '11px', fontWeight: 600, color: '#6B7280', flex: 1 }}>{item.label}</span>
+              <span style={{ fontSize: '11px', fontWeight: 600, color: T.textSub, flex: 1 }}>{item.label}</span>
               {item.text
                 ? <span style={{ fontSize: '10px', fontWeight: 700, color: '#6B3FA0', background: '#F0E8FF', padding: '2px 7px', borderRadius: '6px' }}>{item.text}</span>
                 : <span style={{ fontSize: '10px', fontWeight: 600, color: '#7A6B99', fontFamily: 'monospace' }}>{item.color}</span>
@@ -1153,12 +1197,12 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
       {/* 강사 관리 */}
       <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB', marginBottom: '14px' }}>
         <p style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>강사 관리</p>
-        <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 500, marginBottom: '14px' }}>강사 이름 수정 및 로그인 계정을 생성합니다.</p>
+        <p style={{ fontSize: '11px', color: T.textSub, fontWeight: 500, marginBottom: '14px' }}>강사 이름 수정 및 로그인 계정을 생성합니다.</p>
 
         {/* 강사 목록 + 이름 수정 */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
           {teachers.map(t => (
-            <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#F9FAFB', borderRadius: '10px', padding: '10px 12px' }}>
+            <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: T.bgSoft, borderRadius: '10px', padding: '10px 12px' }}>
               <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: C.successBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <span style={{ fontSize: '13px', fontWeight: 700, color: C.successDark }}>{t.name?.[0]}</span>
               </div>
@@ -1172,18 +1216,24 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                     autoFocus
                   />
                   <button onClick={() => handleTeacherNameSave(t)} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 12px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>저장</button>
-                  <button onClick={() => setEditingTeacherId(null)} style={{ background: '#F3F4F6', color: '#6B7280', border: 'none', borderRadius: '8px', padding: '6px 10px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>취소</button>
+                  <button onClick={() => setEditingTeacherId(null)} style={{ background: '#F3F4F6', color: T.textSub, border: 'none', borderRadius: '8px', padding: '6px 10px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>취소</button>
                 </>
               ) : (
                 <>
-                  <span style={{ flex: 1, fontSize: '13px', fontWeight: 600, color: '#1A1A1A' }}>{t.name}</span>
+                  <span style={{ flex: 1, fontSize: '13px', fontWeight: 600, color: T.text }}>{t.name}</span>
                   <button onClick={() => { setEditingTeacherId(t.id); setEditingTeacherName(t.name); }} style={{ background: C.primaryLight, color: C.primary, border: 'none', borderRadius: '8px', padding: '5px 10px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                     <Pencil size={11} /> 수정
                   </button>
                   {(() => {
-                    // 강사 삭제 전에 담당 학생이 몇 명인지 보여줘야 함 — 삭제해도 학생의
-                    // assignedTeacherId는 그대로 남아 "삭제된 강사"를 가리키는 고아 상태가 됨
+                    // 강사 삭제 전에 담당 학생/반이 몇 개인지 보여줘야 함 — 삭제해도 학생의
+                    // assignedTeacherId나 반의 teacherId는 그대로 남아 "삭제된 강사"를 가리키는
+                    // 고아 상태가 됨(반 목록 쪽엔 이미 그 폴백 문구가 있음 — 여기 경고에도 반영)
                     const assignedCount = students.filter(s => s.assignedTeacherId === t.id).length;
+                    const classCount = classes.filter(c => c.teacherId === t.id).length;
+                    const warnParts = [
+                      assignedCount > 0 ? `담당 학생 ${assignedCount}명` : '',
+                      classCount > 0 ? `담당 반 ${classCount}개` : '',
+                    ].filter(Boolean);
                     return (
                       <button onClick={() => {
                         if (confirmingTeacherDelete === t.id) {
@@ -1194,8 +1244,8 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                         }
                       }} style={{ background: confirmingTeacherDelete === t.id ? C.danger : C.dangerBg, color: confirmingTeacherDelete === t.id ? '#fff' : C.danger, border: 'none', borderRadius: '8px', padding: '5px 10px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
                         {confirmingTeacherDelete === t.id
-                          ? (assignedCount > 0 ? `확인 (담당 학생 ${assignedCount}명 남음)` : '확인 (재클릭)')
-                          : (assignedCount > 0 ? `삭제 (담당 ${assignedCount}명)` : '삭제')}
+                          ? (warnParts.length > 0 ? `확인 (${warnParts.join(' · ')} 남음)` : '확인 (재클릭)')
+                          : (warnParts.length > 0 ? `삭제 (${warnParts.join(' · ')})` : '삭제')}
                       </button>
                     );
                   })()}
@@ -1212,7 +1262,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
             <input value={newTeacherName} onChange={e => setNewTeacherName(e.target.value)} placeholder="강사 이름 (예: 영동 선생님)" style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
             <input value={newTeacherEmail} onChange={e => setNewTeacherEmail(e.target.value)} placeholder="이메일" type="email" style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
             <input value={newTeacherPassword} onChange={e => setNewTeacherPassword(e.target.value)} placeholder="비밀번호 (6자 이상)" type="password" style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
-            <button onClick={handleCreateTeacherAccount} disabled={accountCreating} style={{ background: accountCreating ? '#E5E7EB' : C.successDark, color: '#fff', border: 'none', borderRadius: '10px', padding: '11px', fontSize: '13px', fontWeight: 700, cursor: accountCreating ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+            <button onClick={handleCreateTeacherAccount} disabled={accountCreating} style={{ background: accountCreating ? T.border : C.successDark, color: '#fff', border: 'none', borderRadius: '10px', padding: '11px', fontSize: '13px', fontWeight: 700, cursor: accountCreating ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
               {accountCreating ? '생성 중...' : '강사 계정 생성'}
             </button>
             {accountResult && (
@@ -1233,7 +1283,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
             <HelpCircle size={13} /> 사용법
           </button>
         </div>
-        <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 500, marginBottom: showClassGuide ? '10px' : '14px' }}>학생을 반으로 묶으면 담당 강사가 자동으로 지정됩니다.</p>
+        <p style={{ fontSize: '11px', color: T.textSub, fontWeight: 500, marginBottom: showClassGuide ? '10px' : '14px' }}>학생을 반으로 묶으면 담당 강사가 자동으로 지정됩니다.</p>
 
         {showClassGuide && (
           <div style={{ background: C.primaryLight, borderRadius: '12px', padding: '14px', marginBottom: '14px' }}>
@@ -1243,13 +1293,13 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                 <X size={14} />
               </button>
             </div>
-            <ol style={{ margin: 0, padding: '0 0 0 18px', fontSize: '12px', color: '#1A1A1A', lineHeight: 1.9 }}>
+            <ol style={{ margin: 0, padding: '0 0 0 18px', fontSize: '12px', color: T.text, lineHeight: 1.9 }}>
               <li>아래 "새 반 만들기"에서 반 이름과 담당 강사를 정해서 반을 만드세요.</li>
               <li>학생 관리에서 학생을 등록/수정할 때 그 반을 선택하세요.</li>
               <li>그 학생의 담당 강사는 반의 담당 강사로 자동 지정돼요 — 따로 고를 필요 없어요.</li>
               <li>리포트 작성 화면의 학생 목록, 학습기록, 원장분석이 전부 반 단위로 묶여서 보여요.</li>
             </ol>
-            <p style={{ fontSize: '11px', color: '#6B7280', margin: '10px 0 0', lineHeight: 1.6 }}>
+            <p style={{ fontSize: '11px', color: T.textSub, margin: '10px 0 0', lineHeight: 1.6 }}>
               반은 선택 사항이에요 — 하나도 안 만들어도 지금처럼 학생마다 담당 강사를 직접 골라 쓸 수 있어요.
             </p>
           </div>
@@ -1263,7 +1313,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
             const classTeacher = teachers.find(t => t.id === cls.teacherId);
             const classStudentCount = students.filter(s => s.classId === cls.id).length;
             return (
-              <div key={cls.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#F9FAFB', borderRadius: '10px', padding: '10px 12px' }}>
+              <div key={cls.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: T.bgSoft, borderRadius: '10px', padding: '10px 12px' }}>
                 <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: C.primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <span style={{ fontSize: '13px', fontWeight: 700, color: C.primary }}>{cls.name?.[0]}</span>
                 </div>
@@ -1277,18 +1327,18 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                       autoFocus
                     />
                     <button onClick={() => handleClassNameSave(cls)} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 12px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>저장</button>
-                    <button onClick={() => setEditingClassId(null)} style={{ background: '#F3F4F6', color: '#6B7280', border: 'none', borderRadius: '8px', padding: '6px 10px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>취소</button>
+                    <button onClick={() => setEditingClassId(null)} style={{ background: '#F3F4F6', color: T.textSub, border: 'none', borderRadius: '8px', padding: '6px 10px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>취소</button>
                   </>
                 ) : (
                   <>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: '13px', fontWeight: 600, color: '#1A1A1A', margin: 0 }}>{cls.name}</p>
+                      <p style={{ fontSize: '13px', fontWeight: 600, color: T.text, margin: 0 }}>{cls.name}</p>
                       <p style={{ fontSize: '11px', color: '#6C7586', margin: '2px 0 0' }}>{classTeacher ? `담당 ${classTeacher.name}` : '담당 강사 미지정(삭제된 강사)'} · 학생 {classStudentCount}명</p>
                     </div>
                     {/* 이 반만 학원 기본 리포트 방식과 다르게 쓰고 싶을 때 — 비워두면(학원 기본값) 위 설정을 그대로 따름 */}
                     <select value={cls.reportMode || ''} onChange={e => onSaveClass({ ...cls, reportMode: e.target.value })}
                       title="이 반의 리포트 작성 방식(비워두면 학원 기본값)"
-                      style={{ flexShrink: 0, padding: '5px 6px', fontSize: '10px', fontWeight: 600, border: '1px solid #E5E7EB', borderRadius: '8px', fontFamily: 'inherit', background: '#fff', color: '#6B7280' }}>
+                      style={{ flexShrink: 0, padding: '5px 6px', fontSize: '10px', fontWeight: 600, border: '1px solid #E5E7EB', borderRadius: '8px', fontFamily: 'inherit', background: '#fff', color: T.textSub }}>
                       <option value="">학원 기본값</option>
                       <option value="daily">매일형</option>
                       <option value="weekly">주간형</option>
@@ -1324,7 +1374,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
               {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
             <button onClick={handleCreateClass} disabled={!newClassName.trim() || !newClassTeacherId}
-              style={{ background: (!newClassName.trim() || !newClassTeacherId) ? '#E5E7EB' : C.successDark, color: '#fff', border: 'none', borderRadius: '10px', padding: '11px', fontSize: '13px', fontWeight: 700, cursor: (!newClassName.trim() || !newClassTeacherId) ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+              style={{ background: (!newClassName.trim() || !newClassTeacherId) ? T.border : C.successDark, color: '#fff', border: 'none', borderRadius: '10px', padding: '11px', fontSize: '13px', fontWeight: 700, cursor: (!newClassName.trim() || !newClassTeacherId) ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
               반 만들기
             </button>
           </div>
@@ -1334,7 +1384,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
       {/* 새 학년도 — 학년 일괄 올리기 */}
       <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB', marginBottom: '14px' }}>
         <p style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>새 학년도 — 학년 일괄 올리기</p>
-        <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 500, marginBottom: '14px', lineHeight: 1.6 }}>
+        <p style={{ fontSize: '11px', color: T.textSub, fontWeight: 500, marginBottom: '14px', lineHeight: 1.6 }}>
           "학교" 항목에서 학년 숫자만 찾아 1씩 올려요. 초6·중3·고3처럼 학교를 옮겨야 하는 학생은 건드리지 않으니, 학교명은 직접 수정해주세요.
         </p>
         <button onClick={handlePreviewGradeBump}
@@ -1354,7 +1404,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
           onClick={() => !gradeBumping && setGradeBumpPreview(null)}>
           <div ref={gradeBumpRef} onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '420px', maxHeight: '80vh', overflow: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
             <p style={{ fontSize: '15px', fontWeight: 700, margin: '0 0 4px' }}>학년을 올릴까요?</p>
-            <p style={{ fontSize: '12px', color: '#6B7280', margin: '0 0 14px', lineHeight: 1.6 }}>
+            <p style={{ fontSize: '12px', color: T.textSub, margin: '0 0 14px', lineHeight: 1.6 }}>
               {gradeBumpPreview.changes.length}명의 학년이 아래처럼 바뀝니다.
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: gradeBumpPreview.skipped.length > 0 ? '14px' : '18px' }}>
@@ -1362,9 +1412,9 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                 <p style={{ fontSize: '12px', color: '#6C7586', margin: 0 }}>학년을 올릴 학생이 없어요.</p>
               )}
               {gradeBumpPreview.changes.map(c => (
-                <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F9FAFB', borderRadius: '8px', padding: '8px 10px' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#1A1A1A' }}>{c.name}</span>
-                  <span style={{ fontSize: '11px', color: '#6B7280' }}>{c.from} → <b style={{ color: '#1A1A1A' }}>{c.to}</b></span>
+                <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: T.bgSoft, borderRadius: '8px', padding: '8px 10px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: T.text }}>{c.name}</span>
+                  <span style={{ fontSize: '11px', color: T.textSub }}>{c.from} → <b style={{ color: T.text }}>{c.to}</b></span>
                 </div>
               ))}
             </div>
@@ -1376,13 +1426,13 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
             )}
             <div style={{ display: 'flex', gap: '8px' }}>
               <button onClick={() => setGradeBumpPreview(null)} disabled={gradeBumping}
-                style={{ flex: 1, padding: '11px', fontSize: '13px', fontWeight: 700, borderRadius: '10px', border: '1px solid #E5E7EB', background: '#fff', color: '#6B7280', cursor: gradeBumping ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                style={{ flex: 1, padding: '11px', fontSize: '13px', fontWeight: 700, borderRadius: '10px', border: '1px solid #E5E7EB', background: '#fff', color: T.textSub, cursor: gradeBumping ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
                 취소
               </button>
               <button onClick={handleApplyGradeBump} disabled={gradeBumping || gradeBumpPreview.changes.length === 0}
                 style={{
                   flex: 1, padding: '11px', fontSize: '13px', fontWeight: 700, borderRadius: '10px', border: 'none',
-                  background: (gradeBumping || gradeBumpPreview.changes.length === 0) ? '#E5E7EB' : C.primary,
+                  background: (gradeBumping || gradeBumpPreview.changes.length === 0) ? T.border : C.primary,
                   color: (gradeBumping || gradeBumpPreview.changes.length === 0) ? '#6C7586' : '#fff',
                   cursor: (gradeBumping || gradeBumpPreview.changes.length === 0) ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
                 }}>
@@ -1400,11 +1450,11 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
         <p style={{ fontSize: '20px', fontWeight: 800, color: C.primary, margin: '10px 0 2px' }}>
           {myBilling?.unlimited ? '무제한' : `${myBilling?.creditBalance ?? 0}회`}
         </p>
-        <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 500, marginBottom: '14px' }}>남은 분석</p>
+        <p style={{ fontSize: '11px', color: T.textSub, fontWeight: 500, marginBottom: '14px' }}>남은 분석</p>
 
         {!myBilling?.unlimited && (
           <>
-            <p style={{ fontSize: '12px', fontWeight: 700, color: '#1A1A1A', marginBottom: '8px' }}>입금 완료했어요</p>
+            <p style={{ fontSize: '12px', fontWeight: 700, color: T.text, marginBottom: '8px' }}>입금 완료했어요</p>
             <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
               <select value={reqPackage} onChange={e => { setReqPackage(e.target.value); setReqAmount(String(PACKAGE_PRICES[e.target.value])); }}
                 style={{ flex: 1, padding: '9px 10px', fontSize: '13px', border: '1px solid #E5E7EB', borderRadius: '8px', fontFamily: 'inherit' }}>
@@ -1414,35 +1464,35 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
             <input value={reqNote} onChange={e => setReqNote(e.target.value)} placeholder="입금자명 등 메모 (선택)"
               style={{ width: '100%', padding: '9px 10px', fontSize: '13px', border: '1px solid #E5E7EB', borderRadius: '8px', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: '10px' }} />
             <button onClick={handleSubmitPaymentRequest} disabled={reqSubmitting}
-              style={{ width: '100%', padding: '11px', fontSize: '13px', fontWeight: 700, borderRadius: '10px', border: 'none', background: reqSubmitting ? '#E5E7EB' : C.primary, color: reqSubmitting ? '#6C7586' : '#fff', cursor: reqSubmitting ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+              style={{ width: '100%', padding: '11px', fontSize: '13px', fontWeight: 700, borderRadius: '10px', border: 'none', background: reqSubmitting ? T.border : C.primary, color: reqSubmitting ? '#6C7586' : '#fff', cursor: reqSubmitting ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
               {reqSubmitting ? '전송 중...' : '입금 확인 요청 보내기'}
             </button>
             <p style={{ fontSize: '10px', color: '#9CA3AF', margin: '6px 0 0', lineHeight: 1.5 }}>
               요청을 보내면 관리자 확인 후 크레딧이 지급돼요. 즉시 반영되지 않을 수 있어요.
             </p>
-            <div style={{ background: '#F9FAFB', borderRadius: '8px', padding: '10px 12px', marginTop: '10px' }}>
-              <p style={{ fontSize: '11px', fontWeight: 700, color: '#1A1A1A', margin: '0 0 4px' }}>1회 = "AI로 분석하기" 버튼 1번</p>
-              <p style={{ fontSize: '10.5px', color: '#6B7280', margin: '0 0 4px', lineHeight: 1.6 }}>사진을 1장 올리든 5장 올리든, 한 번에 분석하면 1회입니다.</p>
-              <p style={{ fontSize: '10.5px', color: '#6B7280', margin: '0 0 2px', lineHeight: 1.6 }}>예) 시험지 앞뒤 2장을 한 번에 올려 분석 → 1회 차감</p>
-              <p style={{ fontSize: '10.5px', color: '#6B7280', margin: '0 0 4px', lineHeight: 1.6 }}>예) 분석이 실패하면(서버 오류 등) → 차감되지 않습니다</p>
-              <p style={{ fontSize: '10.5px', color: '#6B7280', margin: 0, lineHeight: 1.6 }}>리포트 작성·발송·AI 코멘트 다듬기는 횟수 차감 없이 무료입니다.</p>
+            <div style={{ background: T.bgSoft, borderRadius: '8px', padding: '10px 12px', marginTop: '10px' }}>
+              <p style={{ fontSize: '11px', fontWeight: 700, color: T.text, margin: '0 0 4px' }}>1회 = "AI로 분석하기" 버튼 1번</p>
+              <p style={{ fontSize: '10.5px', color: T.textSub, margin: '0 0 4px', lineHeight: 1.6 }}>사진을 1장 올리든 5장 올리든, 한 번에 분석하면 1회입니다.</p>
+              <p style={{ fontSize: '10.5px', color: T.textSub, margin: '0 0 2px', lineHeight: 1.6 }}>예) 시험지 앞뒤 2장을 한 번에 올려 분석 → 1회 차감</p>
+              <p style={{ fontSize: '10.5px', color: T.textSub, margin: '0 0 4px', lineHeight: 1.6 }}>예) 분석이 실패하면(서버 오류 등) → 차감되지 않습니다</p>
+              <p style={{ fontSize: '10.5px', color: T.textSub, margin: 0, lineHeight: 1.6 }}>리포트 작성·발송·AI 코멘트 다듬기는 횟수 차감 없이 무료입니다.</p>
             </div>
           </>
         )}
 
         {myRequests.length > 0 && (
           <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px dashed #E5E7EB' }}>
-            <p style={{ fontSize: '11px', fontWeight: 700, color: '#6B7280', marginBottom: '8px' }}>최근 요청</p>
+            <p style={{ fontSize: '11px', fontWeight: 700, color: T.textSub, marginBottom: '8px' }}>최근 요청</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {myRequests.map(r => {
                 const statusInfo = {
                   pending: { label: '확인 중', color: C.warningText, bg: '#FFF8EC' },
                   approved: { label: '지급 완료', color: C.successDark, bg: C.successBg },
-                  rejected: { label: '거절됨', color: '#6B7280', bg: '#F3F4F6' },
-                }[r.status] || { label: r.status, color: '#6B7280', bg: '#F3F4F6' };
+                  rejected: { label: '거절됨', color: T.textSub, bg: '#F3F4F6' },
+                }[r.status] || { label: r.status, color: T.textSub, bg: '#F3F4F6' };
                 return (
                   <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px' }}>
-                    <span style={{ color: '#1A1A1A', fontWeight: 500 }}>{r.packageSize}회 · {(r.amount || 0).toLocaleString()}원</span>
+                    <span style={{ color: T.text, fontWeight: 500 }}>{r.packageSize}회 · {(r.amount || 0).toLocaleString()}원</span>
                     <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', color: statusInfo.color, background: statusInfo.bg }}>{statusInfo.label}</span>
                   </div>
                 );
@@ -1459,27 +1509,27 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
       {settingsTab === 'platform' && isPlatformAdmin && pendingRequests.length > 0 && (
         <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: `1.5px solid ${C.warning}`, marginBottom: '14px' }}>
           <p style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>입금 확인 대기 · {pendingRequests.length}건</p>
-          <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 500, marginBottom: '14px' }}>학원들이 입금 완료를 알려온 요청이에요. 확인되는 대로 승인해주세요.</p>
+          <p style={{ fontSize: '11px', color: T.textSub, fontWeight: 500, marginBottom: '14px' }}>학원들이 입금 완료를 알려온 요청이에요. 확인되는 대로 승인해주세요.</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {pendingRequests.map(req => (
               <div key={req.id} style={{ background: '#FFF8EC', border: '1px solid #F0D584', borderRadius: '10px', padding: '12px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 700, color: '#1A1A1A' }}>{req.academyName}</span>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: T.text }}>{req.academyName}</span>
                   <span style={{ fontSize: '12px', fontWeight: 700, color: C.primary }}>{req.packageSize}회 · {(req.amount || 0).toLocaleString()}원</span>
                 </div>
-                {req.note && <p style={{ fontSize: '11px', color: '#6B7280', margin: '0 0 8px' }}>{req.note}</p>}
-                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#1A1A1A', marginBottom: '8px', cursor: 'pointer' }}>
+                {req.note && <p style={{ fontSize: '11px', color: T.textSub, margin: '0 0 8px' }}>{req.note}</p>}
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: T.text, marginBottom: '8px', cursor: 'pointer' }}>
                   <input type="checkbox" checked={!!bonusChecked[req.id]}
                     onChange={e => setBonusChecked(prev => ({ ...prev, [req.id]: e.target.checked }))} />
                   첫 결제 50% 보너스 적용 (지급 {Math.round(req.packageSize * 1.5)}회)
                 </label>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button onClick={() => handleRejectPaymentRequest(req)} disabled={resolvingReqId === req.id}
-                    style={{ flex: 1, padding: '9px', fontSize: '12px', fontWeight: 700, borderRadius: '8px', border: '1px solid #E5E7EB', background: '#fff', color: '#6B7280', cursor: resolvingReqId ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
-                    거절
+                    style={{ flex: 1, padding: '9px', fontSize: '12px', fontWeight: 700, borderRadius: '8px', border: `1px solid ${confirmingRejectId === req.id ? C.danger : T.border}`, background: confirmingRejectId === req.id ? C.dangerBg : '#fff', color: confirmingRejectId === req.id ? C.danger : T.textSub, cursor: resolvingReqId ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                    {confirmingRejectId === req.id ? '확인 (재클릭)' : '거절'}
                   </button>
                   <button onClick={() => handleApprovePaymentRequest(req)} disabled={resolvingReqId === req.id}
-                    style={{ flex: 2, padding: '9px', fontSize: '12px', fontWeight: 700, borderRadius: '8px', border: 'none', background: resolvingReqId === req.id ? '#E5E7EB' : C.primary, color: resolvingReqId === req.id ? '#6C7586' : '#fff', cursor: resolvingReqId ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                    style={{ flex: 2, padding: '9px', fontSize: '12px', fontWeight: 700, borderRadius: '8px', border: 'none', background: resolvingReqId === req.id ? T.border : C.primary, color: resolvingReqId === req.id ? '#6C7586' : '#fff', cursor: resolvingReqId ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
                     {resolvingReqId === req.id ? '처리 중...' : '승인하고 지급'}
                   </button>
                 </div>
@@ -1511,7 +1561,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
         return (
           <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB', marginBottom: '14px' }}>
             <p style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>가입 신청 관리</p>
-            <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 500, marginBottom: '12px' }}>
+            <p style={{ fontSize: '11px', color: T.textSub, fontWeight: 500, marginBottom: '12px' }}>
               학원 등록 신청 내역입니다. 승인된 신청도 사업자등록번호·주소 등 원본 정보를 여기서 다시 볼 수 있어요.
             </p>
             <div style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
@@ -1525,7 +1575,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                     padding: '6px 12px', fontSize: '12px', fontWeight: 700, borderRadius: '20px', cursor: 'pointer', fontFamily: 'inherit',
                     border: signupTab === t.key ? `1.5px solid ${C.info}` : '1px solid #E5E7EB',
                     background: signupTab === t.key ? C.infoBg : '#fff',
-                    color: signupTab === t.key ? C.infoDark : '#6B7280',
+                    color: signupTab === t.key ? C.infoDark : T.textSub,
                   }}>
                   {t.label} {tabCounts[t.key]}
                 </button>
@@ -1543,11 +1593,11 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                   ? { label: '승인됨', bg: C.successBg, color: C.successDark }
                   : { label: '거절됨', bg: C.errorBg, color: C.errorDark };
                 return (
-                  <div key={req.id} style={{ background: '#F9FAFB', borderRadius: '10px', padding: '10px 12px' }}>
+                  <div key={req.id} style={{ background: T.bgSoft, borderRadius: '10px', padding: '10px 12px' }}>
                     <div role="button" tabIndex={0} aria-expanded={expanded} onClick={() => toggleSignupRequest(req)} onKeyDown={onKeyActivate(() => toggleSignupRequest(req))} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: '13px', fontWeight: 600, color: '#1A1A1A', margin: 0 }}>{req.academyName}</p>
-                        <p style={{ fontSize: '11px', color: '#6B7280', margin: '2px 0 0' }}>
+                        <p style={{ fontSize: '13px', fontWeight: 600, color: T.text, margin: 0 }}>{req.academyName}</p>
+                        <p style={{ fontSize: '11px', color: T.textSub, margin: '2px 0 0' }}>
                           {req.directorName} 원장 · {req.createdAt?.seconds ? new Date(req.createdAt.seconds * 1000).toLocaleDateString('ko-KR') : ''}
                         </p>
                       </div>
@@ -1575,7 +1625,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                             </div>
                             <div style={{ display: 'flex', gap: '6px' }}>
                               <button onClick={() => handleApproveSignup(req)} disabled={approving || rejecting}
-                                style={{ flex: 1, padding: '8px', fontSize: '12px', fontWeight: 700, borderRadius: '8px', border: 'none', background: approving ? '#E5E7EB' : C.primary, color: '#fff', cursor: approving ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                                style={{ flex: 1, padding: '8px', fontSize: '12px', fontWeight: 700, borderRadius: '8px', border: 'none', background: approving ? T.border : C.primary, color: '#fff', cursor: approving ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
                                 {approving ? '승인 중...' : '승인'}
                               </button>
                               <button onClick={() => handleRejectSignup(req)} disabled={approving || rejecting}
@@ -1623,7 +1673,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
       {settingsTab === 'platform' && isPlatformAdmin && (
         <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB', marginBottom: '14px' }}>
           <p style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>새 학원 추가</p>
-          <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 500, marginBottom: '14px' }}>분양할 학원의 데이터 공간과 첫 원장 계정을 만듭니다.</p>
+          <p style={{ fontSize: '11px', color: T.textSub, fontWeight: 500, marginBottom: '14px' }}>분양할 학원의 데이터 공간과 첫 원장 계정을 만듭니다.</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <input value={newAcademyName} onChange={e => setNewAcademyName(e.target.value)} placeholder="학원 이름 (예: 데카르트학원)" style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
             <input value={newAcademyId} onChange={e => { setNewAcademyId(e.target.value); setAcademyIdTouched(true); }} placeholder="학원 ID (영문 소문자/숫자/하이픈)" style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'monospace', outline: 'none' }} />
@@ -1631,7 +1681,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
             <input value={newDirectorName} onChange={e => setNewDirectorName(e.target.value)} placeholder="원장 이름" style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
             <input value={newDirectorEmail} onChange={e => setNewDirectorEmail(e.target.value)} placeholder="원장 이메일" type="email" style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
             <input value={newDirectorPassword} onChange={e => setNewDirectorPassword(e.target.value)} placeholder="비밀번호 (6자 이상)" type="password" style={{ padding: '9px 12px', fontSize: '16px', border: '1px solid #E5E7EB', borderRadius: '10px', fontFamily: 'inherit', outline: 'none' }} />
-            <button onClick={handleCreateAcademy} disabled={academyCreating} style={{ background: academyCreating ? '#E5E7EB' : C.primary, color: '#fff', border: 'none', borderRadius: '10px', padding: '11px', fontSize: '13px', fontWeight: 700, cursor: academyCreating ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+            <button onClick={handleCreateAcademy} disabled={academyCreating} style={{ background: academyCreating ? T.border : C.primary, color: '#fff', border: 'none', borderRadius: '10px', padding: '11px', fontSize: '13px', fontWeight: 700, cursor: academyCreating ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
               {academyCreating ? '생성 중...' : '학원 생성'}
             </button>
             {academyResult && (
@@ -1647,7 +1697,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
       {settingsTab === 'platform' && isPlatformAdmin && academyList.length > 0 && (
         <div style={{ background: '#fff', borderRadius: '16px', padding: '18px', border: '1px solid #E5E7EB', marginBottom: '14px' }}>
           <p style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>분양 학원 관리</p>
-          <p style={{ fontSize: '11px', color: '#6B7280', fontWeight: 500, marginBottom: '14px' }}>
+          <p style={{ fontSize: '11px', color: T.textSub, fontWeight: 500, marginBottom: '14px' }}>
             학원별 사용량입니다. 정지된 학원은 직원 로그인이 차단되며, 학부모에게 이미 공유된 리포트 링크는 계속 열립니다.
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -1658,18 +1708,18 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
               const billing = academyBilling[a.id];
               const formOpen = creditFormOpen === a.id;
               return (
-                <div key={a.id} style={{ background: '#F9FAFB', borderRadius: '10px', padding: '10px 12px' }}>
+                <div key={a.id} style={{ background: T.bgSoft, borderRadius: '10px', padding: '10px 12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: '13px', fontWeight: 600, color: '#1A1A1A', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <p style={{ fontSize: '13px', fontWeight: 600, color: T.text, margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
                       {a.academyName || a.id}
-                      {isMine && <span style={{ fontSize: '10px', fontWeight: 700, color: '#6B7280', background: '#E5E7EB', padding: '2px 6px', borderRadius: '5px' }}>내 학원</span>}
+                      {isMine && <span style={{ fontSize: '10px', fontWeight: 700, color: T.textSub, background: T.border, padding: '2px 6px', borderRadius: '5px' }}>내 학원</span>}
                       <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '5px', background: suspended ? C.dangerBg : C.successBg, color: suspended ? C.danger : C.successDark }}>
                         {suspended ? '정지됨' : '이용 중'}
                       </span>
                     </p>
                     <p style={{ fontSize: '10px', color: '#6C7586', margin: '2px 0 0', fontFamily: 'monospace' }}>{a.id}</p>
-                    <p style={{ fontSize: '11px', color: '#6B7280', margin: '5px 0 0', fontWeight: 600 }}>
+                    <p style={{ fontSize: '11px', color: T.textSub, margin: '5px 0 0', fontWeight: 600 }}>
                       {stat
                         ? (stat.students === null
                             ? '통계 조회 실패'
@@ -1704,7 +1754,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                         {/* 무제한 토글 — 자체 운영 학원처럼 크레딧 소진 걱정 없이 쓰게 할 때. 켜져 있으면
                             아래 지급 폼은 의미 없어져서 흐리게 표시(그래도 지급 자체는 막지 않음 — 나중에
                             무제한 끌 때를 대비해 잔액을 미리 쌓아둘 수도 있으니) */}
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '10px', padding: '8px 10px', background: billing?.unlimited ? '#FBF1DE' : '#F9FAFB', borderRadius: '8px', cursor: unlimitedToggling === a.id ? 'wait' : 'pointer' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '10px', padding: '8px 10px', background: billing?.unlimited ? '#FBF1DE' : T.bgSoft, borderRadius: '8px', cursor: unlimitedToggling === a.id ? 'wait' : 'pointer' }}>
                           <input type="checkbox" checked={!!billing?.unlimited} disabled={unlimitedToggling === a.id}
                             onChange={e => handleToggleUnlimited(a.id, e.target.checked)} />
                           <span style={{ fontSize: '11px', fontWeight: 700, color: billing?.unlimited ? '#8A6412' : '#374151' }}>
@@ -1714,7 +1764,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                         {/* 통계 제외 토글 — 교현학원처럼 내부 테스트용으로 쓰는 학원을 플랫폼
                             대시보드 헤드라인 지표(총 분석 횟수 등)에서 빼되, 사용 내역/랭킹에는
                             그대로 남겨 완전히 숨기지는 않음 */}
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '10px', padding: '8px 10px', background: billing?.excludeFromStats ? '#F3F0FB' : '#F9FAFB', borderRadius: '8px', cursor: excludeStatsToggling === a.id ? 'wait' : 'pointer' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '10px', padding: '8px 10px', background: billing?.excludeFromStats ? '#F3F0FB' : T.bgSoft, borderRadius: '8px', cursor: excludeStatsToggling === a.id ? 'wait' : 'pointer' }}>
                           <input type="checkbox" checked={!!billing?.excludeFromStats} disabled={excludeStatsToggling === a.id}
                             onChange={e => handleToggleExcludeFromStats(a.id, e.target.checked)} />
                           <span style={{ fontSize: '11px', fontWeight: 700, color: billing?.excludeFromStats ? '#5B3FA0' : '#374151' }}>
@@ -1731,7 +1781,7 @@ export default function SettingsView({ students, onSaveStudent, teachers, onSave
                           <input value={creditMemo} onChange={e => setCreditMemo(e.target.value)} placeholder="메모(입금자명 등)"
                             style={{ flex: 1, padding: '7px 8px', fontSize: '12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontFamily: 'inherit' }} />
                           <button onClick={() => handleGrantCredit(a.id)} disabled={creditGranting}
-                            style={{ padding: '7px 12px', fontSize: '11px', fontWeight: 700, borderRadius: '8px', border: 'none', background: creditGranting ? '#E5E7EB' : C.successDark, color: '#fff', cursor: creditGranting ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                            style={{ padding: '7px 12px', fontSize: '11px', fontWeight: 700, borderRadius: '8px', border: 'none', background: creditGranting ? T.border : C.successDark, color: '#fff', cursor: creditGranting ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
                             {creditGranting ? '지급 중...' : '지급'}
                           </button>
                         </div>

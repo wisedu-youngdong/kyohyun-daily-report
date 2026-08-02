@@ -55,10 +55,14 @@ const db = getFirestore();
 const auth = getAuth();
 
 async function commitInChunks(writes) {
+  // merge:true 필수 — 파일 상단 주석이 "재실행해도 안전(idempotent)"이라고 명시하는데,
+  // merge 없는 set()은 재실행 시점에 앱이 이미 채워둔 다른 필드(예: users/{uid}의 teacherId,
+  // status, createdAt)를 통째로 지워버려서 그 약속이 깨짐. migrateBranding()은 이미
+  // merge:true를 쓰고 있었는데 이 공용 헬퍼(모든 다른 마이그레이션 경로가 거침)만 빠져 있었음.
   for (let i = 0; i < writes.length; i += CHUNK_SIZE) {
     const batch = db.batch();
     for (const { ref, data } of writes.slice(i, i + CHUNK_SIZE)) {
-      batch.set(ref, data);
+      batch.set(ref, data, { merge: true });
     }
     await batch.commit();
   }

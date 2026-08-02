@@ -124,7 +124,11 @@ const TOKENS = {
   info: C.info, infoBg: C.infoBg, infoDark: C.infoDark,
   warn: C.warningText, warnBg: C.warningBg, warnBorder: C.warning, warnText: C.warningText,
   success: C.success, successBg: C.successBg, successDark: C.successDark,
-  danger: C.errorDark, dangerBg: C.errorBg, dangerBorder: C.error,
+  // tokens.jsx는 danger를 삭제/거절 같은 파괴적 액션 버튼 전용 팔레트로 명확히 문서화하는데
+  // (error와 의미가 다르다고 주석까지 남김), 이 화면의 실제 용법은 전부 "무언가 잘못됨"
+  // 상태 표시(오답 배지·분석 실패 메시지·재시도 버튼)라 error 쪽 값을 그대로 쓰면서 이름만
+  // danger였음 — 같은 이름이 파일마다 다른 색을 가리키는 혼란을 없애려 error로 개명(값은 그대로)
+  error: C.errorDark, errorBg: C.errorBg, errorBorder: C.error,
   midGray: C.midGray,
   text: '#1A1A1A', textSub: '#6B7280', textMute: '#6C7586',
   border: '#E5E7EB', borderLight: '#F3F4F6', bg: '#FFFFFF', bgSoft: '#F9FAFB',
@@ -1479,7 +1483,7 @@ export default function DiagnosticReportInput({
   // 토스트 색상 — 화면 전역에서 쓰는 TOKENS 성공/실패/경고 어휘와 통일
   const toastColors = {
     success: { bg: TOKENS.successDark, icon: '✓' },
-    error:   { bg: TOKENS.danger, icon: '✕' },
+    error:   { bg: TOKENS.error, icon: '✕' },
     warn:    { bg: TOKENS.warn, icon: '!' },
     info:    { bg: TOKENS.brand, icon: 'i' },
   };
@@ -1790,7 +1794,7 @@ export default function DiagnosticReportInput({
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '14px' }}>
                   {(() => {
                     const SUBJECT_COLOR_MAP = { '수학': TOKENS.info, '영어': TOKENS.success, '기타': TOKENS.midGray };
-                    const SUBJECT_FALLBACK_COLORS = [TOKENS.warn, TOKENS.danger, '#7C3AED', '#0EA5E9'];
+                    const SUBJECT_FALLBACK_COLORS = [TOKENS.warn, TOKENS.error, '#7C3AED', '#0EA5E9'];
                     const subjects = academySubjects && academySubjects.length ? academySubjects : ['수학', '영어', '기타'];
                     return subjects.map((label, i) => ({ label, color: SUBJECT_COLOR_MAP[label] || SUBJECT_FALLBACK_COLORS[i % SUBJECT_FALLBACK_COLORS.length] }));
                   })().map(({ label, color }) => (
@@ -2243,9 +2247,9 @@ export default function DiagnosticReportInput({
                       </div>
                     )}
                     {photoError && (
-                      <div style={{ background: TOKENS.dangerBg, borderRadius: '10px', padding: '10px 12px', marginTop: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-                        <p style={{ fontSize: '11px', color: TOKENS.danger, margin: 0 }}>{photoError}</p>
-                        <button onClick={() => handleAnalyzePhoto('auto')} style={{ flexShrink: 0, padding: '5px 12px', fontSize: '11px', fontWeight: 700, border: 'none', borderRadius: '6px', background: TOKENS.danger, color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>재시도</button>
+                      <div style={{ background: TOKENS.errorBg, borderRadius: '10px', padding: '10px 12px', marginTop: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                        <p style={{ fontSize: '11px', color: TOKENS.error, margin: 0 }}>{photoError}</p>
+                        <button onClick={() => handleAnalyzePhoto('auto')} style={{ flexShrink: 0, padding: '5px 12px', fontSize: '11px', fontWeight: 700, border: 'none', borderRadius: '6px', background: TOKENS.error, color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>재시도</button>
                       </div>
                     )}
                     {photoAnalysis && (() => {
@@ -2278,7 +2282,7 @@ export default function DiagnosticReportInput({
                             background: item.confidence === 'low' ? TOKENS.warnBg : C.dangerBg,
                           }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                              <span style={{ background: TOKENS.dangerBorder, color: '#fff', fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px' }}>
+                              <span style={{ background: TOKENS.errorBorder, color: '#fff', fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px' }}>
                                 {sectionLabelFor(item) ? `${sectionLabelFor(item)} · ` : ''}{item.number}번 오답
                               </span>
                               <span style={{ fontSize: '11px', color: TOKENS.textSub, flex: '1 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.type}</span>
@@ -2292,7 +2296,7 @@ export default function DiagnosticReportInput({
                                   title="이 문항 결과에서 제외"
                                   style={{
                                     flexShrink: 0, width: '22px', height: '22px', borderRadius: '6px',
-                                    border: `1px solid ${TOKENS.dangerBorder}40`, background: 'transparent', color: TOKENS.dangerBorder,
+                                    border: `1px solid ${TOKENS.errorBorder}40`, background: 'transparent', color: TOKENS.errorBorder,
                                     cursor: 'pointer', fontFamily: 'inherit', fontSize: '11px', lineHeight: 1, padding: 0,
                                     WebkitTapHighlightColor: 'transparent',
                                   }}>✕</button>
@@ -2518,7 +2522,7 @@ export default function DiagnosticReportInput({
                                 <p style={{ fontSize: '12px', margin: 0 }}>
                                   총 <b>{sec.summary.total ?? 0}</b>문제 중
                                   <span style={{ color: TOKENS.successDark, fontWeight: 700 }}> 정답(빨간 동그라미) {sec.summary.correct ?? 0}</span>
-                                  <span style={{ color: TOKENS.dangerBorder, fontWeight: 700 }}> · 약점 {sec.summary.wrong ?? 0}</span>
+                                  <span style={{ color: TOKENS.errorBorder, fontWeight: 700 }}> · 약점 {sec.summary.wrong ?? 0}</span>
                                 </p>
                               </div>
                             )}
@@ -2543,8 +2547,8 @@ export default function DiagnosticReportInput({
                                   onClick={() => toggleProblemResult(si, p)}
                                   style={{
                                     flexShrink: 0, width: '68px', textAlign: 'center', fontWeight: 700, fontSize: '12px', padding: '8px 0', minHeight: '36px', borderRadius: '10px',
-                                    background: p.result === '잘함' ? TOKENS.successBg : TOKENS.dangerBg,
-                                    color: p.result === '잘함' ? TOKENS.successDark : TOKENS.dangerBorder,
+                                    background: p.result === '잘함' ? TOKENS.successBg : TOKENS.errorBg,
+                                    color: p.result === '잘함' ? TOKENS.successDark : TOKENS.errorBorder,
                                     border: 'none', cursor: 'pointer', fontFamily: 'inherit',
                                     WebkitTapHighlightColor: 'transparent',
                                   }}>{p.result === '잘함' ? '정답 ✓' : '오답 ✗'}</button>
@@ -2668,7 +2672,7 @@ export default function DiagnosticReportInput({
                                     : <div style={{ width: '48px', height: '48px', borderRadius: '8px', background: TOKENS.borderLight, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', flexShrink: 0 }}>📷</div>}
                                   <div style={{ minWidth: 0 }}>
                                     <p style={{ fontSize: '12px', fontWeight: 800, margin: 0, color: TOKENS.text }}>{pi}번째 사진</p>
-                                    <p style={{ fontSize: '11px', margin: '2px 0 0', fontWeight: 600, color: inPhoto.length === 0 ? TOKENS.warn : wrongTotal === 0 ? TOKENS.successDark : TOKENS.dangerBorder }}>
+                                    <p style={{ fontSize: '11px', margin: '2px 0 0', fontWeight: 600, color: inPhoto.length === 0 ? TOKENS.warn : wrongTotal === 0 ? TOKENS.successDark : TOKENS.errorBorder }}>
                                       {inPhoto.length === 0 ? '분석된 문항 없음' : wrongTotal === 0 ? '오답 없음 ✓' : `오답 ${wrongTotal}건`}
                                     </p>
                                   </div>
@@ -2916,7 +2920,7 @@ export default function DiagnosticReportInput({
                   : <Send size={15} />} {saving ? (uploadProgress ? `사진 업로드 중 ${uploadProgress.done}/${uploadProgress.total}...` : '저장 중...') : polishing ? 'AI 다듬는 중...' : (effectiveReportMode === 'weekly' && !editingReport) ? '오늘 수업 기록 저장 (이번 주 리포트에 추가)' : '리포트 저장 및 발송 준비'}
               </button>
               {autoSaveError ? (
-                <p style={{ fontSize: '11px', color: TOKENS.danger, margin: '6px 0 0', textAlign: 'center', fontWeight: 600 }}>
+                <p style={{ fontSize: '11px', color: TOKENS.error, margin: '6px 0 0', textAlign: 'center', fontWeight: 600 }}>
                   <AlertTriangle size={11} style={{ verticalAlign: '-1px', marginRight: '3px' }} />자동저장 실패 — 네트워크를 확인하고 직접 저장해주세요
                 </p>
               ) : lastSaved && (
@@ -3523,7 +3527,7 @@ const chipStyle = (active) => ({
   cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '-0.02em',
 });
 const tagStyle = (color, active) => {
-  const c = { warn: { bg: TOKENS.warnBg, border: TOKENS.warnBorder, text: TOKENS.warnText }, danger: { bg: TOKENS.dangerBg, border: TOKENS.dangerBorder, text: TOKENS.danger }, success: { bg: TOKENS.successBg, border: TOKENS.success, text: TOKENS.successDark } }[color] || {};
+  const c = { warn: { bg: TOKENS.warnBg, border: TOKENS.warnBorder, text: TOKENS.warnText }, danger: { bg: TOKENS.errorBg, border: TOKENS.errorBorder, text: TOKENS.error }, success: { bg: TOKENS.successBg, border: TOKENS.success, text: TOKENS.successDark } }[color] || {};
   return { padding: '4px 9px', fontSize: '12px', fontWeight: 600, borderRadius: `${RADIUS2.chip}px`, border: `1px solid ${active ? c.border : TOKENS.border}`, background: active ? c.bg : TOKENS.bg, color: active ? c.text : TOKENS.textSub, cursor: 'pointer', fontFamily: 'inherit' };
 };
 const toggleStyle = (active) => ({
