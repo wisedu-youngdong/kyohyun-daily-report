@@ -6,6 +6,7 @@
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { ensureAdminApp } from './_lib/adminApp.js';
+import { verifyIdTokenHeader } from './_lib/verifyAuth.js';
 
 function getAdmin() { ensureAdminApp(); return { auth: getAuth(), db: getFirestore() }; }
 
@@ -18,18 +19,13 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: '삭제할 신청의 uid가 필요합니다.' });
     }
 
-    const idToken = (req.headers.authorization || '').replace(/^Bearer /, '');
-    if (!idToken) return res.status(401).json({ error: '인증 정보가 없습니다.' });
+    // 다른 인증 필요 엔드포인트(analyze-photo.js/narrative.js)와 동일한 공용 검증 헬퍼 사용
+    // — 이 파일만 Bearer 파싱+verifyIdToken을 따로 재구현하고 있었음
+    const decoded = await verifyIdTokenHeader(req);
+    if (!decoded) return res.status(401).json({ error: '로그인이 필요합니다.' });
 
     const { auth, db } = getAdmin();
-    let callerUid;
-    try {
-      callerUid = (await auth.verifyIdToken(idToken)).uid;
-    } catch {
-      return res.status(401).json({ error: '유효하지 않은 인증 정보입니다.' });
-    }
-
-    const callerSnap = await db.collection('users').doc(callerUid).get();
+    const callerSnap = await db.collection('users').doc(decoded.uid).get();
     if (!callerSnap.exists || callerSnap.data().isPlatformAdmin !== true) {
       return res.status(403).json({ error: '플랫폼 관리자만 삭제할 수 있습니다.' });
     }

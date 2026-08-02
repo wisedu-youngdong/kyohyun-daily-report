@@ -6,7 +6,7 @@ import { R, ReportCard, deriveSkinColors } from './tokens.jsx';
 import { toPct, ratingLabel, fetchAcademyBranding } from './growth.js';
 import { WRONG_TAG_LABELS } from './diagnosis.js';
 const SkeletonReport = () => (
-  <div style={{ background: '#F5F5F0', minHeight: '100dvh', padding: '24px 16px', display: 'flex', justifyContent: 'center', fontFamily: 'Pretendard, sans-serif' }}>
+  <div style={{ background: '#F5F5F0', minHeight: '100dvh', padding: '24px 16px', display: 'flex', justifyContent: 'center', fontFamily: R.body }}>
     <style>{`@keyframes reportPulse { 0%,100% { opacity: 0.5; } 50% { opacity: 0.9; } }`}</style>
     <div style={{ width: '100%', maxWidth: '390px' }}>
       <div style={{ background: '#fff', borderRadius: '4px', overflow: 'hidden', boxShadow: '0 2px 20px rgba(0,0,0,0.10)' }}>
@@ -424,7 +424,7 @@ export default function PublicReport() {
               </div>
             )}
             {questionSubmitted && (
-              <p style={{ fontSize: '12px', color: '#00963C', margin: 0 }}>질문이 전달됐어요. 선생님이 확인 후 답변드릴게요.</p>
+              <p style={{ fontSize: '12px', color: R.positive, margin: 0 }}>질문이 전달됐어요. 선생님이 확인 후 답변드릴게요.</p>
             )}
             <span style={{ fontSize: '12px', fontWeight: 500, color: INK_SOFT }}>궁금한 점이 있으신가요? 선생님이 직접 답변드립니다.</span>
             <textarea
@@ -472,14 +472,14 @@ export default function PublicReport() {
         <img src={r.photoUrls[lightboxIndex]} alt={`문제집 ${lightboxIndex + 1}`} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '4px' }} />
         {hasMultiple && (
           <>
-            <button onClick={goPrev} title="이전 사진" style={{ ...arrowBtnStyle, left: '12px' }}>‹</button>
-            <button onClick={goNext} title="다음 사진" style={{ ...arrowBtnStyle, right: '12px' }}>›</button>
+            <button onClick={goPrev} title="이전 사진" aria-label="이전 사진" style={{ ...arrowBtnStyle, left: '12px' }}>‹</button>
+            <button onClick={goNext} title="다음 사진" aria-label="다음 사진" style={{ ...arrowBtnStyle, right: '12px' }}>›</button>
             <span style={{ position: 'fixed', bottom: '20px', left: '50%', transform: 'translateX(-50%)', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.8)', background: 'rgba(255,255,255,0.15)', padding: '4px 12px', borderRadius: '20px' }}>
               {pos + 1} / {visible.length}
             </span>
           </>
         )}
-        <button onClick={() => setLightboxIndex(null)} title="닫기" style={{
+        <button onClick={() => setLightboxIndex(null)} title="닫기" aria-label="닫기" style={{
           position: 'fixed', top: '16px', right: '16px', width: '44px', height: '44px', borderRadius: '50%',
           background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',

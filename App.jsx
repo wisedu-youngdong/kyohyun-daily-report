@@ -4,7 +4,7 @@ import {
   collection, addDoc, updateDoc, deleteDoc,
   doc, getDoc, onSnapshot, setDoc, serverTimestamp, query, where, getDocs, writeBatch
 } from 'firebase/firestore';
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import {
   signOut,
   onAuthStateChanged
@@ -428,20 +428,29 @@ export default function App() {
     }
   };
   const handleSaveLogo = async (file) => {
+    const previousLogoUrl = logoUrl;
     try {
       const path = `branding/logo_${Date.now()}.${file.name.split('.').pop() || 'png'}`;
       const fileRef = storageRef(storage, path);
       await uploadBytes(fileRef, file);
       const url = await getDownloadURL(fileRef);
       await setDoc(doc(db, 'academies', academyId), { logoUrl: url }, { merge: true });
+      // 새 로고 저장이 끝난 뒤에만 이전 파일 정리 — 안 지우면 교체할 때마다 Storage에 계속 쌓임
+      if (previousLogoUrl) {
+        deleteObject(storageRef(storage, previousLogoUrl)).catch(() => {});
+      }
     } catch (e) {
       console.error('로고 저장 실패:', e);
       showAppToast('로고 저장에 실패했습니다.', 'error');
     }
   };
   const handleDeleteLogo = async () => {
+    const previousLogoUrl = logoUrl;
     try {
       await setDoc(doc(db, 'academies', academyId), { logoUrl: null }, { merge: true });
+      if (previousLogoUrl) {
+        deleteObject(storageRef(storage, previousLogoUrl)).catch(() => {});
+      }
     } catch (e) {
       console.error('로고 삭제 실패:', e);
       showAppToast('로고 삭제에 실패했습니다.', 'error');
@@ -805,7 +814,6 @@ export default function App() {
       <OnboardingGuide
         isDirector={isDirector}
         promptShown={onboardingPromptShown}
-        academyId={academyId}
         academyCreatedAt={academyCreatedAt}
         students={activeStudents}
         reports={reports}

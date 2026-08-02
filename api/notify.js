@@ -182,10 +182,9 @@ async function handleSignupDecisionNotify(req, res, db, type) {
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
+  const type = req.body?.type || 'question';
   try {
     const db = getAdminDb();
-    const type = req.body?.type || 'question';
-
     if (type === 'signup-approved' || type === 'signup-rejected') {
       return await handleSignupDecisionNotify(req, res, db, type);
     }
@@ -195,6 +194,13 @@ export default async function handler(req, res) {
     return await handleQuestionNotify(req, res, db);
   } catch (e) {
     console.error('알림 처리 오류:', e.message);
+    // question/new-signup-request는 발송 실패해도 학부모 질문 제출 등 원래 동작을 막으면
+    // 안 되는 fire-and-forget이라 200으로 조용히 넘어감. 반면 승인/거절 알림은 관리자가
+    // 직접 누른 액션이라, 실패를 숨기면 관리자 화면이 "발송됨"으로 잘못 표시되고 재시도
+    // 기회를 놓침 — 이 경로만 실제 오류로 응답
+    if (type === 'signup-approved' || type === 'signup-rejected') {
+      return res.status(500).json({ error: '알림 발송 중 오류가 발생했습니다.' });
+    }
     res.status(200).json({ ok: true, notified: false });
   }
 }

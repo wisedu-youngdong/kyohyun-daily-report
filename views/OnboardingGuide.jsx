@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useMediaQuery, useEscapeClose, useFocusTrap } from '../hooks.js';
 import { onKeyActivate } from './shared.jsx';
+import { C } from '../tokens.jsx';
 
 // 신규 학원 시작 가이드 — 가입 승인 직후 첫 로그인에서 한 번 뜨고, 건너뛰어도 완전히 사라지지
 // 않고 화면 구석 위젯으로 남아있다가(재오픈 가능) 7일 경과 또는 4단계 모두 완료 시 위젯도
 // 숨겨진다(완전 삭제 아님 — 설정의 "가이드 다시 보기"로 언제든 재오픈 가능, forceOpenSignal로 제어).
-// 색상은 기존 브랜드 톤(네이비/골드) 그대로 사용.
+// 색상은 기존 브랜드 톤(네이비/골드) 그대로 사용 — tokens.jsx의 값과 동일해 재선언 대신 재사용.
 
-const NAVY = '#0D2D6B';
-const NAVY_DARK = '#081D47';
-const NAVY_SOFT = '#E7EBF4';
-const GOLD = '#C9A227';
-const SUCCESS = '#009652';
+const NAVY = C.primary;
+const NAVY_SOFT = C.primaryLight;
+const GOLD = C.accent;
+const SUCCESS = C.success;
 const CARD_BG = '#FFFFFF';
 const BORDER = '#E5E7EB';
 const BORDER_SOFT = '#EEF0EE';
@@ -24,7 +24,7 @@ const SHADOW_MODAL = '0 24px 60px -12px rgba(13,45,107,0.35), 0 4px 16px rgba(0,
 const HIDE_AFTER_DAYS = 7;
 
 export default function OnboardingGuide({
-  isDirector, promptShown, academyId, academyCreatedAt,
+  isDirector, promptShown, academyCreatedAt,
   students = [], reports = [], reportViews = [], logoUrl,
   forceOpenSignal = 0, onDismissPrompt, onNavigate,
 }) {

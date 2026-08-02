@@ -375,7 +375,9 @@ export default function DirectorView({ reports, students, classes = [], teachers
             <style>{`.dv-date-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }`}</style>
             <input ref={dateInputRef} type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="dv-date-input" tabIndex={-1} />
             <CalendarDays size={18} strokeWidth={2}
+              role="button" tabIndex={0} aria-label="날짜 선택"
               onClick={() => dateInputRef.current?.showPicker ? dateInputRef.current.showPicker() : dateInputRef.current?.focus()}
+              onKeyDown={onKeyActivate(() => dateInputRef.current?.showPicker ? dateInputRef.current.showPicker() : dateInputRef.current?.focus())}
               style={{ color: '#0D2D6B', cursor: 'pointer', flexShrink: 0 }} />
           </label>
         </div>

@@ -64,12 +64,12 @@ export default function UsageMonitoring({ month, onMonthChange }) {
           <p style={{ fontSize: '11px', color: T.textMute, margin: 0 }}>전체 학원의 사진분석 사용 현황</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <button onClick={() => onMonthChange(shiftMonth(month, -1))} style={navBtnStyle}>‹</button>
+          <button onClick={() => onMonthChange(shiftMonth(month, -1))} aria-label="이전 달" style={navBtnStyle}>‹</button>
           <span style={{ fontSize: '12px', fontWeight: 600, color: T.text, minWidth: '64px', textAlign: 'center' }}>
             {y}년 {parseInt(m, 10)}월
           </span>
-          <button onClick={() => onMonthChange(shiftMonth(month, 1))} disabled={isCurrentMonth} style={{ ...navBtnStyle, opacity: isCurrentMonth ? 0.4 : 1, cursor: isCurrentMonth ? 'default' : 'pointer' }}>›</button>
-          <button onClick={load} style={{ ...navBtnStyle, marginLeft: '4px' }} title="새로고침">↻</button>
+          <button onClick={() => onMonthChange(shiftMonth(month, 1))} disabled={isCurrentMonth} aria-label="다음 달" style={{ ...navBtnStyle, opacity: isCurrentMonth ? 0.4 : 1, cursor: isCurrentMonth ? 'default' : 'pointer' }}>›</button>
+          <button onClick={load} aria-label="새로고침" style={{ ...navBtnStyle, marginLeft: '4px' }} title="새로고침">↻</button>
         </div>
       </div>
 

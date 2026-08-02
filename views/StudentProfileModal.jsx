@@ -131,7 +131,7 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
   const heatTier = (pct) => pct >= 80
     ? { bg: C.successBg, color: C.successDark, border: `${C.successDark}30` }
     : pct >= 60
-      ? { bg: C.warningBg, color: C.warningText, border: `${C.accent}30` }
+      ? { bg: C.warningBg, color: C.warningText, border: `${C.warningText}30` }
       : { bg: '#FDF0F0', color: C.errorDark, border: `${C.errorDark}30` };
 
   // 완료된 복습 이력 — 최신순. "완료" 자체보다 그때 실제로 뭘 했는지(note/testScore)를 보여주는 게 목적

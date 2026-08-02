@@ -16,10 +16,10 @@ import { R } from '../tokens.jsx';
 
 const INK_STRONG = '#171719';
 const INK_BODY = '#37383C';
-const INK_SUB = '#5A6472';
+const INK_SUB = R.inkSub; // R.inkSub와 같은 값 — 재선언 대신 재사용
 const INK_WEAK = '#8A8F98';
 const INK_FAINT = '#A2A6AD';
-const RULE = '#E8E6E0';
+const RULE = R.rule; // R.rule과 같은 값 — 재선언 대신 재사용
 const RULE_SOFT = '#F0EEE9';
 const OFFWHITE = '#FBFBF9';
 const PAPER = '#F5F5F0';

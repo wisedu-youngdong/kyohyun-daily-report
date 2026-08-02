@@ -12,7 +12,7 @@ const getHeic2any = async () => {
 import React, { useState, useMemo, useEffect } from 'react';
 import { useMediaQuery, useEscapeClose, useFocusTrap } from './hooks.js';
 import {
-  User, Clock,
+  User,
   FileText, Sparkles, Send, Plus, X, Check,
   UserPlus, GraduationCap, Info, Star, AlertTriangle, Palette
 } from 'lucide-react';

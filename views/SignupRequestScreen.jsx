@@ -158,17 +158,17 @@ export default function SignupRequestScreen() {
               <p style={sectionTitle}>계정 정보</p>
               <div style={fieldWrap}>
                 <label style={labelStyle}>*이메일 (로그인 ID)</label>
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+                <input type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)}
                   onFocus={focusInput} onBlur={blurInput} placeholder="director@example.com" style={inputStyle} />
               </div>
               <div style={fieldWrap}>
                 <label style={labelStyle}>*비밀번호</label>
-                <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+                <input type="password" autoComplete="new-password" value={password} onChange={e => setPassword(e.target.value)}
                   onFocus={focusInput} onBlur={blurInput} placeholder="6자 이상" style={inputStyle} />
               </div>
               <div style={fieldWrap}>
                 <label style={labelStyle}>*비밀번호 확인</label>
-                <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
+                <input type="password" autoComplete="new-password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
                   onFocus={focusInput} onBlur={blurInput} placeholder="다시 한 번 입력" style={inputStyle} />
               </div>
 
@@ -266,7 +266,7 @@ export default function SignupRequestScreen() {
               </label>
 
               {error && (
-                <p style={{ fontSize: '12px', fontWeight: 600, color: C.errorDark, margin: '0 0 16px', background: '#FDEAEA', padding: '9px 13px', borderRadius: `${RADIUS2.input}px` }}>
+                <p style={{ fontSize: '12px', fontWeight: 600, color: C.errorDark, margin: '0 0 16px', background: C.errorBg, padding: '9px 13px', borderRadius: `${RADIUS2.input}px` }}>
                   {error}
                 </p>
               )}

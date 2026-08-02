@@ -45,11 +45,14 @@ async function notifySignupDecision(type, req) {
   try {
     const idToken = await auth.currentUser?.getIdToken();
     if (!idToken) return;
-    await fetch('/api/notify', {
+    const res = await fetch('/api/notify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
       body: JSON.stringify({ type, email: req.email, academyName: req.academyName }),
     });
+    // 화면을 막지는 않지만(위 주석대로 fire-and-forget), 서버가 실패를 4xx/5xx로 알려주면
+    // 콘솔에는 남겨서 나중에 "왜 메일이 안 갔지" 확인할 단서를 남긴다
+    if (!res.ok) console.error('가입 신청 결과 메일 발송 실패:', await res.json().catch(() => res.status));
   } catch (e) {
     console.error('가입 신청 결과 메일 발송 실패:', e);
   }

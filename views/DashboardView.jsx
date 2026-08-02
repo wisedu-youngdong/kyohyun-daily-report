@@ -482,7 +482,7 @@ export default function DashboardView({ students, reports, classes = [], reportV
                     <span style={{ fontSize: '13px', color: '#8A8378', fontWeight: 700 }}>오늘 미작성</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px', marginTop: '8px' }}>
-                    <span style={{ fontSize: '30px', fontWeight: 800, color: '#E3A11B', lineHeight: 1 }}>{Math.max(0, pendingCount)}</span>
+                    <span style={{ fontSize: '30px', fontWeight: 800, color: '#E3A11B', lineHeight: 1 }}>{pendingCount}</span>
                     <span style={{ fontSize: '14px', color: '#7D7465', fontWeight: 700 }}>명</span>
                   </div>
                   <div style={{ fontSize: '12px', color: '#7E755F', marginTop: '6px' }}>전체 {filteredStudents.length}명 중</div>
@@ -516,9 +516,9 @@ export default function DashboardView({ students, reports, classes = [], reportV
     <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto', boxSizing: 'border-box' }}>
       {absenceModal}
 
-      <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '16px', letterSpacing: '-0.02em' }}>오늘의 현황</h2>
+      <h2 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '16px', letterSpacing: '-0.01em' }}>오늘의 현황</h2>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
-        <StatCard label="오늘 미작성" value={Math.max(0, pendingCount)} unit="명" color={C.warning} />
+        <StatCard label="오늘 미작성" value={pendingCount} unit="명" color={C.warning} />
         <StatCard label="오늘 발송" value={filteredTodayReports.length} unit="건" color={C.midGray} />
       </div>
 
