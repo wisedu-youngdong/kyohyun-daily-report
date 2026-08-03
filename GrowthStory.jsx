@@ -1437,6 +1437,34 @@ export default function GrowthStory() {
       </div>
         );
 
+        // 학습 기록 상세 — 원장이 선택한 기간(위 기간 선택 캘린더) 동안 선생님이 남긴 코멘트를
+        // 날짜순(최근 먼저)으로 전부 모음. 요약 페이지들과 달리 축약 없이 원문 그대로 보여주는
+        // "부록" 성격이라 마지막 페이지(선생님 한마디) 바로 앞에 배치(2026-08-03 결정 — 성장
+        // 포트폴리오에 월간 상세 페이지 추가). 문항 하나하나까지 담긴 teacherNote 원문을 그대로
+        // 쓰므로 새 AI 호출이 필요 없음 — teacherNote가 없는 리포트(과거 미작성 등)는 건너뜀.
+        const notedReports = sorted.filter(r => r.teacherNote?.trim());
+        const timelineContent = notedReports.length === 0 ? null : (
+          <>
+            {sectionDivider('학습 기록 상세')}
+            <p style={{ fontSize: '13px', color: '#6C7586', margin: '-4px 0 0', lineHeight: 1.6 }}>
+              이 기간 선생님이 남긴 코멘트를 날짜순으로 모았어요 · {notedReports.length}건
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {notedReports.slice().reverse().map(r => (
+                <div key={r.id} style={{ background: '#fff', border: '1px solid #EEECEA', borderRadius: '14px', padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: sk.primary }}>{fmtDate(r)}</span>
+                    {(r.textbook || r.unit) && (
+                      <span style={{ fontSize: '11px', color: 'rgba(55,56,60,0.6)' }}>{[r.textbook, r.unit].filter(Boolean).join(' · ')}</span>
+                    )}
+                  </div>
+                  <p style={{ fontSize: '13px', color: '#171719', margin: 0, lineHeight: 1.75, whiteSpace: 'pre-wrap', textWrap: 'pretty' }}>{r.teacherNote}</p>
+                </div>
+              ))}
+            </div>
+          </>
+        );
+
         // 4개 페이지 구성 — 2페이지(평가 추이)는 시험 점수도 단원 평가도 없는 학생이면
         // 통째로 비어(scoreTrendContent/unitTrendContent 둘 다 null) 아래 filter(Boolean)로 걸러짐.
         // 약점 유형은 더 이상 이 페이지에 없음(4페이지 '다음 목표'로 흡수)
@@ -1445,6 +1473,7 @@ export default function GrowthStory() {
           unitCardsContent && { key: 'units', label: '단원별 정리', content: unitCardsContent },
           (scoreTrendContent || unitTrendContent) && { key: 'trend', label: '평가 추이', content: (<>{scoreTrendContent}{unitTrendContent}</>) },
           { key: 'metrics', label: '핵심 지표', content: (<>{reviewEffectContent}{keyMetricsContent}</>) },
+          timelineContent && { key: 'timeline', label: '학습 기록 상세', content: timelineContent },
           { key: 'closing', label: '선생님 한마디', content: (<>{teacherWordContent}{nextChapterContent}</>) },
         ].filter(Boolean);
         // 기간 토글 등으로 페이지 수가 줄어든 사이 이전 페이지 인덱스가 범위를 벗어날 수 있어 방어
