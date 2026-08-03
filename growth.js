@@ -109,7 +109,9 @@ export function flattenReportsForAnalysis(reports) {
 }
 
 // 세션(리포트 1건)이 속하는 "주 단원" 판정 — 이름 매칭(findUnitKey) 우선, 실패하면 번호
-// 기반(extractPrimaryUnitNumber)으로 원문에 먼저 언급된 단원 하나를 주 단원으로 삼는다.
+// 기반(extractPrimaryUnitNumber)으로 주 단원 하나를 정한다. 번호가 여러 개면 그날 학습
+// 범위(pages)의 페이지 수가 더 많은 쪽을 우선하고, 페이지로 못 가르면 원문에 먼저 등장한
+// 단원으로 판정한다(extractPrimaryUnitNumber 내부 규칙, 2026-08-03).
 // "2~3단원", "4단원,5단원"처럼 여러 단원을 한 세션에 적으면 그 시간에 실제로 다 다뤘겠지만,
 // 회차 집계를 "주 단원 1개 + 부단원 표기"로 통일한다(세션 기준, 2026-08-03 결정) — 예전엔
 // 언급된 단원 전부에 회차를 반영해서(부단원까지 각각 +1) 성장 포트폴리오 헤더의 "11회 수업"과
@@ -127,7 +129,7 @@ export function resolveUnitGroup(r) {
     if (!label) return null;
     return { key: nameKey, label, secondaryLabels: [] };
   }
-  const primaryNum = extractPrimaryUnitNumber(unitText);
+  const primaryNum = extractPrimaryUnitNumber(unitText, r.pages || '');
   if (primaryNum) {
     const mkLabel = (num) => `${r.textbook ? r.textbook + ' · ' : ''}${num}단원`;
     const secondaryLabels = extractUnitNumbers(unitText).filter(n => n !== primaryNum).map(mkLabel);

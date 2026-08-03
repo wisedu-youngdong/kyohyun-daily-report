@@ -140,16 +140,47 @@ export function extractUnitNumbers(freeText) {
   return Array.from(numbers).sort((a, b) => Number(a) - Number(b));
 }
 
-// "주 단원" 판정용 — 여러 단원을 언급한 원문에서 가장 먼저 등장한 단원 번호 하나만 반환.
+// "그날 학습 범위(pages)" 한 조각의 페이지 수 — "24~32"는 9쪽, 단일 숫자("24")는 1쪽,
+// 못 읽으면 0(비교에서 자동 제외됨).
+function parsePageSpan(segment) {
+  if (!segment) return 0;
+  const s = segment.trim();
+  const range = s.match(/(\d+)\s*[~-]\s*(\d+)/);
+  if (range) {
+    const start = parseInt(range[1], 10), end = parseInt(range[2], 10);
+    if (Number.isFinite(start) && Number.isFinite(end) && end >= start) return end - start + 1;
+  }
+  return /\d+/.test(s) ? 1 : 0;
+}
+
+// "주 단원" 판정용 — 여러 단원을 언급한 원문에서 주 단원 번호 하나만 반환.
 // extractUnitNumbers는 표시용으로 오름차순 정렬해 반환하므로("5단원,4단원"을 [4,5]로) 등장
 // 순서를 잃는다 — 회차 집계를 세션(주 단원) 기준으로 귀속시키려면 원문 등장 순서가 필요해
 // 별도 함수로 둠. 범위 표기("2~3단원")는 시작 번호를 주 단원으로 삼는다.
-export function extractPrimaryUnitNumber(freeText) {
+//
+// 우선순위(2026-08-03 결정): pagesText가 unit 언급 개수와 정확히 같은 수만큼 쉼표 등으로
+// 나뉘어 있고 각 조각의 페이지 수를 다 읽을 수 있으면, 가장 많은 페이지를 다룬 단원을 주
+// 단원으로 삼는다. 선생님이 페이지를 단원별로 안 나눠 적거나(대부분의 경우) 단원 수와 안
+// 맞으면, 기존처럼 "원문에 먼저 등장한 단원"으로 판정한다 — 이 판정을 선생님이 직접 고르게
+// 하면 리포트 작성 화면의 "2분 목표"가 무너지므로 항상 자동 규칙으로만 정한다.
+export function extractPrimaryUnitNumber(freeText, pagesText = '') {
   if (!freeText) return null;
   const rangeMatch = freeText.match(/(\d+)\s*[~-]\s*(\d+)\s*단원/);
-  if (rangeMatch) return rangeMatch[1];
-  const singleMatch = freeText.match(/(\d+)\s*단원/);
-  return singleMatch ? singleMatch[1] : null;
+  const firstMentioned = rangeMatch ? rangeMatch[1] : (freeText.match(/(\d+)\s*단원/) || [])[1] || null;
+  if (!firstMentioned) return null;
+
+  if (!rangeMatch && pagesText) {
+    const unitMatches = [...freeText.matchAll(/(\d+)\s*단원/g)];
+    const pageSegments = pagesText.split(/[,，、/및]+/).map(s => s.trim()).filter(Boolean);
+    if (unitMatches.length > 1 && pageSegments.length === unitMatches.length) {
+      const spans = pageSegments.map(parsePageSpan);
+      if (spans.every(span => span > 0) && new Set(spans).size > 1) {
+        const bestIdx = spans.reduce((best, span, i) => (span > spans[best] ? i : best), 0);
+        return unitMatches[bestIdx][1];
+      }
+    }
+  }
+  return firstMentioned;
 }
 
 // 자동완성 제안: 특정 코스의 단원 목록 반환 (칩 UI용)
