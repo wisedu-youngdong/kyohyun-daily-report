@@ -140,6 +140,18 @@ export function extractUnitNumbers(freeText) {
   return Array.from(numbers).sort((a, b) => Number(a) - Number(b));
 }
 
+// "주 단원" 판정용 — 여러 단원을 언급한 원문에서 가장 먼저 등장한 단원 번호 하나만 반환.
+// extractUnitNumbers는 표시용으로 오름차순 정렬해 반환하므로("5단원,4단원"을 [4,5]로) 등장
+// 순서를 잃는다 — 회차 집계를 세션(주 단원) 기준으로 귀속시키려면 원문 등장 순서가 필요해
+// 별도 함수로 둠. 범위 표기("2~3단원")는 시작 번호를 주 단원으로 삼는다.
+export function extractPrimaryUnitNumber(freeText) {
+  if (!freeText) return null;
+  const rangeMatch = freeText.match(/(\d+)\s*[~-]\s*(\d+)\s*단원/);
+  if (rangeMatch) return rangeMatch[1];
+  const singleMatch = freeText.match(/(\d+)\s*단원/);
+  return singleMatch ? singleMatch[1] : null;
+}
+
 // 자동완성 제안: 특정 코스의 단원 목록 반환 (칩 UI용)
 export function getUnits(subject, course) {
   return CURRICULUM[subject]?.[course] || [];

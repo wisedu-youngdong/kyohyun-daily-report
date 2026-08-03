@@ -2,6 +2,7 @@
 
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from './firebase.js';
+import { findUnitKey, extractUnitNumbers, extractPrimaryUnitNumber } from './curriculum.js';
 
 // 학원 브랜딩 문서 조회 — 공개 리포트/성장스토리/시상장 등 여러 화면이 academyId 확정 후
 // 공통으로 academyName(및 향후 로고 등)을 읽어야 해서 중복 방지용으로 공용화.
@@ -105,6 +106,36 @@ export function flattenReportsForAnalysis(reports) {
       createdAt: { seconds: Math.floor(new Date(`${s.date}T00:00:00+09:00`).getTime() / 1000) },
     }));
   });
+}
+
+// 세션(리포트 1건)이 속하는 "주 단원" 판정 — 이름 매칭(findUnitKey) 우선, 실패하면 번호
+// 기반(extractPrimaryUnitNumber)으로 원문에 먼저 언급된 단원 하나를 주 단원으로 삼는다.
+// "2~3단원", "4단원,5단원"처럼 여러 단원을 한 세션에 적으면 그 시간에 실제로 다 다뤘겠지만,
+// 회차 집계를 "주 단원 1개 + 부단원 표기"로 통일한다(세션 기준, 2026-08-03 결정) — 예전엔
+// 언급된 단원 전부에 회차를 반영해서(부단원까지 각각 +1) 성장 포트폴리오 헤더의 "11회 수업"과
+// 단원별 카드 합(12회)이 어긋났었음. 성장 포트폴리오(GrowthStory.jsx)와 종합 프로필
+// (StudentProfileModal.jsx)이 각자 따로 이 로직을 갖고 있어서 드리프트가 났던 것도 이유라
+// 공용화함 — 한쪽만 고치면 화면 간에 또 숫자가 어긋난다.
+// unit/textbook이 둘 다 없으면 null(호출부가 자기 기본값으로 처리 — 예: 시험 점수 집계는
+// "단원평가"로, 단원 카드 집계는 그 세션 자체를 건너뜀).
+export function resolveUnitGroup(r) {
+  const subject = r.subject || '수학';
+  const unitText = r.unit || '';
+  const nameKey = r.unitKey || findUnitKey(subject, unitText);
+  if (nameKey) {
+    const label = [r.textbook, r.unit].filter(Boolean).join(' · ');
+    if (!label) return null;
+    return { key: nameKey, label, secondaryLabels: [] };
+  }
+  const primaryNum = extractPrimaryUnitNumber(unitText);
+  if (primaryNum) {
+    const mkLabel = (num) => `${r.textbook ? r.textbook + ' · ' : ''}${num}단원`;
+    const secondaryLabels = extractUnitNumbers(unitText).filter(n => n !== primaryNum).map(mkLabel);
+    return { key: `num|${subject}|${r.textbook || ''}|${primaryNum}`, label: mkLabel(primaryNum), secondaryLabels };
+  }
+  const label = (r.unit && r.unit.trim()) || (r.textbook && r.textbook.trim()) || '';
+  if (!label) return null;
+  return { key: label, label, secondaryLabels: [] };
 }
 
 // 과제/개념 평가 척도 변환 — 구 리포트(1~5)와 신규 리포트(0~100, 10단위)가 섞여 있음.

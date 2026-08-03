@@ -31,6 +31,12 @@ const DATA_RULE = '[중요] 아래 "데이터"에 실제로 나온 단원명·�
 // 수치 변화만 담백하게 서술하도록 강제. newStudent 규칙은 이미 "과장 없이 담담하게"가 있지만
 // returning 쪽이 특히 취약해서(예전 헤드라인이 "사고력 고도화에 집중"을 직접 지시했음) 공통 규칙으로 못박음
 const NO_HYPE_RULE = '[중요] "사고력이 고도화됐다", "문제 해결 체계를 완성했다", "증명합니다" 같은 추상적이고 거창한 결론 금지. 근거는 숙제·시험 채점 기록(오답 개수, 점수)뿐이므로 그 수치 변화만으로 담백하게 서술할 것.';
+// 이 서사는 생성 후 학생 문서에 캐싱돼 다음 수업이 쌓여도 자동으로 안 바뀐다. "총 15회
+// 수업" 같은 누적 총 횟수를 문장에 박으면, 그 뒤로 수업이 계속 쌓이면서 이 문장만 옛 숫자로
+// 남아 화면 상단의 실시간 횟수(header)와 어긋나 학부모가 리포트 전체를 의심하게 된다(실사용
+// 발견, 2026-08-03). 특정 단원·점수처럼 그 자체로 고정된 과거 사실은 계속 인용해도 되지만,
+// "지금까지 총 N회"처럼 계속 늘어나는 누적치는 인용 금지.
+const NO_RUNNING_TOTAL_RULE = '[중요] "총 15회 수업", "지금까지 11번" 같은 누적 총 수업 횟수는 절대 인용하지 말 것 — 이후 수업이 계속 쌓이면서 이 문장만 옛날 숫자로 남아 화면 상단의 실시간 횟수와 어긋난다. 특정 단원명·점수·날짜처럼 그 자체로 고정된 사실만 인용하고, 전체 누적 회차는 언급하지 말 것.';
 
 async function callGemini(prompt, maxOutputTokens) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
@@ -80,6 +86,7 @@ ${STYLE_RULE}
 ${notesText}
 ${DATA_RULE}
 ${NO_HYPE_RULE}
+${NO_RUNNING_TOTAL_RULE}
 [중요] 코멘트를 나열하지 말고, 어떤 개념·단원을 주로 다뤘는지·오답이 늘었는지 줄었는지 같은 흐름을 짚을 것.
 [중요] 앞으로의 성적을 예측하거나 전망하는 문장은 절대 쓰지 말 것 — 이번 기간에 실제로 있었던 일만 쓸 것.
 공백 포함 200자를 절대 넘기지 말 것.
@@ -138,6 +145,7 @@ ${STYLE_RULE}
 ${dataLine}
 ${DATA_RULE}
 ${NO_HYPE_RULE}
+${NO_RUNNING_TOTAL_RULE}
 ${others ? `현재 서사의 다른 항목들 (선생님이 직접 다듬었을 수 있음 — 이 글들의 문체·어조·호흡을 최대한 따라서 쓸 것):\n${others}` : ''}
 ${field} 작성 규칙: ${rules[field]}
 JSON만 반환 (코드블록 없이, 순수 JSON만): {"text":"..."}`;
@@ -186,6 +194,7 @@ ${STYLE_RULE}
 ${dataLine}
 ${DATA_RULE}
 ${NO_HYPE_RULE}
+${NO_RUNNING_TOTAL_RULE}
 ${rules.chapter1}
 ${rules.chapter2}
 ${rules.teacherWord}

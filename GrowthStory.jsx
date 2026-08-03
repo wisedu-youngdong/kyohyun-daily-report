@@ -4,8 +4,7 @@ import { db, auth } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { collection, getDoc, getDocs, query, where, doc, setDoc, limit } from 'firebase/firestore';
 import { ReportCard, R, deriveSkinColors } from './tokens.jsx';
-import { toPct, isNewStudent as computeIsNewStudent, fetchAcademyBranding, fmtPages } from './growth.js';
-import { findUnitKey, extractUnitNumbers } from './curriculum.js';
+import { toPct, isNewStudent as computeIsNewStudent, fetchAcademyBranding, fmtPages, resolveUnitGroup } from './growth.js';
 import { DIAG_LABELS as diagLabels, DIAG_SOFT as DIAG_COLORS } from './diagnosis.js';
 
 // 학부모에게 저장 즉시 노출되는 서사 문구 — 강사가 너무 길게/짧게 써서 카드 UI가
@@ -218,13 +217,12 @@ export default function GrowthStory() {
     return `${d.getMonth() + 1}월 ${d.getDate()}일`;
   };
 
-  // 단원별 차수 점수 집계
-  //
-  // "2~3단원", "4단원,5단원"처럼 이름 없이 번호만 적은 리포트는 findUnitKey가 이름 기준
-  // 매칭이라 전혀 못 잡아서, 원문 그대로 따로 쪼개진 카드가 생기던 문제(views/StudentProfileModal.jsx
-  // "단원별 이해도"에서 41da598로 먼저 고친 것과 동일한 원인). 번호가 뽑히면 언급된 단원
-  // 전부에 이 시험 점수를 반영 — 그 시간에 실제로 다 다뤘을 테니 하나만 대표로 고르기보다
-  // 전부 반영하는 쪽을 택함. 번호가 없는 순수 단원명 텍스트는 기존 findUnitKey 경로 유지.
+  // 단원별 차수 점수 집계 — 한 세션이 여러 단원("2~3단원", "4단원,5단원")을 다루면 예전엔
+  // 언급된 단원 전부에 회차를 반영했는데, 그러면 이 페이지 헤더의 "11회 수업"과 단원별 합
+  // (12회)이 어긋나 학부모 신뢰를 해쳤다(실제 발견된 문제, 2026-08-03). growth.js의
+  // resolveUnitGroup으로 세션마다 "주 단원" 하나만 정해 회차를 귀속시키고, 나머지는
+  // "함께 다룬 단원"으로만 표기 — 세션 합계는 항상 sorted.length와 일치한다(호출부가
+  // group.key 하나에만 1회씩 기여하므로 자동으로 보장됨).
   const unitScoreMap = {};
   const pushUnitScore = (groupKey, label, round, score, dateStr, seconds) => {
     if (!unitScoreMap[groupKey]) unitScoreMap[groupKey] = { label, scores: [], lastSeconds: 0 };
@@ -233,32 +231,11 @@ export default function GrowthStory() {
   };
   sorted.forEach(r => {
     if (!r.hasTest || !r.testScore) return;
-    // unit → testName → textbook → '단원평가' 순으로 표시용 라벨 결정
-    const unitLabel = (r.unit && r.unit.trim()) || (r.testName && r.testName.trim()) || (r.textbook && r.textbook.trim()) || '단원평가';
-    const round = r.testRound || '';
-    const score = Number(r.testScore);
-    const dateStr = fmtDate(r);
-    const seconds = r.createdAt?.seconds || 0;
-
-    // 이름 매칭(unitKey/findUnitKey)을 먼저 시도 — extractUnitNumbers 주석이 원래 의도한 순서대로,
-    // 이름 매칭이 이미 성공하는 케이스("3단원 소수의 나눗셈"처럼 작성 화면 placeholder가
-    // 권장하는 형식도 포함)는 숫자 경로가 가로채지 않게 한다. 번호만 있고 이름 매칭이 실패할
-    // 때만("2~3단원", "4단원,5단원") 번호 단위로 쪼개 여러 단원 통계에 반영
-    const nameKey = r.unitKey || findUnitKey(r.subject || '수학', r.unit || '');
-    if (nameKey) {
-      pushUnitScore(nameKey, unitLabel, round, score, dateStr, seconds);
-      return;
-    }
-    const unitNumbers = extractUnitNumbers(r.unit || '');
-    if (unitNumbers.length > 0) {
-      unitNumbers.forEach(num => {
-        const groupKey = `num|${r.subject || '수학'}|${r.textbook || ''}|${num}`;
-        const label = `${r.textbook ? r.textbook + ' · ' : ''}${num}단원`;
-        pushUnitScore(groupKey, label, round, score, dateStr, seconds);
-      });
-      return;
-    }
-    pushUnitScore(unitLabel, unitLabel, round, score, dateStr, seconds);
+    const group = resolveUnitGroup(r);
+    // 단원/교재를 아예 안 적은 시험 점수는 group이 null — testName → '단원평가' 순으로 대체
+    const label = group?.label || (r.testName && r.testName.trim()) || '단원평가';
+    const key = group?.key || label;
+    pushUnitScore(key, label, r.testRound || '', Number(r.testScore), fmtDate(r), r.createdAt?.seconds || 0);
   });
   // 최근에 다룬 단원이 먼저 보이도록 정렬 — "전체" 기간처럼 단원이 많을 때 최신순으로 우선 노출
   const unitScores = Object.values(unitScoreMap)
@@ -267,34 +244,22 @@ export default function GrowthStory() {
 
   // 단원별 정리 카드 — 사진+평균 이해도+코멘트를 단원 단위로 묶어서 보여줌(상담용, 2026-08-02
   // 결정: 텍스트로만 설명하던 걸 사진·차트·코멘트로 객관적으로 보여주고 싶다는 요청).
-  // 위 단원별 시험 점수 집계와 같은 방식으로 단원을 식별하되(findUnitKey→extractUnitNumbers→
-  // 원문 순), 시험 본 날만 잡는 unitScoreMap과 달리 이건 매 리포트(사진·이해도·코멘트가 남는
-  // 평상시 수업)를 전부 대상으로 함 — 실제로 매일 기록되는 건 시험이 아니라 숙제 체크이기 때문.
-  const resolveUnitGroups = (r) => {
-    const unitLabel = (r.unit && r.unit.trim()) || (r.textbook && r.textbook.trim());
-    if (!unitLabel) return [];
-    const nameKey = r.unitKey || findUnitKey(r.subject || '수학', r.unit || '');
-    if (nameKey) return [{ key: nameKey, label: unitLabel }];
-    const unitNumbers = extractUnitNumbers(r.unit || '');
-    if (unitNumbers.length > 0) {
-      return unitNumbers.map(num => ({
-        key: `num|${r.subject || '수학'}|${r.textbook || ''}|${num}`,
-        label: `${r.textbook ? r.textbook + ' · ' : ''}${num}단원`,
-      }));
-    }
-    return [{ key: unitLabel, label: unitLabel }];
-  };
+  // 위 단원별 시험 점수 집계와 같은 resolveUnitGroup을 쓰되, 시험 본 날만 잡는 unitScoreMap과
+  // 달리 이건 매 리포트(사진·이해도·코멘트가 남는 평상시 수업)를 전부 대상으로 함 — 실제로
+  // 매일 기록되는 건 시험이 아니라 숙제 체크이기 때문. 부단원은 자기 카드를 안 만들고(0회
+  // 카드가 뜨는 것 방지) 주 단원 카드 안에 "함께 다룬 단원"으로만 한 줄 표기한다.
   const unitCardMap = {};
   sorted.forEach(r => {
-    resolveUnitGroups(r).forEach(({ key, label }) => {
-      if (!unitCardMap[key]) unitCardMap[key] = { label, reports: [], lastSeconds: 0 };
-      unitCardMap[key].reports.push(r);
-      unitCardMap[key].lastSeconds = Math.max(unitCardMap[key].lastSeconds, r.createdAt?.seconds || 0);
-    });
+    const group = resolveUnitGroup(r);
+    if (!group) return;
+    if (!unitCardMap[group.key]) unitCardMap[group.key] = { label: group.label, reports: [], together: new Set(), lastSeconds: 0 };
+    unitCardMap[group.key].reports.push(r);
+    group.secondaryLabels.forEach(l => unitCardMap[group.key].together.add(l));
+    unitCardMap[group.key].lastSeconds = Math.max(unitCardMap[group.key].lastSeconds, r.createdAt?.seconds || 0);
   });
   const unitCards = Object.entries(unitCardMap)
     .sort((a, b) => b[1].lastSeconds - a[1].lastSeconds)
-    .map(([key, { label, reports }]) => {
+    .map(([key, { label, reports, together }]) => {
       const asc = [...reports].sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
       const conceptPcts = asc.filter(r => r.conceptRating != null).map(r => toPct(r.conceptRating));
       const homeworkPcts = asc.filter(r => r.homeworkRating != null).map(r => toPct(r.homeworkRating));
@@ -305,6 +270,7 @@ export default function GrowthStory() {
       asc.forEach(r => (r.diagnosis || []).forEach(d => { tagCount[d.key] = (tagCount[d.key] || 0) + 1; }));
       return {
         key, label, count: asc.length,
+        together: Array.from(together),
         avgConcept: conceptPcts.length ? Math.round(conceptPcts.reduce((a, b) => a + b, 0) / conceptPcts.length) : null,
         avgHomework: homeworkPcts.length ? Math.round(homeworkPcts.reduce((a, b) => a + b, 0) / homeworkPcts.length) : null,
         photoReports,
@@ -1224,6 +1190,9 @@ export default function GrowthStory() {
                       <span style={{ fontSize: '15px', fontWeight: 700, color: '#171719' }}>{u.label}</span>
                       <span style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(55,56,60,0.6)' }}>{u.count}회 수업</span>
                     </div>
+                    {u.together.length > 0 && (
+                      <p style={{ fontSize: '11px', color: 'rgba(55,56,60,0.55)', margin: 0 }}>함께 다룬 단원 · {u.together.join(', ')}</p>
+                    )}
                     {(u.avgConcept != null || u.avgHomework != null) && (
                       <div style={{ display: 'flex', gap: '18px' }}>
                         {u.avgConcept != null && (
