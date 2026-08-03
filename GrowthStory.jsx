@@ -60,6 +60,8 @@ export default function GrowthStory() {
   const [regenField, setRegenField] = useState(null); // 항목별 재생성 진행 중인 필드 키
   const [editing, setEditing] = useState(null);
   const [showAllUnits, setShowAllUnits] = useState(false);
+  const [showAllTimeline, setShowAllTimeline] = useState(false); // 수업 기록 페이지 — 기본 6회만, 눌러서 전체
+  const [openFeedKey, setOpenFeedKey] = useState(null); // 수업 기록 페이지 — 펼쳐진 세션 1개(아코디언)
   const [unitPhotoIdx, setUnitPhotoIdx] = useState({}); // 단원별 정리 카드 — 단원 key -> 현재 보여줄 사진 인덱스
   const [completedReviews, setCompletedReviews] = useState([]); // 복습 효과 증명 그래프용
   const [trendTooltip, setTrendTooltip] = useState(null); // 성적 추이 차트 — 탭해서 선택된 지점의 인덱스
@@ -291,7 +293,7 @@ export default function GrowthStory() {
   const avgScore = allScores.length > 0 ? Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length) : null;
   const maxScore = allScores.length > 0 ? Math.max(...allScores) : null;
   const minScore = allScores.length > 0 ? Math.min(...allScores) : null;
-  // 최고점을 받은 실제 리포트 — KEY METRICS "최고 단원평가"에 어느 단원·언제인지 같이 보여주려고
+  // 최고점을 받은 실제 리포트 — 1페이지 "성취" 묶음의 "최고 점수"에 어느 단원·언제인지 같이 보여주려고
   const maxScoreReport = sorted
     .filter(r => r.hasTest && r.testScore)
     .reduce((best, r) => (!best || Number(r.testScore) > Number(best.testScore)) ? r : best, null);
@@ -333,8 +335,9 @@ export default function GrowthStory() {
   const conceptAvg = conceptRated.length > 0
     ? Math.round(conceptRated.reduce((s, r) => s + r.conceptRating, 0) / conceptRated.length)
     : null;
-  // 출석 요약 — KEY METRICS 맨 아래 카드가 결석 유무/지각 유무에 따라 3가지로 갈림
-  // (기존 allAttended는 attendance값이 '정시'/'지각'/'결석'/... 인데 '출석'과 비교해서 항상 false였던 죽은 코드였음)
+  // 출석 요약 — 1페이지 "성실" 묶음이 결석 유무/지각 유무와 무관하게 항상 출석/지각/결석
+  // 3색으로 표시(기존 allAttended는 attendance값이 '정시'/'지각'/'결석'/... 인데 '출석'과
+  // 비교해서 항상 false였던 죽은 코드였음)
   const onTimeCount = sorted.filter(r => r.attendance === '정시').length;
   const lateCount = sorted.filter(r => r.attendance === '지각').length;
   const absentCount = sorted.filter(r => r.attendance === '결석').length;
@@ -532,7 +535,7 @@ export default function GrowthStory() {
     section: { background: '#fff', border: '1px solid #EEECEA', borderRadius: '14px', padding: '22px' },
     label: { fontSize: '10px', fontWeight: 700, color: sk.primary, letterSpacing: '0.14em', marginBottom: '16px' },
   };
-  // 구분 라벨(예: GROWTH MILESTONE, KEY METRICS) — 골드 라벨 + 옆으로 뻗는 옅은 선.
+  // 구분 라벨(예: 단원별 평가 추이, 수업 기록) — 골드 라벨 + 옆으로 뻗는 옅은 선.
   // 여러 페이지에서 재사용하려고 함수로 뺌(2/3단계에서도 씀).
   const sectionDivider = (text) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -602,7 +605,7 @@ export default function GrowthStory() {
       </div>
 
       {(() => {
-        // AI 서사 생성 버튼 (강사 전용, ?edit=1) — 1페이지(마일스톤) 맨 위에 포함
+        // AI 서사 생성 버튼 (강사 전용, ?edit=1) — 1페이지(한 달의 결론) 맨 위에 포함
         const aiGenButtonContent = !isEditor ? null : (
         <button onClick={handleGenNarrative} disabled={narLoading}
           style={{ width: '100%', padding: '13px', background: narLoading ? '#E5E7EB' : narrative ? '#F0FAF5' : sk.primary, color: narLoading ? '#6C7586' : narrative ? R.positive : '#fff', border: narrative ? `1px solid ${R.positive}40` : 'none', borderRadius: '10px', fontSize: '12px', fontWeight: 700, cursor: narLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
@@ -917,8 +920,9 @@ export default function GrowthStory() {
         );
         })();
 
-        // 단원별 정리 페이지 — 상담 중에 "여기는 잘했고 여기는 아직"을 사진+숫자+코멘트로
-        // 바로 보여주기 위함(2026-08-02 결정). 사진은 기본 최근 것을 보여주되, 화살표로
+        // 단원별 기록 — 2페이지 "무엇이 달라졌나"에 붙는 카드. 상담 중에 "여기는 잘했고
+        // 여기는 아직"을 사진+숫자+코멘트로 바로 보여주기 위함(2026-08-02 결정). 사진은
+        // 기본 최근 것을 보여주되, 화살표로
         // 그 단원에서 찍은 다른 사진으로 바로 넘겨볼 수 있음(상담 중 즉석 대응).
         const unitCardsContent = unitCards.length === 0 ? null : (
           <>
@@ -1004,7 +1008,7 @@ export default function GrowthStory() {
           ? Object.entries(diagUnitMap[topWeak[0]]).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([u]) => u)
           : [];
 
-        // 3페이지 — 복습 효과(있을 때만) + 핵심 지표(항상 존재)
+        // 2페이지 "무엇이 달라졌나"에 붙는 복습 효과(완료된 복습이 있을 때만)
         const reviewEffectContent = reviewProof.length === 0 ? null : (
       <div style={S.section}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '14px' }}>
@@ -1175,26 +1179,143 @@ export default function GrowthStory() {
             )}
           </div>
         );
+        // 표시점 2등급(핸드오프 §2-4, 결정 ④) — 자동 판정: 그 세션의 개념+과제 상승폭
+        // 합이 가장 큰 날 위주로 최대 2건. 하락/보합인 세션은 표시점 후보에서 제외(성장
+        // 포트폴리오인데 하락한 날을 "가장 크게 자란 날"로 금색 강조하면 안 되므로).
+        const deltaByReportId = {};
+        sorted.forEach((r, i) => {
+          if (i === 0) return;
+          const prev = sorted[i - 1];
+          const cDelta = (r.conceptRating != null && prev.conceptRating != null) ? r.conceptRating - prev.conceptRating : 0;
+          const hDelta = (r.homeworkRating != null && prev.homeworkRating != null) ? r.homeworkRating - prev.homeworkRating : 0;
+          deltaByReportId[r.id] = cDelta + hDelta;
+        });
+        const HIGHLIGHT_N = 2;
+        const highlightIds = new Set(
+          notedReports
+            .map(r => ({ id: r.id, delta: deltaByReportId[r.id] || 0 }))
+            .filter(x => x.delta > 0)
+            .sort((a, b) => b.delta - a.delta)
+            .slice(0, HIGHLIGHT_N)
+            .map(x => x.id)
+        );
+
+        // 기본 노출 6회 — 표시점 전부 + 최근 회차로 채움(결정 ⑤). 나머지는 "더 보기"로.
+        const descNoted = notedReports.slice().reverse();
+        const DEFAULT_VISIBLE = 6;
+        const defaultVisibleIds = new Set([
+          ...descNoted.filter(r => highlightIds.has(r.id)),
+          ...descNoted.filter(r => !highlightIds.has(r.id)),
+        ].slice(0, DEFAULT_VISIBLE).map(r => r.id));
+        const displayReports = showAllTimeline ? descNoted : descNoted.filter(r => defaultVisibleIds.has(r.id));
+        const hiddenTimelineCount = descNoted.length - displayReports.length;
+
+        // 주차 구분 — 월요일 시작 기준, 이 기간에 실제로 등장하는 주만 이른 순으로 번호를 매김
+        const mondayKeyOf = (dayKeyStr) => {
+          const d = new Date(dayKeyStr + 'T00:00:00Z');
+          const dow = d.getUTCDay();
+          d.setUTCDate(d.getUTCDate() + (dow === 0 ? -6 : 1 - dow));
+          return d.toISOString().split('T')[0];
+        };
+        const weekIndexByMonday = {};
+        [...new Set(notedReports.map(r => mondayKeyOf(dayKeyOf(r.createdAt.seconds))))]
+          .sort()
+          .forEach((mk, i) => { weekIndexByMonday[mk] = i + 1; });
+        const weekRangeLabel = (mondayKeyStr) => {
+          const start = new Date(mondayKeyStr + 'T00:00:00Z');
+          const end = new Date(start); end.setUTCDate(start.getUTCDate() + 6);
+          const fmt = (d) => `${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일`;
+          return `${fmt(start)} ~ ${fmt(end)}`;
+        };
+
+        // 문항 하나하나까지 담긴 teacherNote 원문은 펼쳤을 때만 전체 노출 — 접힌 행에는
+        // 첫 문장만(헤드라인 대용, 새 AI 호출 없이 기존 데이터로). 사진은 표시점에만
+        // (핸드오프 §2-4 — 전 세션에 넣으면 다시 길어짐). 단원은 직전 표시 행과 값이
+        // 같으면 반복 표기하지 않음(§2-4 "반복 캡션 제거").
+        const firstSentence = (text) => {
+          const s = (text || '').trim();
+          const idx = s.search(/[.!?]\s|\n/);
+          return idx > 0 ? s.slice(0, idx + 1).trim() : s;
+        };
         const timelineContent = notedReports.length === 0 ? null : (
           <>
-            {sectionDivider('학습 기록 상세')}
+            {sectionDivider('수업 기록')}
             {summaryContent}
-            <p style={{ fontSize: '13px', color: '#6C7586', margin: '-4px 0 0', lineHeight: 1.6 }}>
-              이 기간 선생님이 남긴 코멘트를 날짜순으로 모았어요 · {notedReports.length}건
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {notedReports.slice().reverse().map(r => (
-                <div key={r.id} style={{ background: '#fff', border: '1px solid #EEECEA', borderRadius: '14px', padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 700, color: sk.primary }}>{fmtDate(r)}</span>
-                    {(r.textbook || r.unit) && (
-                      <span style={{ fontSize: '11px', color: 'rgba(55,56,60,0.6)' }}>{[r.textbook, r.unit].filter(Boolean).join(' · ')}</span>
-                    )}
-                  </div>
-                  <p style={{ fontSize: '13px', color: '#171719', margin: 0, lineHeight: 1.75, whiteSpace: 'pre-wrap', textWrap: 'pretty' }}>{r.teacherNote}</p>
-                </div>
-              ))}
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '10px' }}>
+              <p style={{ fontSize: '13px', color: '#6C7586', margin: 0, lineHeight: 1.6 }}>
+                주요 {displayReports.length}회 {hiddenTimelineCount > 0 ? `/ 전체 ${descNoted.length}회` : ''}
+              </p>
+              {highlightIds.size > 0 && (
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 600, color: sk.bannerLabel }}>
+                  <span style={{ width: '9px', height: '9px', borderRadius: '50%', background: sk.accent, boxShadow: '0 0 0 2px rgba(201,162,39,0.22)', display: 'block', flexShrink: 0 }} />
+                  가장 크게 자란 날
+                </span>
+              )}
             </div>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {displayReports.map((r, i) => {
+                const dayKeyStr = dayKeyOf(r.createdAt.seconds);
+                const mk = mondayKeyOf(dayKeyStr);
+                const prevMk = i > 0 ? mondayKeyOf(dayKeyOf(displayReports[i - 1].createdAt.seconds)) : null;
+                const showWeekDivider = mk !== prevMk;
+                const isHighlight = highlightIds.has(r.id);
+                const isOpen = openFeedKey === r.id;
+                const prevUnit = i > 0 ? (displayReports[i - 1].unit || displayReports[i - 1].textbook || '') : null;
+                const thisUnit = r.unit || r.textbook || '';
+                const showUnit = thisUnit && thisUnit !== prevUnit;
+                const metricsParts = [
+                  r.homeworkRating != null && `과제 ${r.homeworkRating}`,
+                  r.conceptRating != null && `개념 ${r.conceptRating}`,
+                ].filter(Boolean);
+                return (
+                  <div key={r.id}>
+                    {showWeekDivider && (
+                      <div style={{ background: '#F7F8FA', padding: '9px 4px', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '10px', borderBottom: '1px solid #EEF0F3' }}>
+                        <span style={{ fontSize: '10.5px', fontWeight: 700, letterSpacing: '1.4px', color: 'rgba(55,56,60,0.75)' }}>{weekIndexByMonday[mk]}주차</span>
+                        <span style={{ fontSize: '10.5px', fontWeight: 600, color: 'rgba(55,56,60,0.75)' }}>{weekRangeLabel(mk)}</span>
+                      </div>
+                    )}
+                    <div style={{ borderBottom: '1px solid #F2F4F7' }}>
+                      <button onClick={() => setOpenFeedKey(prev => prev === r.id ? null : r.id)}
+                        style={{ width: '100%', border: 'none', background: isOpen ? '#FAFBFD' : '#fff', padding: '14px 4px', display: 'flex', gap: '12px', alignItems: 'flex-start', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit' }}>
+                        <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', flexShrink: 0, width: '38px', paddingTop: '1px' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 700, color: sk.primary, whiteSpace: 'nowrap' }}>{fmtDate(r)}</span>
+                          <span style={{
+                            width: isHighlight ? '11px' : '7px', height: isHighlight ? '11px' : '7px', borderRadius: '50%',
+                            background: isHighlight ? sk.accent : '#C6CCD8',
+                            boxShadow: isHighlight ? '0 0 0 3px rgba(201,162,39,0.22)' : 'none', display: 'block',
+                          }} />
+                        </span>
+                        <span style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0, flex: 1 }}>
+                          {showUnit && <span style={{ fontSize: '10.5px', fontWeight: 700, letterSpacing: '0.02em', color: sk.bannerLabel }}>{thisUnit}</span>}
+                          <span style={{ fontSize: isHighlight ? '14px' : '13px', fontWeight: isHighlight ? 700 : 600, lineHeight: 1.6, color: '#171719', textWrap: 'pretty' }}>{firstSentence(r.teacherNote)}</span>
+                          {metricsParts.length > 0 && <span style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(55,56,60,0.75)' }}>{metricsParts.join(' · ')}</span>}
+                        </span>
+                        <span style={{ fontSize: '13px', color: '#9A9A9A', flexShrink: 0, paddingTop: '1px' }}>{isOpen ? '▲' : '▼'}</span>
+                      </button>
+                      {isOpen && (
+                        <div style={{ background: '#FAFBFD', padding: '2px 4px 18px 54px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                          <p style={{ fontSize: '12.5px', fontWeight: 500, lineHeight: 1.85, color: '#171719', margin: 0, whiteSpace: 'pre-wrap', textWrap: 'pretty' }}>{r.teacherNote}</p>
+                          {isHighlight && r.photoUrls?.length > 0 && (
+                            <div style={{ display: 'grid', gridTemplateColumns: r.photoUrls.length > 1 ? 'repeat(2,minmax(0,1fr))' : '1fr', gap: '9px' }}>
+                              {r.photoUrls.slice(0, 2).map((url, pi) => (
+                                <img key={pi} src={url} alt="수업 사진" style={{ width: '100%', height: '132px', objectFit: 'cover', borderRadius: '10px', display: 'block' }} />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {hiddenTimelineCount > 0 && (
+              <button onClick={() => setShowAllTimeline(true)}
+                style={{ width: '100%', padding: '13px', fontSize: '12.5px', fontWeight: 700, color: sk.primary, background: '#FAFBFC', border: `1px solid ${sk.primary}22`, borderRadius: '10px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                나머지 {hiddenTimelineCount}회 기록 보기
+              </button>
+            )}
           </>
         );
 
