@@ -65,7 +65,51 @@ export default async function handler(req, res) {
   // 액션이라 로그인 필수 — analyze-photo.js/polish.js와 동일한 기준
   if (!(await verifyIdTokenHeader(req))) return res.status(401).json({ error: '로그인이 필요합니다.' });
 
-  const { studentName, milestones = [], unitScores = [], teacherNotes, isNewStudent, totalReports, field, currentNarrative } = req.body;
+  const { studentName, milestones = [], unitScores = [], teacherNotes, isNewStudent, totalReports, field, currentNarrative, type } = req.body;
+
+  // ── 모드 3: 기간 요약(성장 포트폴리오 "학습 기록 상세") — 그 기간 teacherNote 전체를
+  // 2~3문장으로 압축. 공개 페이지에서 열람마다 자동 생성하면 비용/지연이 새므로 원장이
+  // 누를 때만 호출되고, 결과는 클라이언트가 학생 문서에 캐싱함(이 엔드포인트는 생성만 담당) ──
+  if (type === 'monthlySummary') {
+    const notes = (teacherNotes || []).filter(n => n && String(n).trim());
+    if (notes.length === 0) return res.status(400).json({ error: '요약할 학습 기록이 없습니다.' });
+    const notesText = notes.map((n, i) => `${i + 1}. ${String(n).slice(0, 300)}`).join('\n');
+    const prompt = `학생 ${studentName}의 이번 기간 학습 기록을 2~3문장으로 요약. 한국어.
+${STYLE_RULE}
+[이 기간 선생님이 남긴 코멘트 전체]
+${notesText}
+${DATA_RULE}
+${NO_HYPE_RULE}
+[중요] 코멘트를 나열하지 말고, 어떤 개념·단원을 주로 다뤘는지·오답이 늘었는지 줄었는지 같은 흐름을 짚을 것.
+[중요] 앞으로의 성적을 예측하거나 전망하는 문장은 절대 쓰지 말 것 — 이번 기간에 실제로 있었던 일만 쓸 것.
+공백 포함 200자를 절대 넘기지 말 것.
+JSON만 반환 (코드블록 없이, 순수 JSON만): {"text":"..."}`;
+
+    try {
+      const cleaned = await callGemini(prompt, 4096);
+      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+      let text = null;
+      if (jsonMatch) {
+        try { text = JSON.parse(jsonMatch[0]).text || null; } catch { /* 아래 정규식 폴백 */ }
+      }
+      if (!text) {
+        const m = cleaned.match(/"text"\s*:\s*"([^"]*)"/s);
+        text = m?.[1] || null;
+      }
+      if (!text) {
+        console.error('기간 요약 파싱 실패. 응답 앞 300자:', cleaned.slice(0, 300));
+        return res.status(500).json({ error: '응답이 잘렸거나 형식이 맞지 않습니다. 다시 시도해주세요.' });
+      }
+      if (hasLeakedPlaceholder(text)) {
+        console.error('기간 요약 대괄호 placeholder 누출:', text);
+        return res.status(500).json({ error: '생성 결과에 형식 오류가 있습니다. 다시 시도해주세요.' });
+      }
+      if (text.length > 200) text = text.slice(0, 200).trim();
+      return res.status(200).json({ text });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
 
   // 핵심 데이터만 추출
   const lastNote = teacherNotes?.slice(-1)[0] || '';

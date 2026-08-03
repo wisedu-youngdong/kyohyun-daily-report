@@ -57,6 +57,7 @@ export default function GrowthStory() {
   const [loadError, setLoadError] = useState(null); // 'network' | null
   const [retryKey, setRetryKey] = useState(0);
   const [narLoading, setNarLoading] = useState(false);
+  const [monthlySummaryLoading, setMonthlySummaryLoading] = useState(false);
   const [regenField, setRegenField] = useState(null); // 항목별 재생성 진행 중인 필드 키
   const [editing, setEditing] = useState(null);
   const [showAllUnits, setShowAllUnits] = useState(false);
@@ -611,6 +612,47 @@ export default function GrowthStory() {
       alert(`오류: ${e.message}`);
     }
     setRegenField(null);
+  };
+
+  // AI 기간 요약 생성 — "학습 기록 상세" 페이지 상단에 붙는 2~3문장 요약. 공개 페이지에서
+  // 열람마다 자동 생성하면 비용/지연이 통제 안 되므로, 원장이 눌러야만 생성되고 결과는
+  // 학생 문서에 캐싱됨(narrative와 동일한 패턴). 캐시에 생성 당시 선택된 기간을 같이 저장해,
+  // 기간을 바꾸면 안 맞는 캐시가 조용히 숨겨지고 재생성을 유도함(가이드라인 문서 04번 참고).
+  const handleGenMonthlySummary = async () => {
+    setMonthlySummaryLoading(true);
+    const teacherNotes = sorted.filter(r => r.teacherNote?.trim()).map(r => r.teacherNote);
+    try {
+      const user = await waitForAuthUser();
+      const idToken = await user?.getIdToken();
+      const response = await fetch('/api/narrative', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+        },
+        body: JSON.stringify({
+          type: 'monthlySummary',
+          studentName: student?.name || '학생',
+          teacherNotes,
+        })
+      });
+      const data = await response.json();
+      if (!response.ok || !data.text) {
+        alert(data?.error === '로그인이 필요합니다.' ? '로그인 후 이용해주세요.' : `오류: ${data?.error || '요약 생성에 실패했습니다.'}`);
+      } else {
+        const updated = { text: data.text, periodFrom, periodTo, generatedAt: Date.now() };
+        setStudent(s => ({ ...s, aiMonthlySummary: updated }));
+        try {
+          await setDoc(doc(db, 'academies', academyId, 'students', studentId), { aiMonthlySummary: updated }, { merge: true });
+        } catch (e) {
+          console.error('기간 요약 저장 실패:', e);
+          alert('요약이 생성됐지만 저장에는 실패했습니다. 네트워크를 확인하고 다시 시도해주세요.');
+        }
+      }
+    } catch (e) {
+      alert(`오류: ${e.message}`);
+    }
+    setMonthlySummaryLoading(false);
   };
 
   if (loading) return (
@@ -1443,9 +1485,33 @@ export default function GrowthStory() {
         // 포트폴리오에 월간 상세 페이지 추가). 문항 하나하나까지 담긴 teacherNote 원문을 그대로
         // 쓰므로 새 AI 호출이 필요 없음 — teacherNote가 없는 리포트(과거 미작성 등)는 건너뜀.
         const notedReports = sorted.filter(r => r.teacherNote?.trim());
+        // AI 기간 요약 — 캐시(student.aiMonthlySummary)가 지금 선택된 기간(periodFrom/periodTo)과
+        // 일치할 때만 신뢰. 기간을 바꾸고 아직 그 기간으로 재생성 안 했으면 옛 요약을 보여주지
+        // 않고 조용히 숨김(가이드라인 문서 톤 규칙 "근거 부족하면 조용히 생략"과 동일 원칙).
+        const cachedSummary = student.aiMonthlySummary;
+        const summaryMatchesPeriod = !!(cachedSummary && cachedSummary.periodFrom === periodFrom && cachedSummary.periodTo === periodTo);
+        const summaryContent = !(isEditor || summaryMatchesPeriod) ? null : (
+          <div style={{ background: sk.tint, border: `1px solid ${sk.primary}22`, borderRadius: '14px', padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 700, color: sk.primary, letterSpacing: '0.04em' }}>AI 요약</span>
+              {isEditor && (
+                <button onClick={handleGenMonthlySummary} disabled={monthlySummaryLoading}
+                  style={{ padding: '6px 12px', minHeight: '30px', background: monthlySummaryLoading ? '#E5E7EB' : 'transparent', color: monthlySummaryLoading ? '#6C7586' : sk.primary, border: monthlySummaryLoading ? 'none' : `1px solid ${sk.primary}40`, borderRadius: '14px', fontSize: '11px', fontWeight: 700, cursor: monthlySummaryLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                  {monthlySummaryLoading ? '생성 중...' : summaryMatchesPeriod ? '다시 생성' : '이 기간 요약 생성'}
+                </button>
+              )}
+            </div>
+            {summaryMatchesPeriod ? (
+              <p style={{ fontSize: '13px', color: '#171719', margin: 0, lineHeight: 1.8, whiteSpace: 'pre-wrap', textWrap: 'pretty' }}>{cachedSummary.text}</p>
+            ) : (
+              <p style={{ fontSize: '12px', color: '#8A8478', margin: 0, lineHeight: 1.6 }}>이 기간에 대한 요약이 아직 없어요. 버튼을 눌러 만들어보세요.</p>
+            )}
+          </div>
+        );
         const timelineContent = notedReports.length === 0 ? null : (
           <>
             {sectionDivider('학습 기록 상세')}
+            {summaryContent}
             <p style={{ fontSize: '13px', color: '#6C7586', margin: '-4px 0 0', lineHeight: 1.6 }}>
               이 기간 선생님이 남긴 코멘트를 날짜순으로 모았어요 · {notedReports.length}건
             </p>
