@@ -77,6 +77,41 @@ ${wrongList ? `[오답 문항 목록]\n${wrongList}\n\n` : ''}[재구성 규칙]
 strengths 또는 improvements에 넣을 내용이 없으면 그 값을 null로, evidence가 0개면 빈 배열 []로 쓰세요.`;
 }
 
+function normalizeJsonText(text) {
+  if (!text) return '';
+  let normalized = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
+  normalized = normalized.replace(/,\s*([}\]])/g, '$1');
+  normalized = normalized.replace(/\r/g, '');
+  normalized = normalized.replace(/\n(?=\s*["\w\-])/g, ' ');
+  return normalized;
+}
+
+function parseJsonPayload(text) {
+  const cleaned = normalizeJsonText(text);
+  const candidates = [cleaned];
+
+  const start = cleaned.indexOf('{');
+  const end = cleaned.lastIndexOf('}');
+  if (start !== -1 && end > start) {
+    candidates.push(cleaned.slice(start, end + 1));
+  }
+
+  const maybeWithPrefix = cleaned.replace(/^.*?\{/s, '{').replace(/\}.*$/s, '}');
+  if (maybeWithPrefix !== cleaned) {
+    candidates.push(maybeWithPrefix);
+  }
+
+  for (const candidate of candidates) {
+    try {
+      return JSON.parse(candidate);
+    } catch {
+      // continue to next candidate
+    }
+  }
+
+  throw new Error('Gemini 응답이 유효한 JSON이 아닙니다.');
+}
+
 async function generateFeedback(report) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
   const response = await fetch(url, {
@@ -84,7 +119,54 @@ async function generateFeedback(report) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{ parts: [{ text: buildFeedbackPrompt(report) }] }],
-      generationConfig: { temperature: 0.4, maxOutputTokens: 2048 },
+      generationConfig: {
+        temperature: 0.4,
+        responseMimeType: 'application/json',
+        maxOutputTokens: 2048,
+        responseSchema: {
+          type: 'OBJECT',
+          properties: {
+            strengths: {
+              type: 'OBJECT',
+              properties: {
+                headline: { type: 'STRING' },
+                evidence: {
+                  type: 'ARRAY',
+                  items: {
+                    type: 'OBJECT',
+                    properties: {
+                      no: { type: 'STRING' },
+                      text: { type: 'STRING' },
+                    },
+                  },
+                },
+              },
+            },
+            improvements: {
+              type: 'OBJECT',
+              properties: {
+                headline: { type: 'STRING' },
+                evidence: {
+                  type: 'ARRAY',
+                  items: {
+                    type: 'OBJECT',
+                    properties: {
+                      no: { type: 'STRING' },
+                      text: { type: 'STRING' },
+                    },
+                  },
+                },
+              },
+            },
+            closing: {
+              type: 'OBJECT',
+              properties: {
+                text: { type: 'STRING' },
+              },
+            },
+          },
+        },
+      },
     }),
   });
   if (!response.ok) {
@@ -94,7 +176,7 @@ async function generateFeedback(report) {
   const parts = data.candidates?.[0]?.content?.parts || [];
   const text = parts.find(p => p.text && !p.thought)?.text || parts.find(p => p.text)?.text || '';
   if (!text) throw new Error('빈 응답');
-  const parsed = JSON.parse(text.trim().replace(/^```json\s*|\s*```$/g, ''));
+  const parsed = parseJsonPayload(text);
   if (parsed.closing?.text && parsed.closing.text.length > 200) {
     parsed.closing.text = parsed.closing.text.slice(0, 200).trim();
   }
