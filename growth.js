@@ -63,6 +63,26 @@ export function isHandledToday(r) {
   return isReportSent(r) || (r.attendance === '결석' && r.isDraft !== true);
 }
 
+// 경고/주의/안정 판정 기본값 — 학원이 설정에서 조정 안 했으면 이 값을 그대로 씀
+export const DEFAULT_STATUS_THRESHOLDS = { warningAvg: 50, cautionAvg: 70, dropThreshold: 20 };
+
+// 개념 이해도 경고/주의/안정 라벨 판정 — GrowthDashboard.jsx(기간 선택형)와 DirectorView.jsx
+// ("관심이 필요한 학생" 통합 섹션, 고정 기간)가 서로 다른 기간의 리포트 배열로 같은 임계값
+// 기준을 적용해야 해서 공용화(2026-08-03) — 판정식이 두 곳에서 따로 놀면 드리프트 위험이 큼.
+// sortedReports는 호출부가 미리 필터링(!isDraft, conceptRating != null)·정렬(오래된순)·
+// toPct 정규화까지 끝낸 배열이어야 함. 색상 등 표현은 호출부가 라벨만 보고 맡아서 정함.
+export function conceptStatusLabel(sortedReports, statusThresholds) {
+  const { warningAvg, cautionAvg, dropThreshold } = { ...DEFAULT_STATUS_THRESHOLDS, ...statusThresholds };
+  if (!sortedReports.length) return '데이터없음';
+  const n = sortedReports.length;
+  const avg = sortedReports.reduce((sum, r) => sum + r.conceptRating, 0) / n;
+  const trend3 = n >= 3 ? sortedReports[n - 1].conceptRating - sortedReports[n - 3].conceptRating
+    : n >= 2 ? sortedReports[n - 1].conceptRating - sortedReports[n - 2].conceptRating : 0;
+  if (trend3 <= -dropThreshold || avg < warningAvg) return '경고';
+  if (trend3 < 0 || avg < cautionAvg) return '주의';
+  return '안정';
+}
+
 // 주간형(reportType==='weekly') 리포트는 문서 1개 안에 여러 날짜의 sessions[]가 들어있고,
 // homeworkRating/conceptRating/attendance/hasTest/testScore 같은 값은 세션마다 따로 있어서
 // 최상위 필드엔 아예 없다("대표값이 없어서"). "리포트 문서 1개 = 하루치 기록 1개"를 전제로

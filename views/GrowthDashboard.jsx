@@ -1,12 +1,18 @@
 import React from 'react';
-import { toPct, kstDay, kstWeekday, flattenReportsForAnalysis } from '../growth.js';
+import { toPct, kstDay, kstWeekday, flattenReportsForAnalysis, conceptStatusLabel } from '../growth.js';
 import { useMediaQuery } from '../hooks.js';
 import { C } from '../tokens.jsx';
 import { onKeyActivate } from './shared.jsx';
 import { StudentDetailPanel } from './StudentProfileModal.jsx';
 
-// 경고/주의 판정 기본값 — 학원이 설정에서 조정 안 했으면 이 값을 그대로 씀
-const DEFAULT_THRESHOLDS = { warningAvg: 50, cautionAvg: 70, dropThreshold: 20 };
+// 라벨→색상 매핑 — 판정식 자체(경고/주의/안정 기준)는 growth.js의 conceptStatusLabel로
+// 공용화됨(DirectorView.jsx "관심이 필요한 학생" 섹션과 같은 기준 공유, 2026-08-03)
+const STATUS_STYLE = {
+  '경고': { color: C.errorDark, bg: '#FCEBEB', border: C.errorDark },
+  '주의': { color: C.warningText, bg: '#FAEEDA', border: '#EF9F27' },
+  '안정': { color: C.successDark, bg: C.successBg, border: C.successDark },
+  '데이터없음': { color: '#6B7785', bg: '#F3F4F6', border: '#E5E7EB' },
+};
 
 // period는 이제 DirectorView가 소유(재설계 1단계 — 기간 컨트롤 통합, 오늘/1주/1개월/3개월
 // 세그먼트 하나가 이 컴포넌트를 렌더할지 말지까지 결정). 이 컴포넌트는 더 이상 자체 기간
@@ -86,19 +92,11 @@ export default function GrowthDashboard({ reports, students, period, classes = [
   const getAvg = React.useCallback((sid) => avg(getStudentReports(sid).map(r => r.conceptRating)), [getStudentReports]);
 
   // 경고/주의/안정 판정 — 설정에서 조정한 임계값이 있으면 그걸, 없으면 기본값을 씀.
-  // (기존 로직엔 "a>=80 && trend3>=0 → 안정" 분기가 따로 있었는데, 그 조건이 안 걸려도
-  // 아래 두 분기를 다 피해가면 결국 같은 안정 분기로 떨어져서 실제로는 아무 것도
-  // 안 가르던 죽은 코드였음 — 임계값을 설정으로 뺴면서 정리)
+  // 판정식 자체는 growth.js의 conceptStatusLabel 공용 함수로 뺐음(DirectorView.jsx의
+  // "관심이 필요한 학생" 섹션과 기준 공유, 2026-08-03) — 여기선 색상만 붙임.
   const getStatus = React.useCallback((sid) => {
-    const { warningAvg, cautionAvg, dropThreshold } = { ...DEFAULT_THRESHOLDS, ...statusThresholds };
-    const rs = getStudentReports(sid);
-    if (!rs.length) return { label: '데이터없음', color: '#6B7785', bg: '#F3F4F6', border: '#E5E7EB' };
-    const a = avg(rs.map(r => r.conceptRating));
-    const trend3 = rs.length >= 3 ? rs[rs.length - 1].conceptRating - rs[rs.length - 3].conceptRating
-      : rs.length >= 2 ? rs[rs.length - 1].conceptRating - rs[rs.length - 2].conceptRating : 0;
-    if (trend3 <= -dropThreshold || a < warningAvg) return { label: '경고', color: C.errorDark, bg: '#FCEBEB', border: C.errorDark };
-    if (trend3 < 0 || a < cautionAvg) return { label: '주의', color: C.warningText, bg: '#FAEEDA', border: '#EF9F27' };
-    return { label: '안정', color: C.successDark, bg: C.successBg, border: C.successDark };
+    const label = conceptStatusLabel(getStudentReports(sid), statusThresholds);
+    return { label, ...STATUS_STYLE[label] };
   }, [getStudentReports, statusThresholds]);
 
   // 검색 + 반 필터 — 재설계 5단계. 지금은 학생 수가 적어 체감이 크지 않지만, 학원 규모가

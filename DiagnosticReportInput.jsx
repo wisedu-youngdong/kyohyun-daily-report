@@ -2876,6 +2876,16 @@ export default function DiagnosticReportInput({
                               <Sparkles size={13} /> {generatingComment ? '생성 중...' : '오답 분석 기반 코멘트 생성'}
                             </button>
                         )}
+                        {/* 사진 위주로 작성하는 선생님은 이 섹션(아래)에서 코멘트를 만든 뒤 다시
+                            "한 마디" 섹션(위)까지 스크롤해 다듬기 버튼을 눌러야 해서 불편하다는
+                            피드백(2026-08-03) — 같은 handleAIPolish를 여기서도 바로 누를 수 있게
+                            보조 버튼 추가. 로직 중복 없이 진입점만 하나 더 둠 */}
+                        {teacherNote.trim() && (
+                          <button type="button" onClick={handleAIPolish} disabled={polishing}
+                            style={{ ...aiButtonStyle(polishing), marginTop: '8px' }}>
+                            <Sparkles size={13} /> {polishing ? '다듬는 중...' : '이어서 AI로 학부모 톤으로 다듬기'}
+                          </button>
+                        )}
                       </div>
                       );
                     })()}

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { db } from '../firebase';
 import { updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { FileText, AlertTriangle, Copy, CalendarDays } from 'lucide-react';
-import { kstDay, kstWeekday, toPct, ratingLabel, getKstWeekRange } from '../growth.js';
+import { kstDay, kstWeekday, toPct, ratingLabel, getKstWeekRange, conceptStatusLabel, flattenReportsForAnalysis, isReportSent } from '../growth.js';
 import { DIAG_BADGE as DIAG_MAP } from '../diagnosis.js';
 import { T, C, R } from '../tokens.jsx';
 import { groupByClassId, onKeyActivate } from './shared.jsx';
@@ -127,6 +127,79 @@ export default function DirectorView({ reports, students, classes = [], teachers
     setSavingMemo(null);
   };
 
+  // "관심이 필요한 학생" — 예전엔 개념 이해도 경고/주의 배지(1주·1개월 탭에서만), 참여도
+  // "조용함"(챙길 것 카드), N주째 리포트 없음(학생관리 화면) 3곳에 흩어져 있어서, 매일 보는
+  // "오늘" 화면에서는 경고/주의를 놓치기 쉬웠음. 반별로 묶어 오늘/1주/1개월과 무관하게 항상
+  // 노출(2026-08-03 통합 결정) — 기존 판정 로직(conceptStatusLabel/조용함/14일)은 그대로
+  // 재사용하고, 이 화면에 새로 얹는 건 "반별 묶음 + 확인 처리"뿐임.
+  const RISK_PERIOD_DAYS = 30; // 개념 이해도 경고/주의 판정 기간(GrowthDashboard "1개월" 탭과 동일)
+  const STALE_DAYS = 14; // 학생관리 화면(StudentsView.jsx)의 "N주째 리포트 없음" 배지와 동일 임계값
+  const flatReportsForRisk = React.useMemo(() => flattenReportsForAnalysis(reports), [reports]);
+  const riskCutoffMs = Date.now() - RISK_PERIOD_DAYS * 86400000;
+  const getRecentConceptReports = (sid) => flatReportsForRisk
+    .filter(r => r.studentId === sid && !r.isDraft && r.createdAt?.seconds * 1000 >= riskCutoffMs && r.conceptRating != null)
+    .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0))
+    .map(r => ({ ...r, conceptRating: toPct(r.conceptRating) }));
+
+  // 발송 완료 리포트 기준 마지막 작성일 — 학생관리 화면(StudentsView.jsx)의 daysSinceLastReport와 동일 로직
+  const sentReportsAll = reports.filter(isReportSent);
+  const daysSinceLastReport = (sid) => {
+    const last = sentReportsAll.filter(r => r.studentId === sid).sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))[0];
+    if (!last?.createdAt?.seconds) return null;
+    return Math.floor((Date.now() - last.createdAt.seconds * 1000) / 86400000);
+  };
+
+  const [dismissingRiskId, setDismissingRiskId] = useState(null);
+  const handleDismissRisk = async (student, signals) => {
+    setDismissingRiskId(student.id);
+    try {
+      await updateDoc(doc(db, 'academies', academyId, 'students', student.id), {
+        riskDismissed: { signals, at: serverTimestamp() },
+      });
+    } catch (e) {
+      console.error('위험 신호 확인 처리 실패:', e);
+      onToast?.('확인 처리에 실패했습니다. 잠시 후 다시 시도해주세요.', 'error');
+    }
+    setDismissingRiskId(null);
+  };
+
+  // 참여도("조용함" 등) — "이번 주 챙길 것" 카드와 "관심이 필요한 학생" 섹션이 같은 판정을
+  // 공유해야 해서 이 레벨로 끌어올림(예전엔 챙길 것 카드의 IIFE 안에서만 계산됐음)
+  const MIN_REPORTS = 3; // 샘플이 너무 적으면(신규생 등) 판단 근거가 약해 제외
+  // students(App.jsx의 visibleStudents)는 이미 !archived로 걸러진 상태로 내려오므로 여기서 다시 거를 필요 없음
+  const engagement = students
+    .map(s => {
+      const sentReports = reports.filter(r => r.studentId === s.id && !r.isDraft);
+      if (sentReports.length < MIN_REPORTS) return null;
+      const viewedCount = sentReports.filter(r => reportViews.some(v => v.reportId === r.id)).length;
+      const viewRate = Math.round(viewedCount / sentReports.length * 100);
+      const questionCount = reportQuestions.filter(q => q.studentId === s.id).length;
+      let label, labelBg, labelColor;
+      if (questionCount > 0) { label = '적극적'; labelBg = C.successBg; labelColor = C.successDark; }
+      else if (viewRate < 50) { label = '조용함'; labelBg = '#FDF0F0'; labelColor = C.errorDark; }
+      else { label = '양호'; labelBg = '#F3F4F6'; labelColor = '#6B7280'; }
+      return { student: s, sentCount: sentReports.length, viewRate, questionCount, label, labelBg, labelColor };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.viewRate - b.viewRate);
+  const quietCount = engagement.filter(e => e.label === '조용함').length;
+
+  const atRiskStudents = students.map(s => {
+    const academicLabel = conceptStatusLabel(getRecentConceptReports(s.id), statusThresholds);
+    const daysSince = daysSinceLastReport(s.id);
+    const isQuiet = engagement.find(e => e.student.id === s.id)?.label === '조용함';
+    const signals = [];
+    if (academicLabel === '경고' || academicLabel === '주의') signals.push(academicLabel);
+    if (daysSince != null && daysSince >= STALE_DAYS) signals.push('무보고');
+    if (isQuiet) signals.push('저조');
+    if (signals.length === 0) return null;
+    const dismissed = s.riskDismissed?.signals || [];
+    const visibleSignals = signals.filter(sig => !dismissed.includes(sig));
+    if (visibleSignals.length === 0) return null;
+    return { student: s, signals, visibleSignals, daysSince };
+  }).filter(Boolean);
+  const atRiskByClass = groupByClassId(atRiskStudents, x => x.student.id, students, classes);
+
   // 중앙 1컬럼 880px — 시안 7a 기준. 위→아래로 요약 현황 → 처리할 일(질문) → 참여도 →
   // 데일리 보고서 순으로 우선순위가 잡혀 있어, 폭을 너무 넓히면 한 줄이 길어져 읽기 불편함
   return (
@@ -161,25 +234,7 @@ export default function DirectorView({ reports, students, classes = [], teachers
           .filter(q => q.answerText)
           .sort((a, b) => (b.answeredAt?.seconds || 0) - (a.answeredAt?.seconds || 0));
 
-        const MIN_REPORTS = 3; // 샘플이 너무 적으면(신규생 등) 판단 근거가 약해 제외
-        // students(App.jsx의 visibleStudents)는 이미 !archived로 걸러진 상태로 내려오므로
-        // 여기서 다시 거를 필요 없음(죽은 방어 코드였음)
-        const engagement = students
-          .map(s => {
-            const sentReports = reports.filter(r => r.studentId === s.id && !r.isDraft);
-            if (sentReports.length < MIN_REPORTS) return null;
-            const viewedCount = sentReports.filter(r => reportViews.some(v => v.reportId === r.id)).length;
-            const viewRate = Math.round(viewedCount / sentReports.length * 100);
-            const questionCount = reportQuestions.filter(q => q.studentId === s.id).length;
-            let label, labelBg, labelColor;
-            if (questionCount > 0) { label = '적극적'; labelBg = C.successBg; labelColor = C.successDark; }
-            else if (viewRate < 50) { label = '조용함'; labelBg = '#FDF0F0'; labelColor = C.errorDark; }
-            else { label = '양호'; labelBg = '#F3F4F6'; labelColor = '#6B7280'; }
-            return { student: s, sentCount: sentReports.length, viewRate, questionCount, label, labelBg, labelColor };
-          })
-          .filter(Boolean)
-          .sort((a, b) => a.viewRate - b.viewRate);
-        const quietCount = engagement.filter(e => e.label === '조용함').length;
+        // engagement/quietCount는 이제 컴포넌트 레벨로 끌어올려짐(관심이 필요한 학생 섹션과 공유)
 
         // §7 숫자 일관성 — 이 총계도 students/reportQuestions에서 파생된 위 세 값의 합일 뿐,
         // 화면 어디에도 직접 하드코딩된 숫자가 없다
@@ -344,6 +399,53 @@ export default function DirectorView({ reports, students, classes = [], teachers
           </div>
         );
       })()}
+
+      {/* 관심이 필요한 학생 — 개념 이해도 경고/주의(GrowthDashboard와 판정 공유) + 참여도 저조
+          (위 챙길 것 카드와 신호 공유) + N주째 리포트 없음(학생관리와 판정 공유)을 반별로 묶어
+          하나로. 오늘/1주/1개월 탭과 무관하게 항상 보임 — 예전엔 경고/주의 배지가 1주·1개월
+          탭에서만 보여서 매일 보는 오늘 화면에서 놓치기 쉬웠음(2026-08-03 통합 결정). */}
+      <div style={{ background: '#fff', border: '1px solid #F3D9D9', borderLeft: '3px solid #B92C2C', borderRadius: '14px', marginBottom: '20px', overflow: 'hidden' }}>
+        <div style={{ padding: '18px 20px 14px' }}>
+          <p style={{ fontSize: '15px', fontWeight: 700, color: '#8A2020', margin: 0 }}>관심이 필요한 학생 · {atRiskStudents.length}명</p>
+          <span style={{ fontSize: '11px', color: '#6C7586' }}>개념 이해도 경고/주의 · 참여도 저조 · {STALE_DAYS}일 넘게 리포트 없음</span>
+        </div>
+        {atRiskStudents.length === 0 ? (
+          <div style={{ padding: '0 20px 18px' }}>
+            <p style={{ fontSize: '12px', color: 'rgba(55,56,60,0.6)', margin: 0 }}>지금은 특별히 챙길 학생이 없어요.</p>
+          </div>
+        ) : (
+          atRiskByClass.map(group => (
+            <div key={group.classId || 'unassigned'} style={{ borderTop: '1px solid #F6ECEC', padding: '12px 20px 14px' }}>
+              <p style={{ fontSize: '11px', fontWeight: 700, color: '#6C7586', margin: '0 0 8px' }}>{group.className}</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {group.items.map(({ student, signals, visibleSignals, daysSince }) => (
+                  <div key={student.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <button onClick={() => onOpenStudentProfile?.(student.id)}
+                      style={{ background: 'none', border: 'none', padding: 0, fontSize: '13px', fontWeight: 700, color: '#1A1A1A', cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>
+                      {student.name}
+                    </button>
+                    {visibleSignals.map(sig => (
+                      <span key={sig} style={{
+                        fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '10px',
+                        ...(sig === '경고' ? { background: '#FCEBEB', color: C.errorDark }
+                          : sig === '주의' ? { background: '#FAEEDA', color: C.warningText }
+                          : sig === '저조' ? { background: '#FDF0F0', color: C.errorDark }
+                          : { background: '#F3F4F6', color: '#6B7280' }), // 무보고
+                      }}>
+                        {sig === '무보고' ? `${daysSince}일째 무보고` : sig}
+                      </span>
+                    ))}
+                    <button onClick={() => handleDismissRisk(student, signals)} disabled={dismissingRiskId === student.id}
+                      style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: '11px', color: '#6C7586', cursor: dismissingRiskId === student.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
+                      {dismissingRiskId === student.id ? '처리 중' : '확인함'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
 
       {/* 기간 컨트롤 — 예전의 날짜 선택기(이 화면 전용)와 기간 토글(GrowthDashboard 전용)을
           하나로 통합. "오늘"이면 아래에 날짜별 리포트 카드, 그 외엔 GrowthDashboard의
