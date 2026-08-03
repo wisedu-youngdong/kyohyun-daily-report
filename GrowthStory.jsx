@@ -606,7 +606,7 @@ export default function GrowthStory() {
         const aiGenButtonContent = !isEditor ? null : (
         <button onClick={handleGenNarrative} disabled={narLoading}
           style={{ width: '100%', padding: '13px', background: narLoading ? '#E5E7EB' : narrative ? '#F0FAF5' : sk.primary, color: narLoading ? '#6C7586' : narrative ? R.positive : '#fff', border: narrative ? `1px solid ${R.positive}40` : 'none', borderRadius: '10px', fontSize: '12px', fontWeight: 700, cursor: narLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
-          {narLoading ? '⏳ AI 서사 생성 중...' : narrative ? '🔄 전체 서사 다시 만들기 (4개 항목 모두)' : '✨ AI 서사 자동 생성'}
+          {narLoading ? '⏳ AI 서사 생성 중...' : narrative ? '🔄 전체 서사 다시 만들기 (3개 항목 모두)' : '✨ AI 서사 자동 생성'}
         </button>
         );
 
@@ -628,7 +628,7 @@ export default function GrowthStory() {
               </div>
             ) : narrative?.monthConclusion ? (
               <>
-                <p style={{ fontSize: '17px', fontWeight: 700, lineHeight: 1.6, color: '#171719', margin: 0 }}>{narrative.monthConclusion}</p>
+                <p style={{ fontSize: '18px', fontWeight: 700, lineHeight: 1.6, color: '#171719', margin: 0 }}>{narrative.monthConclusion}</p>
                 {isEditor && (
                   <span style={{ display: 'flex', gap: '7px', marginTop: '10px' }}>
                     <button onClick={() => startEdit('monthConclusion')}
