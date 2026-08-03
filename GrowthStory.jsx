@@ -4,7 +4,7 @@ import { db, auth } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { collection, getDoc, getDocs, query, where, doc, setDoc, limit } from 'firebase/firestore';
 import { ReportCard, R, deriveSkinColors } from './tokens.jsx';
-import { toPct, isNewStudent as computeIsNewStudent, fetchAcademyBranding, fmtPages, resolveUnitGroup } from './growth.js';
+import { toPct, isNewStudent as computeIsNewStudent, fetchAcademyBranding, resolveUnitGroup } from './growth.js';
 import { DIAG_LABELS as diagLabels, DIAG_SOFT as DIAG_COLORS } from './diagnosis.js';
 
 // 학부모에게 저장 즉시 노출되는 서사 문구 — 강사가 너무 길게/짧게 써서 카드 UI가
@@ -321,6 +321,11 @@ export default function GrowthStory() {
   const hwAvg = hwRated.length > 0
     ? Math.round(hwRated.reduce((s, r) => s + r.homeworkRating, 0) / hwRated.length)
     : null;
+  // 개념 이해 평균 — 1페이지 "학습" 묶음에 과제 수행과 나란히 필요해 hwAvg와 같은 방식으로 추가
+  const conceptRated = sorted.filter(r => r.conceptRating != null);
+  const conceptAvg = conceptRated.length > 0
+    ? Math.round(conceptRated.reduce((s, r) => s + r.conceptRating, 0) / conceptRated.length)
+    : null;
   // 출석 요약 — KEY METRICS 맨 아래 카드가 결석 유무/지각 유무에 따라 3가지로 갈림
   // (기존 allAttended는 attendance값이 '정시'/'지각'/'결석'/... 인데 '출석'과 비교해서 항상 false였던 죽은 코드였음)
   const onTimeCount = sorted.filter(r => r.attendance === '정시').length;
@@ -328,158 +333,8 @@ export default function GrowthStory() {
   const absentCount = sorted.filter(r => r.attendance === '결석').length;
   const attendanceRate = sorted.length > 0 ? Math.round(onTimeCount / sorted.length * 100) : 0;
 
-  // 공통 변수
-  const firstPerfect = sorted.find(r => r.conceptRating >= 100);
-  const over70 = sorted.find(r => r.hasTest && Number(r.testScore) >= 70);
-
   // 신규생/재학생 분기
   const isNewStudent = computeIsNewStudent(student, sorted.length);
-
-  // PHASE 마일스톤 — 날짜 기반 4개 고정 생성
-  const milestones = [];
-
-  if (sorted.length > 0) {
-    const len = sorted.length;
-    // 4개 구간 인덱스 (중복 없이)
-    const idx = [
-      0,
-      Math.min(len - 1, Math.max(1, Math.floor(len * 0.33))),
-      Math.min(len - 1, Math.max(2, Math.floor(len * 0.66))),
-      len - 1,
-    ].filter((v, i, arr) => arr.indexOf(v) === i); // 중복 제거
-
-    // 취약 단원
-    const unitErrMap = {};
-    sorted.forEach(r => {
-      const u = r.unit || r.textbook || '';
-      if (u) (r.diagnosis||[]).forEach(d => {
-        if (d.key !== 'perfect') unitErrMap[u] = (unitErrMap[u]||0) + 1;
-      });
-    });
-    const weakUnit = Object.entries(unitErrMap).sort((a,b)=>b[1]-a[1])[0]?.[0] || '';
-
-    // 점수 추이
-    const testReps = sorted.filter(r => r.hasTest && r.testScore);
-    const firstScore = testReps[0]?.testScore;
-    const bestScore = testReps.length ? Math.max(...testReps.map(r=>Number(r.testScore))) : null;
-    const growth = firstScore && bestScore ? bestScore - Number(firstScore) : 0;
-
-    // 오답률 전반/후반 비교
-    const half = Math.floor(len/2);
-    const errRate = (arr) => arr.length
-      ? (arr.reduce((s,r)=>s+(r.diagnosis||[]).filter(d=>d.key!=='perfect').length,0)/arr.length).toFixed(1)
-      : '0';
-    const firstErr = errRate(sorted.slice(0, half));
-    const secondErr = errRate(sorted.slice(half));
-    const improved = Number(secondErr) < Number(firstErr);
-
-    const phaseConfigs = isNewStudent ? [
-      {
-        phase: 'PHASE 1 · 시작',
-        title: '첫 수업 시작 및 학습 리듬 안착',
-        desc: '낯선 개념 앞에서도 스스로 해결의 실마리를 찾으려는 의지로 시작했습니다.',
-        badge: '학습 리듬 형성 시작',
-        active: false,
-      },
-      {
-        phase: 'PHASE 2 · 개념 흡수',
-        title: firstPerfect ? '첫 개념 이해 만점 달성' : '기본 개념 반복 학습 진행 중',
-        desc: '개념의 구조를 하나씩 이해하며 자신만의 풀이 패턴을 만들어가고 있습니다.',
-        badge: '개념 내면화 진행',
-        active: false,
-      },
-      {
-        phase: 'PHASE 3 · 첫 성취',
-        title: over70 ? `단원평가 ${over70.testScore}점 달성` : '꾸준한 출석으로 학습 기반 구축',
-        desc: '반복 학습이 쌓이며 문제 유형에 대한 직관이 생기기 시작했습니다.',
-        badge: '성취 경험 확보',
-        active: false,
-      },
-      {
-        phase: 'PHASE 4 · 가능성 확인',
-        title: bestScore ? `단원평가 최고 ${bestScore}점 · 가능성 확인` : '꾸준함으로 만들어낸 성장',
-        desc: '짧은 기간 안에 눈에 띄는 변화가 시작됐습니다. 다음 단계가 기대됩니다.',
-        badge: '성장 가능성 확인',
-        active: true,
-      },
-    ] : [
-      {
-        phase: 'PHASE 1 · 도전 설정',
-        title: weakUnit ? `${weakUnit} 약점 보완 시작` : '새로운 단원 도전 시작',
-        desc: weakUnit
-          ? `${weakUnit} 단원에서 반복되는 오답 유형을 확인했습니다.`
-          : '반복되는 약점을 인식하고 보완을 시작했습니다.',
-        badge: '약점 분석 완료',
-        active: false,
-      },
-      {
-        phase: 'PHASE 2 · 패턴 교정',
-        title: improved
-          ? `오답 패턴 개선 — 회당 ${firstErr}개 → ${secondErr}개`
-          : '반복 오답 유형 집중 훈련',
-        desc: improved
-          ? '회당 오답 개수가 줄어드는 추세가 데이터로 확인되고 있습니다.'
-          : '오답의 원인을 태그로 기록하고 유형별로 다시 풀어보는 과정입니다.',
-        badge: improved ? `오답률 감소 확인` : '패턴 분석 중',
-        active: false,
-      },
-      {
-        phase: 'PHASE 3 · 점수 상승',
-        title: growth > 0
-          ? `단원평가 ${firstScore}점 → ${bestScore}점 (+${growth}점 상승)`
-          : over70 ? `단원평가 ${over70.testScore}점 달성` : '개념 이해도 꾸준히 상승 중',
-        desc: growth > 0
-          ? '이전보다 높은 점수를 기록하며 상승 흐름을 보이고 있습니다.'
-          : '풀이 과정을 스스로 정리하는 연습을 이어가고 있습니다.',
-        badge: growth > 0 ? `+${growth}점 성장` : '꾸준히 진행 중',
-        active: false,
-      },
-      {
-        phase: 'PHASE 4 · 최근 성과',
-        title: improved
-          ? (bestScore ? `단원평가 최고 ${bestScore}점 기록` : '오답 패턴 개선 지속 중')
-          : '기초 다지기 — 반복 오답 패턴 재점검 중',
-        desc: improved
-          ? '최근 오답 개수가 줄고 점수도 오르는 추세를 보이고 있습니다.'
-          : '최근 오답 패턴이 다시 늘어 기초 개념을 한 번 더 점검하는 시기입니다.',
-        badge: improved ? '오답 감소 추세' : '재점검 진행 중',
-        active: true,
-      },
-    ];
-
-    // idx 개수만큼 PHASE 생성 (최대 4개, 리포트 적으면 그만큼만)
-    idx.forEach((i, pi) => {
-      const r = sorted[i];
-      // 해당 리포트 실데이터 추출
-      const diagTags = (r.diagnosis||[])
-        .filter(d => d.key !== 'perfect')
-        .map(d => diagLabels[d.key] || d.key);
-
-      // 선생님 코멘트 첫 줄 (태그 제거)
-      const rawNote = r.teacherNote || '';
-      const cleanNote = rawNote.replace(/\[([^\]]+)\]\s*/g, '').trim();
-      const notePreview = cleanNote.length > 50
-        ? cleanNote.slice(0, 50) + '...'
-        : cleanNote;
-
-      milestones.push({
-        ...phaseConfigs[pi],
-        date: fmtDate(r),
-        // 실데이터
-        realData: {
-          textbook: r.textbook || '',
-          unit: r.unit || '',
-          pages: r.pages || '',
-          homeworkRating: r.homeworkRating,
-          conceptRating: r.conceptRating,
-          testScore: r.hasTest ? r.testScore : null,
-          diagTags,
-          notePreview,
-          photoUrl: r.photoUrls?.[0] || null,
-        },
-      });
-    });
-  }
 
   // 기간 표시
   const periodLabel = sorted.length > 0
@@ -491,10 +346,10 @@ export default function GrowthStory() {
   const earliestDay = allSorted[0]?.createdAt?.seconds ? dayKeyOf(allSorted[0].createdAt.seconds) : undefined;
   const latestDay = allSorted[allSorted.length - 1]?.createdAt?.seconds ? dayKeyOf(allSorted[allSorted.length - 1].createdAt.seconds) : undefined;
 
-  // AI 서사 생성 — 전체(4개 항목 한 번에). 이미 서사가 있으면 직접 편집한 내용까지
+  // AI 서사 생성 — 전체(3개 항목 한 번에). 이미 서사가 있으면 직접 편집한 내용까지
   // 통째로 덮어써지므로 반드시 한 번 확인받음
   const handleGenNarrative = async () => {
-    if (narrative && !window.confirm('4개 항목(성장 마일스톤 2개 + 선생님 한마디 + 다음 이야기)이 전부 새로 생성되고, 직접 편집한 내용도 덮어써져요. 계속할까요?')) return;
+    if (narrative && !window.confirm('3개 항목(한 달의 결론 + 선생님 한마디 + 다음 이야기)이 전부 새로 생성되고, 직접 편집한 내용도 덮어써져요. 계속할까요?')) return;
     setNarLoading(true);
     const teacherNotes = sorted
       .filter(r => r.teacherNote)
@@ -510,7 +365,6 @@ export default function GrowthStory() {
         },
         body: JSON.stringify({
           studentName: student?.name || '학생',
-          milestones,
           unitScores,
           teacherNotes,
           isNewStudent,
@@ -554,7 +408,6 @@ export default function GrowthStory() {
           field: fieldKey,
           currentNarrative: narrative,
           studentName: student?.name || '학생',
-          milestones,
           unitScores,
           teacherNotes,
           isNewStudent,
@@ -750,236 +603,129 @@ export default function GrowthStory() {
         </button>
         );
 
-        // '처음과 지금' 히어로(2026-07-31 신규 → 2026-08-01 초기/최근 평균 비교로 재설계) —
-        // 개념 이해도 기준으로 고정(결정 ①). 원래는 첫/마지막 리포트 단건을 그냥 뺐는데, 그날
-        // 나간 단원이 우연히 더 어려우면 실력 변화가 아니라 단원 난이도 차이가 하락으로 보이는
-        // 문제가 있었음(단원 무관 비교라 착시 발생, 실사용 피드백으로 발견). 초기 N회 평균 vs
-        // 최근 N회 평균으로 바꿔 노이즈를 상쇄. N=3이면 4~6회 수업(약 2~3주)만 지나도 카드가
-        // 활성화됨. 하락이어도 숨기지 않고(과장 금지 원칙) 이유를 지어내지 않음 — "심화 단원
-        // 진입" 같은 근거 없는 해석은 절대 넣지 않고, 원인은 아래 반복 약점 패턴/단원별 이해도의
-        // 실제 데이터로 유도. 기간 토글은 이미 sorted 자체가 필터링돼 있어(결정 ⑥) 별도 처리 불필요.
-        const conceptReports = sorted.filter(r => r.conceptRating != null);
-        const HERO_AVG_N = 3;
-        const heroFirstGroup = conceptReports.slice(0, HERO_AVG_N);
-        const heroLastGroup = conceptReports.slice(-HERO_AVG_N);
-        const avgOf = (group) => Math.round(group.reduce((s, r) => s + r.conceptRating, 0) / group.length);
-        const heroFirstAvg = heroFirstGroup.length ? avgOf(heroFirstGroup) : 0;
-        const heroLastAvg = heroLastGroup.length ? avgOf(heroLastGroup) : 0;
-        const heroDelta = heroLastAvg - heroFirstAvg;
-        const heroDeltaStyle = heroDelta > 0
-          ? { bg: '#E8F1EC', color: R.positive, text: `+${heroDelta}%p` }
-          : heroDelta < 0
-          ? { bg: '#FBEDED', color: R.negative, text: `${heroDelta}%p` }
-          : { bg: '#F3F4F6', color: '#6B7280', text: '변화 없음' };
-        // 사진은 평균이 아니라 실제 첫/마지막 리포트 사진 그대로 — 숫자만 평균으로 바꾸고
-        // 사진 없는 마일스톤/히어로는 접지 않고 네이비 단색 블록으로 대체(결정 ③) — 레이아웃이
-        // 데이터 유무에 따라 들쭉날쭉해지는 걸 방지. 단, 둘 중 하나만 있으면 반반으로 쪼개
-        // 한쪽만 네이비로 비워두지 않고 있는 사진 1장을 꽉 채움(둘 다 있을 때만 반반 비교)
-        const heroFirst = conceptReports[0];
-        const heroLast = conceptReports[conceptReports.length - 1];
-        const heroFirstPhoto = heroFirst.photoUrls?.[0] || null;
-        const heroLastPhoto = heroLast.photoUrls?.[0] || null;
-        const heroContent = conceptReports.length < 2 ? null : (
-          <div style={{ background: '#fff', border: '1px solid #EEECEA', borderRadius: '14px', overflow: 'hidden', display: 'flex' }}>
-            <div style={{ width: '186px', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
-              {!heroFirstPhoto && !heroLastPhoto ? (
-                <div style={{ flex: 1, background: sk.primary }} />
-              ) : heroFirstPhoto && heroLastPhoto ? (
-                <>
-                  <img src={heroFirstPhoto} alt="수업 사진" style={{ flex: 1, minHeight: 0, width: '100%', objectFit: 'cover', display: 'block' }} />
-                  <img src={heroLastPhoto} alt="수업 사진" style={{ flex: 1, minHeight: 0, width: '100%', objectFit: 'cover', display: 'block' }} />
-                </>
-              ) : (
-                <img src={heroFirstPhoto || heroLastPhoto} alt="수업 사진" style={{ flex: 1, minHeight: 0, width: '100%', objectFit: 'cover', display: 'block' }} />
+        // 1페이지 — 한 달의 결론 (2026-08-03 재편: 마일스톤 카드·처음과 지금 하락 배지 폐기).
+        // narrative.monthConclusion(AI 생성, 편집 가능)을 결론 문장으로 쓰고, 없으면
+        // 안내 문구만 보여준다(억지로 지어내지 않음 — "없는 데이터는 조건부 생략" 원칙).
+        const conclusionTextContent = (
+          <div style={S.section}>
+            <p style={S.label}>한 달의 결론</p>
+            {editing === 'monthConclusion' ? (
+              <div>
+                <textarea value={editText} onChange={e => setEditText(e.target.value.slice(0, NARRATIVE_MAX_LEN))} maxLength={NARRATIVE_MAX_LEN}
+                  style={{ width: '100%', minHeight: '80px', padding: '10px', border: '1px solid #E5E5E5', borderRadius: '8px', color: '#2C2C2C', fontSize: '16px', lineHeight: 1.8, fontFamily: 'inherit', resize: 'vertical', outline: 'none' }} />
+                <EditCharCount text={editText} />
+                <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                  <button onClick={saveEdit} style={{ flex: 1, padding: '7px', background: sk.primary, border: 'none', borderRadius: '6px', color: '#fff', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>저장</button>
+                  <button onClick={cancelEdit} style={{ flex: 1, padding: '7px', background: '#F3F4F6', border: 'none', borderRadius: '6px', color: '#6B7280', fontSize: '11px', cursor: 'pointer' }}>취소</button>
+                </div>
+              </div>
+            ) : narrative?.monthConclusion ? (
+              <>
+                <p style={{ fontSize: '17px', fontWeight: 700, lineHeight: 1.6, color: '#171719', margin: 0 }}>{narrative.monthConclusion}</p>
+                {isEditor && (
+                  <span style={{ display: 'flex', gap: '7px', marginTop: '10px' }}>
+                    <button onClick={() => startEdit('monthConclusion')}
+                      style={{ border: '1px solid #DCDFE4', borderRadius: '7px', background: '#fff', color: sk.primary, fontSize: '11px', fontWeight: 700, padding: '7px 12px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                      편집
+                    </button>
+                    <button onClick={() => handleRegenField('monthConclusion')} disabled={!!regenField}
+                      title="이 항목만 AI로 다시 생성 (다른 항목은 그대로)"
+                      style={{ border: '1px solid #DCDFE4', borderRadius: '7px', background: '#fff', color: sk.primary, fontSize: '11px', fontWeight: 700, padding: '7px 12px', cursor: regenField ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: regenField && regenField !== 'monthConclusion' ? 0.5 : 1 }}>
+                      {regenField === 'monthConclusion' ? '⏳ 생성 중' : '이 항목만 재생성'}
+                    </button>
+                  </span>
+                )}
+              </>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '20px 0', color: '#6C7586', fontSize: '13px' }}>
+                {isEditor ? '위 "AI 서사 자동 생성" 버튼을 누르면 이번 달 결론이 채워집니다' : '리포트가 쌓이면 이번 달의 결론이 채워집니다'}
+              </div>
+            )}
+          </div>
+        );
+
+        // 사진 2장(첫/마지막) — 델타 숫자 없이 날짜만 표기. 실제 사진이 있는 첫/마지막
+        // 리포트를 찾는다(사진 없는 회차는 건너뜀 — 지어내지 않음).
+        const heroPhotoReports = sorted.filter(r => r.photoUrls?.length > 0);
+        const heroFirstPhotoR = heroPhotoReports[0];
+        const heroLastPhotoR = heroPhotoReports[heroPhotoReports.length - 1];
+        const twoPhotoContent = heroPhotoReports.length === 0 ? null : (
+          <div style={S.section}>
+            <div style={{ display: 'grid', gridTemplateColumns: heroPhotoReports.length > 1 ? 'repeat(2,minmax(0,1fr))' : '1fr', gap: '10px' }}>
+              <img src={heroFirstPhotoR.photoUrls[0]} alt="수업 사진" style={{ width: '100%', height: '158px', objectFit: 'cover', borderRadius: '12px', display: 'block' }} />
+              {heroPhotoReports.length > 1 && (
+                <img src={heroLastPhotoR.photoUrls[0]} alt="수업 사진" style={{ width: '100%', height: '158px', objectFit: 'cover', borderRadius: '12px', display: 'block' }} />
               )}
             </div>
-            <div style={{ flex: 1, minWidth: 0, padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: '15px', justifyContent: 'center' }}>
-              <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '1.6px', color: sk.bannerLabel }}>처음과 지금</span>
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '14px', flexWrap: 'wrap' }}>
-                <span style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                  <span style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(55,56,60,0.75)' }}>초기 {heroFirstGroup.length}회 평균</span>
-                  <span style={{ fontSize: '26px', fontWeight: 600, lineHeight: 1, color: 'rgba(55,56,60,0.75)' }}>{heroFirstAvg}<span style={{ fontSize: '12px', fontWeight: 600 }}>%</span></span>
-                </span>
-                <span style={{ fontSize: '18px', color: '#B0B5BD', marginBottom: '4px' }}>→</span>
-                <span style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                  <span style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(55,56,60,0.75)' }}>최근 {heroLastGroup.length}회 평균</span>
-                  <span style={{ fontSize: '40px', fontWeight: 700, lineHeight: 1, letterSpacing: '-1px', color: sk.primary }}>{heroLastAvg}<span style={{ fontSize: '14px', fontWeight: 600 }}>%</span></span>
-                </span>
-                <span style={{ background: heroDeltaStyle.bg, color: heroDeltaStyle.color, fontSize: '13px', fontWeight: 700, padding: '7px 12px', borderRadius: '8px', marginBottom: '5px' }}>{heroDeltaStyle.text}</span>
-              </div>
-              {/* 방향(상승/하락)에 따라 다른 문구를 쓰지 않음 — 카드가 실제로 계산한 방식만
-                  그대로 설명하고, 이유는 지어내지 않는다(2026-08-01 결정, ai-hallucination-fix-pattern). */}
-              <span style={{ fontSize: '13px', fontWeight: 500, lineHeight: 1.7, color: 'rgba(55,56,60,0.9)' }}>총 {sorted.length}회 수업 중 초기 {heroFirstGroup.length}회와 최근 {heroLastGroup.length}회의 성취도 집계 결과입니다.</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', marginTop: '10px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(55,56,60,0.75)' }}>{fmtDate(heroFirstPhotoR)}</span>
+              {heroPhotoReports.length > 1 && <span style={{ fontSize: '11px', fontWeight: 700, color: sk.primary }}>{fmtDate(heroLastPhotoR)}</span>}
             </div>
           </div>
         );
 
-        // 1페이지 — GROWTH MILESTONE (항상 존재, 데이터 없을 때 안내 문구)
-        const milestoneContent = milestones.length === 0 ? (
+        // 지표 3분류(학습/성취/성실) — 단위·축이 다른 지표를 한 카드에 섞지 않고 성격별로
+        // 분리(핸드오프 §2-1, 4페이지 KEY METRICS를 흡수). avgScore/hwAvg/conceptAvg/
+        // attendanceRate 등 위에서 이미 계산해둔 값만 재사용 — 4페이지와 소스가 갈리지 않음.
+        const metricGroups = [
+          {
+            title: '학습', scope: `수업 ${sorted.length}회 평균`,
+            rows: [
+              hwAvg != null && { label: '과제 수행', value: hwAvg, unit: '%', color: sk.primary, bar: hwAvg, note: '제출한 과제의 완성도' },
+              conceptAvg != null && { label: '개념 이해', value: conceptAvg, unit: '%', color: sk.bannerLabel, bar: conceptAvg, note: '선생님이 수업 중 관찰한 값' },
+            ].filter(Boolean),
+          },
+          allScores.length > 0 && {
+            title: '성취', scope: `단원평가 ${allScores.length}회`,
+            rows: [
+              maxScore != null && { label: '최고 점수', value: maxScore, unit: '점', color: sk.primary,
+                note: [maxScoreReport && fmtDate(maxScoreReport), maxScoreReport?.unit || maxScoreReport?.textbook].filter(Boolean).join(' · ') || '100점 만점' },
+              avgScore != null && { label: `${allScores.length}회 평균`, value: avgScore, unit: '점', color: sk.bannerLabel, note: `${minScore}점 → ${maxScore}점` },
+            ].filter(Boolean),
+          },
+          {
+            title: '성실', scope: `예정 ${sorted.length}회`,
+            rows: [
+              { label: '정시 출석', value: attendanceRate, unit: '%', color: sk.primary, bar: attendanceRate,
+                note: `출석 ${onTimeCount} · 지각 ${lateCount} · 결석 ${absentCount}` },
+            ],
+          },
+        ].filter(Boolean);
+        const metricGroupsContent = (
           <div style={S.section}>
-            <p style={S.label}>GROWTH MILESTONE</p>
-            <div style={{ textAlign: 'center', padding: '24px 0', color: '#6C7586', fontSize: '13px' }}>
-              리포트가 쌓이면 성장 마일스톤이 자동으로 생성됩니다
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              {metricGroups.map((g, gi) => (
+                <div key={gi} style={{ padding: gi === 0 ? '0 0 16px' : '16px 0', borderTop: gi === 0 ? 'none' : '1px solid #EEECEA', display: 'flex', flexDirection: 'column', gap: '13px' }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '10px' }}>
+                    <span style={{ fontSize: '12.5px', fontWeight: 700, color: '#171719' }}>{g.title}</span>
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(55,56,60,0.75)' }}>{g.scope}</span>
+                  </div>
+                  {g.rows.map((r, ri) => (
+                    <div key={ri} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '12px' }}>
+                        <span style={{ fontSize: '12.5px', fontWeight: 600, color: '#171719' }}>{r.label}</span>
+                        <span style={{ fontSize: '19px', fontWeight: 700, lineHeight: 1, letterSpacing: '-0.3px', color: r.color }}>{r.value}<span style={{ fontSize: '11px', fontWeight: 600 }}>{r.unit}</span></span>
+                      </div>
+                      {r.bar != null && (
+                        <div style={{ height: '7px', borderRadius: '5px', background: '#E7EAF2', overflow: 'hidden', display: 'flex' }}>
+                          <div style={{ width: `${Math.max(0, Math.min(100, r.bar))}%`, background: r.color }} />
+                        </div>
+                      )}
+                      <span style={{ fontSize: '11px', fontWeight: 500, color: 'rgba(55,56,60,0.75)' }}>{r.note}</span>
+                    </div>
+                  ))}
+                </div>
+              ))}
             </div>
           </div>
-        ) : (
-        <>
-        {heroContent}
-        {/* 핵심 숫자 3개 — 타임라인을 읽기 전에 결과부터 한눈에. 전부 위에서 이미 계산해둔
-            실데이터(avgScore/attendanceRate)만 쓰고 새 지표는 지어내지 않음 */}
-        <div style={{ display: 'flex', gap: '10px' }}>
-          {[
-            { value: `${sorted.length}회`, label: '수업' },
-            { value: avgScore != null ? `${avgScore}점` : (hwAvg != null ? `${hwAvg}%` : '-'), label: avgScore != null ? '평균 점수' : '평균 과제' },
-            { value: `${attendanceRate}%`, label: '정시 출석' },
-          ].map((stat, si) => (
-            <div key={si} style={{ flex: 1, textAlign: 'center', padding: '14px 8px', background: '#F8F9FC', border: '0.5px solid #E5E7EB', borderRadius: '10px' }}>
-              <p style={{ fontSize: '20px', fontWeight: 800, color: sk.primary, margin: '0 0 3px' }}>{stat.value}</p>
-              <p style={{ fontSize: '10px', fontWeight: 600, color: '#8A93A3', margin: 0, letterSpacing: '0.02em' }}>{stat.label}</p>
-            </div>
-          ))}
-        </div>
-        {sectionDivider('GROWTH MILESTONE')}
-        {sorted.length > milestones.length && (
-          <p style={{ fontSize: '13px', color: '#6C7586', margin: '-4px 0 0', lineHeight: 1.6 }}>
-            총 {sorted.length}회 수업 중 의미 있었던 {milestones.length}개의 순간을 모았어요
-          </p>
-        )}
+        );
 
-        {/* 마일스톤 카드 — narrative 유무로 주(첫·마지막)/보조(중간) 2등급 파생(승인된 결정 ②,
-            추가 승격 규칙 없음). 예전 세로 타임라인(선+점)은 카드 자체가 이제 앨범 사진 카드라서
-            제거 — 1d 시안에 맞춤. 사진 없는 주 마일스톤은 접지 않고 네이비 단색으로 대체(결정 ③) */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {milestones.map((m, i) => {
-            const isChapter1 = i === 0;
-            const isChapter2 = i === milestones.length - 1;
-            const isMajor = isChapter1 || isChapter2;
-            const chapterField = isChapter1 ? 'chapter1' : isChapter2 ? 'chapter2' : null;
-            const chapterText = narrative
-              ? (isChapter1 ? narrative.chapter1 : isChapter2 ? narrative.chapter2 : m.desc)
-              : m.desc;
-            const rd = m.realData;
-            const range = [rd.textbook, rd.unit, rd.pages && fmtPages(rd.pages)].filter(Boolean).join(' · ');
-            const figures = [
-              rd.homeworkRating != null && { label: '과제', value: `${rd.homeworkRating}%`, color: sk.primary },
-              rd.conceptRating != null && { label: '개념', value: `${rd.conceptRating}%`, color: sk.primary },
-              rd.testScore && { label: '시험', value: `${rd.testScore}점`, color: sk.bannerLabel },
-            ].filter(Boolean);
-
-            if (!isMajor) {
-              // 보조 마일스톤 — 사진·코멘트·서사 없이 한 줄 행만(길이 절감의 핵심)
-              return (
-                <div key={i} style={{ background: '#fff', border: '1px solid #EEECEA', borderRadius: '12px', padding: '15px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '18px' }}>
-                  <span style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 }}>
-                    <span style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
-                      <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.4px', color: sk.bannerLabel }}>{m.phase.split(' · ')[0]}</span>
-                      <span style={{ fontSize: '10.5px', fontWeight: 600, color: 'rgba(55,56,60,0.75)' }}>{m.date}</span>
-                    </span>
-                    <span style={{ fontSize: '14px', fontWeight: 700, lineHeight: 1.5, color: '#171719' }}>{m.title}</span>
-                    {range && <span style={{ fontSize: '11px', fontWeight: 500, color: 'rgba(55,56,60,0.75)' }}>{range}</span>}
-                  </span>
-                  {figures.length > 0 && (
-                    <span style={{ display: 'flex', gap: '7px', flexShrink: 0 }}>
-                      {figures.map((f, fi) => (
-                        <span key={fi} style={{ background: '#F5F5F0', borderRadius: '7px', padding: '7px 10px', display: 'flex', flexDirection: 'column', gap: '3px', alignItems: 'center' }}>
-                          <span style={{ fontSize: '9.5px', fontWeight: 600, color: 'rgba(55,56,60,0.75)' }}>{f.label}</span>
-                          <span style={{ fontSize: '13px', fontWeight: 700, color: f.color }}>{f.value}</span>
-                        </span>
-                      ))}
-                    </span>
-                  )}
-                </div>
-              );
-            }
-
-            // 주 마일스톤 — 196px 사진 + 기록 띠 + 코멘트 + 서사(첫·마지막 카드만)
-            const hasFigureRow = !!range || figures.length > 0 || rd.diagTags.length > 0;
-            return (
-              <div key={i} style={{ background: '#fff', border: '1px solid #EEECEA', borderRadius: '14px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                {/* 사진 있으면 196px 사진 위에 오버레이, 없으면 그 자리를 통째로 네이비로
-                    채우지 않고(빈 배너처럼 커 보임) 내용만큼만 높이가 나오는 얇은 헤더 띠로 대체 */}
-                {rd.photoUrl ? (
-                  <div style={{ position: 'relative', height: '196px' }}>
-                    <img src={rd.photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                    <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '14px 18px', background: 'rgba(13,45,107,0.84)', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '14px' }}>
-                      <span style={{ display: 'flex', flexDirection: 'column', gap: '5px', minWidth: 0 }}>
-                        <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.6px', color: '#E4C978' }}>{m.phase}</span>
-                        <span style={{ fontSize: '18px', fontWeight: 700, letterSpacing: '-0.3px', color: '#fff' }}>{m.title}</span>
-                      </span>
-                      <span style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.86)', whiteSpace: 'nowrap' }}>{m.date}</span>
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{ background: sk.primary, padding: '16px 18px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '14px' }}>
-                    <span style={{ display: 'flex', flexDirection: 'column', gap: '5px', minWidth: 0 }}>
-                      <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.6px', color: '#E4C978' }}>{m.phase}</span>
-                      <span style={{ fontSize: '18px', fontWeight: 700, letterSpacing: '-0.3px', color: '#fff' }}>{m.title}</span>
-                    </span>
-                    <span style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.86)', whiteSpace: 'nowrap' }}>{m.date}</span>
-                  </div>
-                )}
-
-                {hasFigureRow && (
-                  <div style={{ padding: '14px 18px', borderBottom: (rd.notePreview || chapterField) ? '1px solid #F1EFEC' : 'none', display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-                    {range && <span style={{ fontSize: '12px', fontWeight: 600, color: '#171719' }}>{range}</span>}
-                    {range && (figures.length > 0 || rd.diagTags.length > 0) && <span style={{ width: '1px', height: '11px', background: '#E2DFD9', display: 'block' }} />}
-                    {figures.map((f, fi) => (
-                      <span key={fi} style={{ display: 'flex', alignItems: 'baseline', gap: '5px' }}>
-                        <span style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(55,56,60,0.75)' }}>{f.label}</span>
-                        <span style={{ fontSize: '14px', fontWeight: 700, color: f.color }}>{f.value}</span>
-                      </span>
-                    ))}
-                    {rd.diagTags.map((tag, ti) => (
-                      <span key={ti} style={{ background: '#FBEDED', color: R.negative, fontSize: '10px', fontWeight: 700, padding: '4px 9px', borderRadius: '6px' }}>{tag}</span>
-                    ))}
-                  </div>
-                )}
-
-                {rd.notePreview && (
-                  <div style={{ padding: '13px 18px', borderBottom: chapterField ? '1px solid #F1EFEC' : 'none', display: 'flex', gap: '9px', alignItems: 'baseline' }}>
-                    <span style={{ fontSize: '10px', fontWeight: 700, color: sk.bannerLabel, whiteSpace: 'nowrap' }}>코멘트</span>
-                    <span style={{ fontSize: '12.5px', fontWeight: 500, lineHeight: 1.65, color: 'rgba(55,56,60,0.9)' }}>{rd.notePreview}</span>
-                  </div>
-                )}
-
-                {chapterField && (
-                  <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {editing === chapterField ? (
-                      <div>
-                        <textarea value={editText} onChange={e => setEditText(e.target.value.slice(0, NARRATIVE_MAX_LEN))} maxLength={NARRATIVE_MAX_LEN}
-                          style={{ width: '100%', minHeight: '70px', padding: '10px', border: '1px solid #E5E5E5', borderRadius: '8px', color: '#2C2C2C', fontSize: '16px', lineHeight: 1.8, fontFamily: 'inherit', resize: 'vertical', outline: 'none' }} />
-                        <EditCharCount text={editText} />
-                        <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                          <button onClick={saveEdit} style={{ flex: 1, padding: '7px', background: sk.primary, border: 'none', borderRadius: '6px', color: '#fff', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>저장</button>
-                          <button onClick={cancelEdit} style={{ flex: 1, padding: '7px', background: '#F3F4F6', border: 'none', borderRadius: '6px', color: '#6B7280', fontSize: '11px', cursor: 'pointer' }}>취소</button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <span style={{ fontSize: '15px', fontWeight: 600, lineHeight: 1.75, color: '#171719' }}>{chapterText}</span>
-                        {isEditor && narrative && (
-                          <span style={{ display: 'flex', gap: '7px' }}>
-                            <button onClick={() => startEdit(chapterField)}
-                              style={{ border: '1px solid #DCDFE4', borderRadius: '7px', background: '#fff', color: sk.primary, fontSize: '11px', fontWeight: 700, padding: '7px 12px', cursor: 'pointer', fontFamily: 'inherit' }}>
-                              편집
-                            </button>
-                            <button onClick={() => handleRegenField(chapterField)} disabled={!!regenField}
-                              title="이 항목만 AI로 다시 생성 (다른 항목은 그대로)"
-                              style={{ border: '1px solid #DCDFE4', borderRadius: '7px', background: '#fff', color: sk.primary, fontSize: '11px', fontWeight: 700, padding: '7px 12px', cursor: regenField ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: regenField && regenField !== chapterField ? 0.5 : 1 }}>
-                              {regenField === chapterField ? '⏳ 생성 중' : '이 항목만 재생성'}
-                            </button>
-                          </span>
-                        )}
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        </>
+        const conclusionContent = (
+          <>
+            {conclusionTextContent}
+            {twoPhotoContent}
+            {metricGroupsContent}
+          </>
         );
 
         // 2페이지 — 성적 추이(라인차트) + 단원별 평가 추이 + 자주 나온 약점 유형 (셋 다 없으면 페이지 자체가 생략됨)
@@ -1504,7 +1250,7 @@ export default function GrowthStory() {
         // 통째로 비어(scoreTrendContent/unitTrendContent 둘 다 null) 아래 filter(Boolean)로 걸러짐.
         // 약점 유형은 더 이상 이 페이지에 없음(4페이지 '다음 목표'로 흡수)
         const pages = [
-          { key: 'milestone', label: '성장 마일스톤', content: (<>{aiGenButtonContent}{milestoneContent}</>) },
+          { key: 'conclusion', label: '한 달의 결론', content: (<>{aiGenButtonContent}{conclusionContent}</>) },
           unitCardsContent && { key: 'units', label: '단원별 정리', content: unitCardsContent },
           (scoreTrendContent || unitTrendContent) && { key: 'trend', label: '평가 추이', content: (<>{scoreTrendContent}{unitTrendContent}</>) },
           { key: 'metrics', label: '핵심 지표', content: (<>{reviewEffectContent}{keyMetricsContent}</>) },

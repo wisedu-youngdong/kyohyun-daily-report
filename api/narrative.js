@@ -5,21 +5,24 @@ import { verifyIdTokenHeader } from './_lib/verifyAuth.js';
 
 export const maxDuration = 30;
 
-const REQUIRED_FIELDS = ['chapter1', 'chapter2', 'teacherWord', 'nextChapter'];
+// 2026-08-03 재편: 마일스톤 카드(chapter1/chapter2)를 폐기하고 성장 포트폴리오 1페이지
+// "한 달의 결론"(monthConclusion) 하나로 교체 — 3페이지 수업 기록(세션 피드 + 표시점)이
+// chapter1/chapter2가 하던 "의미 있는 순간 짚기" 역할을 대신한다. 기존 문서에 남아있는
+// chapter1/chapter2 값은 그대로 두되(마이그레이션 불필요, 어차피 화면에서 안 읽음) 새로
+// 생성하지는 않는다.
+const REQUIRED_FIELDS = ['monthConclusion', 'teacherWord', 'nextChapter'];
 
 // 항목별 작성 규칙 — 전체 생성 프롬프트와 항목별 재생성 프롬프트가 같은 규칙을 공유
 // (여기만 고치면 두 모드에 동시 반영)
 const FIELD_RULES = {
   newStudent: {
-    chapter1: 'chapter1(출발점): 위 데이터에 나온 실제 단원명을 1회 이상 그대로 인용해, 처음 시작하는 아이의 낯섦과 의지를 2문장으로. AI냄새 나는 표현(인상적/훌륭/대단) 금지.',
-    chapter2: 'chapter2(가능성): 위 데이터에 나온 가장 최근 단원명과 점수를 반드시 함께 인용해, 첫 성취가 갖는 의미와 앞으로의 가능성을 2문장으로. 과장 없이 담담하게.',
+    monthConclusion: 'monthConclusion(한 달의 결론): 위 데이터에 나온 구체적 수치·단원명을 1개 이상 인용해, 이번 기간 가장 눈에 띄는 변화나 성취 하나를 1~2문장으로 결론짓듯 쓸 것. 처음 시작하는 아이라는 점을 감안해 적응 과정의 의미를 담되, AI냄새 나는 표현(인상적/훌륭/대단) 금지.',
     teacherWord: 'teacherWord: 반드시 이 순서로 — ① 위 데이터에 나온 구체적 수치·단원명을 최소 1개 인용해 실제로 있었던 변화를 짚고 ② 그 변화가 뭘 뜻하는지 담담히 해석. "고집"/"끈기"/"집요함" 같은 성격 형용사는 그 자체로 쓰지 말 것 — 정 필요하면 방금 인용한 구체적 장면 바로 뒤에만("OO단원을 몇 번이고 다시 풀어본 데서 보이듯" 식으로) 붙일 것. 막연한 칭찬 금지. 1~2문장.',
     nextChapter: 'nextChapter: 다음 목표 1문장. 위 데이터에 나온 실제 단원명 포함.',
   },
   returning: {
-    chapter1: 'chapter1(도전의 시작): 위 데이터에서 이 학생이 처음 맞섰던 실제 단원명을 1회 이상 그대로 인용해, 그 단원에서 맞서온 구체적인 약점과 극복 의지를 2문장으로. "첫 수업" 언급 금지. AI냄새 금지.',
-    chapter2: 'chapter2(변화): 이 학생의 초기 약점 단원을 언급하며, 그 약점이 위 데이터의 가장 최근 단원(실제 단원명·점수 인용)에서 오답 개수·점수 같은 구체적 수치로 어떻게 나아졌는지만 담담하게 2문장으로. "논리적 훈련", "체계 완성", "사고력" 같은 추상적 인과관계 서술 금지 — 관찰된 수치 변화만 쓸 것. 두 단원명이 반드시 서로 달라야 함.',
-    teacherWord: 'teacherWord: 반드시 이 순서로 자연스러운 문장을 이어 쓸 것(순서 설명이지 그대로 옮겨 적을 서식이 아님 — 대괄호나 화살표 같은 구조 기호는 절대 출력하지 말 것) — 먼저 수업 기간이나 횟수를 언급하고, 그 동안 구체적 지표(단원명·정답률·점수 등)가 어떤 수치로 변화했는지 짚은 뒤, 그 변화가 학부모 입장에서 뭘 의미하는지 담담히 해석하고, 마지막으로 앞으로 어떻게 지도할지 이어 쓸 것. 위 데이터에 나온 실제 수치·단원명을 최소 2개 인용. "고집"/"끈기"/"집요함" 같은 성격 형용사는 그 자체로 쓰지 말 것 — 정 필요하면 방금 인용한 구체적 수치 바로 뒤에만("OO단원 정답률이 X%에서 Y%로 오른 데서 보이듯" 식으로) 붙일 것. 담담하고 구체적으로, 가벼운 칭찬 금지. 2~3문장.',
+    monthConclusion: 'monthConclusion(한 달의 결론): 위 데이터에 나온 초기 대비 최근 수치 변화(오답 개수·점수·정답률 등)를 반드시 인용해, 이번 기간의 핵심 변화를 1~2문장으로 결론짓듯 쓸 것. "논리적 훈련", "사고력 고도화" 같은 추상적 해석 금지 — 관찰된 수치 변화만.',
+    teacherWord: 'teacherWord: 반드시 이 순서로 자연스러운 문장을 이어 쓸 것(순서 설명이지 그대로 옮겨 적을 서식이 아님 — 대괄호나 화살표 같은 구조 기호는 절대 출력하지 말 것) — 먼저 그동안 다뤄온 단원의 흐름을 짚고(수업 횟수·기간은 언급하지 말 것 — 아래 참고), 그 동안 구체적 지표(단원명·정답률·점수 등)가 어떤 수치로 변화했는지 짚은 뒤, 그 변화가 학부모 입장에서 뭘 의미하는지 담담히 해석하고, 마지막으로 앞으로 어떻게 지도할지 이어 쓸 것. 위 데이터에 나온 실제 수치·단원명을 최소 2개 인용. "고집"/"끈기"/"집요함" 같은 성격 형용사는 그 자체로 쓰지 말 것 — 정 필요하면 방금 인용한 구체적 수치 바로 뒤에만("OO단원 정답률이 X%에서 Y%로 오른 데서 보이듯" 식으로) 붙일 것. 담담하고 구체적으로, 가벼운 칭찬 금지. 2~3문장.',
     nextChapter: 'nextChapter: 다음 극복 과제 1문장. 위 데이터에 나온 실제 단원명/유형 포함.',
   },
 };
@@ -71,7 +74,7 @@ export default async function handler(req, res) {
   // 액션이라 로그인 필수 — analyze-photo.js/polish.js와 동일한 기준
   if (!(await verifyIdTokenHeader(req))) return res.status(401).json({ error: '로그인이 필요합니다.' });
 
-  const { studentName, milestones = [], unitScores = [], teacherNotes, isNewStudent, totalReports, field, currentNarrative, type } = req.body;
+  const { studentName, unitScores = [], teacherNotes, isNewStudent, totalReports, field, currentNarrative, type } = req.body;
 
   // ── 모드 3: 기간 요약(성장 포트폴리오 "학습 기록 상세") — 그 기간 teacherNote 전체를
   // 2~3문장으로 압축. 공개 페이지에서 열람마다 자동 생성하면 비용/지연이 새므로 원장이
@@ -124,11 +127,10 @@ JSON만 반환 (코드블록 없이, 순수 JSON만): {"text":"..."}`;
   const scoreText = unitScores.length > 0
     ? unitScores.map(u => `${u.unit} ${u.scores.map(s => s.score + '점').join('→')}`).join(', ')
     : '';
-  const phaseText = milestones.map(m => m.title).join(' → ');
   const rules = isNewStudent ? FIELD_RULES.newStudent : FIELD_RULES.returning;
   const dataLine = isNewStudent
-    ? `데이터: ${phaseText}. ${scoreText}. 선생님 메모: ${lastNote.slice(0, 120)}`
-    : `데이터: ${phaseText}. ${scoreText}. 선생님 메모: ${allNotes.slice(0, 200)}`;
+    ? `데이터: ${scoreText}. 선생님 메모: ${lastNote.slice(0, 120)}`
+    : `데이터: ${scoreText}. 선생님 메모: ${allNotes.slice(0, 200)}`;
   const headline = isNewStudent
     ? `수업 ${totalReports}회 신규생.\n톤: 따뜻하고 격려하는 — 적응 과정과 첫 성취의 의미에 집중.`
     : `수업 ${totalReports}회 재학생.\n톤: 담담하고 구체적 — 오답 개수·점수 등 실제 수치 변화에 집중. 거창한 해석 금지.`;
@@ -195,11 +197,10 @@ ${dataLine}
 ${DATA_RULE}
 ${NO_HYPE_RULE}
 ${NO_RUNNING_TOTAL_RULE}
-${rules.chapter1}
-${rules.chapter2}
+${rules.monthConclusion}
 ${rules.teacherWord}
 ${rules.nextChapter}
-JSON만 반환 (코드블록 없이, 순수 JSON만): {"chapter1":"...","chapter2":"...","teacherWord":"...","nextChapter":"..."}`;
+JSON만 반환 (코드블록 없이, 순수 JSON만): {"monthConclusion":"...","teacherWord":"...","nextChapter":"..."}`;
 
   try {
     const cleaned = await callGemini(prompt, 8192);
