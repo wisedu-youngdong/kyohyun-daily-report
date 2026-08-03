@@ -98,6 +98,21 @@ export function textSafeColor(hex, bg = '#ffffff', target = 4.5) {
   return '#000000';
 }
 
+// textSafeColor는 어둡게만 가는 함수라("흰 배경 위 텍스트"용) 배경 자체가 어두울 때(예: 스킨의
+// 주조색 헤더 위에 얹는 포인트색 라벨)는 반대로 밝게 가야 함 — 어두운 accent를 어두운 헤더
+// 위에 그대로 쓰면 거의 안 보이던 문제를 고치기 위해 추가
+function lightenForContrast(hex, bg, target = 3) {
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return hex;
+  if (contrastRatio(hex, bg) >= target) return hex;
+  let [r, g, b] = [hex.slice(1, 3), hex.slice(3, 5), hex.slice(5, 7)].map((h) => parseInt(h, 16));
+  for (let i = 0; i < 20; i++) {
+    r = Math.min(255, r + 12); g = Math.min(255, g + 12); b = Math.min(255, b + 12);
+    const candidate = '#' + [r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('');
+    if (contrastRatio(candidate, bg) >= target) return candidate;
+  }
+  return '#ffffff';
+}
+
 // RGB 선형 보간 — 스킨 파생색 계산에서 "흰색/검정색을 N% 섞기" 용도로 씀
 function mixHex(hexA, hexB, t) {
   const pa = [1, 3, 5].map(i => parseInt(hexA.slice(i, i + 2), 16));
@@ -113,10 +128,15 @@ export function deriveSkinColors(primaryIn, accentIn) {
   // primary/second/bannerLabel은 흰 글자가 위에 얹히므로 textSafeColor를 "배경 자신이
   // 대비 기준을 넘을 때까지 어둡게"용으로 재사용(대비 계산은 순서 무관이라 그대로 맞음)
   const primary = textSafeColor(primaryIn, '#ffffff', 4.5);
+  // accent는 primary 배경(헤더) 위에 라벨 텍스트/포인트로 그대로 얹힘 — primary는 항상
+  // "흰 배경 대비 4.5:1"로 어둡게 고정되므로(위), 어두운 accent를 고르면 어두운 헤더 위에서
+  // 거의 안 보일 수 있어 필요하면 밝게 보정. 작은 라벨/장식용이라 본문 텍스트 기준(4.5)보다
+  // 완화된 WCAG 큰글씨 기준(3.0) 적용
+  const accent = lightenForContrast(accentIn, primary, 3);
   return {
     primary,
     second: textSafeColor(mixHex(primary, '#ffffff', 0.2), '#ffffff', 4.5),
-    accent: accentIn,
+    accent,
     tint: mixHex(accentIn, '#ffffff', 0.86),
     track: mixHex(primary, '#ffffff', 0.88),
     bannerLabel: textSafeColor(mixHex(accentIn, '#000000', 0.45), '#ffffff', 4.5),
