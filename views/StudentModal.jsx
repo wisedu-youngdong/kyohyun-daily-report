@@ -79,6 +79,7 @@ export function StudentModal({ student, onClose, onSubmit, teachers = [], classe
   const [skinColor, setSkinColor] = useState(student?.skinColor || '');
   const [useCustomSkin, setUseCustomSkin] = useState(!!student?.skinColor);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const phoneOk = isValidPhone(parentPhone);
   const isValid = name.trim() && school.trim() && textbooks.some(t => t.name.trim()) && phoneOk;
@@ -94,6 +95,7 @@ export function StudentModal({ student, onClose, onSubmit, teachers = [], classe
   const handleSubmit = async () => {
     if (!isValid) return;
     setSaving(true);
+    setSaveError('');
     const effectiveTeacherId = classId ? (selectedClass?.teacherId || '') : assignedTeacherId;
     const payload = {
       name: name.trim(), school: school.trim(), parentPhone: parentPhone.trim(),
@@ -115,8 +117,16 @@ export function StudentModal({ student, onClose, onSubmit, teachers = [], classe
       if (scheduleDays.length) payload.scheduleDays = scheduleDays;
       if (reportMode) payload.reportMode = reportMode;
     }
-    await onSubmit(payload);
-    setSaving(false);
+    // onSubmit 실패 시(네트워크 오류 등) 모달을 닫지 않고 그대로 열어둬야 입력값이
+    // 안 날아가고 재시도할 수 있음 — 실패해도 무조건 닫히던 버그가 있었음
+    try {
+      await onSubmit(payload);
+    } catch (e) {
+      console.error('학생 저장 실패:', e);
+      setSaveError('저장에 실패했어요. 잠시 후 다시 시도해주세요.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   // 담당 강사 재배정은 원장만 — 강사가 다른 강사에게 학생을 재배정할 수 있으면 안 돼서
@@ -365,7 +375,8 @@ export function StudentModal({ student, onClose, onSubmit, teachers = [], classe
           </div>
         </div>
 
-        <div style={{ padding: '12px 22px', borderTop: '1px solid #E5E7EB', display: 'flex', gap: '8px', justifyContent: isEdit ? 'center' : 'flex-end', background: '#F9FAFB', borderRadius: '0 0 18px 18px' }}>
+        <div style={{ padding: '12px 22px', borderTop: '1px solid #E5E7EB', display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center', justifyContent: isEdit ? 'center' : 'flex-end', background: '#F9FAFB', borderRadius: '0 0 18px 18px' }}>
+          {saveError && <p style={{ width: '100%', margin: 0, fontSize: '12px', fontWeight: 600, color: C.errorDark, textAlign: isEdit ? 'center' : 'right' }}>{saveError}</p>}
           <button onClick={onClose} style={{ padding: '9px 18px', fontSize: '13px', fontWeight: 600, borderRadius: '9px', border: '1px solid #E5E7EB', background: '#fff', color: '#6B7280', cursor: 'pointer', fontFamily: 'inherit' }}>취소</button>
           <button onClick={handleSubmit} disabled={!isValid || saving}
             style={{ padding: '9px 18px', fontSize: '13px', fontWeight: 700, borderRadius: '9px', border: 'none', background: isValid ? C.primary : '#E5E7EB', color: isValid ? '#fff' : '#6C7586', cursor: isValid ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: '5px', fontFamily: 'inherit' }}>

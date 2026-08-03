@@ -13,13 +13,13 @@ const AVATAR_PALETTE = [
   { color: '#5C8A63', bg: '#E4EEE5' },
 ];
 
-export default function DashboardView({ students, reports, classes = [], reportViews = [], onTabChange, onWriteFor, reviews = [], onCompleteReview, onToggleReviewInstructed, onQuickAbsence, onDismissUnreadReminder }) {
+export default function DashboardView({ students, reports, classes = [], reportViews = [], onTabChange, onWriteFor, reviews = [], onCompleteReview, onToggleReviewInstructed, onQuickAbsence, onDismissUnreadReminder, onToast }) {
   const [copiedReportId, setCopiedReportId] = React.useState(null);
   const handleCopyReportLink = (reportId) => {
     navigator.clipboard.writeText(`${window.location.origin}/report/${reportId}`).then(() => {
       setCopiedReportId(reportId);
       setTimeout(() => setCopiedReportId(prev => prev === reportId ? null : prev), 2000);
-    });
+    }).catch(() => onToast?.('링크 복사에 실패했어요. 다시 시도해주세요.', 'error'));
   };
   // 리마인더에서 숨김 처리한 리포트 — Firestore 반영 전에도 바로 목록에서 사라지도록 낙관적 갱신.
   // X는 아이콘만 있고 title(툴팁)은 모바일에서 안 보여서 "삭제되나?" 오해를 살 수 있어 —
@@ -99,7 +99,9 @@ export default function DashboardView({ students, reports, classes = [], reportV
   // 실제로 따라가볼 만한 것만 노출. 기간도 최근 14일로 제한 — 안 그러면 오래된 것까지 계속
   // 쌓여서(수십 건) 정작 챙길 만한 최근 건이 묻히고 소음이 됨. 그래도 남는 개별 건은 X로 숨김 가능.
   const UNREAD_REMINDER_WINDOW_DAYS = 14;
-  const unreadCutoff = new Date(todayKst); unreadCutoff.setDate(unreadCutoff.getDate() - UNREAD_REMINDER_WINDOW_DAYS);
+  // todayKst 문자열은 new Date()가 UTC 자정으로 해석하므로, 로컬 getDate/setDate를 섞으면
+  // 브라우저 타임존이 KST가 아닐 때(해외 로그인 등) 날짜가 하루 어긋날 수 있어 UTC 메서드로 통일
+  const unreadCutoff = new Date(todayKst); unreadCutoff.setUTCDate(unreadCutoff.getUTCDate() - UNREAD_REMINDER_WINDOW_DAYS);
   const unreadCutoffStr = unreadCutoff.toISOString().split('T')[0];
   const viewedReportIds = new Set(reportViews.map(v => v.reportId));
   const unreadReports = reports
@@ -123,6 +125,9 @@ export default function DashboardView({ students, reports, classes = [], reportV
     setConfirmAbsenceStudent(null);
     try {
       await onQuickAbsence?.(student);
+    } catch (e) {
+      console.error('결석 처리 실패:', e);
+      onToast?.('결석 처리에 실패했어요. 다시 시도해주세요.', 'error');
     } finally {
       setMarkingAbsent(null);
     }
@@ -146,11 +151,14 @@ export default function DashboardView({ students, reports, classes = [], reportV
   const orderedStudents = [...filteredStudents].sort((a, b) =>
     (doneOf(a) === doneOf(b) ? (a.name || '').localeCompare(b.name || '') : (doneOf(a) ? 1 : -1))
   );
+  // "오늘 발송" 카드는 실제로 학부모에게 나간 리포트만 세야 함 — todayReports(isHandledToday
+  // 기준)엔 결석 처리도 걸리는데, 결석은 "오늘 처리할 일이 없다"는 뜻일 뿐 실제 발송이 아니라서
+  // isReportSent 기준으로 별도 집계(안 그러면 결석만 처리한 날도 "발송 완료"로 표시됨)
+  const todaySentReports = reports.filter(r => r.createdAt?.seconds && isReportSent(r) && kstDay(r.createdAt.seconds) === todayKst);
   // 상단 통계도 반 필터를 따라가야 함 — 목록은 필터링되는데 숫자만 학원 전체 기준이면 헷갈림
-  const filteredTodayReports = classFilter ? todayReports.filter(r => filteredStudents.some(s => s.id === r.studentId)) : todayReports;
-  // "오늘 발송"(filteredTodayReports)은 실제 발송 여부 그대로 두고, "오늘 미작성"은 doneOf와
-  // 같은 기준(주간형은 세션 저장만 해도 완료로 인정)으로 별도 계산 — 안 그러면 목록의 "완료 ✓"
-  // 표시(doneOf 기준)와 상단 미작성 숫자가 서로 어긋나 보임
+  const filteredTodayReports = classFilter ? todaySentReports.filter(r => filteredStudents.some(s => s.id === r.studentId)) : todaySentReports;
+  // "오늘 미작성"은 doneOf와 같은 기준(주간형은 세션 저장만 해도 완료로 인정)으로 계산 — 안
+  // 그러면 목록의 "완료 ✓" 표시(doneOf 기준)와 상단 미작성 숫자가 서로 어긋나 보임
   const pendingCount = filteredStudents.filter(s => !doneOf(s)).length;
 
   // 넓은 화면(PC)에서는 스크롤 없이 복습 알림(왼쪽) + 오늘의 현황·오늘 학생 현황(오른쪽)이
@@ -163,7 +171,12 @@ export default function DashboardView({ students, reports, classes = [], reportV
   // "어떤 유형인지"를 나타내 — 두 신호가 겹치지 않게 분리했다. 모바일/PC 두 레이아웃에서
   // 그대로 재사용할 수 있도록 미리 계산해둔다.
   const reviewWidget = (() => {
-    const dueReviews = reviews.filter(rv => rv.status !== 'done' && rv.dueDate && rv.dueDate <= todayKst);
+    // 위 학생 목록/상단 통계와 같은 반 필터를 따라야 함 — 안 그러면 필터링된 화면에도
+    // 다른 반 학생의 복습 알림이 섞여 나와, 그 카드의 "지시"/"확인하기" 버튼을 실수로 조작할 수 있음
+    const dueReviews = reviews.filter(rv =>
+      rv.status !== 'done' && rv.dueDate && rv.dueDate <= todayKst &&
+      (!classFilter || filteredStudents.some(s => s.id === rv.studentId))
+    );
     if (dueReviews.length === 0) return null;
 
     const URGENCY = {
@@ -246,8 +259,10 @@ export default function DashboardView({ students, reports, classes = [], reportV
               <div style={{ display: 'flex', flexDirection: 'column', gap: '9px' }}>
                 {section.groups.map(group => {
                   const memoOpen = memoOpenKey === group.key;
+                  // 로컬 Date.getMonth/getDate는 브라우저 타임존이 KST가 아니면 하루 밀릴 수 있어,
+                  // kstDay가 주는 'YYYY-MM-DD' 문자열에서 바로 잘라 쓴다
                   const diagLabel = group.diagnosedAt
-                    ? (d => `${d.getMonth() + 1}/${d.getDate()}`)(new Date(group.diagnosedAt * 1000))
+                    ? (([, m, d]) => `${Number(m)}/${Number(d)}`)(kstDay(group.diagnosedAt).split('-'))
                     : null;
                   const mainWeak = group.weakTypes[0];
                   const cat = (mainWeak && CATEGORY[mainWeak.key]) || DEFAULT_CATEGORY;

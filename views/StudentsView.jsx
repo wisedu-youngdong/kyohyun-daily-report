@@ -21,6 +21,7 @@ export default function StudentsView({ students, reports, reviews = [], onSave, 
   const [sortBy, setSortBy] = useState('name');
   const [teacherFilter, setTeacherFilter] = useState('all'); // 'all' | 'unassigned' | teacherId
   const [deleteConfirm, setDeleteConfirm] = useState(null); // studentId
+  const [deletingId, setDeletingId] = useState(null); // "퇴원 확인" 이중클릭 방지
   const deleteTimerRef = React.useRef(null);
   // A의 ×를 누른 뒤 3초 안에 B의 ×를 누르면 A의 타이머가 B의 확인 상태를 꺼버리던 문제
   const askDeleteConfirm = (id) => {
@@ -121,8 +122,12 @@ export default function StudentsView({ students, reports, reviews = [], onSave, 
           const daysSince = daysSinceLastReport(s.id);
           const isStale = !s.archived && (daysSince === null ? false : daysSince >= 14);
           const isNew = isNewStudent(s, sReports.length);
-          const isSelected = isWide && !s.archived && selectedStudent?.id === s.id;
-          const activateRow = () => isWide && !s.archived ? setSelectedId(s.id) : setProfileStudent(s);
+          // 퇴원생도 프로필 내용은 재원생과 동일하게 보여줄 수 있어(StudentProfileContent가
+          // archived 여부를 따로 안 따짐), PC 마스터-디테일 탐색에서만 퇴원생을 제외하면 안 됨 —
+          // "퇴원생 보기"에서 다른 퇴원생 카드를 눌러도 오른쪽 패널은 그대로인 채 별개 전체화면
+          // 모달만 뜨던 불일치를 없앰
+          const isSelected = isWide && selectedStudent?.id === s.id;
+          const activateRow = () => isWide ? setSelectedId(s.id) : setProfileStudent(s);
           return (
             // 카드 안에 수정/퇴원/재원 버튼이 따로 있어 role="button"은 안 씀 —
             // tabIndex+onKeyDown으로 키보드 포커스·Enter/Space 조작만 추가
@@ -136,8 +141,10 @@ export default function StudentsView({ students, reports, reviews = [], onSave, 
               onClick={activateRow}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: C.primaryLight, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  {s.avatar
-                    ? <img src={AVATARS.find(a => a.key === s.avatar)?.url} alt="avatar" style={{ width: '44px', height: '44px', objectFit: 'cover' }} />
+                  {/* 아바타 목록 개편으로 과거 저장된 key가 더는 없으면 find가 undefined를 줘서
+                      깨진 이미지 아이콘이 뜸 — url이 실제로 있을 때만 img를 그림 */}
+                  {(s.avatar && AVATARS.find(a => a.key === s.avatar)?.url)
+                    ? <img src={AVATARS.find(a => a.key === s.avatar).url} alt="avatar" style={{ width: '44px', height: '44px', objectFit: 'cover' }} />
                     : <span style={{ fontSize: '18px', fontWeight: 700, color: C.primary }}>{s.name?.[0]}</span>
                   }
                 </div>
@@ -168,8 +175,9 @@ export default function StudentsView({ students, reports, reviews = [], onSave, 
                 </button>
                 {deleteConfirm === s.id ? (
                   <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
-                    <button onClick={() => { onDelete(s.id); setDeleteConfirm(null); }}
-                      style={{ background: C.warningText, border: 'none', color: '#fff', fontSize: '11px', fontWeight: 700, padding: '10px 12px', borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    <button onClick={async () => { if (deletingId) return; setDeletingId(s.id); setDeleteConfirm(null); await onDelete(s.id); setDeletingId(null); }}
+                      disabled={deletingId === s.id}
+                      style={{ background: C.danger, border: 'none', color: '#fff', fontSize: '11px', fontWeight: 700, padding: '10px 12px', borderRadius: '6px', cursor: deletingId === s.id ? 'not-allowed' : 'pointer', opacity: deletingId === s.id ? 0.6 : 1, fontFamily: 'inherit' }}>
                       퇴원 확인
                     </button>
                     <button onClick={() => setDeleteConfirm(null)}
@@ -292,7 +300,7 @@ export default function StudentsView({ students, reports, reviews = [], onSave, 
       {showBulkImport && (
         <React.Suspense fallback={null}>
           <BulkStudentImport
-            classes={classes} teachers={teachers} onToast={onToast}
+            classes={classes} teachers={teachers} students={students} onToast={onToast}
             onClose={() => setShowBulkImport(false)}
             onSave={async (newStudent) => {
               const assignedTeacherId = newStudent.assignedTeacherId || (isDirector ? '' : currentTeacherId || '');

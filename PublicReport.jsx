@@ -5,9 +5,13 @@ import { doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/fires
 import { R, ReportCard, deriveSkinColors } from './tokens.jsx';
 import { toPct, ratingLabel, fetchAcademyBranding } from './growth.js';
 import { WRONG_TAG_LABELS } from './diagnosis.js';
+// 구형 Android 카카오톡 인앱 웹뷰처럼 dvh 미지원 엔진은 인식 못 하는 값의 선언 자체를 통째로
+// 무시해 min-height가 사라짐 — vh를 먼저 선언해 폴백으로 두고, dvh가 지원되면 그 값으로
+// 덮어쓰게 함(인라인 style 객체는 같은 프로퍼티를 두 번 못 써서 클래스로 분리)
+const VH_FALLBACK_CSS = `.pr-full-h { min-height: 100vh; min-height: 100dvh; }`;
 const SkeletonReport = () => (
-  <div style={{ background: '#F5F5F0', minHeight: '100dvh', padding: '24px 16px', display: 'flex', justifyContent: 'center', fontFamily: R.body }}>
-    <style>{`@keyframes reportPulse { 0%,100% { opacity: 0.5; } 50% { opacity: 0.9; } }`}</style>
+  <div className="pr-full-h" style={{ background: '#F5F5F0', padding: '24px 16px', display: 'flex', justifyContent: 'center', fontFamily: R.body }}>
+    <style>{`${VH_FALLBACK_CSS} @keyframes reportPulse { 0%,100% { opacity: 0.5; } 50% { opacity: 0.9; } }`}</style>
     <div style={{ width: '100%', maxWidth: '390px' }}>
       <div style={{ background: '#fff', borderRadius: '4px', overflow: 'hidden', boxShadow: '0 2px 20px rgba(0,0,0,0.10)' }}>
         <div style={{ background: '#0D2D6B', padding: '20px 22px 18px' }}>
@@ -29,7 +33,7 @@ export default function PublicReport() {
   const location = useLocation();
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [errorType, setErrorType] = useState(null); // 'notfound' | 'network'
+  const [errorType, setErrorType] = useState(null); // 'notfound' | 'network' | 'draft'
   const [retryKey, setRetryKey] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState(null); // photoUrls 배열의 인덱스 — 좌우 넘기기 위해 URL 대신 인덱스로 관리
   const [brokenPhotos, setBrokenPhotos] = useState({});
@@ -58,6 +62,9 @@ export default function PublicReport() {
         const rSnap = await getDoc(doc(db, 'academies', academyId, 'reports', reportId));
         if (!rSnap.exists()) { setErrorType('notfound'); setLoading(false); return; }
         const r = { id: rSnap.id, ...rSnap.data() };
+        // 원장 검토·발송 전 초안(주간형은 세션 저장 때마다 항상 isDraft:true)이 URL만
+        // 알면 조회되던 문제 — 발송 전에는 학부모에게 절대 보여주면 안 됨
+        if (r.isDraft) { setErrorType('draft'); setLoading(false); return; }
         setReport(r);
         setLoading(false);
         setAcademyId(academyId);
@@ -165,10 +172,13 @@ export default function PublicReport() {
 
   if (loading) return <SkeletonReport />;
   if (errorType) return (
-    <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#F5F5F0', padding: '24px', gap: '8px', textAlign: 'center' }}>
+    <div className="pr-full-h" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#F5F5F0', padding: '24px', gap: '8px', textAlign: 'center' }}>
+      <style>{VH_FALLBACK_CSS}</style>
       <p style={{ fontSize: '13px', fontWeight: 700, color: '#0D2D6B', letterSpacing: '0.08em' }}>{academyName || '데일리 리포트 시스템'}</p>
       <p style={{ color: '#4B5563', fontSize: '15px', margin: '4px 0 0' }}>
-        {errorType === 'notfound' ? '리포트를 찾을 수 없습니다.' : '리포트를 불러오지 못했습니다.'}
+        {errorType === 'notfound' ? '리포트를 찾을 수 없습니다.'
+          : errorType === 'draft' ? '아직 준비 중인 리포트예요. 선생님이 마무리하면 다시 안내드릴게요.'
+          : '리포트를 불러오지 못했습니다.'}
       </p>
       {errorType === 'network' && (
         <button onClick={() => setRetryKey(k => k + 1)} style={{ marginTop: '10px', padding: '9px 20px', background: '#0D2D6B', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
@@ -373,11 +383,16 @@ export default function PublicReport() {
           )}
 
           {/* 문제집 사진 — 2장/4장은 꽉 채워지는 2열, 그 외(1/3/5장)는 3열이라 마지막 줄에
-              사진 하나만 어중간하게 남는 걸 피함 */}
-          {r.photoUrls?.filter((_, i) => !brokenPhotos[i]).length > 0 && (
+              사진 하나만 어중간하게 남는 걸 피함. 사진이 깨진(브로큰) 것도 총 개수에 넣으면
+              실제로 보이는 장수와 열 배치가 어긋나므로 화면에 보이는 개수 기준으로 계산 */}
+          {(() => {
+            const visibleCount = r.photoUrls?.filter((_, i) => !brokenPhotos[i]).length || 0;
+            if (visibleCount === 0) return null;
+            const cols = visibleCount === 1 ? 1 : (visibleCount === 2 || visibleCount === 4) ? 2 : 3;
+            return (
             <div style={{ padding: '0 24px 24px' }}>
               <p style={{ fontSize: '10px', fontWeight: 700, color: INK_SOFT, letterSpacing: '1.6px', margin: '0 0 8px' }}>TODAY'S WORK</p>
-              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${r.photoUrls.length === 1 ? 1 : (r.photoUrls.length === 2 || r.photoUrls.length === 4) ? 2 : 3}, 1fr)`, gap: '6px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: '6px' }}>
                 {r.photoUrls.map((url, i) => !brokenPhotos[i] && (
                   <img key={i} src={url} alt={`문제집 ${i+1}`} loading="lazy"
                     onClick={() => setLightboxIndex(i)}
@@ -386,7 +401,8 @@ export default function PublicReport() {
                 ))}
               </div>
             </div>
-          )}
+            );
+          })()}
 
           {/* 다음 수업 */}
           {r.nextPlan && (
@@ -429,9 +445,12 @@ export default function PublicReport() {
             <span style={{ fontSize: '12px', fontWeight: 500, color: INK_SOFT }}>궁금한 점이 있으신가요? 선생님이 직접 답변드립니다.</span>
             <textarea
               value={questionText} onChange={e => setQuestionText(e.target.value)}
-              placeholder="선생님께 궁금한 점을 남겨주세요" rows={2}
+              placeholder="선생님께 궁금한 점을 남겨주세요" rows={2} maxLength={500}
               style={{ width: '100%', padding: '10px 12px', fontSize: '16px', border: `1px solid ${CARD_BORDER}`, borderRadius: '12px', fontFamily: 'inherit', resize: 'vertical', lineHeight: 1.6, boxSizing: 'border-box', background: '#fff' }}
             />
+            {questionText.length > 400 && (
+              <span style={{ fontSize: '11px', color: questionText.length >= 500 ? R.negative : INK_SOFT, textAlign: 'right' }}>{questionText.length}/500</span>
+            )}
             <button onClick={handleAskQuestion} disabled={questionSubmitting || !questionText.trim()}
               style={{ width: '100%', border: 'none', borderRadius: '12px', background: questionSubmitting || !questionText.trim() ? '#D1D5DB' : sk.primary, color: '#fff', fontSize: '14px', fontWeight: 700, padding: '16px', cursor: questionSubmitting || !questionText.trim() ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
               {questionSubmitting ? '전송 중...' : '질문 남기기'}

@@ -13,7 +13,7 @@ function fmtMonthDay(ms) {
 }
 
 async function loadReportPreview(id) {
-  let studentName = '학생', dateStr = '', teacherNote = '', unit = '', academyName = null;
+  let studentName = '학생', dateStr = '', teacherNote = '', unit = '', academyName = null, isDraft = false;
   const academyId = await fetchAcademyIdFromIndex('reportIndex', id);
   if (academyId) {
     academyName = await fetchAcademyName(academyId);
@@ -22,6 +22,7 @@ async function loadReportPreview(id) {
       studentName = f.studentName?.stringValue || '학생';
       unit        = f.unit?.stringValue || '';
       teacherNote = f.teacherNote?.stringValue || '';
+      isDraft     = f.isDraft?.booleanValue === true;
       const ts = f.createdAt?.timestampValue;
       if (ts) {
         const d = new Date(ts);
@@ -33,7 +34,9 @@ async function loadReportPreview(id) {
   return {
     academyName,
     title: `${studentName} 학생의 수업 리포트${dateStr ? ` · ${dateStr}` : ''}`,
-    desc: teacherNote
+    // 원장 발송 전 초안은 선생님 코멘트를 카톡 미리보기로 노출하면 안 됨 — PublicReport.jsx가
+    // 실제 페이지에서도 발송 전엔 내용을 숨기므로, 크롤러용 미리보기도 같은 기준을 따름
+    desc: (!isDraft && teacherNote)
       ? `"${teacherNote.slice(0, 60)}${teacherNote.length > 60 ? '...' : ''}"`
       : '숫자를 넘어선 아이의 노력, 매 수업 진심으로 기록합니다.',
     ogTitle: `${studentName} 학생 리포트`,

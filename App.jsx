@@ -372,8 +372,9 @@ export default function App() {
     }
   };
 
+  // 저장 실패 시 그대로 throw — 호출부(StudentModal/BulkStudentImport 등)가 각자
+  // 맥락에 맞게 처리(모달 유지, 실패 건수 집계 등)할 수 있어야 해서 여기서 삼키지 않음
   const handleSaveStudent = async (d) => {
-  try {
     // 학부모 연락처는 학생 문서(공개 성장스토리 페이지에서 누구나 get 가능)와 분리 보관 —
     // studentContacts는 직원만 읽기/쓰기 가능한 별도 컬렉션(firestore.rules)
     const { parentPhone, ...rest } = d;
@@ -391,11 +392,7 @@ export default function App() {
       batch.set(doc(db, 'academies', academyId, 'studentContacts', studentRef.id), { parentPhone: parentPhone || '' });
       await batch.commit();
     }
-  } catch (e) {
-    console.error('학생 저장 실패:', e);
-    alert('저장 실패: ' + e.message);
-  }
-};
+  };
   // 퇴원 처리(소프트 삭제) — 학생 문서를 지우면 그 학생의 리포트가 studentId만 든 채 고아가 되고
   // (학부모에게 이미 나간 공개 링크도 그대로 열림), 복구도 불가능. archived 플래그로 숨김 처리.
   // UI 용어는 "퇴원/재원"으로 학원 언어에 맞췄지만 데이터 구조는 그대로 archived 재사용(2026-08-02).
@@ -834,6 +831,7 @@ export default function App() {
               onToggleReviewInstructed={handleToggleReviewInstructed}
               onQuickAbsence={handleQuickAbsence}
               onDismissUnreadReminder={handleDismissUnreadReminder}
+              onToast={showAppToast}
               onWriteFor={(student, done) => {
                 // 완료된 학생이면 오늘 리포트를 수정 모드로, 대기면 새로 작성 — 랜딩에서 작업까지 한 번에
                 if (done) {
