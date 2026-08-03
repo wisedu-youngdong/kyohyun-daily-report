@@ -268,6 +268,13 @@ export default function GrowthStory() {
       const latestWithNote = [...asc].reverse().find(r => r.teacherNote?.trim());
       const tagCount = {};
       asc.forEach(r => (r.diagnosis || []).forEach(d => { tagCount[d.key] = (tagCount[d.key] || 0) + 1; }));
+      // 태그 3개 나열 대신 한 문장으로(핸드오프 §2-3) — 성장 포트폴리오인데 태그가 전부
+      // 결점이면 문서 성격과 어긋난다는 지적. 실제로 기록된 태그 이름만 인용(지어내지 않음).
+      const topTagKeys = Object.entries(tagCount).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k]) => k);
+      const nonPerfectTags = topTagKeys.filter(k => k !== 'perfect').map(k => diagLabels[k] || k);
+      const tagSentence = topTagKeys.length === 0 ? ''
+        : nonPerfectTags.length === 0 ? '이 단원은 개념을 정확히 이해하고 있어요.'
+        : `최근 자주 보인 유형은 ${nonPerfectTags.join(', ')}입니다.`;
       return {
         key, label, count: asc.length,
         together: Array.from(together),
@@ -275,7 +282,7 @@ export default function GrowthStory() {
         avgHomework: homeworkPcts.length ? Math.round(homeworkPcts.reduce((a, b) => a + b, 0) / homeworkPcts.length) : null,
         photoReports,
         comment: latestWithNote?.teacherNote || '',
-        topTags: Object.entries(tagCount).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k]) => k),
+        tagSentence,
       };
     });
 
@@ -732,9 +739,13 @@ export default function GrowthStory() {
         // 시험 점수(testScore)는 hasTest일 때만 존재해 값이 듬성듬성 비어 라인이 끊기므로 제외 —
         // 과제/개념은 매 리포트마다 항상 기록되는 값이라 안정적인 연속 라인이 나옴. recharts는
         // 여기서도 안 씀(위 weakTypeContent 주석과 같은 이유, 공개 페이지 번들 크기).
-        const trendPoints = sorted.filter(r => r.conceptRating != null || r.homeworkRating != null).slice(-10);
+        // 10회 → 6회 — 점이 10개면 위아래로 흔들리는 것처럼 보여 "성장"이 아니라 "불안정"으로
+        // 읽힌다(핸드오프 §2-2). 결석·기록 없는 회차는 conceptRating/homeworkRating이 null이라
+        // 애초에 이 필터에서 자동 제외됨(기록 보관소와 동일 규칙 — 0%로 오인되지 않게).
+        const trendPoints = sorted.filter(r => r.conceptRating != null || r.homeworkRating != null).slice(-6);
         const scoreTrendContent = trendPoints.length < 2 ? null : (() => {
-          const W = 340, H = 120, PAD_L = 4, PAD_R = 4, PAD_T = 10, PAD_B = 20;
+          // y축 0/50/100 + 날짜 라벨을 넣기 위해 PAD_L 확대(핸드오프 §2-2 — 현행은 축 자체가 없었음)
+          const W = 340, H = 120, PAD_L = 22, PAD_R = 4, PAD_T = 10, PAD_B = 20;
           const plotW = W - PAD_L - PAD_R;
           const plotH = H - PAD_T - PAD_B;
           const xAt = (i) => PAD_L + (trendPoints.length === 1 ? plotW / 2 : (i / (trendPoints.length - 1)) * plotW);
@@ -767,6 +778,13 @@ export default function GrowthStory() {
               </div>
               <div ref={trendChartRef}>
                 <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
+                  {/* y축 0/50/100 그리드 + 라벨(핸드오프 §2-2 — 현행은 축 자체가 없었음) */}
+                  {[0, 50, 100].map(v => (
+                    <g key={v}>
+                      <line x1={PAD_L} y1={yAt(v)} x2={W - PAD_R} y2={yAt(v)} stroke="#EEECEA" strokeWidth="1" />
+                      <text x={PAD_L - 5} y={yAt(v) + 3} fontSize="8" fill="#9A9A9A" textAnchor="end">{v}</text>
+                    </g>
+                  ))}
                   {/* 선택된 지점의 세로 가이드선 — 그래프 위를 덮는 툴팁 대신, 어느 지점을
                       보고 있는지만 은은하게 표시. 값 자체는 차트 아래 고정 정보줄에 표시(겹침 없음) */}
                   {trendTooltip != null && (
@@ -785,8 +803,11 @@ export default function GrowthStory() {
                       </g>
                     );
                   })}
-                  <text x={PAD_L} y={H - 4} fontSize="9" fill="#9A9A9A">{fmtDate(trendPoints[0])}</text>
-                  <text x={W - PAD_R} y={H - 4} fontSize="9" fill="#9A9A9A" textAnchor="end">{fmtDate(trendPoints[trendPoints.length - 1])}</text>
+                  {/* 날짜 라벨 — 6회로 줄여 첫/마지막뿐 아니라 지점마다 다 넣어도 안 빽빽함(핸드오프 §2-2) */}
+                  {trendPoints.map((r, i) => (
+                    <text key={`x${i}`} x={xAt(i)} y={H - 4} fontSize="8" fill="#9A9A9A"
+                      textAnchor={i === 0 ? 'start' : i === trendPoints.length - 1 ? 'end' : 'middle'}>{fmtDate(r)}</text>
+                  ))}
                   {/* 탭 히트 영역 — 처음엔 지점마다 반경 9(≈지름 18px) 원으로 했는데 실기기
                       터치로 확인해보니 손가락으로 정확히 맞추기엔 너무 작았음. 지점 좌우로 컬럼
                       전체(세로 풀하이트)를 히트 영역으로 넓혀서, 그 지점 근처 아무데나 눌러도
@@ -800,10 +821,9 @@ export default function GrowthStory() {
                     );
                   })}
                 </svg>
-                {/* 선택 정보 — 차트 위에 겹쳐 뜨는 툴팁 대신 항상 같은 자리(차트 바로 아래)에
-                    표시. 선택 전에도 안내 문구로 자리를 미리 차지해둬서, 선택해도 카드 높이가
-                    안 바뀜(레이아웃 흔들림 방지) */}
-                {trendTooltip != null ? (() => {
+                {/* 선택 정보 — 탭하기 전엔 아무것도 안 보여줌(핸드오프 §2-2 — 빈 상태 안내
+                    박스가 "빈 화면"으로 느껴진다는 지적, 회색 점선 박스 제거) */}
+                {trendTooltip != null && (() => {
                   const r = trendPoints[trendTooltip];
                   return (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#F7F5F1', borderRadius: '4px', borderLeft: `2px solid ${sk.accent}`, padding: '9px 12px', marginTop: '8px' }}>
@@ -814,11 +834,7 @@ export default function GrowthStory() {
                         style={{ marginLeft: 'auto', border: 'none', background: 'transparent', cursor: 'pointer', color: '#9A9A9A', fontSize: '14px', lineHeight: 1, padding: '2px', fontFamily: 'inherit' }}>✕</button>
                     </div>
                   );
-                })() : (
-                  <div style={{ border: '1px dashed #DFE3EA', borderRadius: '4px', padding: '9px 12px', marginTop: '8px', fontSize: '11px', color: '#B0B5BD' }}>
-                    지점을 탭하면 그 날짜의 값이 여기에 표시돼요
-                  </div>
-                )}
+                })()}
               </div>
               {deltaCaption && (
                 <p style={{ fontSize: '12px', color: '#2C2C2C', margin: '8px 0 0' }}>
@@ -955,14 +971,8 @@ export default function GrowthStory() {
                         )}
                       </div>
                     )}
-                    {u.topTags.length > 0 && (
-                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                        {u.topTags.map(k => {
-                          const t = DIAG_COLORS[k];
-                          if (!t) return null;
-                          return <span key={k} style={{ fontSize: '11px', fontWeight: 700, color: t.color, background: t.bg, border: `1px solid ${t.border}`, padding: '3px 9px', borderRadius: '20px' }}>{t.label}</span>;
-                        })}
-                      </div>
+                    {u.tagSentence && (
+                      <p style={{ fontSize: '12px', color: 'rgba(55,56,60,0.75)', lineHeight: 1.6, margin: 0 }}>{u.tagSentence}</p>
                     )}
                     {u.comment && (
                       <p style={{ fontSize: '13px', color: '#2C2C2C', lineHeight: 1.7, margin: 0 }}>{u.comment.split('\n')[0]}</p>
@@ -1042,69 +1052,11 @@ export default function GrowthStory() {
         </div>
         );
 
-        const keyMetricsContent = (() => {
-        // 2열 그리드 — 각 타일이 개별 흰 카드(마일스톤/히어로와 같은 카드 체계), 출석은
-        // 네이비 강조 카드. 결석/지각 유무에 따라 막대 폭만 달라질 뿐 항상 같은 3색 막대
-        // 하나로 통일(예전 3분기 로직 제거 — flex:0.0001 트릭으로 0건도 안전하게 렌더).
-        const cardTile = { background: '#fff', border: '1px solid #EEECEA', borderRadius: '12px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '8px', minWidth: 0 };
-        const tileLabel = { fontSize: '12px', fontWeight: 600, color: 'rgba(55,56,60,0.75)' };
-        const tileValue = { fontSize: '30px', fontWeight: 700, lineHeight: 1, letterSpacing: '-0.6px', color: sk.primary };
-        const tileUnit = { fontSize: '13px', fontWeight: 600, marginLeft: '2px' };
-        const tileSub = { fontSize: '13px', fontWeight: 500, lineHeight: 1.5, color: 'rgba(55,56,60,0.75)' };
+        // keyMetricsContent(최고단원평가/과제평균/시험평균/출석률 2×2 타일)는 2026-08-03
+        // 폐기 — 1페이지 "지표 3분류"가 같은 값(hwAvg/conceptAvg/maxScore/avgScore/
+        // attendanceRate)을 이미 보여줘서 그대로 재포장이었다(핸드오프 §2-1/§4-4).
 
-        return (
-      <>
-        {sectionDivider('KEY METRICS')}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: '14px' }}>
-          {maxScore != null && (
-            <div style={cardTile}>
-              <span style={tileLabel}>최고 단원평가</span>
-              <span style={tileValue}>{maxScore}<span style={tileUnit}>점</span></span>
-              <span style={tileSub}>
-                {maxScoreReport && <b style={{ color: sk.bannerLabel, fontWeight: 700 }}>{fmtDate(maxScoreReport)}</b>}
-                {maxScoreReport ? ' · ' : ''}
-                {maxScoreReport?.unit || maxScoreReport?.textbook || '100점 만점'}
-              </span>
-            </div>
-          )}
-          {hwAvg != null && (
-            <div style={cardTile}>
-              <span style={tileLabel}>과제 수행 평균</span>
-              <span style={tileValue}>{hwAvg}<span style={tileUnit}>%</span></span>
-              <span style={tileSub}>{hwRated.length}회 평균 · 담당교사 관찰</span>
-            </div>
-          )}
-          {avgScore != null && (
-            <div style={cardTile}>
-              <span style={tileLabel}>전체 시험 평균</span>
-              <span style={tileValue}>{avgScore}<span style={tileUnit}>점</span></span>
-              <span style={tileSub}>{allScores.length}회 시험 평균</span>
-            </div>
-          )}
-
-          {/* 출석 — 제안서 §5 출석 3색 토큰(출석/지각/결석) 그대로 사용 */}
-          <div style={{ background: sk.primary, borderRadius: '12px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '11px' }}>
-            <span style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.8)' }}>정시 출석률</span>
-            <span style={{ fontSize: '30px', fontWeight: 700, lineHeight: 1, letterSpacing: '-0.6px', color: '#fff' }}>{attendanceRate}<span style={{ fontSize: '13px', fontWeight: 600, marginLeft: '2px' }}>%</span></span>
-            <div style={{ display: 'flex', height: '7px', borderRadius: '4px', overflow: 'hidden', gap: '2px' }}>
-              <div style={{ flex: onTimeCount || 0.0001, background: '#5A8BD8' }} />
-              <div style={{ flex: lateCount || 0.0001, background: sk.accent }} />
-              <div style={{ flex: absentCount || 0.0001, background: '#D46A6A' }} />
-            </div>
-            <span style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-              {[['출석', onTimeCount, '#5A8BD8'], ['지각', lateCount, sk.accent], ['결석', absentCount, '#D46A6A']].map(([label, count, color]) => (
-                <span key={label} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.86)' }}>
-                  <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: color, display: 'inline-block' }} />{label} {count}
-                </span>
-              ))}
-            </span>
-          </div>
-        </div>
-      </>
-        );
-        })();
-
-        // 4페이지 — 선생님 한마디 + 다음 목표 (둘 다 항상 존재, fallback 문구 있음)
+        // 마지막 페이지 — 선생님 한마디 + 다음 목표 (둘 다 항상 존재, fallback 문구 있음)
         const teacherWordContent = (
       <div style={{ background: sk.primary, borderRadius: '14px', padding: '26px 28px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
@@ -1246,15 +1198,15 @@ export default function GrowthStory() {
           </>
         );
 
-        // 4개 페이지 구성 — 2페이지(평가 추이)는 시험 점수도 단원 평가도 없는 학생이면
-        // 통째로 비어(scoreTrendContent/unitTrendContent 둘 다 null) 아래 filter(Boolean)로 걸러짐.
-        // 약점 유형은 더 이상 이 페이지에 없음(4페이지 '다음 목표'로 흡수)
+        // 4페이지 구성(핸드오프 Portfolio v2, 2026-08-03) — 예전 6페이지(마일스톤/단원별
+        // 정리/평가추이/핵심지표/학습기록상세/선생님한마디)를 4개로 재편:
+        // 1 한 달의 결론(위에서 구성) · 2 무엇이 달라졌나(평가추이+단원별기록+복습효과, 셋 다
+        // 없으면 페이지 자체가 생략됨) · 3 수업 기록(세션 피드) · 4 선생님 한마디
         const pages = [
           { key: 'conclusion', label: '한 달의 결론', content: (<>{aiGenButtonContent}{conclusionContent}</>) },
-          unitCardsContent && { key: 'units', label: '단원별 정리', content: unitCardsContent },
-          (scoreTrendContent || unitTrendContent) && { key: 'trend', label: '평가 추이', content: (<>{scoreTrendContent}{unitTrendContent}</>) },
-          { key: 'metrics', label: '핵심 지표', content: (<>{reviewEffectContent}{keyMetricsContent}</>) },
-          timelineContent && { key: 'timeline', label: '학습 기록 상세', content: timelineContent },
+          (scoreTrendContent || unitTrendContent || unitCardsContent || reviewEffectContent) &&
+            { key: 'change', label: '무엇이 달라졌나', content: (<>{scoreTrendContent}{unitTrendContent}{unitCardsContent}{reviewEffectContent}</>) },
+          timelineContent && { key: 'timeline', label: '수업 기록', content: timelineContent },
           { key: 'closing', label: '선생님 한마디', content: (<>{teacherWordContent}{nextChapterContent}</>) },
         ].filter(Boolean);
         // 기간 토글 등으로 페이지 수가 줄어든 사이 이전 페이지 인덱스가 범위를 벗어날 수 있어 방어
