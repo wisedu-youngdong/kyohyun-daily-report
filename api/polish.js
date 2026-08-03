@@ -65,10 +65,14 @@ ${photoContext ? '- "O번, O번을 틀렸습니다"처럼 문항 번호만 나�
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
+        // thinkingConfig(thinkingBudget:0)는 gemini-2.5의 "생각 모드가 출력 토큰을 먹어치워
+        // 응답이 잘리는" 문제의 방어책이었는데, gemini-3.6-flash에서는 이 필드 자체를
+        // "Request contains an invalid argument"로 거부해 전체 요청이 실패했음(2026-08-03
+        // 발견) — analyze-photo.js/narrative.js는 애초에 이 필드가 없어서 멀쩡했음. 필드를
+        // 빼는 것으로 즉시 복구
         generationConfig: {
           temperature: 0.9,
           maxOutputTokens: 4096,
-          thinkingConfig: { thinkingBudget: 0 },
         }
       })
     });
