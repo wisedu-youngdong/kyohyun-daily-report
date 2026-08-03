@@ -82,9 +82,17 @@ function relLuminance(hex) {
   const chan = (v) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
   return 0.2126 * chan(parseInt(n.slice(0, 2), 16)) + 0.7152 * chan(parseInt(n.slice(2, 4), 16)) + 0.0722 * chan(parseInt(n.slice(4, 6), 16));
 }
-function contrastRatio(hexA, hexB) {
+export function contrastRatio(hexA, hexB) {
   const [l1, l2] = [relLuminance(hexA), relLuminance(hexB)].sort((a, b) => b - a);
   return (l1 + 0.05) / (l2 + 0.05);
+}
+
+// "선생님 한마디"처럼 짙은 배경(스킨 주조색) 위에 작은 굵은 글씨(13px/700 — 18.66px bold
+// 미만이라 WCAG 큰글씨 완화 기준이 적용 안 됨, 4.5:1 그대로 적용)로 포인트색을 라벨로 쓸 때
+// 전용 체크. sk.accent는 deriveSkinColors에서 이미 3:1 기준(장식/작은 라벨용)으로 보정돼
+// 있어도 이 자리의 4.5:1엔 못 미칠 수 있어 별도로 확인 — 통과 못 하면 흰색으로 대체
+export function accentLabelOnPrimary(sk) {
+  return contrastRatio(sk.accent, sk.primary) >= 4.5 ? sk.accent : '#ffffff';
 }
 export function textSafeColor(hex, bg = '#ffffff', target = 4.5) {
   if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return hex;

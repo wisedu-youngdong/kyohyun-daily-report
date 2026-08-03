@@ -16,7 +16,7 @@ import {
   FileText, Sparkles, Send, Plus, X, Check,
   UserPlus, GraduationCap, Info, Star, AlertTriangle, Palette
 } from 'lucide-react';
-import { C, R, RADIUS2, TYPE, SHADOW, deriveSkinColors } from './tokens.jsx';
+import { C, R, RADIUS2, TYPE, SHADOW, deriveSkinColors, accentLabelOnPrimary } from './tokens.jsx';
 import { resolveBookSections } from './photoSections.js';
 import { toPct, ratingLabel, kstDay, kstWeekday, getKstWeekRange, isHandledToday } from './growth.js';
 import { DIAG_LABELS as diagLabels, WRONG_TAGS, WRONG_TAG_LABELS } from './diagnosis.js';
@@ -430,6 +430,9 @@ export default function DiagnosticReportInput({
   // 초기값은 ''로 두고 아래 "수정 모드 pre-fill" useEffect에서 editingReport 값으로 채움
   // (다른 폼 필드들과 동일한 패턴 — 학생 전환 시 리셋되는 흐름과 맞추기 위함)
   const [summary, setSummary] = useState('');
+  // 선생님 피드백 3단(잘한 점/보완할 점/한마디) — AI 다듬기와 같은 호출에서 함께 생성됨
+  // (2026-08-03 결정: 선생님이 따로 안 씀, teacherNote 하나로 AI가 통째로 만듦)
+  const [feedback, setFeedback] = useState(null);
   const [polishing, setPolishing] = useState(false);
   const [generatingComment, setGeneratingComment] = useState(false);
   const [nextPlan, setNextPlan] = useState('');
@@ -805,6 +808,7 @@ export default function DiagnosticReportInput({
     setTeacherNote(editingReport.teacherNote || '');
     setAiPolishedNote('');
     setSummary(editingReport.summary || '');
+    setFeedback(editingReport.feedback || null);
     setNextPlan(editingReport.nextPlan || '');
     setNextPlanDetail(editingReport.nextPlanDetail || '');
     setPhotoAnalysis(editingReport.photoAnalysis || null);
@@ -987,6 +991,10 @@ export default function DiagnosticReportInput({
       // "오늘의 한 줄" 배너용 요약 — 같은 호출에서 같이 옴(구분자로 분리, 서버 참고). 모델이
       // 구분자를 안 지킨 드문 경우 data.summary가 빈 문자열이라 배너는 자연스럽게 숨겨짐
       if (data.summary) setSummary(data.summary);
+      // 선생님 피드백 3단(잘한 점/보완할 점/한마디) — 같은 호출에서 같이 옴. 파싱 실패 시
+      // 서버가 null로 내려주므로(본문/요약은 정상), 그 경우 카드는 조용히 안 보임(3단계에서
+      // 이미 처리됨) — 여기서 별도 에러 처리 불필요
+      setFeedback(data.feedback || null);
     } catch (e) {
       console.error('AI 오류:', e);
       showToast(e.name === 'TimeoutError' ? '응답 시간이 초과됐습니다. 다시 시도해주세요.' : 'AI 연결에 실패했습니다.', 'error');
@@ -1316,6 +1324,8 @@ export default function DiagnosticReportInput({
         diagnosis: selectedTags,
         teacherNote: aiPolishedNote || teacherNote,
         summary: summary.trim() || null,
+        // 선생님 피드백 3단(잘한 점/보완할 점/한마디) — AI 다듬기 때 teacherNote와 함께 생성됨
+        feedback: feedback || null,
         nextPlan, nextPlanDetail,
         photoUrls,
         photoAnalysis: photoAnalysis || null,
@@ -1338,7 +1348,7 @@ export default function DiagnosticReportInput({
       setHomeworkRating(null); setConceptRating(null);
       setHasTest(false); setTestName(''); setTestScore(''); setTestRound('');
       setCurriculumCourseOverride(null); setUnitPickerOpen(false); setUnitPickerCourse(null);
-      setSelectedTags([]); setTeacherNote(''); setAiPolishedNote(''); setSummary('');
+      setSelectedTags([]); setTeacherNote(''); setAiPolishedNote(''); setSummary(''); setFeedback(null);
       setNextPlan(''); setNextPlanDetail('');
       removeAllPhotos();
       setLastSaved(null);
@@ -1406,7 +1416,7 @@ export default function DiagnosticReportInput({
       setTextbook(''); setSubject('수학'); setUnit(''); setPages('');
       setCurriculumCourseOverride(null); setUnitPickerOpen(false); setUnitPickerCourse(null);
       setTeacherNote(''); setSelectedTags([]);
-      setAiPolishedNote(''); setSummary('');
+      setAiPolishedNote(''); setSummary(''); setFeedback(null);
       setNextPlan(''); setNextPlanDetail('');
       setPhotos([]); setPhotoAnalysis(null); setPhotoContentType('');
       setWrongItems([]);
@@ -2085,7 +2095,7 @@ export default function DiagnosticReportInput({
                   {(teacherNote || aiPolishedNote) && (
                     <button type="button" onClick={() => {
                       if (!window.confirm('강사 메모와 AI 다듬기 결과를 모두 지우고 새로 시작할까요?')) return;
-                      setTeacherNote(''); setAiPolishedNote(''); setSummary('');
+                      setTeacherNote(''); setAiPolishedNote(''); setSummary(''); setFeedback(null);
                     }} style={{ background: 'none', border: 'none', color: '#6C7586', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', padding: '2px 4px', display: 'flex', alignItems: 'center', gap: '3px' }}>
                       <X size={11} /> 새로 시작
                     </button>
@@ -3146,6 +3156,7 @@ export default function DiagnosticReportInput({
             textbook={textbook} unit={unit} pages={pages}
             teacherNote={aiPolishedNote || teacherNote}
             summary={summary}
+            feedback={feedback}
             wrongItems={wrongItems}
             nextPlan={nextPlan} nextPlanDetail={nextPlanDetail}
             skin={selectedSkin === 'custom' ? { key: 'custom', main: customPrimaryHex, accent: customAccentHex }
@@ -3204,8 +3215,10 @@ export function deriveColorsToSkin(mainHex) {
 // 레이아웃은 무관) — 지금은 PublicReport와 동일한 레터헤드 구조에 skin.main/accent로 색만
 // 입힌다. PublicReport에 없는 기능(아바타 등)은 미리보기에서도 뺐다 — 안 그러면 반대로
 // "미리보기엔 있는데 실제론 없는" 거짓말이 생김.
-function ParentCard({ student, teacher, attendance, arrivalTime, departureTime, homeworkRating, conceptRating, hasTest, testName, testScore, textbook, unit, pages, teacherNote, summary, wrongItems, nextPlan, nextPlanDetail, skin, academyName = null }) {
-  const [noteOpen, setNoteOpen] = React.useState(false);
+function ParentCard({ student, teacher, attendance, arrivalTime, departureTime, homeworkRating, conceptRating, hasTest, testName, testScore, textbook, unit, pages, teacherNote, summary, wrongItems, nextPlan, nextPlanDetail, skin, academyName = null, feedback = null }) {
+  // 선생님 피드백 3단(잘하고 있는 점/보완이 필요한 점) 근거 접기/펼침 — 기본 둘 다 접힘
+  const [strongOpen, setStrongOpen] = React.useState(false);
+  const [weakOpen, setWeakOpen] = React.useState(false);
   const today = new Date();
   const dateStr = `${today.getMonth() + 1}월 ${today.getDate()}일 (${'일월화수목금토'[today.getDay()]})`;
   const homeworkPct = toPct(homeworkRating);
@@ -3228,11 +3241,10 @@ function ParentCard({ student, teacher, attendance, arrivalTime, departureTime, 
   const CARD_BORDER = '#E4E6EB';
   const teacherSuffix = /선생님$/.test(teacher?.name || '') ? '' : ' 선생님';
 
-  const noteParagraphs = (teacherNote || '').split('\n').filter(Boolean);
-  const noteLead = noteParagraphs[0] || '';
-  const noteRest = noteParagraphs.slice(1);
-  const noteCollapsible = noteRest.join(' ').length > 200;
-  const noteRestVisible = noteCollapsible ? noteOpen : true;
+  const labelInk = accentLabelOnPrimary(sk);
+  // 근거 항목에 빈 문장이 섞여 들어오면(드문 AI 응답 오류) 빈 줄이 그대로 렌더되므로 미리 거름
+  const strongEvidence = (feedback?.strengths?.evidence || []).filter(it => it.text?.trim());
+  const weakEvidence = (feedback?.improvements?.evidence || []).filter(it => it.text?.trim());
 
   return (
     <div style={{ background: '#fff', borderRadius: '4px', overflow: 'hidden', boxShadow: '0 2px 20px rgba(0,0,0,0.10)', fontFamily: body }}>
@@ -3331,37 +3343,68 @@ function ParentCard({ student, teacher, attendance, arrivalTime, departureTime, 
         </div>
       )}
 
-      {/* 선생님 노트 — 결론 문장 → 오늘 눈에 띈 문항(wrongItems) → 나머지는 200자 넘으면 접기 */}
-      {teacherNote && (
+      {/* 선생님 피드백 3단 — 잘하고 있는 점(흰 바탕) / 보완이 필요한 점(스킨 틴트) /
+          선생님 한마디(스킨 주조색, 짙음). PublicReport.jsx와 동일 구조 — 작성 화면 미리보기가
+          실물과 다르면 안 되므로(2026-08-03 결정) 그대로 맞춤 */}
+      {feedback && (feedback.strengths?.headline || feedback.improvements?.headline || feedback.closing?.text) && (
         <div style={{ padding: '0 24px 24px' }}>
-          <div style={{ background: sk.tint, borderRadius: '14px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.6px', color: sk.primary }}>선생님 노트</span>
-            {noteLead && <span style={{ fontSize: '15px', fontWeight: 700, lineHeight: 1.6, color: INK, textWrap: 'pretty' }}>{noteLead}</span>}
-
-            {wrongItems?.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <span style={{ fontSize: '11px', fontWeight: 700, color: INK_SOFT }}>오늘 눈에 띈 문항</span>
-                {wrongItems.map((w, i) => {
-                  const extra = w.memo?.trim() || (w.tags?.length ? w.tags.map(t => WRONG_TAG_LABELS[t]).filter(Boolean).join(', ') : '');
-                  return (
-                    <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'baseline' }}>
-                      <span style={{ minWidth: '38px', fontSize: '12px', fontWeight: 700, color: sk.primary, flexShrink: 0 }}>{w.number}번</span>
-                      <span style={{ fontSize: '13px', fontWeight: 500, lineHeight: 1.6, color: INK, textWrap: 'pretty' }}>{w.type}{extra ? ` — ${extra}` : ''}</span>
-                    </div>
-                  );
-                })}
+          <div style={{ borderRadius: '18px', overflow: 'hidden', boxShadow: '0 6px 28px rgba(23,23,25,0.10)' }}>
+            {feedback.strengths?.headline && (
+              <div style={{ padding: '22px 26px', display: 'flex', flexDirection: 'column', gap: '13px' }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: INK }}>잘하고 있는 점</span>
+                <span style={{ fontSize: '15px', fontWeight: 700, lineHeight: 1.65, letterSpacing: '-0.2px', color: INK, textWrap: 'pretty' }}>{feedback.strengths.headline}</span>
+                {strongOpen && strongEvidence.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '9px' }}>
+                    {strongEvidence.map((it, i) => (
+                      <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'baseline' }}>
+                        {it.no && <span style={{ minWidth: '34px', fontSize: '12px', fontWeight: 700, color: sk.primary, flexShrink: 0 }}>{it.no}</span>}
+                        <span style={{ fontSize: '13px', fontWeight: 500, lineHeight: 1.7, color: INK, textWrap: 'pretty' }}>{it.text}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {strongEvidence.length > 0 && (
+                  <button type="button" onClick={() => setStrongOpen(v => !v)} style={{ alignSelf: 'flex-start', minHeight: '44px', padding: '0 16px', border: '1px solid #DCDFE4', borderRadius: '20px', background: '#fff', color: sk.primary, fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    {strongOpen ? '근거 접기' : `문항별로 보기 ${strongEvidence.length}건`}
+                  </button>
+                )}
               </div>
             )}
 
-            {noteRestVisible && noteRest.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', ...(noteCollapsible ? { borderTop: '1px solid rgba(23,23,25,0.10)', paddingTop: '14px' } : {}) }}>
-                {noteRest.map((p, i) => <p key={i} style={{ fontSize: '13px', fontWeight: 500, lineHeight: 1.75, color: INK, margin: 0, textWrap: 'pretty' }}>{p}</p>)}
+            {feedback.improvements?.headline && (
+              <div style={{ background: sk.tint, padding: '22px 26px', display: 'flex', flexDirection: 'column', gap: '13px' }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: INK }}>보완이 필요한 점</span>
+                <span style={{ fontSize: '15px', fontWeight: 700, lineHeight: 1.65, letterSpacing: '-0.2px', color: INK, textWrap: 'pretty' }}>{feedback.improvements.headline}</span>
+                {weakOpen && weakEvidence.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '9px' }}>
+                    {weakEvidence.map((it, i) => (
+                      <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'baseline' }}>
+                        {it.no && <span style={{ minWidth: '34px', fontSize: '12px', fontWeight: 700, color: sk.primary, flexShrink: 0 }}>{it.no}</span>}
+                        <span style={{ fontSize: '13px', fontWeight: 500, lineHeight: 1.7, color: INK, textWrap: 'pretty' }}>{it.text}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {weakEvidence.length > 0 && (
+                  <button type="button" onClick={() => setWeakOpen(v => !v)} style={{ alignSelf: 'flex-start', minHeight: '44px', padding: '0 16px', border: '1px solid rgba(23,23,25,0.14)', borderRadius: '20px', background: 'rgba(255,255,255,0.7)', color: sk.primary, fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    {weakOpen ? '근거 접기' : `문항별로 보기 ${weakEvidence.length}건`}
+                  </button>
+                )}
+                {nextPlan && (
+                  <div style={{ borderTop: '1px solid rgba(23,23,25,0.10)', paddingTop: '14px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <span style={{ fontSize: '10.5px', fontWeight: 700, letterSpacing: '1.6px', color: sk.primary }}>다음 수업 계획</span>
+                    <span style={{ fontSize: '13.5px', fontWeight: 600, lineHeight: 1.7, color: INK, textWrap: 'pretty' }}>{nextPlan}{nextPlanDetail ? ` — ${nextPlanDetail}` : ''}</span>
+                  </div>
+                )}
               </div>
             )}
-            {noteCollapsible && (
-              <button type="button" onClick={() => setNoteOpen(v => !v)} style={{ alignSelf: 'flex-start', border: `1px solid ${sk.primary}`, borderRadius: '20px', background: 'transparent', color: sk.primary, fontSize: '12px', fontWeight: 700, padding: '8px 14px', cursor: 'pointer', fontFamily: 'inherit' }}>
-                {noteOpen ? '접기' : '선생님 노트 자세히 보기'}
-              </button>
+
+            {feedback.closing?.text && (
+              <div style={{ background: sk.primary, padding: '24px 26px 26px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: labelInk }}>선생님 한마디</span>
+                <span style={{ fontSize: '14.5px', fontWeight: 500, lineHeight: 1.85, color: '#fff', textWrap: 'pretty' }}>{feedback.closing.text}</span>
+                <span style={{ fontSize: '11.5px', fontWeight: 600, color: 'rgba(255,255,255,0.72)' }}>{teacher?.name}{teacherSuffix}</span>
+              </div>
             )}
           </div>
         </div>

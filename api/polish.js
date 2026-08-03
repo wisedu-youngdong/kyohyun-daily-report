@@ -56,7 +56,23 @@ ${photoContext ? '- "O번, O번을 틀렸습니다"처럼 문항 번호만 나�
 - 과장이나 근거 없는 칭찬 없이 팩트 기반으로, 본문만 출력하세요 (따옴표·제목·부가설명 없이).
 
 [한 줄 요약 — 마지막에 추가로]
-본문을 다 쓴 뒤, 새 줄에 구분자 \`///SUMMARY///\` 를 쓰고 그 다음 줄에 이 리포트 전체를 관통하는 핵심을 15~30자 한 문장으로 요약하세요. 학부모가 이 한 줄만 읽어도 오늘 수업의 결론을 알 수 있어야 합니다(예: "평행선과 선분의 길이의 비, 개념은 잡혔고 응용에서 아직 시간이 걸립니다."). 본문의 첫 문장을 그대로 복사하지 말고 더 압축하세요. 과장 표현 금지.`;
+본문을 다 쓴 뒤, 새 줄에 구분자 \`///SUMMARY///\` 를 쓰고 그 다음 줄에 이 리포트 전체를 관통하는 핵심을 15~30자 한 문장으로 요약하세요. 학부모가 이 한 줄만 읽어도 오늘 수업의 결론을 알 수 있어야 합니다(예: "평행선과 선분의 길이의 비, 개념은 잡혔고 응용에서 아직 시간이 걸립니다."). 본문의 첫 문장을 그대로 복사하지 말고 더 압축하세요. 과장 표현 금지.
+
+[선생님 피드백 3단 — 마지막에 추가로, 매우 중요]
+위 본문과는 별개로, 같은 관찰 내용을 아래 3단 구조로도 재구성하세요. 본문을 요약하는 게 아니라 다른 두 각도(잘한 점 / 보완할 점)로 나누고, 마지막에 짧은 격려 메시지를 씁니다.
+
+1. strengths(잘하고 있는 점): 이 학생이 오늘 실제로 잘한 부분.
+   - [선생님 메모]나 [사진 분석 결과]에 실제 근거가 없으면 억지로 만들지 말고 strengths 전체를 null로 쓰세요(빈 칭찬 금지 — 이게 가장 중요합니다).
+   - headline: 결론 한 문장(리포트에서 가장 크게 보이는 문장이라 뻔한 문장 금지 — 위 [뻔한 표현 금지] 규칙 그대로 적용)
+   - evidence: 0~3개, 구체적 근거가 있으면 {"no": "N번", "text": "..."}, 문항 번호 없이 관찰만 있으면 {"no": "", "text": "..."}
+2. improvements(보완이 필요한 점): 오답/약점 패턴.
+   - headline: 결론 한 문장
+   - evidence: [오답 문제] 목록에 있는 문항 번호를 no에 정확히 반영하세요(지어내지 마세요, 목록에 없는 번호 금지). 최대 3개 — 4개 이상이면 같은 유형끼리 묶어서 대표 문항만 남기세요.
+3. closing(선생님 한마디): 학부모에게 남기는 짧고 따뜻한 마무리 인사. 2~4문장, **공백 포함 200자를 절대 넘기지 마세요**(넘으면 서버에서 강제로 잘립니다 — 문장이 중간에 끊기지 않도록 미리 200자 안에서 끝맺으세요). 오늘 관찰한 태도·노력에 대한 개인적인 감상과 앞으로의 다짐 위주로, 본문이나 headline 문장을 그대로 복사하지 말고 선생님의 목소리로 새로 쓰세요.
+
+이 3단을 JSON으로 만들어 새 줄에 구분자 \`///FEEDBACK///\`를 쓰고 그 다음 줄에 아래 형식 그대로 출력하세요(설명·코드블록 없이 JSON 객체 하나만):
+{"strengths":{"headline":"...","evidence":[{"no":"...","text":"..."}]},"improvements":{"headline":"...","evidence":[{"no":"...","text":"..."}]},"closing":{"text":"..."}}
+strengths 또는 improvements에 넣을 내용이 전혀 없으면 그 값을 null로 쓰세요. evidence가 0개면 빈 배열 []로 쓰세요.`;
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
 
@@ -108,12 +124,31 @@ ${photoContext ? '- "O번, O번을 틀렸습니다"처럼 문항 번호만 나�
     // 바꾸면 그 파싱 로직을 통째로 다시 짜야 함. 구분자가 없으면(모델이 규칙을 안 지킨 드문
     // 경우) summary는 빈 문자열로 두고 본문만 정상 반환 — 요약 배너는 PublicReport.jsx가
     // 빈 값일 때 숨기므로 사용자에게 보이는 실패로 이어지지 않음.
-    const [bodyPart, summaryPart] = result.split('///SUMMARY///');
+    const [bodyPart, summaryAndFeedback] = result.split('///SUMMARY///');
     // 프롬프트에서 인사말을 빼라고 지시해도 가끔 붙여서 응답하는 경우가 있어 안전망으로 한 번 더 제거
     const cleanedResult = bodyPart.trim().replace(/^안녕하세요[,.!]?\s*(학부모님[,.!]?)?\s*\n*/, '');
+    const [summaryPart, feedbackPart] = (summaryAndFeedback || '').split('///FEEDBACK///');
     const summary = (summaryPart || '').trim().replace(/^["']|["']$/g, '');
 
-    res.status(200).json({ result: cleanedResult, summary });
+    // 선생님 피드백 3단(잘한 점/보완할 점/한마디) — 구분자가 없거나(모델이 규칙을 안 지킨 드문
+    // 경우) JSON 파싱에 실패해도 본문/요약은 이미 정상 확보됐으니 feedback만 null로 두고
+    // 그대로 반환. 화면(PublicReport/ParentCard)이 feedback null이면 그 섹션을 통째로 숨기므로
+    // 사용자에게 보이는 실패로 이어지지 않음(3단계에서 이미 처리됨).
+    let feedback = null;
+    if (feedbackPart) {
+      try {
+        const parsed = JSON.parse(feedbackPart.trim().replace(/^```json\s*|\s*```$/g, ''));
+        // closing 200자 하드 제한(4단계 결정) — 프롬프트로 지시해도 모델이 넘길 수 있어 서버에서 강제
+        if (parsed.closing?.text && parsed.closing.text.length > 200) {
+          parsed.closing.text = parsed.closing.text.slice(0, 200).trim();
+        }
+        feedback = parsed;
+      } catch (e) {
+        console.error('선생님 피드백 3단 JSON 파싱 실패(본문/요약은 정상):', e.message);
+      }
+    }
+
+    res.status(200).json({ result: cleanedResult, summary, feedback });
 
   } catch (e) {
     res.status(500).json({ error: '오류: ' + e.message });

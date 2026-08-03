@@ -2,9 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { db } from './firebase';
 import { doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { R, ReportCard, deriveSkinColors } from './tokens.jsx';
+import { R, ReportCard, deriveSkinColors, accentLabelOnPrimary } from './tokens.jsx';
 import { toPct, ratingLabel, fetchAcademyBranding } from './growth.js';
-import { WRONG_TAG_LABELS } from './diagnosis.js';
 // 구형 Android 카카오톡 인앱 웹뷰처럼 dvh 미지원 엔진은 인식 못 하는 값의 선언 자체를 통째로
 // 무시해 min-height가 사라짐 — vh를 먼저 선언해 폴백으로 두고, dvh가 지원되면 그 값으로
 // 덮어쓰게 함(인라인 style 객체는 같은 프로퍼티를 두 번 못 써서 클래스로 분리)
@@ -39,7 +38,9 @@ export default function PublicReport() {
   const [brokenPhotos, setBrokenPhotos] = useState({});
   const [academyName, setAcademyName] = useState(null);
   const [academyId, setAcademyId] = useState(null);
-  const [noteOpen, setNoteOpen] = useState(false); // 선생님 노트 "자세히 보기" 접기/펼침
+  // 선생님 피드백 3단(잘하고 있는 점/보완이 필요한 점) 근거 접기/펼침 — 기본 둘 다 접힘
+  const [strongOpen, setStrongOpen] = useState(false);
+  const [weakOpen, setWeakOpen] = useState(false);
   const [questions, setQuestions] = useState([]);
   const [questionText, setQuestionText] = useState('');
   const [questionSubmitting, setQuestionSubmitting] = useState(false);
@@ -210,13 +211,11 @@ export default function PublicReport() {
   const INK_SOFT = 'rgba(55,56,60,0.75)';
   const CARD_BORDER = '#E4E6EB';
 
-  // 선생님 노트 — 첫 문단을 결론으로 상단에 크게, 나머지는 200자 넘으면 접어서 "자세히 보기"로.
-  // 오늘 눈에 띈 문항은 자유 텍스트에서 추출하지 않고, 이미 구조화돼 저장된 wrongItems를 그대로 씀
-  const noteParagraphs = (r.teacherNote || '').split('\n').filter(Boolean);
-  const noteLead = noteParagraphs[0] || '';
-  const noteRest = noteParagraphs.slice(1);
-  const noteCollapsible = noteRest.join(' ').length > 200;
-  const noteRestVisible = noteCollapsible ? noteOpen : true;
+  // 선생님 피드백 3단 — 짙은 바탕(closing) 위 라벨은 하드코딩 금지, 스킨마다 대비 계산해서 결정
+  const labelInk = accentLabelOnPrimary(sk);
+  // 근거 항목에 빈 문장이 섞여 들어오면(드문 AI 응답 오류) 빈 줄이 그대로 렌더되므로 미리 거름
+  const strongEvidence = (r.feedback?.strengths?.evidence || []).filter(it => it.text?.trim());
+  const weakEvidence = (r.feedback?.improvements?.evidence || []).filter(it => it.text?.trim());
 
   return (
     <>
@@ -318,37 +317,74 @@ export default function PublicReport() {
             </div>
           )}
 
-          {/* 선생님 노트 — 결론 문장 → 오늘 눈에 띈 문항(wrongItems) → 나머지는 200자 넘으면 접기 */}
-          {r.teacherNote && (
+          {/* 선생님 피드백 3단 — 잘하고 있는 점(흰 바탕) / 보완이 필요한 점(스킨 틴트) /
+              선생님 한마디(스킨 주조색, 짙음). 색이 아니라 바탕 톤으로 구획 — 스킨이 주조색·
+              포인트색 2개뿐이고 하루 세션 1건이라 과목별 색 구획이 안 되기 때문(2026-08-03 결정).
+              근거(evidence)는 기본 접힘 — 3단을 더해도 리포트가 길어지지 않게. 번호를 안 매기므로
+              한 단이 비어도(headline 없음) 그 단만 조용히 숨기면 되고 나머지는 그대로 둔다.
+              세 단 다 비면(드문 경우) 그림자만 있는 빈 카드가 뜨지 않도록 통째로 숨김 */}
+          {r.feedback && (r.feedback.strengths?.headline || r.feedback.improvements?.headline || r.feedback.closing?.text) && (
             <div style={{ padding: '0 24px 24px' }}>
-              <div style={{ background: sk.tint, borderRadius: '14px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.6px', color: sk.primary }}>선생님 노트</span>
-                {noteLead && <span style={{ fontSize: '15px', fontWeight: 700, lineHeight: 1.6, color: INK, textWrap: 'pretty' }}>{noteLead}</span>}
-
-                {r.wrongItems?.length > 0 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <span style={{ fontSize: '11px', fontWeight: 700, color: INK_SOFT }}>오늘 눈에 띈 문항</span>
-                    {r.wrongItems.map((w, i) => {
-                      const extra = w.memo?.trim() || (w.tags?.length ? w.tags.map(t => WRONG_TAG_LABELS[t]).filter(Boolean).join(', ') : '');
-                      return (
-                        <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'baseline' }}>
-                          <span style={{ minWidth: '38px', fontSize: '12px', fontWeight: 700, color: sk.primary, flexShrink: 0 }}>{w.number}번</span>
-                          <span style={{ fontSize: '13px', fontWeight: 500, lineHeight: 1.6, color: INK, textWrap: 'pretty' }}>{w.type}{extra ? ` — ${extra}` : ''}</span>
-                        </div>
-                      );
-                    })}
+              <div style={{ borderRadius: '18px', overflow: 'hidden', boxShadow: '0 6px 28px rgba(23,23,25,0.10)' }}>
+                {r.feedback.strengths?.headline && (
+                  <div style={{ padding: '22px 26px', display: 'flex', flexDirection: 'column', gap: '13px' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: INK }}>잘하고 있는 점</span>
+                    <span style={{ fontSize: '15px', fontWeight: 700, lineHeight: 1.65, letterSpacing: '-0.2px', color: INK, textWrap: 'pretty' }}>{r.feedback.strengths.headline}</span>
+                    {strongOpen && strongEvidence.length > 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '9px' }}>
+                        {strongEvidence.map((it, i) => (
+                          <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'baseline' }}>
+                            {it.no && <span style={{ minWidth: '34px', fontSize: '12px', fontWeight: 700, color: sk.primary, flexShrink: 0 }}>{it.no}</span>}
+                            <span style={{ fontSize: '13px', fontWeight: 500, lineHeight: 1.7, color: INK, textWrap: 'pretty' }}>{it.text}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {strongEvidence.length > 0 && (
+                      <button onClick={() => setStrongOpen(v => !v)} style={{ alignSelf: 'flex-start', minHeight: '44px', padding: '0 16px', border: '1px solid #DCDFE4', borderRadius: '20px', background: '#fff', color: sk.primary, fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                        {strongOpen ? '근거 접기' : `문항별로 보기 ${strongEvidence.length}건`}
+                      </button>
+                    )}
                   </div>
                 )}
 
-                {noteRestVisible && noteRest.length > 0 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', ...(noteCollapsible ? { borderTop: '1px solid rgba(23,23,25,0.10)', paddingTop: '14px' } : {}) }}>
-                    {noteRest.map((p, i) => <p key={i} style={{ fontSize: '13px', fontWeight: 500, lineHeight: 1.75, color: INK, margin: 0, textWrap: 'pretty' }}>{p}</p>)}
+                {r.feedback.improvements?.headline && (
+                  <div style={{ background: sk.tint, padding: '22px 26px', display: 'flex', flexDirection: 'column', gap: '13px' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: INK }}>보완이 필요한 점</span>
+                    <span style={{ fontSize: '15px', fontWeight: 700, lineHeight: 1.65, letterSpacing: '-0.2px', color: INK, textWrap: 'pretty' }}>{r.feedback.improvements.headline}</span>
+                    {weakOpen && weakEvidence.length > 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '9px' }}>
+                        {weakEvidence.map((it, i) => (
+                          <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'baseline' }}>
+                            {it.no && <span style={{ minWidth: '34px', fontSize: '12px', fontWeight: 700, color: sk.primary, flexShrink: 0 }}>{it.no}</span>}
+                            <span style={{ fontSize: '13px', fontWeight: 500, lineHeight: 1.7, color: INK, textWrap: 'pretty' }}>{it.text}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {weakEvidence.length > 0 && (
+                      <button onClick={() => setWeakOpen(v => !v)} style={{ alignSelf: 'flex-start', minHeight: '44px', padding: '0 16px', border: '1px solid rgba(23,23,25,0.14)', borderRadius: '20px', background: 'rgba(255,255,255,0.7)', color: sk.primary, fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                        {weakOpen ? '근거 접기' : `문항별로 보기 ${weakEvidence.length}건`}
+                      </button>
+                    )}
+                    {/* 다음 수업 계획 — 새 필드를 따로 안 만들고 기존 nextPlan/nextPlanDetail을
+                        재사용(2026-08-03 결정) — "보완이 필요한 점"을 지적이 아니라 계획으로
+                        마무리. 값이 없으면(선생님이 안 채웠으면) 이 블록만 조용히 숨김 */}
+                    {r.nextPlan && (
+                      <div style={{ borderTop: '1px solid rgba(23,23,25,0.10)', paddingTop: '14px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <span style={{ fontSize: '10.5px', fontWeight: 700, letterSpacing: '1.6px', color: sk.primary }}>다음 수업 계획</span>
+                        <span style={{ fontSize: '13.5px', fontWeight: 600, lineHeight: 1.7, color: INK, textWrap: 'pretty' }}>{r.nextPlan}{r.nextPlanDetail ? ` — ${r.nextPlanDetail}` : ''}</span>
+                      </div>
+                    )}
                   </div>
                 )}
-                {noteCollapsible && (
-                  <button onClick={() => setNoteOpen(v => !v)} style={{ alignSelf: 'flex-start', border: `1px solid ${sk.primary}`, borderRadius: '20px', background: 'transparent', color: sk.primary, fontSize: '12px', fontWeight: 700, padding: '8px 14px', cursor: 'pointer', fontFamily: 'inherit' }}>
-                    {noteOpen ? '접기' : '선생님 노트 자세히 보기'}
-                  </button>
+
+                {r.feedback.closing?.text && (
+                  <div style={{ background: sk.primary, padding: '24px 26px 26px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: labelInk }}>선생님 한마디</span>
+                    <span style={{ fontSize: '14.5px', fontWeight: 500, lineHeight: 1.85, color: '#fff', textWrap: 'pretty' }}>{r.feedback.closing.text}</span>
+                    <span style={{ fontSize: '11.5px', fontWeight: 600, color: 'rgba(255,255,255,0.72)' }}>{r.teacherName}{teacherSuffix}</span>
+                  </div>
                 )}
               </div>
             </div>
