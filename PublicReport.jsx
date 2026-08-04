@@ -216,6 +216,11 @@ export default function PublicReport() {
   // 근거 항목에 빈 문장이 섞여 들어오면(드문 AI 응답 오류) 빈 줄이 그대로 렌더되므로 미리 거름
   const strongEvidence = (r.feedback?.strengths?.evidence || []).filter(it => it.text?.trim());
   const weakEvidence = (r.feedback?.improvements?.evidence || []).filter(it => it.text?.trim());
+  // 3단 피드백 카드를 그릴 수 있는지 — 없으면 아래에서 teacherNote 폴백 카드로 대체.
+  // feedback은 AI 다듬기를 거친 매일형에만 생기고, 주간형 발송(원장 총평)·다듬기 생략·
+  // 파싱 실패 리포트엔 없다 — 폴백이 없으면 그런 리포트는 선생님 노트가 통째로 사라져
+  // 학부모가 수치·사진만 보게 됨(2026-08-05 감사에서 발견).
+  const hasFeedbackCard = !!(r.feedback && (r.feedback.strengths?.headline || r.feedback.improvements?.headline || r.feedback.closing?.text));
 
   return (
     <>
@@ -236,8 +241,11 @@ export default function PublicReport() {
               <span style={{ fontSize: '28px', fontWeight: 700, letterSpacing: '-0.5px', lineHeight: 1.1, color: '#fff' }}>{r.studentName}</span>
               <span style={{ fontSize: '12px', fontWeight: 500, color: 'rgba(255,255,255,0.82)' }}>
                 {r.teacherName}{teacherSuffix}
-                {r.attendance === '결석' ? ` · ${r.attendance}` : ` · ${r.arrivalTime} ${r.attendance} 등원`}
-                {r.attendance !== '결석' && r.departureTime ? ` (${r.departureTime} 하원)` : ''}
+                {/* 주간형은 최상위 attendance/arrivalTime이 없어(세션별로만 존재) 가드 없이는
+                    "undefined undefined 등원"이 그대로 노출됐음(2026-08-05 발견) — 값 있을 때만 표시 */}
+                {r.attendance === '결석' ? ` · ${r.attendance}`
+                  : r.attendance ? ` · ${r.arrivalTime ? `${r.arrivalTime} ` : ''}${r.attendance} 등원` : ''}
+                {r.attendance && r.attendance !== '결석' && r.departureTime ? ` (${r.departureTime} 하원)` : ''}
               </span>
             </div>
           </div>
@@ -323,7 +331,7 @@ export default function PublicReport() {
               근거(evidence)는 기본 접힘 — 3단을 더해도 리포트가 길어지지 않게. 번호를 안 매기므로
               한 단이 비어도(headline 없음) 그 단만 조용히 숨기면 되고 나머지는 그대로 둔다.
               세 단 다 비면(드문 경우) 그림자만 있는 빈 카드가 뜨지 않도록 통째로 숨김 */}
-          {r.feedback && (r.feedback.strengths?.headline || r.feedback.improvements?.headline || r.feedback.closing?.text) && (
+          {hasFeedbackCard && (
             <div style={{ padding: '0 24px 24px' }}>
               <div style={{ borderRadius: '18px', overflow: 'hidden', boxShadow: '0 6px 28px rgba(23,23,25,0.10)' }}>
                 {r.feedback.strengths?.headline && (
@@ -386,6 +394,22 @@ export default function PublicReport() {
                     <span style={{ fontSize: '11.5px', fontWeight: 600, color: 'rgba(255,255,255,0.72)' }}>{r.teacherName}{teacherSuffix}</span>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* 폴백 — 3단 피드백이 없는 리포트(주간형 총평, 다듬기 생략, 파싱 실패)는
+              teacherNote 원문을 "선생님 노트" 카드로 보여줌. 발송 검증이 teacherNote를
+              필수로 요구하므로(매일형·주간형 모두) 이 폴백으로 "노트 없는 리포트"가
+              구조적으로 사라짐. 시각은 3단 카드의 '선생님 한마디' 단과 동일한 네이비 블록 */}
+          {!hasFeedbackCard && r.teacherNote?.trim() && (
+            <div style={{ padding: '0 24px 24px' }}>
+              <div style={{ borderRadius: '18px', overflow: 'hidden', boxShadow: '0 6px 28px rgba(23,23,25,0.10)' }}>
+                <div style={{ background: sk.primary, padding: '24px 26px 26px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: labelInk }}>선생님 노트</span>
+                  <span style={{ fontSize: '14.5px', fontWeight: 500, lineHeight: 1.85, color: '#fff', whiteSpace: 'pre-wrap', textWrap: 'pretty' }}>{r.teacherNote}</span>
+                  <span style={{ fontSize: '11.5px', fontWeight: 600, color: 'rgba(255,255,255,0.72)' }}>{r.teacherName}{teacherSuffix}</span>
+                </div>
               </div>
             </div>
           )}

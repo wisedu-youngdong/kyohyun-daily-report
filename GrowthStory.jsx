@@ -4,7 +4,7 @@ import { db, auth } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { collection, getDoc, getDocs, query, where, doc, setDoc, limit } from 'firebase/firestore';
 import { ReportCard, R, deriveSkinColors } from './tokens.jsx';
-import { toPct, isNewStudent as computeIsNewStudent, fetchAcademyBranding, resolveUnitGroup } from './growth.js';
+import { toPct, isNewStudent as computeIsNewStudent, fetchAcademyBranding, resolveUnitGroup, flattenReportsForAnalysis } from './growth.js';
 import { DIAG_LABELS as diagLabels } from './diagnosis.js';
 
 // 학부모에게 저장 즉시 노출되는 서사 문구 — 강사가 너무 길게/짧게 써서 카드 UI가
@@ -194,8 +194,13 @@ export default function GrowthStory() {
 
   // 데이터 가공
   // 기간 필터 적용
+  // 주간형(reportType 'weekly') 리포트는 세션 단위로 펼침 — 다른 화면들(GrowthAward/
+  // AnalysisView/GrowthDashboard/StudentProfileModal 등)은 전부 펼치는데 이 화면만 빠져서,
+  // 주간형 학생의 회차가 문서 수로 세어지고 출석률·평균·단원 카드가 빈 값이 되던 갭
+  // (2026-08-05 감사에서 발견). 매일형 리포트는 flatten이 그대로 통과시키므로 무영향.
+  // reviewProof의 원본 리포트 조회는 reports(원본 state)를 쓰므로 여기 펼침과 무관.
   // 과제/개념 평가는 구 리포트(1~5)와 신규 리포트(0~100)가 섞여 있으므로 0~100(%) 기준으로 정규화
-  const allSorted = [...reports]
+  const allSorted = flattenReportsForAnalysis(reports)
     .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0))
     .map(r => ({ ...r, conceptRating: r.conceptRating == null ? null : toPct(r.conceptRating), homeworkRating: r.homeworkRating == null ? null : toPct(r.homeworkRating) }));
   // 'YYYY-MM-DD' — <input type="date">가 주는 값과 같은 포맷이라 문자열 비교로 바로 범위
