@@ -5,7 +5,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { collection, getDoc, getDocs, query, where, doc, setDoc, limit } from 'firebase/firestore';
 import { ReportCard, R, deriveSkinColors } from './tokens.jsx';
 import { toPct, isNewStudent as computeIsNewStudent, fetchAcademyBranding, resolveUnitGroup } from './growth.js';
-import { DIAG_LABELS as diagLabels, DIAG_SOFT as DIAG_COLORS } from './diagnosis.js';
+import { DIAG_LABELS as diagLabels } from './diagnosis.js';
 
 // 학부모에게 저장 즉시 노출되는 서사 문구 — 강사가 너무 길게/짧게 써서 카드 UI가
 // 무너지지 않도록 최대 글자 수를 두고, 입력창에 남은 글자 수를 보여준다.
@@ -356,10 +356,18 @@ export default function GrowthStory() {
   const earliestDay = allSorted[0]?.createdAt?.seconds ? dayKeyOf(allSorted[0].createdAt.seconds) : undefined;
   const latestDay = allSorted[allSorted.length - 1]?.createdAt?.seconds ? dayKeyOf(allSorted[allSorted.length - 1].createdAt.seconds) : undefined;
 
-  // AI 서사 생성 — 전체(3개 항목 한 번에). 이미 서사가 있으면 직접 편집한 내용까지
-  // 통째로 덮어써지므로 반드시 한 번 확인받음
+  // AI가 4페이지 강점/보완점 근거로 쓸 세션 목록 — 날짜·단원·메모를 그대로 넘김(가공 없이).
+  // api/narrative.js가 strengthsEvidence/improvementsEvidence의 "no"를 이 날짜들과 대조해
+  // 목록 밖 날짜를 걸러내므로, 여기 date 포맷(fmtDate 결과)이 곧 근거 후보 전체가 됨.
+  const buildSessionsPayload = () => sorted
+    .filter(r => r.teacherNote?.trim())
+    .map(r => ({ date: fmtDate(r), unit: r.unit || r.textbook || '', note: r.teacherNote }));
+
+  // AI 서사 생성 — 전체(한 달의 결론 + 잘하고 있는 점 + 보완이 필요한 점 + 다음 과제 +
+  // 선생님 한마디). 이미 서사가 있으면 직접 편집한 내용까지 통째로 덮어써지므로 반드시
+  // 한 번 확인받음
   const handleGenNarrative = async () => {
-    if (narrative && !window.confirm('3개 항목(한 달의 결론 + 선생님 한마디 + 다음 이야기)이 전부 새로 생성되고, 직접 편집한 내용도 덮어써져요. 계속할까요?')) return;
+    if (narrative && !window.confirm('한 달의 결론 · 잘하고 있는 점 · 보완이 필요한 점 · 다음 과제 · 선생님 한마디가 전부 새로 생성되고, 직접 편집한 내용도 덮어써져요. 계속할까요?')) return;
     setNarLoading(true);
     const teacherNotes = sorted
       .filter(r => r.teacherNote)
@@ -377,6 +385,7 @@ export default function GrowthStory() {
           studentName: student?.name || '학생',
           unitScores,
           teacherNotes,
+          sessions: buildSessionsPayload(),
           isNewStudent,
           totalReports: sorted.length,
         })
@@ -988,26 +997,6 @@ export default function GrowthStory() {
           </>
         );
 
-        // 자주 나온 약점 유형 — 페이지 2 독립 차트는 제거하고 4페이지 '다음 목표' 한 줄
-        // 요약으로 흡수(승인된 결정, 정보량 절감). 집계 자체는 이미 로드된 sorted로, 새 조회 없음.
-        const diagCount = {};
-        const diagUnitMap = {}; // key -> { 단원명: 횟수 }
-        sorted.forEach(r => (r.diagnosis || []).forEach(d => {
-          if (d.key === 'perfect') return; // 잘한 건 말고 약점만 집계
-          diagCount[d.key] = (diagCount[d.key] || 0) + 1;
-          const u = (r.unit && r.unit.trim()) || (r.textbook && r.textbook.trim()) || '';
-          if (u) {
-            if (!diagUnitMap[d.key]) diagUnitMap[d.key] = {};
-            diagUnitMap[d.key][u] = (diagUnitMap[d.key][u] || 0) + 1;
-          }
-        }));
-        const diagList = Object.entries(diagCount).sort((a, b) => b[1] - a[1]);
-        const topWeak = diagList[0]; // [key, count] | undefined
-        const topWeakLabel = topWeak ? (DIAG_COLORS[topWeak[0]]?.label || topWeak[0]) : null;
-        const topWeakUnits = topWeak && diagUnitMap[topWeak[0]]
-          ? Object.entries(diagUnitMap[topWeak[0]]).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([u]) => u)
-          : [];
-
         // 2페이지 "무엇이 달라졌나"에 붙는 복습 효과(완료된 복습이 있을 때만)
         const reviewEffectContent = reviewProof.length === 0 ? null : (
       <div style={S.section}>
@@ -1060,94 +1049,120 @@ export default function GrowthStory() {
         // 폐기 — 1페이지 "지표 3분류"가 같은 값(hwAvg/conceptAvg/maxScore/avgScore/
         // attendanceRate)을 이미 보여줘서 그대로 재포장이었다(핸드오프 §2-1/§4-4).
 
-        // 마지막 페이지 — 선생님 한마디 + 다음 목표 (둘 다 항상 존재, fallback 문구 있음)
-        const teacherWordContent = (
-      <div style={{ background: sk.primary, borderRadius: '14px', padding: '26px 28px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-          <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.6)', letterSpacing: '0.14em', fontWeight: 600 }}>TEACHER'S WORD</p>
-          {isEditor && narrative && (
-            <div style={{ display: 'flex', gap: '6px' }}>
-              <button onClick={() => startEdit('teacherWord')}
-                style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '6px', cursor: 'pointer' }}>
-                ✏️ 편집
-              </button>
-              <button onClick={() => handleRegenField('teacherWord')} disabled={!!regenField}
-                title="이 항목만 AI로 다시 생성 (다른 항목은 그대로)"
-                style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '6px', cursor: regenField ? 'wait' : 'pointer', opacity: regenField && regenField !== 'teacherWord' ? 0.5 : 1 }}>
-                {regenField === 'teacherWord' ? '⏳ 생성 중' : '🔄 이 항목만'}
-              </button>
-            </div>
-          )}
-        </div>
-        {editing === 'teacherWord' ? (
+        // 마지막 페이지 — 선생님 한마디(3단 구조: 잘하고 있는 점/보완이 필요한 점/선생님
+        // 한마디, 2026-08-04). 리포트 1건짜리 화면(PublicReport.jsx)이 이미 쓰는 3단 구조와
+        // 같은 틀로 통일 — 다만 이건 기간 전체를 요약하는 버전이라 별도 AI 필드(strengths/
+        // improvements/closing)로 생성되고, evidence의 "no"는 문항 번호가 아니라 그 일이
+        // 있었던 날짜(api/narrative.js가 실제 세션 날짜와 대조해 검증).
+        const feedbackEditBtn = (field, dark) => isEditor && narrative && (
+          <div style={{ display: 'flex', gap: '6px' }}>
+            <button onClick={() => startEdit(field)}
+              style={{ background: dark ? 'rgba(255,255,255,0.1)' : '#F0EDE8', border: 'none', color: dark ? 'rgba(255,255,255,0.6)' : '#757575', fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '6px', cursor: 'pointer' }}>
+              ✏️ 편집
+            </button>
+            <button onClick={() => handleRegenField(field)} disabled={!!regenField}
+              title="이 항목만 AI로 다시 생성 (다른 항목은 그대로)"
+              style={{ background: dark ? 'rgba(255,255,255,0.1)' : '#EAF0F9', border: 'none', color: dark ? 'rgba(255,255,255,0.6)' : sk.primary, fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '6px', cursor: regenField ? 'wait' : 'pointer', opacity: regenField && regenField !== field ? 0.5 : 1 }}>
+              {regenField === field ? '⏳ 생성 중' : '🔄 이 항목만'}
+            </button>
+          </div>
+        );
+        const feedbackEditArea = (field, dark, minHeight) => (
           <div>
             <textarea value={editText} onChange={e => setEditText(e.target.value.slice(0, NARRATIVE_MAX_LEN))} maxLength={NARRATIVE_MAX_LEN}
-              style={{ width: '100%', minHeight: '100px', padding: '12px', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '8px', color: '#fff', fontSize: '16px', lineHeight: 1.8, fontFamily: 'inherit', resize: 'vertical', outline: 'none' }} />
-            <EditCharCount text={editText} dark />
+              style={{ width: '100%', minHeight, padding: '10px', background: dark ? 'rgba(255,255,255,0.1)' : '#fff', border: dark ? '1px solid rgba(255,255,255,0.3)' : '1px solid #E5E5E5', borderRadius: '8px', color: dark ? '#fff' : '#171719', fontSize: '16px', lineHeight: 1.8, fontFamily: 'inherit', resize: 'vertical', outline: 'none' }} />
+            <EditCharCount text={editText} dark={dark} />
             <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-              <button onClick={saveEdit} style={{ flex: 1, padding: '8px', background: sk.accent, border: 'none', borderRadius: '6px', color: '#fff', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>저장</button>
-              <button onClick={cancelEdit} style={{ flex: 1, padding: '8px', background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '6px', color: 'rgba(255,255,255,0.6)', fontSize: '12px', cursor: 'pointer' }}>취소</button>
+              <button onClick={saveEdit} style={{ flex: 1, padding: '7px', background: dark ? sk.accent : sk.primary, border: 'none', borderRadius: '6px', color: '#fff', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>저장</button>
+              <button onClick={cancelEdit} style={{ flex: 1, padding: '7px', background: dark ? 'rgba(255,255,255,0.1)' : '#F3F4F6', border: 'none', borderRadius: '6px', color: dark ? 'rgba(255,255,255,0.6)' : '#6B7280', fontSize: '11px', cursor: 'pointer' }}>취소</button>
             </div>
           </div>
-        ) : (
-          <p style={{ fontSize: '14px', color: '#fff', lineHeight: 2.0, fontWeight: 500, wordBreak: 'keep-all', borderLeft: `2px solid ${sk.accent}`, paddingLeft: '14px', marginBottom: '12px' }}>
-            {narrative?.teacherWord || (bestReport?.teacherNote
-              ? `"${bestReport.teacherNote.slice(0, 60)}${bestReport.teacherNote.length > 60 ? '...' : ''}"`
-              : `${student.name}이(가) 바뀐 건 점수가 아닙니다. 문제를 스스로 바라보는 시선이 바뀌었습니다.`)}
-          </p>
-        )}
-        <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.65)', textAlign: 'right' }}>
-          {teacherDisplay}
-        </p>
-      </div>
         );
 
-        const nextChapterContent = (
-      <div style={S.section}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-          <p style={S.label}>NEXT CHAPTER</p>
-          {isEditor && narrative && (
-            <div style={{ display: 'flex', gap: '6px' }}>
-              <button onClick={() => startEdit('nextChapter')}
-                style={{ background: '#F0EDE8', border: 'none', color: '#757575', fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '6px', cursor: 'pointer' }}>
-                ✏️ 편집
-              </button>
-              <button onClick={() => handleRegenField('nextChapter')} disabled={!!regenField}
-                title="이 항목만 AI로 다시 생성 (다른 항목은 그대로)"
-                style={{ background: '#EAF0F9', border: 'none', color: sk.primary, fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '6px', cursor: regenField ? 'wait' : 'pointer', opacity: regenField && regenField !== 'nextChapter' ? 0.5 : 1 }}>
-                {regenField === 'nextChapter' ? '⏳ 생성 중' : '🔄 이 항목만'}
-              </button>
+        const strengthsSection = (
+          <div style={{ padding: '22px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: '#171719' }}>잘하고 있는 점</span>
+              {feedbackEditBtn('strengthsHeadline', false)}
             </div>
-          )}
-        </div>
-        {editing === 'nextChapter' ? (
-          <div style={{ marginBottom: '14px' }}>
-            <textarea value={editText} onChange={e => setEditText(e.target.value.slice(0, NARRATIVE_MAX_LEN))} maxLength={NARRATIVE_MAX_LEN}
-              style={{ width: '100%', minHeight: '80px', padding: '12px', border: '1px solid #E5E5E5', borderRadius: '8px', color: '#2C2C2C', fontSize: '16px', lineHeight: 1.8, fontFamily: 'inherit', resize: 'vertical', outline: 'none' }} />
-            <EditCharCount text={editText} />
-            <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-              <button onClick={saveEdit} style={{ flex: 1, padding: '8px', background: sk.primary, border: 'none', borderRadius: '6px', color: '#fff', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>저장</button>
-              <button onClick={cancelEdit} style={{ flex: 1, padding: '8px', background: '#F3F4F6', border: 'none', borderRadius: '6px', color: '#6B7280', fontSize: '12px', cursor: 'pointer' }}>취소</button>
-            </div>
+            {editing === 'strengthsHeadline' ? feedbackEditArea('strengthsHeadline', false, '60px') : (
+              <span style={{ fontSize: '15px', fontWeight: 700, lineHeight: 1.65, color: '#171719', textWrap: 'pretty' }}>
+                {narrative?.strengthsHeadline || (bestReport?.teacherNote
+                  ? `"${bestReport.teacherNote.slice(0, 60)}${bestReport.teacherNote.length > 60 ? '...' : ''}"`
+                  : (isEditor ? 'AI 서사를 생성하면 이번 기간 강점 문장이 여기 채워져요.' : ''))}
+              </span>
+            )}
+            {narrative?.strengthsEvidence?.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '9px' }}>
+                {narrative.strengthsEvidence.map((it, i) => (
+                  <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'baseline' }}>
+                    <span style={{ minWidth: '52px', fontSize: '12px', fontWeight: 700, color: sk.primary, flexShrink: 0 }}>{it.no}</span>
+                    <span style={{ fontSize: '13px', fontWeight: 500, lineHeight: 1.7, color: '#171719', textWrap: 'pretty' }}>{it.text}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        ) : (
-          <p style={{ fontSize: '12px', color: '#4A4A4A', lineHeight: 1.9, wordBreak: 'keep-all', marginBottom: '14px' }}>
-            {narrative?.nextChapter || '판단 기준을 세우는 힘이 생기기 시작했습니다. 이제는 그 힘을 더 단단하게 만들 차례입니다.'}
-          </p>
-        )}
-        <div style={{ borderTop: '1px solid #F1EFEC', paddingTop: '16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <span style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(55,56,60,0.75)', whiteSpace: 'nowrap' }}>다음 목표</span>
-          <span style={{ background: '#FBEDED', color: R.negative, fontSize: '13px', fontWeight: 700, padding: '9px 14px', borderRadius: '8px' }}>
-            {topWeakLabel ? `${topWeakLabel} 집중 보완` : '다음 단원 준비'}
-          </span>
-        </div>
-        {/* 페이지 2에서 옮겨온 요약 — 약점 유형별 막대 대신 가장 잦은 유형 하나만 문장으로 */}
-        {topWeak && (
-          <p style={{ fontSize: '11.5px', fontWeight: 500, lineHeight: 1.7, color: 'rgba(55,56,60,0.75)', margin: '10px 0 0' }}>
-            이번 기간 &lsquo;{topWeakLabel}&rsquo;이 {topWeak[1]}회로 가장 많이 나왔어요{topWeakUnits.length > 0 ? ` · 주로 ${topWeakUnits.join(', ')}에서 나왔습니다.` : '.'}
-          </p>
-        )}
-      </div>
+        );
+
+        const improvementsSection = (
+          <div style={{ background: '#F4F6FA', padding: '22px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: '#171719' }}>보완이 필요한 점</span>
+              {feedbackEditBtn('improvementsHeadline', false)}
+            </div>
+            {editing === 'improvementsHeadline' ? feedbackEditArea('improvementsHeadline', false, '60px') : (
+              <span style={{ fontSize: '15px', fontWeight: 700, lineHeight: 1.65, color: '#171719', textWrap: 'pretty' }}>
+                {narrative?.improvementsHeadline || (isEditor ? 'AI 서사를 생성하면 이번 기간 보완 문장이 여기 채워져요.' : '')}
+              </span>
+            )}
+            {narrative?.improvementsEvidence?.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '9px' }}>
+                {narrative.improvementsEvidence.map((it, i) => (
+                  <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'baseline' }}>
+                    <span style={{ minWidth: '52px', fontSize: '12px', fontWeight: 700, color: sk.primary, flexShrink: 0 }}>{it.no}</span>
+                    <span style={{ fontSize: '13px', fontWeight: 500, lineHeight: 1.7, color: '#171719', textWrap: 'pretty' }}>{it.text}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {(narrative?.nextTask || isEditor) && (
+              <div style={{ borderTop: '1px solid rgba(23,23,25,0.10)', paddingTop: '14px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                  <span style={{ fontSize: '10.5px', fontWeight: 700, letterSpacing: '1.6px', color: sk.bannerLabel }}>다음 달 과제</span>
+                  {feedbackEditBtn('nextTask', false)}
+                </div>
+                {editing === 'nextTask' ? feedbackEditArea('nextTask', false, '60px') : (
+                  <span style={{ fontSize: '13.5px', fontWeight: 600, lineHeight: 1.7, color: '#171719', textWrap: 'pretty' }}>
+                    {narrative?.nextTask || '판단 기준을 세우는 힘이 생기기 시작했습니다. 이제는 그 힘을 더 단단하게 만들 차례입니다.'}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        );
+
+        const closingSection = (
+          <div style={{ background: sk.primary, padding: '24px 24px 26px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: sk.accent }}>선생님 한마디</span>
+              {feedbackEditBtn('closing', true)}
+            </div>
+            {editing === 'closing' ? feedbackEditArea('closing', true, '100px') : (
+              <span style={{ fontSize: '14.5px', fontWeight: 500, lineHeight: 1.85, color: '#fff', textWrap: 'pretty' }}>
+                {narrative?.closing || `${student.name}이(가) 바뀐 건 점수가 아닙니다. 문제를 스스로 바라보는 시선이 바뀌었습니다.`}
+              </span>
+            )}
+            <span style={{ fontSize: '11.5px', fontWeight: 600, color: 'rgba(255,255,255,0.72)' }}>{teacherDisplay}</span>
+          </div>
+        );
+
+        const teacherFeedbackContent = (
+          <div style={{ background: '#fff', border: '1px solid #EEECEA', borderRadius: '14px', overflow: 'hidden' }}>
+            {strengthsSection}
+            {improvementsSection}
+            {closingSection}
+          </div>
         );
 
         // 학습 기록 상세 — 원장이 선택한 기간(위 기간 선택 캘린더) 동안 선생님이 남긴 코멘트를
@@ -1328,7 +1343,7 @@ export default function GrowthStory() {
           (scoreTrendContent || unitTrendContent || unitCardsContent || reviewEffectContent) &&
             { key: 'change', label: '무엇이 달라졌나', content: (<>{scoreTrendContent}{unitTrendContent}{unitCardsContent}{reviewEffectContent}</>) },
           timelineContent && { key: 'timeline', label: '수업 기록', content: timelineContent },
-          { key: 'closing', label: '선생님 한마디', content: (<>{teacherWordContent}{nextChapterContent}</>) },
+          { key: 'closing', label: '선생님 한마디', content: teacherFeedbackContent },
         ].filter(Boolean);
         // 기간 토글 등으로 페이지 수가 줄어든 사이 이전 페이지 인덱스가 범위를 벗어날 수 있어 방어
         const curPage = Math.min(page, pages.length - 1);

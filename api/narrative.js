@@ -10,22 +10,39 @@ export const maxDuration = 30;
 // chapter1/chapter2가 하던 "의미 있는 순간 짚기" 역할을 대신한다. 기존 문서에 남아있는
 // chapter1/chapter2 값은 그대로 두되(마이그레이션 불필요, 어차피 화면에서 안 읽음) 새로
 // 생성하지는 않는다.
-const REQUIRED_FIELDS = ['monthConclusion', 'teacherWord', 'nextChapter'];
+//
+// 2026-08-04 추가 재편: 4페이지 "선생님 한마디"를 teacherWord(자유 문단) + nextChapter
+// (다음 목표 1문장) 2단 구성에서 3단 구조(잘하고 있는 점/보완이 필요한 점+다음 달 과제/
+// 선생님 한마디)로 교체 — 리포트 1건짜리 화면(PublicReport.jsx)이 이미 쓰는 3단 구조와
+// 같은 틀로 통일. teacherWord/nextChapter도 화면에서 더 이상 안 읽으므로 새로 생성하지
+// 않는다(옛 문서에 남아있는 값은 죽은 데이터로 방치, chapter1/chapter2와 같은 처리).
+const REQUIRED_FIELDS = ['monthConclusion', 'strengthsHeadline', 'improvementsHeadline', 'nextTask', 'closing'];
+// evidence(근거) 배열은 완성도 체크에서 제외 — 기간이 짧으면 뽑을 근거가 아예 없을 수 있고,
+// 그건 결함이 아니라 정직한 상태라 강제로 채우게 하면 없는 근거를 지어내게 된다.
+const OPTIONAL_LIST_FIELDS = ['strengthsEvidence', 'improvementsEvidence'];
 
 // 항목별 작성 규칙 — 전체 생성 프롬프트와 항목별 재생성 프롬프트가 같은 규칙을 공유
 // (여기만 고치면 두 모드에 동시 반영)
 const FIELD_RULES = {
   newStudent: {
     monthConclusion: 'monthConclusion(한 달의 결론): 이번 기간 가장 눈에 띄는 성취 하나를 최대 2문장으로 쓸 것. ① 반드시 성취·상승 사실부터 문장을 시작할 것 — 낮은 숫자나 시작 시점의 부진한 사실을 문장 맨 앞에 놓지 말 것(예: "OO단원에서 처음으로 만점을 받았습니다"처럼 좋은 소식이 먼저 와야 함). ② 서로 다른 사실을 한 문장에 욱여넣지 말 것 — 사실이 두 개면 억지로 이어 붙이지 말고 문장을 자연스럽게 나눌 것(최대 2문장까지만). ③ 교재명과 기간은 헤더에 이미 있으므로 반복하지 말고 단원명 위주로 쓸 것. 처음 시작하는 아이라는 점을 감안해 적응 과정의 의미를 담되, AI냄새 나는 표현(인상적/훌륭/대단) 금지.',
-    teacherWord: 'teacherWord: 반드시 이 순서로 — ① 위 데이터에 나온 단원명을 최소 1개 인용해 실제로 있었던 변화를 짚고 ② 그 변화가 뭘 뜻하는지 담담히 해석. 점수·%·개수 같은 숫자는 절대 쓰지 말 것(1·2페이지가 이미 숫자를 다 보여줬으므로 여기는 관찰만). "고집"/"끈기"/"집요함" 같은 성격 형용사는 그 자체로 쓰지 말 것 — 정 필요하면 방금 인용한 구체적 장면 바로 뒤에만("OO단원을 몇 번이고 다시 풀어본 데서 보이듯" 식으로) 붙일 것. 막연한 칭찬 금지. 1~2문장.',
-    nextChapter: 'nextChapter: 다음 목표 1문장. 위 데이터에 나온 실제 단원명 포함(숫자는 쓰지 말 것).',
+    strengthsHeadline: 'strengthsHeadline: 처음 시작한 이후 가장 뚜렷하게 자리 잡은 점 하나를 한 문장으로. 추상적 형용사(성실함/끈기 등) 대신 구체적으로 뭐가 달라졌는지.',
+    improvementsHeadline: 'improvementsHeadline: 아직 낯설어하는 지점 하나를 한 문장으로. 결점 나열이 아니라 "왜 아직 낯선지"가 드러나게, 처음 시작한 지 얼마 안 됐다는 점을 감안한 담백한 톤으로.',
+    nextTask: 'nextTask: 다음 기간에 다룰 구체적 과제 1문장. 위 데이터에 나온 실제 단원명 포함(숫자는 쓰지 말 것).',
+    closing: 'closing: 선생님이 학부모에게 직접 건네는 한마디. 반드시 이 순서로 자연스럽게 이어 쓸 것(순서 설명이지 서식 아님 — 대괄호·화살표 금지) — ① 이번 기간 실제로 있었던 구체적 장면 하나, ② 그게 왜 숫자보다 의미 있는지, ③ 앞으로 어떻게 도울지. 점수·%·개수 같은 숫자는 절대 쓰지 말 것(1·2페이지가 이미 다 보여줬으므로 여기는 관찰만). "고집"/"끈기"/"집요함" 같은 성격 형용사는 그 자체로 쓰지 말 것 — 정 필요하면 방금 인용한 구체적 장면 바로 뒤에만 붙일 것. 1~2문장.',
   },
   returning: {
     monthConclusion: 'monthConclusion(한 달의 결론): 이번 기간 초기 대비 최근 수치 변화(오답 개수·점수·정답률 등)가 가장 뚜렷한 것을 최대 2문장으로 쓸 것. ① 반드시 상승·개선 사실부터 문장을 시작할 것 — "OO단원 점수가 46점에서 60점으로 올랐습니다"처럼 변화(상승) 자체가 먼저 와야 하고, 시작 시점의 낮은 숫자를 문장 맨 앞에 단독으로 놓지 말 것(예: "46점을 기록한 뒤"처럼 낮은 점수로 문장을 여는 것 금지). ② 서로 다른 사실을 한 문장에 욱여넣지 말 것 — 상승 이야기와 다른 사실(예: 오답 정리 완료)이 둘 다 있으면 억지로 한 문장에 연결하지 말고 문장을 나눌 것(최대 2문장까지만, 예: "OO단원 점수가 46점에서 60점으로 올랐습니다. N일에 어려워했던 △△단원 오답도 모두 정리했습니다."). ③ 교재명과 기간은 헤더에 이미 있으므로 반복하지 말고 단원명 위주로 쓸 것. "논리적 훈련", "사고력 고도화" 같은 추상적 해석 금지 — 관찰된 사실만.',
-    teacherWord: 'teacherWord: 반드시 이 순서로 자연스러운 문장을 이어 쓸 것(순서 설명이지 그대로 옮겨 적을 서식이 아님 — 대괄호나 화살표 같은 구조 기호는 절대 출력하지 말 것) — 먼저 그동안 다뤄온 단원의 흐름을 짚고(수업 횟수·기간은 언급하지 말 것 — 아래 참고), 그 동안 어떤 부분이 어떻게 달라졌는지(단원명·유형 중심으로) 짚은 뒤, 그 변화가 학부모 입장에서 뭘 의미하는지 담담히 해석하고, 마지막으로 앞으로 어떻게 지도할지 이어 쓸 것. 위 데이터에 나온 실제 단원명을 최소 2개 인용하되, 점수·%·개수 같은 숫자는 절대 쓰지 말 것(1·2페이지가 이미 숫자를 다 보여줬으므로 여기는 관찰만). "고집"/"끈기"/"집요함" 같은 성격 형용사는 그 자체로 쓰지 말 것 — 정 필요하면 방금 인용한 구체적 장면 바로 뒤에만("OO단원을 다시 짚어본 데서 보이듯" 식으로) 붙일 것. 담담하고 구체적으로, 가벼운 칭찬 금지. 2~3문장.',
-    nextChapter: 'nextChapter: 다음 극복 과제 1문장. 위 데이터에 나온 실제 단원명/유형 포함(숫자는 쓰지 말 것).',
+    strengthsHeadline: 'strengthsHeadline: 이번 기간 가장 뚜렷하게 나아진 점 하나를 한 문장으로. 추상적 형용사(성실함/끈기 등) 대신 구체적으로 뭐가 달라졌는지.',
+    improvementsHeadline: 'improvementsHeadline: 이번 기간 계속 걸리는 지점 하나를 한 문장으로. 결점 나열이 아니라 "왜 아직 어려운지"가 드러나게.',
+    nextTask: 'nextTask: 다음 기간에 다룰 구체적 과제 1문장. 위 데이터에 나온 실제 단원명 포함(숫자는 쓰지 말 것).',
+    closing: 'closing: 선생님이 학부모에게 직접 건네는 한마디. 반드시 이 순서로 자연스럽게 이어 쓸 것(순서 설명이지 서식 아님 — 대괄호·화살표 금지) — ① 이번 기간 실제로 있었던 구체적 변화 하나, ② 그게 왜 숫자보다 의미 있는지, ③ 아직 남은 지점을 다음 기간에 어떻게 도울지. 점수·%·개수 같은 숫자는 절대 쓰지 말 것(1·2페이지가 이미 다 보여줬으므로 여기는 관찰만). "고집"/"끈기"/"집요함" 같은 성격 형용사는 그 자체로 쓰지 말 것 — 정 필요하면 방금 인용한 구체적 장면 바로 뒤에만 붙일 것. 2~3문장.',
   },
 };
+// strengthsEvidence/improvementsEvidence — 근거는 프롬프트가 제시하는 [수업 기록] 목록의
+// 날짜에서만 골라야 함(폴리시.js가 오답 근거를 문항 번호 목록과 대조하는 것과 같은 원칙).
+// 최대 2개, 근거가 마땅치 않으면 빈 배열도 정상.
+const EVIDENCE_RULE = '[중요] strengthsEvidence·improvementsEvidence는 각각 최대 2개. 각 항목의 "no"는 반드시 [수업 기록] 목록에 있는 날짜 문자열을 정확히 그대로 쓸 것(목록에 없는 날짜를 지어내면 안 됨). "text"는 그 날 있었던 구체적 사실 1문장(숫자는 쓰지 말 것). 근거로 쓸 만한 날이 없으면 빈 배열([])로 둘 것 — 억지로 채우지 말 것.';
 
 const STYLE_RULE = '문체: 모든 문장은 반드시 "-습니다/했습니다/입니다"체(존댓말, 학부모 대상 보고서 어투)로 끝낼 것. "-다/했다/이다"로 끝나는 문어체·논문체 절대 금지.';
 const DATA_RULE = '[중요] 아래 "데이터"에 실제로 나온 단원명·점수·회차만 인용할 것. 데이터에 없는 단원명이나 수치를 절대 지어내지 말 것.';
@@ -74,7 +91,7 @@ export default async function handler(req, res) {
   // 액션이라 로그인 필수 — analyze-photo.js/polish.js와 동일한 기준
   if (!(await verifyIdTokenHeader(req))) return res.status(401).json({ error: '로그인이 필요합니다.' });
 
-  const { studentName, unitScores = [], teacherNotes, isNewStudent, totalReports, field, currentNarrative, type } = req.body;
+  const { studentName, unitScores = [], teacherNotes, sessions = [], isNewStudent, totalReports, field, currentNarrative, type } = req.body;
 
   // ── 모드 3: 기간 요약(성장 포트폴리오 "학습 기록 상세") — 그 기간 teacherNote 전체를
   // 2~3문장으로 압축. 공개 페이지에서 열람마다 자동 생성하면 비용/지연이 새므로 원장이
@@ -131,6 +148,13 @@ JSON만 반환 (코드블록 없이, 순수 JSON만): {"text":"..."}`;
   const dataLine = isNewStudent
     ? `데이터: ${scoreText}. 선생님 메모: ${lastNote.slice(0, 120)}`
     : `데이터: ${scoreText}. 선생님 메모: ${allNotes.slice(0, 200)}`;
+  // 4페이지 강점/보완점 근거(evidence)용 — 세션별 날짜·단원·메모를 그대로 나열(가공 없이).
+  // strengthsEvidence/improvementsEvidence의 "no"가 이 목록의 날짜와 정확히 일치해야만
+  // 서버에서 채택되므로(EVIDENCE_RULE), 여기 날짜 표기가 곧 근거 후보 전체다.
+  const sessionLines = sessions
+    .map(s => `- ${s.date}${s.unit ? ' · ' + s.unit : ''}: ${String(s.note || '').slice(0, 150)}`)
+    .join('\n');
+  const candidateDates = new Set(sessions.map(s => s.date));
   const headline = isNewStudent
     ? `수업 ${totalReports}회 신규생.\n톤: 따뜻하고 격려하는 — 적응 과정과 첫 성취의 의미에 집중.`
     : `수업 ${totalReports}회 재학생.\n톤: 담담하고 구체적 — 오답 개수·점수 등 실제 수치 변화에 집중. 거창한 해석 금지.`;
@@ -190,38 +214,56 @@ JSON만 반환 (코드블록 없이, 순수 JSON만): {"text":"..."}`;
     }
   }
 
-  // ── 모드 1: 전체 생성 — 4개 항목을 하나의 이야기 흐름으로 ──
-  const prompt = `학생 ${studentName}의 성장 스토리를 JSON으로 작성. 한국어. ${headline}
+  // ── 모드 1: 전체 생성 — 한 달의 결론 + 강점/보완점/다음 과제/한마디를 한 번에 ──
+  const prompt = `학생 ${studentName}의 성장 포트폴리오를 JSON으로 작성. 한국어. ${headline}
 ${STYLE_RULE}
 ${dataLine}
+[수업 기록]
+${sessionLines || '(없음)'}
 ${DATA_RULE}
 ${NO_HYPE_RULE}
 ${NO_RUNNING_TOTAL_RULE}
 ${rules.monthConclusion}
-${rules.teacherWord}
-${rules.nextChapter}
-JSON만 반환 (코드블록 없이, 순수 JSON만): {"monthConclusion":"...","teacherWord":"...","nextChapter":"..."}`;
+${rules.strengthsHeadline}
+${rules.improvementsHeadline}
+${EVIDENCE_RULE}
+${rules.nextTask}
+${rules.closing}
+JSON만 반환 (코드블록 없이, 순수 JSON만): {"monthConclusion":"...","strengthsHeadline":"...","strengthsEvidence":[{"no":"...","text":"..."}],"improvementsHeadline":"...","improvementsEvidence":[{"no":"...","text":"..."}],"nextTask":"...","closing":"..."}`;
+
+  // evidence 배열의 "no"가 실제로 보여준 날짜 목록 밖이면(모델이 지어낸 날짜) 그 항목만
+  // 조용히 걸러냄 — polish.js가 오답 문항 번호를 근거 목록과 대조하는 것과 같은 원칙.
+  const sanitizeEvidence = (arr) => Array.isArray(arr)
+    ? arr.filter(it => it && it.no && candidateDates.has(it.no) && it.text && !hasLeakedPlaceholder(it.text)).slice(0, 2)
+    : [];
 
   try {
     const cleaned = await callGemini(prompt, 8192);
 
-    // 필드 일부만 와도(응답이 잘린 경우) 조용히 성공 처리하지 않도록, 4개 필드가 모두
-    // 있어야만 200을 반환 — 하나라도 비면 폴백 문구가 사용자 모르게 노출되는 것을 방지
+    // 필드 일부만 와도(응답이 잘린 경우) 조용히 성공 처리하지 않도록, 필수 필드가 모두
+    // 있어야만 200을 반환 — 하나라도 비면 폴백 문구가 사용자 모르게 노출되는 것을 방지.
+    // evidence 배열은 필수가 아니므로(근거가 없을 수 있음) 완성도 체크에서 제외.
     const extractFields = (str) => {
       const result = {};
       REQUIRED_FIELDS.forEach(key => {
         const m = str.match(new RegExp(`"${key}"\\s*:\\s*"([^"]*)"`, 's'));
         if (m) result[key] = m[1];
       });
+      OPTIONAL_LIST_FIELDS.forEach(key => { result[key] = []; });
       return result;
     };
     const isComplete = (obj) => REQUIRED_FIELDS.every(k => obj[k] && !hasLeakedPlaceholder(obj[k]));
+    const finalize = (obj) => ({
+      ...obj,
+      strengthsEvidence: sanitizeEvidence(obj.strengthsEvidence),
+      improvementsEvidence: sanitizeEvidence(obj.improvementsEvidence),
+    });
 
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       const fallback = extractFields(cleaned);
-      if (isComplete(fallback)) return res.status(200).json(fallback);
-      return res.status(500).json({ error: '응답이 잘렸거나 형식이 맞지 않습니다. 다시 시도해주세요. (' + Object.keys(fallback).join(',') + '만 생성됨)' });
+      if (isComplete(fallback)) return res.status(200).json(finalize(fallback));
+      return res.status(500).json({ error: '응답이 잘렸거나 형식이 맞지 않습니다. 다시 시도해주세요. (' + Object.keys(fallback).filter(k => fallback[k]).join(',') + '만 생성됨)' });
     }
 
     try {
@@ -229,14 +271,14 @@ JSON만 반환 (코드블록 없이, 순수 JSON만): {"monthConclusion":"...","
       if (!isComplete(parsed)) {
         return res.status(500).json({ error: '일부 항목이 비어서 생성됐습니다. 다시 시도해주세요. (' + Object.keys(parsed).filter(k => parsed[k]).join(',') + '만 생성됨)' });
       }
-      res.status(200).json(parsed);
+      res.status(200).json(finalize(parsed));
     } catch {
       // JSON이 잘렸을 경우 — 가능한 필드만 추출
       const fallback = extractFields(cleaned);
       if (isComplete(fallback)) {
-        res.status(200).json(fallback);
+        res.status(200).json(finalize(fallback));
       } else {
-        res.status(500).json({ error: '응답이 잘렸습니다. 다시 시도해주세요. (' + Object.keys(fallback).join(',') + '만 생성됨)' });
+        res.status(500).json({ error: '응답이 잘렸습니다. 다시 시도해주세요. (' + Object.keys(fallback).filter(k => fallback[k]).join(',') + '만 생성됨)' });
       }
     }
   } catch (e) {
