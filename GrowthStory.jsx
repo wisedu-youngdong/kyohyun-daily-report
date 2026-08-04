@@ -1134,7 +1134,7 @@ export default function GrowthStory() {
                 </div>
                 {editing === 'nextTask' ? feedbackEditArea('nextTask', false, '60px') : (
                   <span style={{ fontSize: '13.5px', fontWeight: 600, lineHeight: 1.7, color: '#171719', textWrap: 'pretty' }}>
-                    {narrative?.nextTask || '판단 기준을 세우는 힘이 생기기 시작했습니다. 이제는 그 힘을 더 단단하게 만들 차례입니다.'}
+                    {narrative?.nextTask || (isEditor ? 'AI 서사를 생성하면 다음 달 과제가 여기 채워져요.' : '')}
                   </span>
                 )}
               </div>
