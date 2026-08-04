@@ -346,7 +346,11 @@ export default function GrowthStory() {
   const onTimeCount = sorted.filter(r => r.attendance === '정시').length;
   const lateCount = sorted.filter(r => r.attendance === '지각').length;
   const absentCount = sorted.filter(r => r.attendance === '결석').length;
-  const attendanceRate = sorted.length > 0 ? Math.round(onTimeCount / sorted.length * 100) : 0;
+  // 분모는 attendance가 기재된 리포트만 — 원장 화면들(StudentProfileModal/AnalysisView)과
+  // 동일 규칙(2026-08-05 통일). 미기재(null) 리포트를 분모에 넣으면 같은 학생의 출석률이
+  // 학부모 화면에서만 낮게 보이는 화면 간 불일치가 생겼음.
+  const attendanceRated = sorted.filter(r => r.attendance != null).length;
+  const attendanceRate = attendanceRated > 0 ? Math.round(onTimeCount / attendanceRated * 100) : 0;
 
   // 신규생/재학생 분기
   const isNewStudent = computeIsNewStudent(student, sorted.length);

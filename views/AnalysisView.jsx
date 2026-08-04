@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend
 } from 'recharts';
-import { toPct, kstDay, getKstWeekRange, flattenReportsForAnalysis } from '../growth.js';
+import { toPct, kstDay, getKstWeekRange, flattenReportsForAnalysis, resolveUnitGroup } from '../growth.js';
 import { findUnitKey } from '../curriculum.js';
 import { DIAG_LABELS as TAG_LABELS, DIAG_SOFT as DIAG_SOFT_COLORS, WRONG_TAGS } from '../diagnosis.js';
 import { T, C, RADIUS2 } from '../tokens.jsx';
@@ -281,14 +281,15 @@ export default function AnalysisView({ students, reports }) {
               const TARGET = 80;
               const unitMap = {};
               periodReports.forEach(r => {
-                const label = [r.unit, r.textbook].filter(Boolean).join(' ');
-                if (!label) return;
-                // unitKey(표준 단원 정규화) 우선 그룹핑 — 강사마다 표기가 달라도 같은 단원이면 하나로 묶임
-                const key = r.unitKey || findUnitKey(r.subject || '수학', r.unit || '') || label;
-                if (!unitMap[key]) unitMap[key] = { name: label, correct: 0, total: 0 };
+                // resolveUnitGroup(공용 주 단원 판정)으로 통일(2026-08-05) — 예전엔 이름
+                // 매칭(findUnitKey)만 써서 "2~3단원"처럼 번호만 적은 표기가 원문째 별개
+                // 그룹이 됐고, 성장 포트폴리오·종합 프로필과 단원 묶음이 어긋났음
+                const group = resolveUnitGroup(r);
+                if (!group) return;
+                if (!unitMap[group.key]) unitMap[group.key] = { name: group.label, correct: 0, total: 0 };
                 if (r.hasTest && r.testScore) {
-                  unitMap[key].correct += Number(r.testScore);
-                  unitMap[key].total += 100;
+                  unitMap[group.key].correct += Number(r.testScore);
+                  unitMap[group.key].total += 100;
                 }
               });
               const units = Object.entries(unitMap)

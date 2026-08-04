@@ -189,14 +189,16 @@ async function main() {
 
   for (const academyDoc of academiesSnap.docs) {
     const academyId = academyDoc.id;
-    // isDraft:false(발송 완료)만 대상 — 주간형도 발송 시점엔 최상위 teacherNote(총평)가
-    // 채워지므로(WeeklyReviewView.jsx) 매일형과 같은 조건으로 함께 잡힘
-    const reportsSnap = await db.collection(`academies/${academyId}/reports`)
-      .where('isDraft', '==', false)
-      .get();
+    // 발송 완료만 대상 — 주간형도 발송 시점엔 최상위 teacherNote(총평)가 채워지므로
+    // (WeeklyReviewView.jsx) 매일형과 같은 조건으로 함께 잡힘.
+    // where('isDraft','==',false)를 쓰면 isDraft 필드 자체가 없는 초기 리포트(draft 기능
+    // 도입 이전 작성분)가 통째로 누락됨(Firestore는 필드 없는 문서를 등호 쿼리에서 항상
+    // 제외) — 전체를 받아 클라이언트에서 isDraft !== true로 거름(2026-08-05 수정).
+    const reportsSnap = await db.collection(`academies/${academyId}/reports`).get();
 
     for (const doc of reportsSnap.docs) {
       const report = doc.data();
+      if (report.isDraft === true) { skipped++; continue; }
       if (!report.teacherNote || !report.teacherNote.trim()) { skipped++; continue; }
       if (report.feedback) { skipped++; continue; } // 이미 마이그레이션됨 — idempotent
       totalCandidates++;

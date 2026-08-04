@@ -2,6 +2,53 @@ import { verifyIdTokenHeader } from './_lib/verifyAuth.js';
 
 export const maxDuration = 30;
 
+// Gemini가 뱉는 비정형 JSON(코드펜스, trailing comma, 앞뒤 잡담) 관대 파싱 —
+// scripts/migrate-teacher-feedback.js가 실전(17건 마이그레이션)에서 실패를 겪고
+// 다듬은 파서를 그대로 이식(2026-08-05). 프로덕션 경로가 스크립트보다 약하면 안 됨.
+function normalizeJsonText(text) {
+  if (!text) return '';
+  let normalized = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
+  normalized = normalized.replace(/,\s*([}\]])/g, '$1');
+  return normalized;
+}
+function parseJsonPayload(text) {
+  const cleaned = normalizeJsonText(text);
+  const candidates = [cleaned];
+  const start = cleaned.indexOf('{');
+  const end = cleaned.lastIndexOf('}');
+  if (start !== -1 && end > start) candidates.push(cleaned.slice(start, end + 1));
+  for (const candidate of candidates) {
+    try { return JSON.parse(candidate); } catch { /* 다음 후보 */ }
+  }
+  return null;
+}
+
+// feedback 형(shape) 정규화 — 파싱만 되면 어떤 모양이든 Firestore에 저장되던 걸,
+// 화면(PublicReport/ParentCard)이 기대하는 형태로 강제. evidence가 배열이 아니거나
+// text가 문자열이 아니면 그 항목만 버리고, 세 단이 전부 비면 null(폴백 카드로 대체됨).
+function normalizeFeedback(parsed) {
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+  const seg = (s) => {
+    if (!s || typeof s !== 'object' || Array.isArray(s)) return null;
+    const headline = typeof s.headline === 'string' ? s.headline.trim() : '';
+    if (!headline) return null;
+    const evidence = Array.isArray(s.evidence)
+      ? s.evidence
+          .filter(it => it && typeof it === 'object' && typeof it.text === 'string' && it.text.trim())
+          .map(it => ({ no: typeof it.no === 'string' ? it.no : '', text: it.text }))
+          .slice(0, 3)
+      : [];
+    return { headline, evidence };
+  };
+  const strengths = seg(parsed.strengths);
+  const improvements = seg(parsed.improvements);
+  const closingText = typeof parsed.closing?.text === 'string' ? parsed.closing.text.trim() : '';
+  // closing 200자 하드 제한 — 프롬프트로 지시해도 모델이 넘길 수 있어 서버에서 강제
+  const closing = closingText ? { text: closingText.length > 200 ? closingText.slice(0, 200).trim() : closingText } : null;
+  if (!strengths && !improvements && !closing) return null;
+  return { strengths, improvements, closing };
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
   if (!(await verifyIdTokenHeader(req))) return res.status(401).json({ error: '로그인이 필요합니다.' });
@@ -119,33 +166,27 @@ strengths 또는 improvements에 넣을 내용이 전혀 없으면 그 값을 nu
       return res.status(502).json({ error: '응답을 가져오지 못했습니다. 다시 시도해주세요.' });
     }
 
-    // 한 줄 요약을 구분자로 분리 — JSON 응답 모드 대신 구분자를 쓰는 이유: 이 함수는 이미
-    // thinking 파트 추출, MAX_TOKENS 폴백 등 plain text 기준 파싱이 얽혀 있어, JSON 모드로
-    // 바꾸면 그 파싱 로직을 통째로 다시 짜야 함. 구분자가 없으면(모델이 규칙을 안 지킨 드문
-    // 경우) summary는 빈 문자열로 두고 본문만 정상 반환 — 요약 배너는 PublicReport.jsx가
-    // 빈 값일 때 숨기므로 사용자에게 보이는 실패로 이어지지 않음.
-    const [bodyPart, summaryAndFeedback] = result.split('///SUMMARY///');
+    // 구분자 분리 — JSON 응답 모드 대신 구분자를 쓰는 이유: 이 함수는 이미 thinking 파트
+    // 추출, MAX_TOKENS 폴백 등 plain text 기준 파싱이 얽혀 있어, JSON 모드로 바꾸면 그
+    // 파싱 로직을 통째로 다시 짜야 함.
+    // FEEDBACK을 먼저 분리(2026-08-05 수정) — 예전엔 SUMMARY를 먼저 잘랐는데, 모델이
+    // SUMMARY 마커를 빼먹고 FEEDBACK만 출력하면 JSON 덩어리가 본문에 그대로 섞여
+    // 교사의 다듬기 결과창과 저장된 teacherNote에 노출됐음. FEEDBACK을 먼저 떼면 마커
+    // 순서·누락과 무관하게 JSON이 본문에 남지 않는다.
+    const [beforeFeedback, feedbackPart] = result.split('///FEEDBACK///');
+    const [bodyPart, summaryPart] = beforeFeedback.split('///SUMMARY///');
     // 프롬프트에서 인사말을 빼라고 지시해도 가끔 붙여서 응답하는 경우가 있어 안전망으로 한 번 더 제거
     const cleanedResult = bodyPart.trim().replace(/^안녕하세요[,.!]?\s*(학부모님[,.!]?)?\s*\n*/, '');
-    const [summaryPart, feedbackPart] = (summaryAndFeedback || '').split('///FEEDBACK///');
     const summary = (summaryPart || '').trim().replace(/^["']|["']$/g, '');
 
-    // 선생님 피드백 3단(잘한 점/보완할 점/한마디) — 구분자가 없거나(모델이 규칙을 안 지킨 드문
-    // 경우) JSON 파싱에 실패해도 본문/요약은 이미 정상 확보됐으니 feedback만 null로 두고
-    // 그대로 반환. 화면(PublicReport/ParentCard)이 feedback null이면 그 섹션을 통째로 숨기므로
-    // 사용자에게 보이는 실패로 이어지지 않음(3단계에서 이미 처리됨).
+    // 선생님 피드백 3단(잘한 점/보완할 점/한마디) — 관대 파싱 + 형 정규화. 실패해도
+    // 본문/요약은 이미 정상 확보됐으니 feedback만 null로 두고 그대로 반환 — feedback이
+    // null이면 화면(PublicReport)이 teacherNote 폴백 카드를 보여주므로 안전.
     let feedback = null;
     if (feedbackPart) {
-      try {
-        const parsed = JSON.parse(feedbackPart.trim().replace(/^```json\s*|\s*```$/g, ''));
-        // closing 200자 하드 제한(4단계 결정) — 프롬프트로 지시해도 모델이 넘길 수 있어 서버에서 강제
-        if (parsed.closing?.text && parsed.closing.text.length > 200) {
-          parsed.closing.text = parsed.closing.text.slice(0, 200).trim();
-        }
-        feedback = parsed;
-      } catch (e) {
-        console.error('선생님 피드백 3단 JSON 파싱 실패(본문/요약은 정상):', e.message);
-      }
+      const parsed = parseJsonPayload(feedbackPart);
+      feedback = normalizeFeedback(parsed);
+      if (!feedback) console.error('선생님 피드백 3단 파싱/정규화 실패(본문/요약은 정상). 앞 200자:', feedbackPart.trim().slice(0, 200));
     }
 
     res.status(200).json({ result: cleanedResult, summary, feedback });

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { db } from '../firebase';
 import { updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { FileText, AlertTriangle, Copy, CalendarDays } from 'lucide-react';
-import { kstDay, kstWeekday, toPct, ratingLabel, getKstWeekRange, conceptStatusLabel, flattenReportsForAnalysis, isReportSent } from '../growth.js';
+import { kstDay, kstWeekday, toPct, ratingLabel, getKstWeekRange, conceptStatusLabel, flattenReportsForAnalysis, isHandledToday } from '../growth.js';
 import { DIAG_BADGE as DIAG_MAP } from '../diagnosis.js';
 import { T, C, R } from '../tokens.jsx';
 import { groupByClassId, onKeyActivate } from './shared.jsx';
@@ -141,8 +141,10 @@ export default function DirectorView({ reports, students, classes = [], teachers
     .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0))
     .map(r => ({ ...r, conceptRating: toPct(r.conceptRating) }));
 
-  // 발송 완료 리포트 기준 마지막 작성일 — 학생관리 화면(StudentsView.jsx)의 daysSinceLastReport와 동일 로직
-  const sentReportsAll = reports.filter(isReportSent);
+  // 마지막 처리일 기준 — isHandledToday(발송됨 또는 확정 결석)로 학생관리 화면
+  // (StudentsView.jsx)의 daysSinceLastReport와 판정을 통일(2026-08-05). 예전엔 여기는
+  // isReportSent, 저쪽은 !isDraft라서 결석만 이어지는 학생의 무보고 경고가 화면마다 달랐음.
+  const sentReportsAll = reports.filter(isHandledToday);
   const daysSinceLastReport = (sid) => {
     const last = sentReportsAll.filter(r => r.studentId === sid).sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))[0];
     if (!last?.createdAt?.seconds) return null;
@@ -193,7 +195,16 @@ export default function DirectorView({ reports, students, classes = [], teachers
     if (daysSince != null && daysSince >= STALE_DAYS) signals.push('무보고');
     if (isQuiet) signals.push('저조');
     if (signals.length === 0) return null;
-    const dismissed = s.riskDismissed?.signals || [];
+    // 확인함(dismiss)은 14일만 유지 — 예전엔 신호 문자열만 비교해서, 확인한 신호가
+    // 해소됐다가 몇 달 뒤 재발해도 영원히 안 보였음(2026-08-05 감사 발견). 저장해둔
+    // at 타임스탬프를 읽어 14일 지나면 자동 해제 — 같은 신호가 계속 살아있으면
+    // 2주마다 한 번씩 다시 떠서 원장이 재확인하게 됨.
+    // ponytail: 시간 만료 방식. "신호 해소 시점에 즉시 리셋"이 더 정확하지만
+    // 렌더 경로에서 Firestore 쓰기가 필요해져 복잡도 대비 이득이 낮음.
+    const DISMISS_TTL_DAYS = 14;
+    const dismissedAtMs = s.riskDismissed?.at?.seconds ? s.riskDismissed.at.seconds * 1000 : 0;
+    const dismissValid = Date.now() - dismissedAtMs < DISMISS_TTL_DAYS * 86400000;
+    const dismissed = dismissValid ? (s.riskDismissed?.signals || []) : [];
     const visibleSignals = signals.filter(sig => !dismissed.includes(sig));
     if (visibleSignals.length === 0) return null;
     return { student: s, signals, visibleSignals, daysSince };

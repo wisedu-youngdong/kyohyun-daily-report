@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Pencil, AlertTriangle } from 'lucide-react';
-import { isNewStudent, flattenReportsForAnalysis } from '../growth.js';
+import { isNewStudent, flattenReportsForAnalysis, isHandledToday } from '../growth.js';
 import { T, C } from '../tokens.jsx';
 import { StudentModal } from './StudentModal.jsx';
 import { AVATARS, onKeyActivate } from './shared.jsx';
@@ -36,7 +36,11 @@ export default function StudentsView({ students, reports, reviews = [], onSave, 
   // 발송일·N주째 미작성 경고 등)에 섞이면 안 됨 — 이 화면 전체가 그 필터를 빠뜨리고 있었음
   // (AnalysisView.jsx 등 다른 화면은 이미 !r.isDraft로 거르고 있음). 예를 들어 자동저장만
   // 되고 실제로는 발송 안 한 오늘 자 draft가 있으면 "N주째 리포트 없음" 경고가 안 뜸.
-  const sentReports = reports.filter(r => !r.isDraft);
+  // 판정은 isHandledToday(발송됨 또는 확정 결석)로 통일(2026-08-05) — 원장분석
+  // (DirectorView)의 "무보고" 신호와 같은 시계를 쓰게 함. 예전엔 여기는 !isDraft,
+  // 저쪽은 isReportSent라서 결석만 이어지는 학생이 한 화면엔 경고가 뜨고 다른
+  // 화면엔 안 뜨는 어긋남이 있었음.
+  const sentReports = reports.filter(isHandledToday);
 
   // 마지막 리포트 기준 경과일 — "2주째 리포트 없음" 신호에 사용
   const daysSinceLastReport = (sid) => {

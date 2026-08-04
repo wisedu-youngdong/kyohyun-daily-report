@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Pencil } from 'lucide-react';
 import { toPct, fmtPages, resolveUnitGroup } from '../growth.js';
-import { findUnitKey } from '../curriculum.js';
 import { DIAG_LABELS as diagLabels, DIAG_BADGE as DIAG_MAP, DIAG_SOFT } from '../diagnosis.js';
 import { T, C } from '../tokens.jsx';
 import { useEscapeClose, useFocusTrap, useMediaQuery } from '../hooks.js';
@@ -895,18 +894,22 @@ function WeeklySummaryCard({ student, reports, academyName }) {
       : '—';
   };
 
-  const attendRate = weekReports.length
-    ? Math.round(weekReports.filter(r => r.attendance === '정시').length / weekReports.length * 100)
+  // 분모는 attendance가 기재된 리포트만 — 이 파일의 다른 두 출석률(StudentProfileContent/
+  // StudentDetailPanel)과 GrowthStory가 이미 이 규칙이라 여기만 전체-분모였음(2026-08-05 통일)
+  const attendRated = weekReports.filter(r => r.attendance != null).length;
+  const attendRate = attendRated
+    ? Math.round(weekReports.filter(r => r.attendance === '정시').length / attendRated * 100)
     : 0;
 
-  // 단원별 집계 — unitKey(표준 단원 정규화) 우선
+  // 단원별 집계 — resolveUnitGroup(공용 주 단원 판정)으로 통일(2026-08-05). 예전엔 이름
+  // 매칭(findUnitKey)만 써서 "2~3단원"처럼 번호만 적은 표기가 원문째 별개 그룹이 됐고,
+  // 같은 학생의 단원 묶음이 성장 포트폴리오와 다르게 보였음.
   const unitMap = {};
   weekReports.forEach(r => {
-    const label = [r.unit, r.textbook].filter(Boolean).join(' · ');
-    if (!label) return;
-    const key = r.unitKey || findUnitKey(r.subject || '수학', r.unit || '') || label;
-    if (!unitMap[key]) unitMap[key] = { name: label, scores: [], teacher: r.teacherName };
-    if (r.hasTest && r.testScore) unitMap[key].scores.push(Number(r.testScore));
+    const group = resolveUnitGroup(r);
+    if (!group) return;
+    if (!unitMap[group.key]) unitMap[group.key] = { name: group.label, scores: [], teacher: r.teacherName };
+    if (r.hasTest && r.testScore) unitMap[group.key].scores.push(Number(r.testScore));
   });
   const units = Object.values(unitMap);
 
