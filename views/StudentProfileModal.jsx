@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Pencil } from 'lucide-react';
 import { toPct, fmtPages, resolveUnitGroup } from '../growth.js';
-import { DIAG_LABELS as diagLabels, DIAG_BADGE as DIAG_MAP, DIAG_SOFT } from '../diagnosis.js';
+import { DIAG_LABELS as diagLabels, DIAG_BADGE as DIAG_MAP, DIAG_SOFT, WRONG_TAGS } from '../diagnosis.js';
 import { T, C } from '../tokens.jsx';
 import { useEscapeClose, useFocusTrap, useMediaQuery } from '../hooks.js';
 
@@ -21,6 +21,12 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
   const weeklyPanelRef = useRef(null);
   useFocusTrap(weeklyPanelRef, showWeekly);
   const [expandedWeak, setExpandedWeak] = useState(null); // 반복 약점 패턴 중 "자세히 보기"로 펼친 key
+  const [expandedWrongUnit, setExpandedWrongUnit] = useState(null); // 오답 노트 중 펼친 단원 key(한 번에 하나만)
+  const [showAllWrongUnits, setShowAllWrongUnits] = useState(false); // 오답 노트 — 상위 8개 단원 초과분 더보기
+  const [zoomedWrongPhoto, setZoomedWrongPhoto] = useState(null); // 오답 노트 라이트박스 — { src, box_2d, caption } | null
+  useEscapeClose(() => setZoomedWrongPhoto(null), !!zoomedWrongPhoto);
+  const zoomedWrongPhotoRef = useRef(null);
+  useFocusTrap(zoomedWrongPhotoRef, !!zoomedWrongPhoto);
   // 캘린더가 기본으로 펼쳐져 있으면 그 아래 내용(수업 기록/약점 패턴 등) 보려고 매번 스크롤을 많이 해야 해서, 기본은 요약만 접어서 보여줌
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [calMonth, setCalMonth] = useState(() => {
@@ -110,14 +116,50 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
       ? { bg: C.warningBg, color: C.warningText, border: `${C.warningText}30` }
       : { bg: '#FDF0F0', color: C.errorDark, border: `${C.errorDark}30` };
 
+  const fmtDate = (r) => r.createdAt?.seconds
+    ? new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })
+    : '';
+
+  // 오답 노트 — 위 "반복 약점 패턴"/"단원별 이해도"는 집계 숫자만 보여주는데, 상담 전에
+  // "정확히 몇 단원 어떤 유형에서 틀렸는지"를 사진 증거까지 바로 보고 싶다는 요청으로 추가
+  // (2026-08-05). 채점 사진 분석 때 이미 문항 단위로 쌓이는 report.wrongItems를 학생
+  // 전체 기간에 걸쳐 단원별로 모으기만 함 — 새 AI 호출·새 Firestore 필드 없음.
+  // 범위: report.wrongItems만 씀(계산/개념 유형) — 모의고사(mock_exam) 채점의 weakDetail은
+  // daily 리포트에만 있고 weekly와 처리가 갈라져 이번엔 제외(AnalysisView.jsx의 기존 오답
+  // 통계도 같은 범위). photoIndex는 1-based라 photoUrls[photoIndex-1]로 사진을 찾는다
+  // (api/analyze-photo.js가 pi=i+1로 매김 — 여기서 -1 안 하면 사진이 한 장씩 밀려서 매칭됨).
+  const wrongItemGroups = (() => {
+    const map = {};
+    sorted.forEach(r => {
+      (r.wrongItems || []).forEach((w, wi) => {
+        const group = resolveUnitGroup(r);
+        const key = group?.key || r.unit || r.textbook || '단원 미기재';
+        const label = group?.label || key;
+        if (!map[key]) map[key] = { label, items: [] };
+        map[key].items.push({
+          id: `${r.id}-${wi}`,
+          seconds: r.createdAt?.seconds || 0,
+          date: fmtDate(r),
+          number: w.number, type: w.type, tags: w.tags || [], memo: w.memo,
+          photoUrl: w.photoIndex != null ? r.photoUrls?.[w.photoIndex - 1] : null,
+          box_2d: w.box_2d,
+        });
+      });
+    });
+    return Object.values(map)
+      .map(g => ({ ...g, items: g.items.sort((a, b) => b.seconds - a.seconds), count: g.items.length }))
+      .sort((a, b) => b.count - a.count);
+  })();
+  const wrongItemTotal = wrongItemGroups.reduce((s, g) => s + g.count, 0);
+  const WRONG_TAG_MAP = Object.fromEntries(WRONG_TAGS.map(t => [t.key, t]));
+  // box_2d(사진 분석 좌표)는 AI 결과일 때만 오고 수동 추가 항목엔 없음 — 값 자체가 있어도
+  // [ymin,xmin,ymax,xmax] 4개 숫자·0~1000 범위가 아니면(예: 파싱 이상) 무시하고 사진만 보여줌.
+  const isValidBox = (box) => Array.isArray(box) && box.length === 4 && box.every(n => typeof n === 'number' && n >= 0 && n <= 1000);
+
   // 완료된 복습 이력 — 최신순. "완료" 자체보다 그때 실제로 뭘 했는지(note/testScore)를 보여주는 게 목적
   const completedReviews = [...reviews]
     .filter(rv => rv.status === 'done')
     .sort((a, b) => (b.completedAt?.seconds || 0) - (a.completedAt?.seconds || 0));
-
-  const fmtDate = (r) => r.createdAt?.seconds
-    ? new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })
-    : '';
 
   return (
     <div style={{ fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>
@@ -428,6 +470,106 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
                 })}
               </div>
               <p style={{ fontSize: '10px', color: T.textMute, margin: '8px 0 0' }}>개념 이해 평가 평균 · 낮은 순 정렬 · 빨강/주황일수록 보강이 필요해요</p>
+            </div>
+          )}
+
+          {/* 오답 노트 — 채점 사진 분석으로 이미 쌓인 문항 단위 오답을 단원별로 모아서
+              사진 증거까지 바로 확인. 단원은 개수순(많이 틀린 단원부터), 항목은 최신순 */}
+          {wrongItemGroups.length > 0 && (
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '6px' }}>
+                <p style={{ fontSize: '14px', fontWeight: 700, margin: 0, color: '#1A1A1A' }}>오답 노트</p>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: T.textMute }}>총 {wrongItemTotal}건</span>
+              </div>
+              <div style={{ width: '32px', height: '2px', background: '#C9A227', marginBottom: '12px' }} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {(showAllWrongUnits ? wrongItemGroups : wrongItemGroups.slice(0, 8)).map(g => {
+                  const isOpen = expandedWrongUnit === g.label;
+                  const visibleItems = isOpen ? g.items.slice(0, 10) : [];
+                  const hiddenItemCount = g.items.length - visibleItems.length;
+                  return (
+                    <div key={g.label} style={{ background: '#FAFAF8', border: '0.5px solid #E5E7EB', borderRadius: '8px', overflow: 'hidden' }}>
+                      <div onClick={() => setExpandedWrongUnit(isOpen ? null : g.label)}
+                        style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 10px', cursor: 'pointer' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#2C2C2C', flex: 1, minWidth: 0 }}>{g.label}</span>
+                        <span style={{ fontSize: '11px', fontWeight: 700, color: C.errorDark, background: '#FDF0F0', padding: '2px 8px', borderRadius: '10px', flexShrink: 0 }}>{g.count}건</span>
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" style={{ flexShrink: 0, transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
+                          <path d="M3 4.5L6 7.5L9 4.5" stroke="#757575" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </div>
+                      {isOpen && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '7px', padding: '0 10px 10px' }}>
+                          {visibleItems.map(it => (
+                            <div key={it.id}
+                              onClick={() => it.photoUrl && setZoomedWrongPhoto({ src: it.photoUrl, box_2d: it.box_2d, caption: [it.number && `${it.number}번`, it.type].filter(Boolean).join(' · ') })}
+                              style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#fff', border: '0.5px solid #E5E7EB', borderRadius: '6px', padding: '7px 9px', cursor: it.photoUrl ? 'pointer' : 'default' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#374151' }}>{it.date}</span>
+                                {it.number && <span style={{ fontSize: '10.5px', color: T.textMute }}>{it.number}번</span>}
+                                {it.type && <span style={{ fontSize: '11px', color: '#2C2C2C' }}>{it.type}</span>}
+                                {it.photoUrl && (
+                                  <svg width="11" height="11" viewBox="0 0 14 14" fill="none" aria-hidden="true" style={{ marginLeft: 'auto', flexShrink: 0 }}>
+                                    <rect x="1.5" y="3" width="11" height="8.5" rx="1.5" stroke="#8A93A3" strokeWidth="1.1" />
+                                    <circle cx="7" cy="7.2" r="2" stroke="#8A93A3" strokeWidth="1.1" />
+                                  </svg>
+                                )}
+                              </div>
+                              {it.tags.length > 0 && (
+                                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                                  {it.tags.map(tagKey => {
+                                    const t = WRONG_TAG_MAP[tagKey];
+                                    if (!t) return null;
+                                    return <span key={tagKey} style={{ fontSize: '10px', fontWeight: 700, color: t.color, background: t.bg, border: `1px solid ${t.border}`, padding: '2px 7px', borderRadius: '10px' }}>{t.label}</span>;
+                                  })}
+                                </div>
+                              )}
+                              {it.memo && <p style={{ fontSize: '11px', color: T.textSub, margin: 0, lineHeight: 1.5 }}>{it.memo}</p>}
+                            </div>
+                          ))}
+                          {hiddenItemCount > 0 && (
+                            <p style={{ fontSize: '10px', color: T.textMute, margin: 0, textAlign: 'center' }}>외 {hiddenItemCount}건 더</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              {wrongItemGroups.length > 8 && !showAllWrongUnits && (
+                <button onClick={() => setShowAllWrongUnits(true)}
+                  style={{ width: '100%', marginTop: '8px', padding: '9px', fontSize: '11px', fontWeight: 700, color: C.primary, background: '#EAF0F9', border: '1px solid #E6F1FB', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                  + {wrongItemGroups.length - 8}개 단원 더보기
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* 오답 노트 라이트박스 — 사진 위에 box_2d(AI가 짚은 문항 좌표, 0~1000 정규화)가
+              유효할 때만 빨간 사각형을 정적으로 얹음. DiagnosticReportInput.jsx의
+              PhotoBoxOverlay와 달리 토글/편집 없이 "그 문항이 여기다"만 보여주는 용도라 단순화. */}
+          {zoomedWrongPhoto && (
+            <div ref={zoomedWrongPhotoRef} role="dialog" aria-modal="true"
+              style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.82)', zIndex: 9999, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
+              onClick={() => setZoomedWrongPhoto(null)}>
+              <div onClick={e => e.stopPropagation()} style={{ position: 'relative', maxWidth: '100%', maxHeight: '80vh', display: 'inline-block' }}>
+                <img src={zoomedWrongPhoto.src} alt={zoomedWrongPhoto.caption || '오답 사진'} style={{ maxWidth: '100%', maxHeight: '80vh', display: 'block', borderRadius: '4px' }} />
+                {isValidBox(zoomedWrongPhoto.box_2d) && (
+                  <div style={{
+                    position: 'absolute',
+                    top: `${zoomedWrongPhoto.box_2d[0] / 10}%`, left: `${zoomedWrongPhoto.box_2d[1] / 10}%`,
+                    height: `${(zoomedWrongPhoto.box_2d[2] - zoomedWrongPhoto.box_2d[0]) / 10}%`,
+                    width: `${(zoomedWrongPhoto.box_2d[3] - zoomedWrongPhoto.box_2d[1]) / 10}%`,
+                    border: '2.5px solid #E53E3E', borderRadius: '3px', boxShadow: '0 0 0 1px rgba(255,255,255,0.6)', pointerEvents: 'none',
+                  }} />
+                )}
+              </div>
+              {zoomedWrongPhoto.caption && (
+                <p style={{ fontSize: '13px', fontWeight: 600, color: '#fff', marginTop: '12px', textAlign: 'center' }}>{zoomedWrongPhoto.caption}</p>
+              )}
+              <button onClick={() => setZoomedWrongPhoto(null)}
+                style={{ marginTop: '10px', padding: '9px 20px', background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
+                닫기
+              </button>
             </div>
           )}
 
