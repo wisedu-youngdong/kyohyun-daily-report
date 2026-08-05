@@ -312,7 +312,15 @@ export default function PublicReport() {
                     {r.textbook && <span style={{ fontSize: '18px', fontWeight: 700, letterSpacing: '-0.3px', color: INK, wordBreak: 'keep-all' }}>{r.textbook}</span>}
                     {r.unit && <span style={{ alignSelf: 'flex-start', background: sk.tint, color: sk.primary, fontSize: '12px', fontWeight: 700, padding: '5px 10px', borderRadius: '6px' }}>{r.unit}</span>}
                   </div>
-                  {r.pages && <span style={{ fontSize: '24px', fontWeight: 700, lineHeight: 1.1, letterSpacing: '-0.5px', color: sk.primary, minWidth: 0, textAlign: 'right', wordBreak: 'break-word' }}>{r.pages}</span>}
+                  {/* wordBreak:'break-word' 하나만 쓰면 줄바꿈 지점을 브라우저가 아무 데나
+                      골라서 "150~151"이 "15" / "0~151"처럼 숫자 중간에서 잘렸음(실사용 스크린샷).
+                      <wbr/>로 쉼표 뒤만 줄바꿈 가능 지점으로 못박아 숫자 묶음은 항상 붙어 있게 함
+                      — break-word는 그래도 안 맞는 극단적 케이스를 위한 안전망으로 유지. */}
+                  {r.pages && (
+                    <span style={{ fontSize: '24px', fontWeight: 700, lineHeight: 1.3, letterSpacing: '-0.5px', color: sk.primary, minWidth: 0, textAlign: 'right', wordBreak: 'break-word' }}>
+                      {r.pages.split(',').flatMap((seg, i, arr) => i < arr.length - 1 ? [seg + ',', <wbr key={i} />] : [seg])}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
