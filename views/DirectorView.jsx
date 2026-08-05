@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { db } from '../firebase';
 import { updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { FileText, AlertTriangle, Copy, CalendarDays } from 'lucide-react';
-import { kstDay, kstWeekday, toPct, ratingLabel, getKstWeekRange, conceptStatusLabel, flattenReportsForAnalysis, isHandledToday } from '../growth.js';
+import { kstDay, kstWeekday, toPct, ratingLabel, getKstWeekRange, conceptStatusLabel, flattenReportsForAnalysis, isHandledToday, isReportSent } from '../growth.js';
 import { DIAG_BADGE as DIAG_MAP } from '../diagnosis.js';
 import { T, C, R } from '../tokens.jsx';
 import { groupByClassId, onKeyActivate } from './shared.jsx';
@@ -171,7 +171,9 @@ export default function DirectorView({ reports, students, classes = [], teachers
   // students(App.jsx의 visibleStudents)는 이미 !archived로 걸러진 상태로 내려오므로 여기서 다시 거를 필요 없음
   const engagement = students
     .map(s => {
-      const sentReports = reports.filter(r => r.studentId === s.id && !r.isDraft);
+      // 열람률 분모는 실제로 학부모에게 발송된 리포트만(isReportSent) — 확정 결석 기록은
+      // 발송 링크 자체가 없어 열람이 불가능한데 분모에 넣으면 '조용함'이 과대판정됨(2026-08-05)
+      const sentReports = reports.filter(r => r.studentId === s.id && isReportSent(r));
       if (sentReports.length < MIN_REPORTS) return null;
       const viewedCount = sentReports.filter(r => reportViews.some(v => v.reportId === r.id)).length;
       const viewRate = Math.round(viewedCount / sentReports.length * 100);

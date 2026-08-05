@@ -125,7 +125,9 @@ export default function StudentsView({ students, reports, reviews = [], onSave, 
           const assignedTeacher = teachers.find(t => t.id === s.assignedTeacherId);
           const daysSince = daysSinceLastReport(s.id);
           const isStale = !s.archived && (daysSince === null ? false : daysSince >= 14);
-          const isNew = isNewStudent(s, sReports.length);
+          // 신규생 판정은 세션 수 기준 — 주간형 학생은 문서 1개에 세션 여러 개라, 문서 수로
+          // 세면 세션 20회여도 문서 4개면 계속 "신규" 배지가 남았음(2026-08-05)
+          const isNew = isNewStudent(s, flattenReportsForAnalysis(sReports).length);
           // 퇴원생도 프로필 내용은 재원생과 동일하게 보여줄 수 있어(StudentProfileContent가
           // archived 여부를 따로 안 따짐), PC 마스터-디테일 탐색에서만 퇴원생을 제외하면 안 됨 —
           // "퇴원생 보기"에서 다른 퇴원생 카드를 눌러도 오른쪽 패널은 그대로인 채 별개 전체화면

@@ -138,11 +138,23 @@ export async function sendMonthlyAward(db, academyId, now) {
     .filter(r => !!(r.teacherNote && r.teacherNote.trim()) && !r.isDraft && r.studentId);
   if (sentReports.length === 0) return false;
 
+  // 주간형(reportType 'weekly')은 diagnosis/conceptRating이 최상위가 아니라 sessions[]에만
+  // 있어, 세션으로 펼치지 않으면 perfectCount가 항상 0이라 주간형 학원엔 어워드 메일이
+  // 영영 안 나갔음(2026-08-05 감사 발견). growth.js는 클라이언트 SDK를 import해 여기서
+  // 못 쓰므로(kstNow와 같은 이유) 펼침만 인라인으로 재현.
+  const sessionRows = sentReports.flatMap(r => {
+    if (r.reportType !== 'weekly') return [r];
+    return (r.sessions || []).map(s => ({ ...s, studentId: r.studentId, studentName: r.studentName }));
+  });
+  // 구 리포트(1~5점)와 신규 리포트(0~100%)가 섞여 있어 정규화 없이 합산하면 구 리포트
+  // 학생의 평균이 왜곡돼 후보 랭킹이 틀어짐 — growth.js toPct와 동일 규칙
+  const toPct = (n) => (n <= 5 ? n * 20 : n);
+
   const byStudent = new Map();
-  sentReports.forEach(r => {
+  sessionRows.forEach(r => {
     const cur = byStudent.get(r.studentId) || { studentId: r.studentId, studentName: r.studentName || '학생', perfectCount: 0, ratingSum: 0, ratingN: 0 };
     if ((r.diagnosis || []).some(d => d.key === 'perfect')) cur.perfectCount++;
-    if (typeof r.conceptRating === 'number') { cur.ratingSum += r.conceptRating; cur.ratingN++; }
+    if (typeof r.conceptRating === 'number') { cur.ratingSum += toPct(r.conceptRating); cur.ratingN++; }
     byStudent.set(r.studentId, cur);
   });
   const top = [...byStudent.values()]

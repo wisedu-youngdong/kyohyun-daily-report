@@ -43,8 +43,16 @@ function normalizeFeedback(parsed) {
   const strengths = seg(parsed.strengths);
   const improvements = seg(parsed.improvements);
   const closingText = typeof parsed.closing?.text === 'string' ? parsed.closing.text.trim() : '';
-  // closing 200자 하드 제한 — 프롬프트로 지시해도 모델이 넘길 수 있어 서버에서 강제
-  const closing = closingText ? { text: closingText.length > 200 ? closingText.slice(0, 200).trim() : closingText } : null;
+  // closing 200자 제한 — 프롬프트로 지시해도 모델이 넘길 수 있어 서버에서 강제.
+  // 200자에서 뚝 자르면 문장이 중간에 끊긴 채 학부모에게 노출되므로, 200자 안의
+  // 마지막 문장 경계(./!/?/…)에서 자름 — 경계가 너무 앞이면(100자 미만) 그냥 하드컷
+  const clipClosing = (t) => {
+    if (t.length <= 200) return t;
+    const head = t.slice(0, 200);
+    const lastEnd = Math.max(head.lastIndexOf('.'), head.lastIndexOf('!'), head.lastIndexOf('?'), head.lastIndexOf('…'));
+    return (lastEnd >= 100 ? head.slice(0, lastEnd + 1) : head).trim();
+  };
+  const closing = closingText ? { text: clipClosing(closingText) } : null;
   if (!strengths && !improvements && !closing) return null;
   return { strengths, improvements, closing };
 }
@@ -135,7 +143,10 @@ strengths 또는 improvements에 넣을 내용이 전혀 없으면 그 값을 nu
         // 빼는 것으로 즉시 복구
         generationConfig: {
           temperature: 0.9,
-          maxOutputTokens: 4096,
+          // 3단 피드백 JSON이 출력 맨 끝이라 MAX_TOKENS로 잘리면 feedback부터 유실됨 —
+          // 본문+요약+3단 JSON으로 출력량이 늘어 4096에 근접할 수 있어 narrative.js와
+          // 같은 8192로 상향(2026-08-05). 실출력이 짧으면 비용 차이 없음(출력 토큰 과금)
+          maxOutputTokens: 8192,
         }
       })
     });

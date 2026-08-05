@@ -3420,6 +3420,21 @@ function ParentCard({ student, teacher, attendance, arrivalTime, departureTime, 
         </div>
       )}
 
+      {/* 폴백 — PublicReport.jsx와 동일하게, 3단 피드백이 없으면(다듬기 생략 등)
+          teacherNote 원문을 "선생님 노트" 카드로 미리보기 — 교사가 미리보기에서 보는
+          것과 학부모 실화면이 어긋나지 않게(2026-08-05 패리티) */}
+      {!(feedback && (feedback.strengths?.headline || feedback.improvements?.headline || feedback.closing?.text)) && teacherNote?.trim() && (
+        <div style={{ padding: '0 24px 24px' }}>
+          <div style={{ borderRadius: '18px', overflow: 'hidden', boxShadow: '0 6px 28px rgba(23,23,25,0.10)' }}>
+            <div style={{ background: sk.primary, padding: '24px 26px 26px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: labelInk }}>선생님 노트</span>
+              <span style={{ fontSize: '14.5px', fontWeight: 500, lineHeight: 1.85, color: '#fff', whiteSpace: 'pre-wrap', textWrap: 'pretty' }}>{teacherNote}</span>
+              <span style={{ fontSize: '11.5px', fontWeight: 600, color: 'rgba(255,255,255,0.72)' }}>{teacher?.name}{teacherSuffix}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 다음 수업 */}
       {nextPlan && (
         <div style={{ padding: '0 24px 24px' }}>
