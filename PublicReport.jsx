@@ -312,13 +312,14 @@ export default function PublicReport() {
                     {r.textbook && <span style={{ fontSize: '18px', fontWeight: 700, letterSpacing: '-0.3px', color: INK, wordBreak: 'keep-all' }}>{r.textbook}</span>}
                     {r.unit && <span style={{ alignSelf: 'flex-start', background: sk.tint, color: sk.primary, fontSize: '12px', fontWeight: 700, padding: '5px 10px', borderRadius: '6px' }}>{r.unit}</span>}
                   </div>
-                  {/* wordBreak:'break-word' 하나만 쓰면 줄바꿈 지점을 브라우저가 아무 데나
-                      골라서 "150~151"이 "15" / "0~151"처럼 숫자 중간에서 잘렸음(실사용 스크린샷).
-                      <wbr/>로 쉼표 뒤만 줄바꿈 가능 지점으로 못박아 숫자 묶음은 항상 붙어 있게 함
-                      — break-word는 그래도 안 맞는 극단적 케이스를 위한 안전망으로 유지. */}
+                  {/* <wbr/>+쉼표 조합은 줄이 바뀔 때 "146," 처럼 쉼표가 끝 글자가 되어 오른쪽
+                      정렬 기준선이 숫자가 아니라 쉼표에 맞춰짐 — 줄마다 끝 숫자가 미세하게
+                      들쭉날쭉해 보였음(실사용 스크린샷으로 발견, text-align:right라 티가 남).
+                      쉼표를 아예 빼고 공백으로만 구분 — 공백은 브라우저가 이미 기본 줄바꿈
+                      지점으로 다뤄서 <wbr/> 없이도 줄마다 항상 숫자로 끝나 우측 정렬이 맞음. */}
                   {r.pages && (
                     <span style={{ fontSize: '24px', fontWeight: 700, lineHeight: 1.3, letterSpacing: '-0.5px', color: sk.primary, minWidth: 0, textAlign: 'right', wordBreak: 'break-word' }}>
-                      {r.pages.split(',').flatMap((seg, i, arr) => i < arr.length - 1 ? [seg + ',', <wbr key={i} />] : [seg])}
+                      {r.pages.split(',').map(seg => seg.trim()).filter(Boolean).join(' ')}
                     </span>
                   )}
                 </div>
