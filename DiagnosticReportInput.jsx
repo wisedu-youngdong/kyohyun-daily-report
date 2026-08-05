@@ -3331,12 +3331,16 @@ function ParentCard({ student, teacher, attendance, arrivalTime, departureTime, 
           <div style={{ border: `1px solid ${CARD_BORDER}`, borderRadius: '14px', overflow: 'hidden' }}>
             <div style={{ height: '4px', background: sk.primary }} />
             <div style={{ padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: 0 }}>
+              {/* PublicReport.jsx와 동일한 카드 — 파리티 유지 필수(둘 중 하나만 고치면
+                  "미리보기 따로, 실물 따로" 재발). 왼쪽(라벨/교재/단원)은 flexShrink:0으로
+                  고정하고 pages 쪽에 minWidth:0을 둬서, 페이지 범위가 길게 입력돼도 라벨이
+                  세로로 짜부라지지 않고 pages 쪽만 줄바꿈되게 함(실사용 스크린샷으로 발견). */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flexShrink: 0 }}>
                 <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1.6px', color: INK_SOFT }}>오늘 학습 범위</span>
                 {textbook && <span style={{ fontSize: '18px', fontWeight: 700, letterSpacing: '-0.3px', color: INK, wordBreak: 'keep-all' }}>{textbook}</span>}
                 {unit && <span style={{ alignSelf: 'flex-start', background: sk.tint, color: sk.primary, fontSize: '12px', fontWeight: 700, padding: '5px 10px', borderRadius: '6px' }}>{unit}</span>}
               </div>
-              {pages && <span style={{ fontSize: '24px', fontWeight: 700, lineHeight: 1.1, letterSpacing: '-0.5px', color: sk.primary, flexShrink: 0 }}>{pages}</span>}
+              {pages && <span style={{ fontSize: '24px', fontWeight: 700, lineHeight: 1.1, letterSpacing: '-0.5px', color: sk.primary, minWidth: 0, textAlign: 'right', wordBreak: 'break-word' }}>{pages}</span>}
             </div>
           </div>
         </div>
