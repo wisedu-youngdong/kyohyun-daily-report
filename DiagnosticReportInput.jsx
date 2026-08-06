@@ -437,6 +437,31 @@ export default function DiagnosticReportInput({
   // 선생님 피드백 3단(잘한 점/보완할 점/한마디) — AI 다듬기와 같은 호출에서 함께 생성됨
   // (2026-08-03 결정: 선생님이 따로 안 씀, teacherNote 하나로 AI가 통째로 만듦)
   const [feedback, setFeedback] = useState(null);
+  // 학부모에게 최종적으로 보낼 형태 — 요약(3단 피드백 카드) vs 디테일(원본 노트 그대로).
+  // 학원/선생님마다 선호가 갈려서 다듬기 이후 발송 직전에 고를 수 있게(2026-08-06).
+  // 다듬기를 아예 안 썼으면 고를 게 없으므로 토글 자체가 안 보임 — 그때는 항상 원본이 나감
+  const [reportStyle, setReportStyle] = useState('summary');
+  // 요약 카드(잘한점/보완할점/한마디)와 디테일 원본을 미리보기 카드 안에서 바로 고쳐 쓰기 위한
+  // 편집 상태 — GrowthStory.jsx의 선생님 한마디 편집(feedbackEditBtn/Area)과 같은 패턴.
+  // 미리보기의 촘촘한 타이포 안에서 직접 고치지 않고, 편집 모드로 전환된 필드만 여유 있는
+  // textarea로 바뀌는 방식이라 두 버전을 오가도 UX가 안 꼬임
+  const [editingFeedbackField, setEditingFeedbackField] = useState(null); // 'detail'|'strengths'|'improvements'|'closing'|null
+  const [editFeedbackText, setEditFeedbackText] = useState('');
+  const startEditFeedback = (field) => {
+    setEditingFeedbackField(field);
+    if (field === 'detail') setEditFeedbackText(teacherNoteDetail || teacherNote || '');
+    else if (field === 'strengths') setEditFeedbackText(feedback?.strengths?.headline || '');
+    else if (field === 'improvements') setEditFeedbackText(feedback?.improvements?.headline || '');
+    else if (field === 'closing') setEditFeedbackText(feedback?.closing?.text || '');
+  };
+  const saveEditFeedback = () => {
+    if (editingFeedbackField === 'detail') setTeacherNoteDetail(editFeedbackText);
+    else if (editingFeedbackField === 'strengths') setFeedback(prev => ({ ...(prev || {}), strengths: { ...(prev?.strengths || {}), headline: editFeedbackText } }));
+    else if (editingFeedbackField === 'improvements') setFeedback(prev => ({ ...(prev || {}), improvements: { ...(prev?.improvements || {}), headline: editFeedbackText } }));
+    else if (editingFeedbackField === 'closing') setFeedback(prev => ({ ...(prev || {}), closing: { ...(prev?.closing || {}), text: editFeedbackText } }));
+    setEditingFeedbackField(null);
+  };
+  const cancelEditFeedback = () => setEditingFeedbackField(null);
   const [polishing, setPolishing] = useState(false);
   const [generatingComment, setGeneratingComment] = useState(false);
   const [nextPlan, setNextPlan] = useState('');
@@ -814,6 +839,8 @@ export default function DiagnosticReportInput({
     setTeacherNoteDetail(editingReport.teacherNoteDetail || null);
     setSummary(editingReport.summary || '');
     setFeedback(editingReport.feedback || null);
+    setReportStyle(editingReport.reportStyle || 'summary');
+    setEditingFeedbackField(null);
     setNextPlan(editingReport.nextPlan || '');
     setNextPlanDetail(editingReport.nextPlanDetail || '');
     setPhotoAnalysis(editingReport.photoAnalysis || null);
@@ -1298,6 +1325,7 @@ export default function DiagnosticReportInput({
         setHasTest(false); setTestName(''); setTestScore(''); setTestRound('');
         setCurriculumCourseOverride(null); setUnitPickerOpen(false); setUnitPickerCourse(null);
         setSelectedTags([]); setTeacherNote(''); setAiPolishedNote(''); setTeacherNoteDetail(null);
+        setReportStyle('summary'); setEditingFeedbackField(null);
         setAttendance('정시'); setArrivalTime('15:30'); setDepartureTime('');
         removeAllPhotos();
         setLastSaved(null);
@@ -1333,13 +1361,21 @@ export default function DiagnosticReportInput({
         textbook, subject, unit, pages,
         unitKey: findUnitKey(subject, unit, curriculumCourseOverride || guessCourseKey(subject, student?.school)),
         diagnosis: selectedTags,
-        teacherNote: aiPolishedNote || teacherNote,
+        // 요약(3단 피드백 카드) vs 디테일(원본 그대로) — 학원/선생님마다 선호가 갈려서 다듬기
+        // 이후 발송 직전에 고를 수 있게 함(2026-08-06). 디테일을 고르면 PublicReport.jsx가
+        // summary/feedback 없을 때 쓰는 기존 "선생님 노트" 폴백 카드를 그대로 재사용하도록
+        // feedback/summary를 여기서 비워버림 — PublicReport.jsx는 수정 안 해도 됨
+        teacherNote: reportStyle === 'detail' ? (teacherNoteDetail || teacherNote) : (aiPolishedNote || teacherNote),
         // 다듬기 전 원본(오답 분석 기반 코멘트 등, 문항 번호가 그대로 들어간 디테일한 버전) —
-        // 예전엔 teacherNote가 다듬어진 문구로 덮어써지면서 다듬기 전 텍스트가 저장 어디에도
-        // 안 남고 사라졌음. 학생관리 오답노트/단원별 탭과 연계되는 원본이라 별도 필드로 보존
-        // (2026-08-06). handleAIPolish가 다듬기 성공 시점에 찍어두고, 수정 모드 재진입 시에도
-        // 그대로 복원되므로(이번엔 재다듬기 안 눌러도) 여기서 새로 유추하지 않고 그대로 씀.
+        // 화면 표시 스타일(reportStyle)과 무관하게 항상 보존. 예전엔 teacherNote가 다듬어진
+        // 문구로 덮어써지면서 다듬기 전 텍스트가 저장 어디에도 안 남고 사라졌음. 학생관리
+        // 오답노트/단원별 탭과 연계되는 원본이라 별도 필드로 보존(2026-08-06).
         teacherNoteDetail: teacherNoteDetail || null,
+        reportStyle: feedback ? reportStyle : null, // 다듬기 자체를 안 썼으면 고를 게 없으니 null
+        // summary/feedback은 reportStyle이 "디테일"이어도 안 지움 — PublicReport.jsx가
+        // reportStyle을 직접 보고 어느 카드를 그릴지 정하므로(2026-08-06), 나중에 "요약"으로
+        // 다시 바꿔도 재생성 없이 그대로 복원됨. 지웠다가 되살리는 예전 방식은 전환할 때마다
+        // AI를 다시 불러야 해서(비록 무료 호출이라도) 손이 갔음
         summary: summary.trim() || null,
         // 선생님 피드백 3단(잘한 점/보완할 점/한마디) — AI 다듬기 때 teacherNote와 함께 생성됨
         feedback: feedback || null,
@@ -1366,6 +1402,7 @@ export default function DiagnosticReportInput({
       setHasTest(false); setTestName(''); setTestScore(''); setTestRound('');
       setCurriculumCourseOverride(null); setUnitPickerOpen(false); setUnitPickerCourse(null);
       setSelectedTags([]); setTeacherNote(''); setAiPolishedNote(''); setTeacherNoteDetail(null); setSummary(''); setFeedback(null);
+      setReportStyle('summary'); setEditingFeedbackField(null);
       setNextPlan(''); setNextPlanDetail('');
       removeAllPhotos();
       setLastSaved(null);
@@ -1434,6 +1471,7 @@ export default function DiagnosticReportInput({
       setCurriculumCourseOverride(null); setUnitPickerOpen(false); setUnitPickerCourse(null);
       setTeacherNote(''); setSelectedTags([]);
       setAiPolishedNote(''); setTeacherNoteDetail(null); setSummary(''); setFeedback(null);
+      setReportStyle('summary'); setEditingFeedbackField(null);
       setNextPlan(''); setNextPlanDetail('');
       setPhotos([]); setPhotoAnalysis(null); setPhotoContentType('');
       setWrongItems([]);
@@ -2113,6 +2151,7 @@ export default function DiagnosticReportInput({
                     <button type="button" onClick={() => {
                       if (!window.confirm('강사 메모와 AI 다듬기 결과를 모두 지우고 새로 시작할까요?')) return;
                       setTeacherNote(''); setAiPolishedNote(''); setTeacherNoteDetail(null); setSummary(''); setFeedback(null);
+                      setReportStyle('summary'); setEditingFeedbackField(null);
                     }} style={{ background: 'none', border: 'none', color: '#6C7586', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', padding: '2px 4px', display: 'flex', alignItems: 'center', gap: '3px' }}>
                       <X size={11} /> 새로 시작
                     </button>
@@ -3049,6 +3088,25 @@ export default function DiagnosticReportInput({
         }>
           <p style={{ fontSize: '11px', color: TOKENS.textMute, fontWeight: 700, marginBottom: '8px' }}>학부모 발송 미리보기</p>
 
+          {/* 요약(3단 카드) vs 디테일(원본 그대로) 선택 — 다듬기를 한 번이라도 성공해야 고를 게
+              있음(2026-08-06, 학원/선생님마다 선호가 갈려서 발송 직전에 고를 수 있게). 각 버전은
+              아래 미리보기 카드 안의 ✏️ 편집 버튼으로 바로 고쳐 쓸 수 있음 */}
+          {feedback && (feedback.strengths?.headline || feedback.improvements?.headline || feedback.closing?.text) && (
+            <div style={{ display: 'flex', gap: '4px', background: TOKENS.bgSoft, borderRadius: '10px', padding: '3px', marginBottom: '10px' }}>
+              {[{ key: 'summary', label: '요약' }, { key: 'detail', label: '디테일' }].map(t => (
+                <button key={t.key} type="button" onClick={() => { setReportStyle(t.key); setEditingFeedbackField(null); }}
+                  style={{
+                    flex: 1, padding: '8px', fontSize: '12px', fontWeight: 700, borderRadius: '8px', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                    background: reportStyle === t.key ? '#fff' : 'transparent',
+                    color: reportStyle === t.key ? TOKENS.text : TOKENS.textMute,
+                    boxShadow: reportStyle === t.key ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                  }}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* 스킨 표시 — 학생 개별 스킨 or 선택 스킨. 좌측 입력 폼 전체를 스킨 색으로 물들이지는
               않음(매일 반복해서 보는 작업 도구라 학생마다 색이 바뀌면 오히려 피로해짐) — 대신
               이 카드 상단에 지금 고른 색을 얇은 선으로만 보여줘서 "이 색으로 나간다"는 힌트만 줌 */}
@@ -3184,8 +3242,16 @@ export default function DiagnosticReportInput({
             hasTest={hasTest} testName={testName} testScore={testScore}
             textbook={textbook} unit={unit} pages={pages}
             teacherNote={aiPolishedNote || teacherNote}
+            teacherNoteDetail={teacherNoteDetail}
             summary={summary}
             feedback={feedback}
+            reportStyle={reportStyle}
+            editingFeedbackField={editingFeedbackField}
+            editFeedbackText={editFeedbackText}
+            onEditTextChange={setEditFeedbackText}
+            onStartEdit={startEditFeedback}
+            onSaveEdit={saveEditFeedback}
+            onCancelEdit={cancelEditFeedback}
             wrongItems={wrongItems}
             nextPlan={nextPlan} nextPlanDetail={nextPlanDetail}
             skin={selectedSkin === 'custom' ? { key: 'custom', main: customPrimaryHex, accent: customAccentHex }
@@ -3244,7 +3310,7 @@ export function deriveColorsToSkin(mainHex) {
 // 레이아웃은 무관) — 지금은 PublicReport와 동일한 레터헤드 구조에 skin.main/accent로 색만
 // 입힌다. PublicReport에 없는 기능(아바타 등)은 미리보기에서도 뺐다 — 안 그러면 반대로
 // "미리보기엔 있는데 실제론 없는" 거짓말이 생김.
-function ParentCard({ student, teacher, attendance, arrivalTime, departureTime, homeworkRating, conceptRating, hasTest, testName, testScore, textbook, unit, pages, teacherNote, summary, wrongItems, nextPlan, nextPlanDetail, skin, academyName = null, feedback = null }) {
+function ParentCard({ student, teacher, attendance, arrivalTime, departureTime, homeworkRating, conceptRating, hasTest, testName, testScore, textbook, unit, pages, teacherNote, teacherNoteDetail = null, summary, wrongItems, nextPlan, nextPlanDetail, skin, academyName = null, feedback = null, reportStyle = 'summary', editingFeedbackField = null, editFeedbackText = '', onEditTextChange, onStartEdit, onSaveEdit, onCancelEdit }) {
   // 선생님 피드백 3단(잘하고 있는 점/보완이 필요한 점) 근거 접기/펼침 — 기본 둘 다 접힘
   const [strongOpen, setStrongOpen] = React.useState(false);
   const [weakOpen, setWeakOpen] = React.useState(false);
@@ -3274,6 +3340,34 @@ function ParentCard({ student, teacher, attendance, arrivalTime, departureTime, 
   // 근거 항목에 빈 문장이 섞여 들어오면(드문 AI 응답 오류) 빈 줄이 그대로 렌더되므로 미리 거름
   const strongEvidence = (feedback?.strengths?.evidence || []).filter(it => it.text?.trim());
   const weakEvidence = (feedback?.improvements?.evidence || []).filter(it => it.text?.trim());
+
+  // 요약(3단 카드) vs 디테일(원본 그대로) 중 지금 실제로 뭐가 나갈지 — 요약 모드인데
+  // 다듬기를 아직 안 써서 카드에 채울 내용이 없으면 자동으로 디테일 쪽으로 폴백(기존 동작
+  // 그대로 유지, 여기서 새로 정의한 게 아님)
+  const hasSummaryContent = !!(feedback && (feedback.strengths?.headline || feedback.improvements?.headline || feedback.closing?.text));
+  const showSummaryCard = reportStyle === 'summary' && hasSummaryContent;
+  const detailText = teacherNoteDetail || teacherNote;
+
+  // 미리보기 카드 안에서 바로 고쳐 쓰기 — GrowthStory.jsx 선생님 한마디 편집과 같은 패턴.
+  // onStartEdit 등이 안 넘어오면(향후 다른 화면이 이 컴포넌트를 재사용할 경우 대비) 편집
+  // 버튼 자체를 안 보여줌 — 읽기 전용 렌더만 하는 호출부를 깨뜨리지 않기 위함
+  const canEdit = !!onStartEdit;
+  const editBtn = (field, dark) => canEdit && (
+    <button type="button" onClick={() => onStartEdit(field)}
+      style={{ background: dark ? 'rgba(255,255,255,0.1)' : '#F0EDE8', border: 'none', color: dark ? 'rgba(255,255,255,0.6)' : '#757575', fontSize: '10.5px', fontWeight: 600, padding: '3px 9px', borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit' }}>
+      ✏️ 편집
+    </button>
+  );
+  const editArea = (dark, minHeight) => (
+    <div>
+      <textarea value={editFeedbackText} onChange={e => onEditTextChange(e.target.value)} autoFocus
+        style={{ width: '100%', minHeight, padding: '10px', background: dark ? 'rgba(255,255,255,0.15)' : '#fff', border: dark ? '1px solid rgba(255,255,255,0.35)' : '1px solid #E5E5E5', borderRadius: '8px', color: dark ? '#fff' : '#171719', fontSize: '13px', lineHeight: 1.7, fontFamily: 'inherit', resize: 'vertical', outline: 'none', boxSizing: 'border-box' }} />
+      <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+        <button type="button" onClick={onSaveEdit} style={{ flex: 1, padding: '7px', background: dark ? sk.accent : sk.primary, border: 'none', borderRadius: '6px', color: '#fff', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>저장</button>
+        <button type="button" onClick={onCancelEdit} style={{ flex: 1, padding: '7px', background: dark ? 'rgba(255,255,255,0.15)' : '#F3F4F6', border: 'none', borderRadius: '6px', color: dark ? 'rgba(255,255,255,0.75)' : '#6B7280', fontSize: '11px', cursor: 'pointer', fontFamily: 'inherit' }}>취소</button>
+      </div>
+    </div>
+  );
 
   return (
     <div style={{ background: '#fff', borderRadius: '4px', overflow: 'hidden', boxShadow: '0 2px 20px rgba(0,0,0,0.10)', fontFamily: body }}>
@@ -3386,14 +3480,20 @@ function ParentCard({ student, teacher, attendance, arrivalTime, departureTime, 
 
       {/* 선생님 피드백 3단 — 잘하고 있는 점(흰 바탕) / 보완이 필요한 점(스킨 틴트) /
           선생님 한마디(스킨 주조색, 짙음). PublicReport.jsx와 동일 구조 — 작성 화면 미리보기가
-          실물과 다르면 안 되므로(2026-08-03 결정) 그대로 맞춤 */}
-      {feedback && (feedback.strengths?.headline || feedback.improvements?.headline || feedback.closing?.text) && (
+          실물과 다르면 안 되므로(2026-08-03 결정) 그대로 맞춤. reportStyle이 "디테일"이면
+          이 카드 대신 아래 폴백(원본 노트)이 나감(2026-08-06) */}
+      {showSummaryCard && (
         <div style={{ padding: '0 24px 24px' }}>
           <div style={{ borderRadius: '18px', overflow: 'hidden', boxShadow: '0 6px 28px rgba(23,23,25,0.10)' }}>
             {feedback.strengths?.headline && (
               <div style={{ padding: '22px 26px', display: 'flex', flexDirection: 'column', gap: '13px' }}>
-                <span style={{ fontSize: '13px', fontWeight: 700, color: INK }}>잘하고 있는 점</span>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: INK }}>잘하고 있는 점</span>
+                  {editingFeedbackField !== 'strengths' && editBtn('strengths', false)}
+                </div>
+                {editingFeedbackField === 'strengths' ? editArea(false, '60px') : (
                 <span style={{ fontSize: '15px', fontWeight: 700, lineHeight: 1.65, letterSpacing: '-0.2px', color: INK, textWrap: 'pretty' }}>{feedback.strengths.headline}</span>
+                )}
                 {strongOpen && strongEvidence.length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '9px' }}>
                     {strongEvidence.map((it, i) => (
@@ -3414,8 +3514,13 @@ function ParentCard({ student, teacher, attendance, arrivalTime, departureTime, 
 
             {feedback.improvements?.headline && (
               <div style={{ background: sk.tint, padding: '22px 26px', display: 'flex', flexDirection: 'column', gap: '13px' }}>
-                <span style={{ fontSize: '13px', fontWeight: 700, color: INK }}>보완이 필요한 점</span>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: INK }}>보완이 필요한 점</span>
+                  {editingFeedbackField !== 'improvements' && editBtn('improvements', false)}
+                </div>
+                {editingFeedbackField === 'improvements' ? editArea(false, '60px') : (
                 <span style={{ fontSize: '15px', fontWeight: 700, lineHeight: 1.65, letterSpacing: '-0.2px', color: INK, textWrap: 'pretty' }}>{feedback.improvements.headline}</span>
+                )}
                 {weakOpen && weakEvidence.length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '9px' }}>
                     {weakEvidence.map((it, i) => (
@@ -3442,8 +3547,13 @@ function ParentCard({ student, teacher, attendance, arrivalTime, departureTime, 
 
             {feedback.closing?.text && (
               <div style={{ background: sk.primary, padding: '24px 26px 26px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <span style={{ fontSize: '13px', fontWeight: 700, color: labelInk }}>선생님 한마디</span>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: labelInk }}>선생님 한마디</span>
+                  {editingFeedbackField !== 'closing' && editBtn('closing', true)}
+                </div>
+                {editingFeedbackField === 'closing' ? editArea(true, '90px') : (
                 <span style={{ fontSize: '14.5px', fontWeight: 500, lineHeight: 1.85, color: '#fff', textWrap: 'pretty' }}>{feedback.closing.text}</span>
+                )}
                 <span style={{ fontSize: '11.5px', fontWeight: 600, color: 'rgba(255,255,255,0.72)' }}>{teacher?.name}{teacherSuffix}</span>
               </div>
             )}
@@ -3451,15 +3561,21 @@ function ParentCard({ student, teacher, attendance, arrivalTime, departureTime, 
         </div>
       )}
 
-      {/* 폴백 — PublicReport.jsx와 동일하게, 3단 피드백이 없으면(다듬기 생략 등)
-          teacherNote 원문을 "선생님 노트" 카드로 미리보기 — 교사가 미리보기에서 보는
-          것과 학부모 실화면이 어긋나지 않게(2026-08-05 패리티) */}
-      {!(feedback && (feedback.strengths?.headline || feedback.improvements?.headline || feedback.closing?.text)) && teacherNote?.trim() && (
+      {/* 폴백 — PublicReport.jsx와 동일하게, 3단 피드백이 없으면(다듬기 생략 등) teacherNote
+          원문을 "선생님 노트" 카드로 미리보기(2026-08-05 패리티). reportStyle이 "디테일"일
+          때도 같은 자리를 쓰되, 다듬어진 문구가 아니라 원본(teacherNoteDetail)을 보여줌
+          (2026-08-06) */}
+      {!showSummaryCard && detailText?.trim() && (
         <div style={{ padding: '0 24px 24px' }}>
           <div style={{ borderRadius: '18px', overflow: 'hidden', boxShadow: '0 6px 28px rgba(23,23,25,0.10)' }}>
             <div style={{ background: sk.primary, padding: '24px 26px 26px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: labelInk }}>선생님 노트</span>
-              <span style={{ fontSize: '14.5px', fontWeight: 500, lineHeight: 1.85, color: '#fff', whiteSpace: 'pre-wrap', textWrap: 'pretty' }}>{teacherNote}</span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: labelInk }}>선생님 노트</span>
+                {editingFeedbackField !== 'detail' && editBtn('detail', true)}
+              </div>
+              {editingFeedbackField === 'detail' ? editArea(true, '120px') : (
+              <span style={{ fontSize: '14.5px', fontWeight: 500, lineHeight: 1.85, color: '#fff', whiteSpace: 'pre-wrap', textWrap: 'pretty' }}>{detailText}</span>
+              )}
               <span style={{ fontSize: '11.5px', fontWeight: 600, color: 'rgba(255,255,255,0.72)' }}>{teacher?.name}{teacherSuffix}</span>
             </div>
           </div>

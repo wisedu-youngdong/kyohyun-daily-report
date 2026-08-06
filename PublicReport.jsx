@@ -220,7 +220,10 @@ export default function PublicReport() {
   // feedback은 AI 다듬기를 거친 매일형에만 생기고, 주간형 발송(원장 총평)·다듬기 생략·
   // 파싱 실패 리포트엔 없다 — 폴백이 없으면 그런 리포트는 선생님 노트가 통째로 사라져
   // 학부모가 수치·사진만 보게 됨(2026-08-05 감사에서 발견).
-  const hasFeedbackCard = !!(r.feedback && (r.feedback.strengths?.headline || r.feedback.improvements?.headline || r.feedback.closing?.text));
+  // reportStyle==='detail'이면 feedback이 있어도 일부러 원본(teacherNote) 폴백 카드를 보여줌
+  // (2026-08-06, 요약/디테일 선택 기능) — feedback 자체는 지우지 않고 그대로 둬서, 나중에
+  // "요약"으로 다시 바꾸면 재생성 없이 그대로 복원된다(DiagnosticReportInput.jsx도 동일 원칙).
+  const hasFeedbackCard = r.reportStyle !== 'detail' && !!(r.feedback && (r.feedback.strengths?.headline || r.feedback.improvements?.headline || r.feedback.closing?.text));
 
   return (
     <>
