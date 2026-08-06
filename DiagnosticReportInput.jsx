@@ -425,6 +425,10 @@ export default function DiagnosticReportInput({
   const [selectedTags, setSelectedTags] = useState([]);
   const [teacherNote, setTeacherNote] = useState('');
   const [aiPolishedNote, setAiPolishedNote] = useState('');
+  // 다듬기 전 원본(오답 분석 기반 코멘트 등) 보존용 — 다듬기 성공 시점의 teacherNote를 그대로
+  // 찍어둔다. 수정 모드에서 다시 열었을 때 이번엔 재다듬기를 안 눌러도(aiPolishedNote가 빈
+  // 상태로 리셋되므로) 이전에 저장해둔 원본을 잃지 않도록 편집 진입 시에도 그대로 복원한다.
+  const [teacherNoteDetail, setTeacherNoteDetail] = useState(null);
   // 학부모 리포트 상단 "오늘의 한 줄" 배너 — AI가 다듬기 단계에서 코멘트와 함께 생성(같은 호출,
   // 추가 비용 없음), 선생님이 발송 전 그대로 수정 가능. 빈 값이면 PublicReport.jsx가 배너를 숨김.
   // 초기값은 ''로 두고 아래 "수정 모드 pre-fill" useEffect에서 editingReport 값으로 채움
@@ -807,6 +811,7 @@ export default function DiagnosticReportInput({
     setSelectedTags(editingReport.diagnosis || []);
     setTeacherNote(editingReport.teacherNote || '');
     setAiPolishedNote('');
+    setTeacherNoteDetail(editingReport.teacherNoteDetail || null);
     setSummary(editingReport.summary || '');
     setFeedback(editingReport.feedback || null);
     setNextPlan(editingReport.nextPlan || '');
@@ -988,6 +993,9 @@ export default function DiagnosticReportInput({
       const data = await response.json();
       if (!data.result) throw new Error('응답에 결과가 없습니다.');
       setAiPolishedNote(data.result);
+      // 다듬기 직전의 원본을 그대로 찍어둠 — 저장 시 teacherNote 자리는 다듬어진 문구로
+      // 덮어써지므로, 이걸 안 남기면 원본(오답 분석 기반 코멘트 등)이 사라짐(2026-08-06)
+      setTeacherNoteDetail(teacherNote);
       // "오늘의 한 줄" 배너용 요약 — 같은 호출에서 같이 옴(구분자로 분리, 서버 참고). 모델이
       // 구분자를 안 지킨 드문 경우 data.summary가 빈 문자열이라 배너는 자연스럽게 숨겨짐
       if (data.summary) setSummary(data.summary);
@@ -1289,7 +1297,7 @@ export default function DiagnosticReportInput({
         setHomeworkRating(null); setConceptRating(null);
         setHasTest(false); setTestName(''); setTestScore(''); setTestRound('');
         setCurriculumCourseOverride(null); setUnitPickerOpen(false); setUnitPickerCourse(null);
-        setSelectedTags([]); setTeacherNote(''); setAiPolishedNote('');
+        setSelectedTags([]); setTeacherNote(''); setAiPolishedNote(''); setTeacherNoteDetail(null);
         setAttendance('정시'); setArrivalTime('15:30'); setDepartureTime('');
         removeAllPhotos();
         setLastSaved(null);
@@ -1326,6 +1334,12 @@ export default function DiagnosticReportInput({
         unitKey: findUnitKey(subject, unit, curriculumCourseOverride || guessCourseKey(subject, student?.school)),
         diagnosis: selectedTags,
         teacherNote: aiPolishedNote || teacherNote,
+        // 다듬기 전 원본(오답 분석 기반 코멘트 등, 문항 번호가 그대로 들어간 디테일한 버전) —
+        // 예전엔 teacherNote가 다듬어진 문구로 덮어써지면서 다듬기 전 텍스트가 저장 어디에도
+        // 안 남고 사라졌음. 학생관리 오답노트/단원별 탭과 연계되는 원본이라 별도 필드로 보존
+        // (2026-08-06). handleAIPolish가 다듬기 성공 시점에 찍어두고, 수정 모드 재진입 시에도
+        // 그대로 복원되므로(이번엔 재다듬기 안 눌러도) 여기서 새로 유추하지 않고 그대로 씀.
+        teacherNoteDetail: teacherNoteDetail || null,
         summary: summary.trim() || null,
         // 선생님 피드백 3단(잘한 점/보완할 점/한마디) — AI 다듬기 때 teacherNote와 함께 생성됨
         feedback: feedback || null,
@@ -1351,7 +1365,7 @@ export default function DiagnosticReportInput({
       setHomeworkRating(null); setConceptRating(null);
       setHasTest(false); setTestName(''); setTestScore(''); setTestRound('');
       setCurriculumCourseOverride(null); setUnitPickerOpen(false); setUnitPickerCourse(null);
-      setSelectedTags([]); setTeacherNote(''); setAiPolishedNote(''); setSummary(''); setFeedback(null);
+      setSelectedTags([]); setTeacherNote(''); setAiPolishedNote(''); setTeacherNoteDetail(null); setSummary(''); setFeedback(null);
       setNextPlan(''); setNextPlanDetail('');
       removeAllPhotos();
       setLastSaved(null);
@@ -1419,7 +1433,7 @@ export default function DiagnosticReportInput({
       setTextbook(''); setSubject('수학'); setUnit(''); setPages('');
       setCurriculumCourseOverride(null); setUnitPickerOpen(false); setUnitPickerCourse(null);
       setTeacherNote(''); setSelectedTags([]);
-      setAiPolishedNote(''); setSummary(''); setFeedback(null);
+      setAiPolishedNote(''); setTeacherNoteDetail(null); setSummary(''); setFeedback(null);
       setNextPlan(''); setNextPlanDetail('');
       setPhotos([]); setPhotoAnalysis(null); setPhotoContentType('');
       setWrongItems([]);
@@ -2098,7 +2112,7 @@ export default function DiagnosticReportInput({
                   {(teacherNote || aiPolishedNote) && (
                     <button type="button" onClick={() => {
                       if (!window.confirm('강사 메모와 AI 다듬기 결과를 모두 지우고 새로 시작할까요?')) return;
-                      setTeacherNote(''); setAiPolishedNote(''); setSummary(''); setFeedback(null);
+                      setTeacherNote(''); setAiPolishedNote(''); setTeacherNoteDetail(null); setSummary(''); setFeedback(null);
                     }} style={{ background: 'none', border: 'none', color: '#6C7586', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', padding: '2px 4px', display: 'flex', alignItems: 'center', gap: '3px' }}>
                       <X size={11} /> 새로 시작
                     </button>
@@ -3026,9 +3040,11 @@ export default function DiagnosticReportInput({
           )}
         </div>
 
-        {/* 우측 미리보기 */}
+        {/* 우측 미리보기 — 전엔 sticky만 걸려있고 자체 스크롤이 없어서, 미리보기가 뷰포트보다
+            길면(사진 여러 장 등) 왼쪽 폼과 같은 페이지 스크롤을 끝까지 내려야만 아래쪽이 보였음.
+            maxHeight+overflowY로 오른쪽만 독립적으로 스크롤되게 분리(2026-08-06) */}
         <div style={isWide
-          ? { position: 'sticky', top: '20px' }
+          ? { position: 'sticky', top: '20px', maxHeight: 'calc(100dvh - 40px)', overflowY: 'auto' }
           : { position: 'static' }
         }>
           <p style={{ fontSize: '11px', color: TOKENS.textMute, fontWeight: 700, marginBottom: '8px' }}>학부모 발송 미리보기</p>
