@@ -545,7 +545,7 @@ export default function DiagnosticReportInput({
     setWrongItems(prev => {
       const exists = prev.some(w => w.number === p.number && w.sectionIdx === si);
       if (becameWrong && !exists) {
-        return [...prev, { number: p.number, sectionIdx: si, type: p.type, correctRate: '', mark: '수동오답', tags: [], memo: '' }];
+        return [...prev, { number: p.number, sectionIdx: si, type: p.type, subtopic: p.subtopic || '', correctRate: '', mark: '수동오답', tags: [], memo: '' }];
       }
       if (!becameWrong && exists) {
         return prev.filter(w => !(w.number === p.number && w.sectionIdx === si));
@@ -1145,6 +1145,9 @@ export default function DiagnosticReportInput({
         body: JSON.stringify({
           images,
           hintTextbook: textbook, hintUnit: unit, hintSubject: subject,
+          // 표준 단원표에 매칭되는 단원일 때만 값이 있음 — 서버가 이 값으로 학원별 소주제
+          // 사전(academies/{id}/subtopics/{unitKey})을 찾아 AI 분류에 참고시킨다(§5 소주제 체계)
+          hintUnitKey: findUnitKey(subject, unit, curriculumCourseOverride || guessCourseKey(subject, student?.school)),
           mode: modeOverride || 'auto',
           // 관리자만 유효 — 서버가 플랫폼 관리자 여부를 다시 확인하고 아니면 기본값을 쓴다
           ...(analyzeModel ? { model: analyzeModel } : {}),

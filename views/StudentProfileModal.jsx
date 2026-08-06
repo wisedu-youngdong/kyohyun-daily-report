@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Pencil } from 'lucide-react';
 import { toPct, fmtPages, resolveUnitGroup } from '../growth.js';
-import { DIAG_LABELS as diagLabels, DIAG_BADGE as DIAG_MAP, DIAG_SOFT, WRONG_TAGS } from '../diagnosis.js';
+import { DIAG_BADGE as DIAG_MAP, DIAG_SOFT, WRONG_TAGS } from '../diagnosis.js';
 import { T, C } from '../tokens.jsx';
 import { useEscapeClose, useFocusTrap, useMediaQuery } from '../hooks.js';
 
@@ -21,9 +21,15 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
   const weeklyPanelRef = useRef(null);
   useFocusTrap(weeklyPanelRef, showWeekly);
   const [expandedWeak, setExpandedWeak] = useState(null); // 반복 약점 패턴 중 "자세히 보기"로 펼친 key
-  const [expandedWrongUnit, setExpandedWrongUnit] = useState(null); // 오답 노트 중 펼친 단원 key(한 번에 하나만)
-  const [showAllWrongUnits, setShowAllWrongUnits] = useState(false); // 오답 노트 — 상위 8개 단원 초과분 더보기
-  const [zoomedWrongPhoto, setZoomedWrongPhoto] = useState(null); // 오답 노트 라이트박스 — { src, box_2d, caption } | null
+  // 탭 3개(현황/단원별/기록, HANDOFF-Students.md §2·§7-2) — 이 state가 StudentProfileContent
+  // 내부에 있고 부모(StudentsView.jsx)가 학생 전환 시 이 컴포넌트에 key를 안 줘서 리마운트가
+  // 안 되므로, PC 인라인 패널에서 다른 학생을 눌러도 보던 탭이 그대로 유지된다(§7-2 결정:
+  // "여러 명의 노트를 연달아 볼 때는 유지가 낫다")
+  const [activeTab, setActiveTab] = useState('status');
+  const [expandedUnitKey, setExpandedUnitKey] = useState(null); // 단원별 탭 — 펼친 대단원(한 번에 하나만)
+  const [expandedSubtopicKey, setExpandedSubtopicKey] = useState(null); // 그 안에서 펼친 소주제(단원key::소주제key)
+  const [examSelection, setExamSelection] = useState({}); // 출제 담기 체크 — 사용자가 직접 바꾼 것만 기록, 없으면 기본 규칙 적용
+  const [zoomedWrongPhoto, setZoomedWrongPhoto] = useState(null); // 오답 사진 라이트박스 — { src, box_2d, caption } | null
   useEscapeClose(() => setZoomedWrongPhoto(null), !!zoomedWrongPhoto);
   const zoomedWrongPhotoRef = useRef(null);
   useFocusTrap(zoomedWrongPhotoRef, !!zoomedWrongPhoto);
@@ -84,32 +90,10 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
   }));
   const weakTop3 = Object.entries(diagCount).sort((a, b) => b[1] - a[1]).slice(0, 3);
 
-  // 최근 학습 단원 목록
-  const unitHistory = [...new Set(sorted.map(r => [r.textbook, r.unit].filter(Boolean).join(' · ')).filter(Boolean))].slice(-5).reverse();
+  // 최근 학습 단원 목록 — 최근 3건만 보이고 나머지는 "전체 N건"으로만 표기(HANDOFF-Students.md §3-2)
+  const unitHistoryAll = [...new Set(sorted.map(r => [r.textbook, r.unit].filter(Boolean).join(' · ')).filter(Boolean))].reverse();
+  const unitHistory = unitHistoryAll.slice(0, 3);
 
-  // 단원별 이해도 히트맵 — unitKey(표준 단원 정규화)로 묶어 개념 이해 평균을 계산.
-  // AnalysisView.jsx의 "단원별 정답률"은 시험 점수(hasTest)만 쓰지만, 시험이 매번 있는 게
-  // 아니라 데이터가 성겨서(sparse) — 상담용 히트맵은 거의 매 리포트에 있는 conceptRating으로
-  // 계산해 단원 커버리지를 넓힘.
-  //
-  // 단원 판정은 growth.js의 resolveUnitGroup 공용 함수를 씀(2026-08-03) — 성장 포트폴리오
-  // (GrowthStory.jsx)와 여기가 각자 다른 규칙(예전엔 여러 단원 전부에 반영)을 갖고 있으면
-  // 같은 학생의 같은 기간인데 화면마다 단원별 % 평균이 달라지는 문제가 생긴다. 세션마다
-  // "주 단원" 하나에만 conceptRating을 반영하고, 부단원은 이 히트맵에서 별도 카드를 안 만듦.
-  const unitAccuracy = (() => {
-    const map = {};
-    sorted.forEach(r => {
-      if (r.conceptRating == null) return;
-      const group = resolveUnitGroup(r);
-      if (!group) return;
-      if (!map[group.key]) map[group.key] = { name: group.label, sum: 0, count: 0 };
-      map[group.key].sum += r.conceptRating;
-      map[group.key].count += 1;
-    });
-    return Object.values(map)
-      .map(u => ({ ...u, pct: Math.round(u.sum / u.count) }))
-      .sort((a, b) => a.pct - b.pct);
-  })();
   const heatTier = (pct) => pct >= 80
     ? { bg: C.successBg, color: C.successDark, border: `${C.successDark}30` }
     : pct >= 60
@@ -120,58 +104,185 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
     ? new Date(r.createdAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })
     : '';
 
-  // 오답 노트 — 위 "반복 약점 패턴"/"단원별 이해도"는 집계 숫자만 보여주는데, 상담 전에
-  // "정확히 몇 단원 어떤 유형에서 틀렸는지"를 사진 증거까지 바로 보고 싶다는 요청으로 추가
-  // (2026-08-05). 채점 사진 분석 때 이미 문항 단위로 쌓이는 report.wrongItems를 학생
-  // 전체 기간에 걸쳐 단원별로 모으기만 함 — 새 AI 호출·새 Firestore 필드 없음.
-  // 범위: report.wrongItems만 씀(계산/개념 유형) — 모의고사(mock_exam) 채점의 weakDetail은
-  // daily 리포트에만 있고 weekly와 처리가 갈라져 이번엔 제외(AnalysisView.jsx의 기존 오답
-  // 통계도 같은 범위). photoIndex는 1-based라 photoUrls[photoIndex-1]로 사진을 찾는다
-  // (api/analyze-photo.js가 pi=i+1로 매김 — 여기서 -1 안 하면 사진이 한 장씩 밀려서 매칭됨).
-  const wrongItemGroups = (() => {
-    const map = {};
-    sorted.forEach(r => {
-      (r.wrongItems || []).forEach((w, wi) => {
-        const group = resolveUnitGroup(r);
-        const key = group?.key || r.unit || r.textbook || '단원 미기재';
-        const label = group?.label || key;
-        if (!map[key]) map[key] = { label, items: [] };
-        map[key].items.push({
-          id: `${r.id}-${wi}`,
-          seconds: r.createdAt?.seconds || 0,
-          date: fmtDate(r),
-          number: w.number, type: w.type, tags: w.tags || [], memo: w.memo,
-          photoUrl: w.photoIndex != null ? r.photoUrls?.[w.photoIndex - 1] : null,
-          box_2d: w.box_2d,
-        });
-      });
-    });
-    return Object.values(map)
-      .map(g => ({ ...g, items: g.items.sort((a, b) => b.seconds - a.seconds), count: g.items.length }))
-      .sort((a, b) => b.count - a.count);
-  })();
-  const wrongItemTotal = wrongItemGroups.reduce((s, g) => s + g.count, 0);
-  const WRONG_TAG_MAP = Object.fromEntries(WRONG_TAGS.map(t => [t.key, t]));
   // box_2d(사진 분석 좌표)는 AI 결과일 때만 오고 수동 추가 항목엔 없음 — 값 자체가 있어도
   // [ymin,xmin,ymax,xmax] 4개 숫자·0~1000 범위가 아니면(예: 파싱 이상) 무시하고 사진만 보여줌.
   const isValidBox = (box) => Array.isArray(box) && box.length === 4 && box.every(n => typeof n === 'number' && n >= 0 && n <= 1000);
+  const WRONG_TAG_MAP = Object.fromEntries(WRONG_TAGS.map(t => [t.key, t]));
 
   // 완료된 복습 이력 — 최신순. "완료" 자체보다 그때 실제로 뭘 했는지(note/testScore)를 보여주는 게 목적
   const completedReviews = [...reviews]
     .filter(rv => rv.status === 'done')
     .sort((a, b) => (b.completedAt?.seconds || 0) - (a.completedAt?.seconds || 0));
 
+  // 단원별 탭 — 단원별 이해도·오답노트·복습이력을 하나로 묶음(HANDOFF-Students.md §4).
+  // "이해도가 낮다 → 왜냐면 그 단원에 오답이 몰려있다 → 그래서 복습을 몇 번 했다"를
+  // 대단원 하나를 펼치면 한 화면에서 보게 함. 대단원 아래는 소주제(subtopic) 단위.
+  //
+  // 소주제 데이터 출처가 리포트마다 다르다 — 반드시 지켜야 하는 전제:
+  // - photoAnalysis.sections[].problemTypes[](concept 섹션, 정답+오답 문항 전부)가 있으면
+  //   출제횟수·정답률까지 정확히 계산되고, 재출제 이력으로 6종 상태 배지까지 판정 가능.
+  //   이 필드는 daily 리포트에만 저장됨(DiagnosticReportInput.jsx의 buildSessionEntry()는
+  //   주간형 세션에 photoAnalysis를 안 담음 — 세션 문서가 커지는 걸 막기 위한 기존 설계).
+  // - 없으면(주간형 세션, 또는 소주제 분류 도입 전 과거 daily 리포트): report.wrongItems만
+  //   갖고 있어 "오답 몇 번"까지만 알 수 있고 정답/출제 총량은 알 길이 없음. 이 경우 정답률·
+  //   상태배지 없이 오답 횟수만 표시(2026-08-05 사용자 결정 — 데이터 없는데 억지로 배지를
+  //   매기면 오히려 신뢰를 깎는다는 판단).
+  // subtopic 필드 자체가 없는 항목(소주제 분류 이전 데이터)은 문항 설명(type)을 그대로
+  // 소주제 키로 대신 써서, 서로 뭉치진 않아도 최소한 목록에서 사라지지 않게 함(구 오답노트와
+  // 동등한 커버리지 보장).
+  const unitTree = (() => {
+    const units = {};
+    const ensureUnit = (key, label) => {
+      if (!units[key]) units[key] = { key, label, subtopics: {}, reportKeys: new Set() };
+      return units[key];
+    };
+    const ensureSub = (unit, subKey) => {
+      if (!unit.subtopics[subKey]) unit.subtopics[subKey] = {
+        key: subKey, hasExposureData: false, exposureCount: 0, correctCount: 0,
+        wrongCount: 0, occurrences: [], wrongItems: [],
+      };
+      return unit.subtopics[subKey];
+    };
+
+    sorted.forEach(r => {
+      const group = resolveUnitGroup(r);
+      const unitKey = group?.key || r.unit || r.textbook || '단원 미기재';
+      const unitLabel = group?.label || unitKey;
+      const unit = ensureUnit(unitKey, unitLabel);
+      if (r.textbook || r.unit) unit.reportKeys.add([r.textbook, r.unit].filter(Boolean).join(' · '));
+
+      (r.photoAnalysis?.sections || []).filter(s => s.sectionType === 'concept').forEach(s => {
+        (s.problemTypes || []).forEach(p => {
+          const subKey = p.subtopic || p.type || '분류 안 됨';
+          const sub = ensureSub(unit, subKey);
+          sub.hasExposureData = true;
+          sub.exposureCount += 1;
+          if (p.result === '잘함') sub.correctCount += 1;
+          sub.occurrences.push({ seconds: r.createdAt?.seconds || 0, result: p.result });
+        });
+      });
+
+      (r.wrongItems || []).forEach((w, wi) => {
+        const subKey = w.subtopic || w.type || '분류 안 됨';
+        const sub = ensureSub(unit, subKey);
+        sub.wrongCount += 1;
+        sub.wrongItems.push({
+          id: `${r.id}-${wi}`, seconds: r.createdAt?.seconds || 0, date: fmtDate(r),
+          number: w.number, type: w.type, tags: w.tags || [], memo: w.memo,
+          causeCalc: (w.tags || []).includes('calc'),
+          photoUrl: w.photoIndex != null ? r.photoUrls?.[w.photoIndex - 1] : null,
+          box_2d: w.box_2d,
+        });
+      });
+    });
+
+    // 상태 배지 판정 — 저증거 판정(출제 3회 미만)을 반복 판정보다 먼저 검사해야 한다.
+    // 안 그러면 이제 막 시작한 단원이 2번 틀렸다고 "반복해서 틀린다"로 잘못 읽힌다(§4).
+    const classify = (sub) => {
+      if (!sub.hasExposureData) return { simple: true };
+      if (sub.exposureCount < 3) {
+        return sub.wrongCount === 0
+          ? { badge: 'none', label: '틀린 적 없어요', tone: 'gray' }
+          : { badge: 'new', label: '이제 막 시작한 유형이에요', tone: 'gray' };
+      }
+      if (sub.wrongCount === 0) return { badge: 'none', label: '틀린 적 없어요', tone: 'gray' };
+      // "복습" = 첫 오답이 나온 그 회차(리포트) 이후, 다른 날짜(리포트)에 같은 소주제가
+      // 다시 출제된 것(§7-6: 재발생 자동 판정). 같은 리포트 안에 이 소주제 문항이 여러 개
+      // 있어도(같은 seconds) 그건 "그날 여러 문제 중 하나"일 뿐 복습이 아니다 — 이걸 seconds
+      // 값 자체가 아니라 발생 순서(index)로만 나누면, 오답 2회가 전부 같은 날 나온 경우에도
+      // "그 다음 문항"이 곧바로 복습으로 잡혀 "반복해서 틀리는데 복습을 안 했어요"가 영영
+      // 나올 수 없는 논리적 사각지대가 생긴다 — 반드시 날짜(seconds) 단위로 묶어서 판정할 것.
+      const occ = [...sub.occurrences].sort((a, b) => a.seconds - b.seconds);
+      const firstWrong = occ.find(o => o.result === '약점');
+      const laterOcc = occ.filter(o => o.seconds > firstWrong.seconds);
+      const reviewedCount = new Set(laterOcc.map(o => o.seconds)).size;
+      const wrongAfterReview = laterOcc.some(o => o.result === '약점');
+      if (reviewedCount > 0 && wrongAfterReview) return { badge: 'stuck', label: '복습했는데 또 틀렸어요', tone: 'navy', reviewedCount };
+      if (reviewedCount > 0) return { badge: 'fixed', label: '복습한 뒤로 맞고 있어요', tone: 'light', reviewedCount };
+      if (sub.wrongCount >= 2) return { badge: 'neglected', label: '반복해서 틀리는데 복습을 안 했어요', tone: 'navy', reviewedCount: 0 };
+      return { badge: 'onemiss', label: '한 번 틀렸어요', tone: 'light', reviewedCount: 0 };
+    };
+
+    return Object.values(units).map(u => {
+      const subtopics = Object.values(u.subtopics)
+        .map(s => ({
+          ...s,
+          wrongItems: s.wrongItems.sort((a, b) => b.seconds - a.seconds),
+          pct: s.hasExposureData && s.exposureCount > 0 ? Math.round((s.correctCount / s.exposureCount) * 100) : null,
+          status: classify(s),
+        }))
+        .sort((a, b) => b.wrongCount - a.wrongCount);
+      const totalWrong = subtopics.reduce((sum, s) => sum + s.wrongCount, 0);
+      const withExposure = subtopics.filter(s => s.hasExposureData);
+      const totalExposure = withExposure.reduce((sum, s) => sum + s.exposureCount, 0);
+      const totalCorrect = withExposure.reduce((sum, s) => sum + s.correctCount, 0);
+      const unitPct = totalExposure > 0 ? Math.round((totalCorrect / totalExposure) * 100) : null;
+      const reviewedTotal = subtopics.reduce((sum, s) => sum + (s.status.reviewedCount || 0), 0);
+      return { ...u, subtopics, totalWrong, unitPct, reviewedTotal };
+    }).sort((a, b) => b.totalWrong - a.totalWrong);
+  })();
+  const unitTreeWrongTotal = unitTree.reduce((s, u) => s + u.totalWrong, 0);
+  // 단원 안의 리포트들이 실제로 쓴 [교재,단원] 문자열과 겹치는 완료 복습만 그 단원에 귀속
+  // (reviews 컬렉션은 소주제가 아니라 진단 태그·textbook/unit 기준이라 소주제 단위 연결은
+  // 불가능 — 대단원 단위까지만 정확하게 묶을 수 있음)
+  const reviewsForUnit = (unit) => completedReviews.filter(rv => unit.reportKeys.has([rv.textbook, rv.unit].filter(Boolean).join(' · ')));
+
+  const STATUS_TONE_STYLE = {
+    navy: { bg: '#0D2D6B', color: '#fff' },
+    fixed: { bg: C.successBg, color: C.successDark },
+    onemiss: { bg: '#F1F2F5', color: '#4A4A4A' },
+    gray: { bg: '#F1F2F5', color: '#8A8F98' },
+  };
+  const badgeStyle = (status) => {
+    if (status.tone === 'navy') return STATUS_TONE_STYLE.navy;
+    if (status.badge === 'fixed') return STATUS_TONE_STYLE.fixed;
+    if (status.badge === 'onemiss') return STATUS_TONE_STYLE.onemiss;
+    return STATUS_TONE_STYLE.gray;
+  };
+
+  // 출제 담기 기본값 — 오답 2회 이상 AND 원인이 계산 실수만은 아닐 것. 계산 실수만으로
+  // 틀린 유형은 같은 유형을 또 내도 또 틀리므로 "출제보다 검산 훈련"으로 안내하고 기본
+  // 체크를 끈다(§4). 사용자가 직접 켜고 끈 적 있으면 그 선택을 그대로 따름.
+  const isCalcOnly = (sub) => sub.wrongItems.length > 0 && sub.wrongItems.every(w => w.causeCalc);
+  const examKey = (unitKey, subKey) => `${unitKey}::${subKey}`;
+  const isExamChecked = (unit, sub) => {
+    const k = examKey(unit.key, sub.key);
+    if (k in examSelection) return examSelection[k];
+    return sub.wrongCount >= 2 && !isCalcOnly(sub);
+  };
+
   return (
     <div style={{ fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>
 
-        {/* 헤더 — onClose가 있을 때만(모바일 모달) ×버튼 표시. PC 인라인 패널에선 안 보임 */}
-        <div style={{ background: '#0D2D6B', padding: '18px 22px', position: 'relative' }}>
+        {/* 헤더 — 왼쪽 목록에서 학생을 번갈아 누르는 화면인데 스크롤하면 누구를 보는지
+            사라지는 문제(HANDOFF-Students.md §3-1)로 position:sticky 고정. 3개 스크롤
+            컨테이너(PC 인라인 패널/모바일 풀스크린/데스크톱 중앙 모달) 모두 이 컴포넌트의
+            루트가 바로 첫 자식이라 sticky가 그대로 먹는다. 핵심 지표 3개도 여기로 올려서
+            본문 맨 위 중복 카드를 없앰. onClose가 있을 때만(모바일 모달) ×버튼 표시 */}
+        <div style={{ background: '#0D2D6B', padding: '18px 22px', position: 'sticky', top: 0, zIndex: 5 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
             <div style={{ width: '4px', height: '18px', background: '#C9A227', borderRadius: '0', flexShrink: 0 }} />
             <span style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.6)', letterSpacing: '0.15em' }}>{academyName || '데일리 리포트 시스템'} · 학생 종합 프로필</span>
           </div>
-          <p style={{ fontSize: '22px', fontWeight: 700, color: '#fff', margin: '0 0 4px' }}>{student.name}</p>
-          <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.55)', margin: 0 }}>총 {sorted.length}회 수업 누적</p>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '2px', paddingRight: onClose ? '40px' : 0 }}>
+            <p style={{ fontSize: '22px', fontWeight: 700, color: '#fff', margin: 0 }}>{student.name}</p>
+            {student.school && <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.55)' }}>{student.school}</span>}
+          </div>
+          <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.55)', margin: '0 0 14px' }}>총 {sorted.length}회 수업 누적</p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '8px' }}>
+            {[
+              { label: '개념 이해 평균', value: `${avgConcept}%` },
+              { label: '과제 수행 평균', value: `${avgHomework}%` },
+              { label: '정시 출석률', value: `${attendanceRate}%` },
+            ].map((item, i) => (
+              <div key={i} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', padding: '8px 6px', textAlign: 'center' }}>
+                <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.5)', margin: '0 0 3px', letterSpacing: '0.04em' }}>{item.label}</p>
+                <p style={{ fontSize: '16px', fontWeight: 800, color: '#fff', margin: 0, fontVariantNumeric: 'tabular-nums' }}>{item.value}</p>
+              </div>
+            ))}
+          </div>
+
           {onClose && (
             <button onClick={onClose} style={{ position: 'absolute', top: '16px', right: '18px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: '22px', cursor: 'pointer', lineHeight: 1, width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>×</button>
           )}
@@ -179,46 +290,96 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
 
         <div style={{ padding: '20px 22px' }}>
 
-          {/* 핵심 지표 */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px', marginBottom: '20px' }}>
+          {/* 탭 3개 — 현황(요즘 어떤가)/단원별(뭘 모르나)/기록(무슨 일이 있었나), 세 질문이
+              안 겹쳐서 4개로 안 쪼갬(HANDOFF-Students.md §2) */}
+          <div style={{ display: 'flex', gap: '4px', background: '#F3F4F6', borderRadius: '10px', padding: '3px', marginBottom: '20px' }}>
             {[
-              { label: '개념 이해 평균', value: `${avgConcept}%`, color: avgConcept >= 80 ? C.successDark : avgConcept >= 60 ? C.warningText : C.errorDark },
-              { label: '과제 수행 평균', value: `${avgHomework}%`, color: avgHomework >= 80 ? C.successDark : C.warningText },
-              { label: '정시 출석률', value: `${attendanceRate}%`, color: attendanceRate >= 90 ? C.successDark : attendanceRate >= 70 ? C.warningText : C.errorDark },
-            ].map((item, i) => (
-              <div key={i} style={{ border: '0.5px solid #E8E6E0', borderRadius: '10px', padding: '12px', textAlign: 'center' }}>
-                <p style={{ fontSize: '10px', color: T.textMute, margin: '0 0 4px', letterSpacing: '0.06em' }}>{item.label}</p>
-                <p style={{ fontSize: '22px', fontWeight: 800, color: item.color, margin: 0, fontVariantNumeric: 'tabular-nums' }}>{item.value}</p>
-              </div>
+              { key: 'status', label: '현황' },
+              { key: 'unit', label: '단원별' },
+              { key: 'history', label: '기록' },
+            ].map(t => (
+              <button key={t.key} onClick={() => setActiveTab(t.key)}
+                style={{
+                  flex: 1, padding: '9px', fontSize: '12.5px', fontWeight: 700, borderRadius: '8px', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                  background: activeTab === t.key ? '#fff' : 'transparent',
+                  color: activeTab === t.key ? '#0D2D6B' : T.textMute,
+                  boxShadow: activeTab === t.key ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                }}>
+                {t.label}
+              </button>
             ))}
           </div>
 
-          {/* 최근 개념 이해 추이 — 숫자 나열이던 걸 한눈에 보이게(재설계 4단계). 새 차트
-              라이브러리 없이 순수 SVG, GrowthDashboard의 학급 평균선과 같은 좌표 변환 방식 */}
-          {conceptRated.length >= 2 && (() => {
-            const recent = conceptRated.slice(-6);
-            const W = 380, H = 70, PAD = 8;
-            const toXY = (i, v) => [
-              PAD + (i / Math.max(recent.length - 1, 1)) * (W - PAD * 2),
-              H - PAD - (v / 100) * (H - PAD * 2),
+          {/* 최근 학습 추이 — 숫자 나열이던 걸 한눈에 보이게(재설계 4단계), 이후 축·범례·
+              2번째 지표(과제 수행) 추가(HANDOFF-Students.md §3-3). 새 차트 라이브러리 없이
+              순수 SVG, GrowthDashboard의 학급 평균선과 같은 좌표 변환 방식. 두 선은 서로
+              다른 리포트 부분집합(conceptRated/homeworkRated)에서 각자 최근 6개를 뽑으므로
+              점 개수가 다를 수 있음 — GrowthDashboard의 전체평균선/비교선 관계와 동일하게
+              각자 자기 배열 길이 기준으로 x좌표를 매겨 독립적으로 그림(날짜 정렬 강제 안 함) */}
+          {activeTab === 'status' && (conceptRated.length >= 2 || homeworkRated.length >= 2) && (() => {
+            const cPts = conceptRated.slice(-6);
+            const hPts = homeworkRated.slice(-6);
+            const W = 380, H = 90, PL = 26, PR = 10, PT = 8, PB = 18;
+            const cW = W - PL - PR, cH = H - PT - PB;
+            const toXY = (i, v, len) => [
+              PL + (i / Math.max(len - 1, 1)) * cW,
+              PT + cH - (v / 100) * cH,
             ];
-            const points = recent.map((r, i) => toXY(i, r.conceptRating));
-            const last = points[points.length - 1];
             return (
               <div style={{ marginBottom: '20px' }}>
-                <p style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 6px', color: '#1A1A1A' }}>최근 개념 이해 추이 · 최근 {recent.length}회</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px', flexWrap: 'wrap' }}>
+                  <p style={{ fontSize: '14px', fontWeight: 700, margin: 0, color: '#1A1A1A' }}>최근 학습 추이</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <div style={{ width: '14px', height: '2.5px', background: '#0D2D6B', borderRadius: '2px' }} />
+                    <span style={{ fontSize: '10px', color: T.textMute }}>개념 이해</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <svg width="14" height="6" aria-hidden="true"><line x1="0" y1="3" x2="14" y2="3" stroke="#C9A227" strokeWidth="2" strokeDasharray="4,2" /></svg>
+                    <span style={{ fontSize: '10px', color: T.textMute }}>과제 수행</span>
+                  </div>
+                </div>
                 <div style={{ width: '32px', height: '2px', background: '#C9A227', marginBottom: '10px' }} />
                 <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ overflow: 'visible', display: 'block' }}>
-                  <polyline points={points.map(p => p.join(',')).join(' ')} fill="none" stroke="#0D2D6B" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-                  {points.map((p, i) => <circle key={i} cx={p[0]} cy={p[1]} r={i === points.length - 1 ? 3.5 : 2.5} fill="#0D2D6B" />)}
-                  <text x={last[0] + 6} y={last[1] + 4} fontSize="11" fontWeight="700" fill="#0D2D6B">{recent[recent.length - 1].conceptRating}%</text>
+                  {[0, 50, 100].map(v => {
+                    const y = PT + cH - (v / 100) * cH;
+                    return (
+                      <g key={v}>
+                        <line x1={PL} y1={y} x2={W - PR} y2={y} stroke="#E8E6E0" strokeWidth="0.5" strokeDasharray="3,4" />
+                        <text x={PL - 4} y={y + 3} fontSize="8.5" fill={T.textMute} textAnchor="end">{v}</text>
+                      </g>
+                    );
+                  })}
+                  {cPts.length >= 2 && (() => {
+                    const points = cPts.map((r, i) => toXY(i, r.conceptRating, cPts.length));
+                    const last = points[points.length - 1];
+                    return (
+                      <>
+                        <polyline points={points.map(p => p.join(',')).join(' ')} fill="none" stroke="#0D2D6B" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+                        {points.map((p, i) => <circle key={i} cx={p[0]} cy={p[1]} r={i === points.length - 1 ? 3.5 : 2.5} fill="#0D2D6B" />)}
+                        <text x={last[0] + 6} y={last[1] + 4} fontSize="10" fontWeight="700" fill="#0D2D6B">{cPts[cPts.length - 1].conceptRating}%</text>
+                        <text x={toXY(0, 0, cPts.length)[0]} y={H - 2} fontSize="8.5" fill={T.textMute} textAnchor="start">{fmtDate(cPts[0])}</text>
+                        <text x={last[0]} y={H - 2} fontSize="8.5" fill={T.textMute} textAnchor="end">{fmtDate(cPts[cPts.length - 1])}</text>
+                      </>
+                    );
+                  })()}
+                  {hPts.length >= 2 && (() => {
+                    const points = hPts.map((r, i) => toXY(i, r.homeworkRating, hPts.length));
+                    const last = points[points.length - 1];
+                    return (
+                      <>
+                        <polyline points={points.map(p => p.join(',')).join(' ')} fill="none" stroke="#C9A227" strokeWidth="2" strokeDasharray="5,3" strokeLinejoin="round" strokeLinecap="round" />
+                        {points.map((p, i) => <circle key={i} cx={p[0]} cy={p[1]} r={i === points.length - 1 ? 3.5 : 2.5} fill="#C9A227" />)}
+                        <text x={last[0] + 6} y={last[1] - 4} fontSize="10" fontWeight="700" fill="#8A6A22">{hPts[hPts.length - 1].homeworkRating}%</text>
+                      </>
+                    );
+                  })()}
                 </svg>
               </div>
             );
           })()}
 
           {/* 출결 캘린더 */}
-          {(() => {
+          {activeTab === 'status' && (() => {
             const ATTEND_COLORS = { '정시': C.successDark, '지각': '#C9A227', '결석': C.errorDark, '조퇴': C.warningText };
             const attendanceByDate = {};
             sorted.forEach(r => {
@@ -319,13 +480,12 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
           })()}
 
           {/* 날짜별 수업 카드 리스트 */}
+          {activeTab === 'history' && (
           <div style={{ marginBottom: '20px' }}>
             <p style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 6px', color: '#1A1A1A' }}>수업 기록</p>
             <div style={{ width: '32px', height: '2px', background: '#C9A227', marginBottom: '12px' }} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
-              {[...sorted].reverse().slice(0, 5).map((r, i) => {
-                const diagColors = DIAG_SOFT;
-                const tags = (r.diagnosis || []).filter(d => d.key !== 'perfect');
+              {[...sorted].reverse().slice(0, 3).map((r, i) => {
                 const hasPerfect = (r.diagnosis || []).some(d => d.key === 'perfect');
                 const isWarning = r.conceptRating != null && r.conceptRating <= 40;
                 const rawNote = r.teacherNote || '';
@@ -368,20 +528,12 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
                       </p>
                     )}
 
-                    {/* 진단 태그 */}
-                    {(tags.length > 0 || hasPerfect) && (
-                      <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: cleanNote ? '5px' : 0 }}>
-                        {hasPerfect && (
-                          <span style={{ fontSize: '10px', background: C.successBg, color: C.successDark, padding: '1px 7px', borderRadius: '8px', fontWeight: 600 }}>개념 완벽</span>
-                        )}
-                        {tags.map((d, ti) => {
-                          const c = diagColors[d.key] || { bg: '#F3F4F6', color: '#374151' };
-                          return (
-                            <span key={ti} style={{ fontSize: '10px', background: c.bg, color: c.color, padding: '1px 7px', borderRadius: '8px', fontWeight: 600 }}>
-                              {diagLabels[d.key] || d.key}
-                            </span>
-                          );
-                        })}
+                    {/* 계산실수/개념누락 같은 부정 진단 태그는 카드마다 나열하지 않음 — 같은
+                        정보가 위 "반복 약점 패턴" 섹션에 집계로, 코멘트 문장 안에도 이미 있어
+                        중복이었음(HANDOFF-Students.md §3-4). 긍정 신호인 "개념 완벽"만 유지 */}
+                    {hasPerfect && (
+                      <div style={{ marginBottom: cleanNote ? '5px' : 0 }}>
+                        <span style={{ fontSize: '10px', background: C.successBg, color: C.successDark, padding: '1px 7px', borderRadius: '8px', fontWeight: 600 }}>개념 완벽</span>
                       </div>
                     )}
 
@@ -395,15 +547,16 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
                 );
               })}
             </div>
-            {sorted.length > 5 && (
+            {sorted.length > 3 && (
               <p style={{ fontSize: '11px', color: T.textMute, margin: '8px 0 0', textAlign: 'center' }}>
-                최근 5회 표시 · 전체 {sorted.length}회
+                최근 3회 표시 · 전체 {sorted.length}회
               </p>
             )}
           </div>
+          )}
 
           {/* 반복 약점 TOP3 */}
-          {weakTop3.length > 0 && (
+          {activeTab === 'status' && weakTop3.length > 0 && (
             <div style={{ marginBottom: '20px' }}>
               <p style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 6px', color: '#1A1A1A' }}>반복 약점 패턴</p>
               <div style={{ width: '32px', height: '2px', background: '#C9A227', marginBottom: '12px' }} />
@@ -452,99 +605,181 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
             </div>
           )}
 
-          {/* 단원별 이해도 히트맵 */}
-          {unitAccuracy.length > 0 && (
-            <div style={{ marginBottom: '20px' }}>
-              <p style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 6px', color: '#1A1A1A' }}>단원별 이해도</p>
-              <div style={{ width: '32px', height: '2px', background: '#C9A227', marginBottom: '12px' }} />
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(92px, 1fr))', gap: '6px' }}>
-                {unitAccuracy.map((u) => {
-                  const tier = heatTier(u.pct);
-                  return (
-                    <div key={u.name} title={u.name}
-                      style={{ background: tier.bg, border: `1px solid ${tier.border}`, borderRadius: '8px', padding: '8px 8px 7px', minHeight: '54px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                      <p style={{ fontSize: '10px', color: tier.color, fontWeight: 600, margin: 0, lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{u.name}</p>
-                      <p style={{ fontSize: '15px', color: tier.color, fontWeight: 800, margin: 0, fontVariantNumeric: 'tabular-nums' }}>{u.pct}%</p>
-                    </div>
-                  );
-                })}
-              </div>
-              <p style={{ fontSize: '10px', color: T.textMute, margin: '8px 0 0' }}>개념 이해 평가 평균 · 낮은 순 정렬 · 빨강/주황일수록 보강이 필요해요</p>
-            </div>
-          )}
-
-          {/* 오답 노트 — 채점 사진 분석으로 이미 쌓인 문항 단위 오답을 단원별로 모아서
-              사진 증거까지 바로 확인. 단원은 개수순(많이 틀린 단원부터), 항목은 최신순 */}
-          {wrongItemGroups.length > 0 && (
+          {/* 단원별 탭 — 단원별 이해도·오답노트·복습이력을 하나로(HANDOFF-Students.md §4).
+              대단원을 펼치면 소주제별 상태 배지 + 오답 증거 + (그 단원에 실제로 있었던)
+              복습 이력이 한 화면에 나온다. "이해도가 낮다 → 오답이 몰려있다 → 복습을 몇
+              번 했다"를 여기저기 오가지 않고 바로 이어 붙여 읽을 수 있게 하는 게 목적. */}
+          {activeTab === 'unit' && (
             <div style={{ marginBottom: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '6px' }}>
-                <p style={{ fontSize: '14px', fontWeight: 700, margin: 0, color: '#1A1A1A' }}>오답 노트</p>
-                <span style={{ fontSize: '11px', fontWeight: 600, color: T.textMute }}>총 {wrongItemTotal}건</span>
+                <p style={{ fontSize: '14px', fontWeight: 700, margin: 0, color: '#1A1A1A' }}>단원별</p>
+                {unitTree.length > 0 && <span style={{ fontSize: '11px', fontWeight: 600, color: T.textMute }}>총 오답 {unitTreeWrongTotal}건</span>}
               </div>
               <div style={{ width: '32px', height: '2px', background: '#C9A227', marginBottom: '12px' }} />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {(showAllWrongUnits ? wrongItemGroups : wrongItemGroups.slice(0, 8)).map(g => {
-                  const isOpen = expandedWrongUnit === g.label;
-                  const visibleItems = isOpen ? g.items.slice(0, 10) : [];
-                  const hiddenItemCount = g.items.length - visibleItems.length;
-                  return (
-                    <div key={g.label} style={{ background: '#FAFAF8', border: '0.5px solid #E5E7EB', borderRadius: '8px', overflow: 'hidden' }}>
-                      <div onClick={() => setExpandedWrongUnit(isOpen ? null : g.label)}
-                        style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 10px', cursor: 'pointer' }}>
-                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#2C2C2C', flex: 1, minWidth: 0 }}>{g.label}</span>
-                        <span style={{ fontSize: '11px', fontWeight: 700, color: C.errorDark, background: '#FDF0F0', padding: '2px 8px', borderRadius: '10px', flexShrink: 0 }}>{g.count}건</span>
-                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" style={{ flexShrink: 0, transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
-                          <path d="M3 4.5L6 7.5L9 4.5" stroke="#757575" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </div>
-                      {isOpen && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '7px', padding: '0 10px 10px' }}>
-                          {visibleItems.map(it => (
-                            <div key={it.id}
-                              onClick={() => it.photoUrl && setZoomedWrongPhoto({ src: it.photoUrl, box_2d: it.box_2d, caption: [it.number && `${it.number}번`, it.type].filter(Boolean).join(' · ') })}
-                              style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#fff', border: '0.5px solid #E5E7EB', borderRadius: '6px', padding: '7px 9px', cursor: it.photoUrl ? 'pointer' : 'default' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                                <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#374151' }}>{it.date}</span>
-                                {it.number && <span style={{ fontSize: '10.5px', color: T.textMute }}>{it.number}번</span>}
-                                {it.type && <span style={{ fontSize: '11px', color: '#2C2C2C' }}>{it.type}</span>}
-                                {it.photoUrl && (
-                                  <svg width="11" height="11" viewBox="0 0 14 14" fill="none" aria-hidden="true" style={{ marginLeft: 'auto', flexShrink: 0 }}>
-                                    <rect x="1.5" y="3" width="11" height="8.5" rx="1.5" stroke="#8A93A3" strokeWidth="1.1" />
-                                    <circle cx="7" cy="7.2" r="2" stroke="#8A93A3" strokeWidth="1.1" />
-                                  </svg>
-                                )}
-                              </div>
-                              {it.tags.length > 0 && (
-                                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                                  {it.tags.map(tagKey => {
-                                    const t = WRONG_TAG_MAP[tagKey];
-                                    if (!t) return null;
-                                    return <span key={tagKey} style={{ fontSize: '10px', fontWeight: 700, color: t.color, background: t.bg, border: `1px solid ${t.border}`, padding: '2px 7px', borderRadius: '10px' }}>{t.label}</span>;
-                                  })}
-                                </div>
-                              )}
-                              {it.memo && <p style={{ fontSize: '11px', color: T.textSub, margin: 0, lineHeight: 1.5 }}>{it.memo}</p>}
-                            </div>
-                          ))}
-                          {hiddenItemCount > 0 && (
-                            <p style={{ fontSize: '10px', color: T.textMute, margin: 0, textAlign: 'center' }}>외 {hiddenItemCount}건 더</p>
+
+              {unitTree.length === 0 ? (
+                <p style={{ fontSize: '12px', color: T.textMute, margin: 0 }}>아직 채점 사진 분석 기록이 없어요.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {unitTree.map(u => {
+                    const isUnitOpen = expandedUnitKey === u.key;
+                    const unitReviews = reviewsForUnit(u);
+                    return (
+                      <div key={u.key} style={{ background: '#FAFAF8', border: '0.5px solid #E5E7EB', borderRadius: '8px', overflow: 'hidden' }}>
+                        <div onClick={() => setExpandedUnitKey(isUnitOpen ? null : u.key)}
+                          style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', cursor: 'pointer', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '12.5px', fontWeight: 700, color: '#2C2C2C', flex: 1, minWidth: '80px' }}>{u.label}</span>
+                          <span style={{ fontSize: '11px', fontWeight: 700, color: C.errorDark, background: '#FDF0F0', padding: '2px 8px', borderRadius: '10px', flexShrink: 0 }}>오답 {u.totalWrong}개</span>
+                          {u.reviewedTotal > 0 && (
+                            <span style={{ fontSize: '11px', fontWeight: 700, color: C.primary, background: '#EAF0F9', padding: '2px 8px', borderRadius: '10px', flexShrink: 0 }}>복습 {u.reviewedTotal}회</span>
                           )}
+                          {u.unitPct != null && (() => {
+                            const tier = heatTier(u.unitPct);
+                            return <span style={{ fontSize: '11px', fontWeight: 700, color: tier.color, background: tier.bg, padding: '2px 8px', borderRadius: '10px', flexShrink: 0 }}>정답률 {u.unitPct}%</span>;
+                          })()}
+                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" style={{ flexShrink: 0, transform: isUnitOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
+                            <path d="M3 4.5L6 7.5L9 4.5" stroke="#757575" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-              {wrongItemGroups.length > 8 && !showAllWrongUnits && (
-                <button onClick={() => setShowAllWrongUnits(true)}
-                  style={{ width: '100%', marginTop: '8px', padding: '9px', fontSize: '11px', fontWeight: 700, color: C.primary, background: '#EAF0F9', border: '1px solid #E6F1FB', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit' }}>
-                  + {wrongItemGroups.length - 8}개 단원 더보기
+                        {isUnitOpen && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '0 10px 10px' }}>
+                            {u.subtopics.map(sub => {
+                              const subOpen = expandedSubtopicKey === examKey(u.key, sub.key);
+                              const checked = isExamChecked(u, sub);
+                              const calcOnly = isCalcOnly(sub);
+                              const tone = sub.status.simple ? null : badgeStyle(sub.status);
+                              return (
+                                <div key={sub.key} style={{ background: '#fff', border: '0.5px solid #E5E7EB', borderRadius: '6px', overflow: 'hidden' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 9px', flexWrap: 'wrap' }}>
+                                    <input type="checkbox" checked={checked}
+                                      onChange={e => setExamSelection(prev => ({ ...prev, [examKey(u.key, sub.key)]: e.target.checked }))}
+                                      title={calcOnly ? '계산 실수만 반복 — 출제보다 검산 훈련' : '출제 담기'}
+                                      style={{ flexShrink: 0, width: '15px', height: '15px', cursor: 'pointer' }} />
+                                    <span onClick={() => sub.wrongItems.length > 0 && setExpandedSubtopicKey(subOpen ? null : examKey(u.key, sub.key))}
+                                      style={{ fontSize: '12px', fontWeight: 600, color: '#2C2C2C', flex: 1, minWidth: '70px', cursor: sub.wrongItems.length > 0 ? 'pointer' : 'default' }}>
+                                      {sub.key}
+                                    </span>
+                                    {tone ? (
+                                      <span style={{ fontSize: '10px', fontWeight: 700, color: tone.color, background: tone.bg, padding: '2px 7px', borderRadius: '10px', flexShrink: 0, whiteSpace: 'nowrap' }}>{sub.status.label}</span>
+                                    ) : (
+                                      <span style={{ fontSize: '10px', fontWeight: 700, color: '#8A8F98', background: '#F1F2F5', padding: '2px 7px', borderRadius: '10px', flexShrink: 0, whiteSpace: 'nowrap' }}>오답 {sub.wrongCount}회</span>
+                                    )}
+                                    {sub.pct != null && <span style={{ fontSize: '10px', fontWeight: 700, color: T.textMute, flexShrink: 0 }}>{sub.pct}%</span>}
+                                  </div>
+                                  {calcOnly && (
+                                    <p style={{ fontSize: '10px', color: C.warningText, margin: '0 9px 6px', lineHeight: 1.5 }}>계산 실수 반복 — 출제보다 검산 훈련이 먼저예요</p>
+                                  )}
+                                  {subOpen && sub.wrongItems.length > 0 && (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '0 9px 9px' }}>
+                                      {sub.wrongItems.slice(0, 10).map(it => (
+                                        <div key={it.id}
+                                          onClick={() => it.photoUrl && setZoomedWrongPhoto({ src: it.photoUrl, box_2d: it.box_2d, caption: [it.number && `${it.number}번`, it.type || sub.key].filter(Boolean).join(' · ') })}
+                                          style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#FAFAF8', border: '0.5px solid #E5E7EB', borderRadius: '6px', padding: '7px 9px', cursor: it.photoUrl ? 'pointer' : 'default' }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                            <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#374151' }}>{it.date}</span>
+                                            {it.number && <span style={{ fontSize: '10.5px', color: T.textMute }}>{it.number}번</span>}
+                                            {it.type && <span style={{ fontSize: '11px', color: '#2C2C2C' }}>{it.type}</span>}
+                                            {it.photoUrl && (
+                                              <svg width="11" height="11" viewBox="0 0 14 14" fill="none" aria-hidden="true" style={{ marginLeft: 'auto', flexShrink: 0 }}>
+                                                <rect x="1.5" y="3" width="11" height="8.5" rx="1.5" stroke="#8A93A3" strokeWidth="1.1" />
+                                                <circle cx="7" cy="7.2" r="2" stroke="#8A93A3" strokeWidth="1.1" />
+                                              </svg>
+                                            )}
+                                          </div>
+                                          {it.tags.length > 0 && (
+                                            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                                              {it.tags.map(tagKey => {
+                                                const t = WRONG_TAG_MAP[tagKey];
+                                                if (!t) return null;
+                                                return <span key={tagKey} style={{ fontSize: '10px', fontWeight: 700, color: t.color, background: t.bg, border: `1px solid ${t.border}`, padding: '2px 7px', borderRadius: '10px' }}>{t.label}</span>;
+                                              })}
+                                            </div>
+                                          )}
+                                          {it.memo && <p style={{ fontSize: '11px', color: T.textSub, margin: 0, lineHeight: 1.5 }}>{it.memo}</p>}
+                                        </div>
+                                      ))}
+                                      {sub.wrongItems.length > 10 && (
+                                        <p style={{ fontSize: '10px', color: T.textMute, margin: 0, textAlign: 'center' }}>외 {sub.wrongItems.length - 10}건 더</p>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+
+                            {/* 복습 이력 — reviews 컬렉션은 소주제가 아니라 textbook/unit 기준이라
+                                대단원 단위까지만 정확히 귀속 가능(소주제별 연결은 데이터에 없음) */}
+                            {unitReviews.length > 0 && (
+                              <div style={{ marginTop: '4px', paddingTop: '8px', borderTop: '1px solid #EEECEA' }}>
+                                <p style={{ fontSize: '11px', fontWeight: 700, color: T.textMute, margin: '0 0 6px' }}>복습 이력</p>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                  {unitReviews.slice(0, 3).map(rv => (
+                                    <div key={rv.id} style={{ background: '#fff', border: '0.5px solid #E5E7EB', borderRadius: '6px', padding: '7px 9px' }}>
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#1A1A1A' }}>
+                                          {rv.round}차 복습{rv.weakTypes?.length > 0 && <span style={{ fontWeight: 500, color: T.textSub }}> · {rv.weakTypes.map(w => w.label).join(', ')}</span>}
+                                        </span>
+                                        <span style={{ fontSize: '10px', color: T.textMute }}>
+                                          {rv.completedAt?.seconds ? new Date(rv.completedAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' }) : ''}
+                                        </span>
+                                      </div>
+                                      {rv.testScore != null && rv.testScore !== '' && (
+                                        <p style={{ fontSize: '10px', color: '#C9A227', fontWeight: 700, margin: '3px 0 0' }}>재시험 {rv.testScore}점</p>
+                                      )}
+                                      {editingReviewId === rv.id ? (
+                                        <div>
+                                          <textarea value={editReviewNoteText} onChange={e => setEditReviewNoteText(e.target.value)} autoFocus
+                                            style={{ width: '100%', minHeight: '54px', padding: '6px 8px', border: '1px solid #E5E7EB', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box', marginTop: '4px' }} />
+                                          <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+                                            <button onClick={async () => { await onEditReviewNote?.(rv.id, editReviewNoteText); setEditingReviewId(null); }}
+                                              style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 700, border: 'none', borderRadius: '6px', background: C.primary, color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>저장</button>
+                                            <button onClick={() => setEditingReviewId(null)}
+                                              style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 600, border: '1px solid #E5E7EB', borderRadius: '6px', background: '#fff', color: '#6B7280', cursor: 'pointer', fontFamily: 'inherit' }}>취소</button>
+                                          </div>
+                                        </div>
+                                      ) : rv.note && (
+                                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', marginTop: '3px' }}>
+                                          <p style={{ fontSize: '10.5px', color: T.textSub, margin: 0, lineHeight: 1.6, flex: 1 }}>{rv.note}</p>
+                                          {onEditReviewNote && (
+                                            <button onClick={() => { setEditingReviewId(rv.id); setEditReviewNoteText(rv.note || ''); }}
+                                              title="메모 수정" aria-label="메모 수정"
+                                              style={{ flexShrink: 0, border: 'none', background: 'transparent', cursor: 'pointer', padding: '2px', color: T.textMute, display: 'flex' }}>
+                                              <Pencil size={11} />
+                                            </button>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* 출제 담기 — 실제 문제 생성 기능이 아직 없어 "유형 목록 복사"까지만 제공
+                  (§4: 없는 기능을 버튼으로 약속하지 않는다) */}
+              {unitTree.some(u => u.subtopics.some(s => isExamChecked(u, s))) && (
+                <button onClick={() => {
+                  const lines = unitTree.flatMap(u => {
+                    const picked = u.subtopics.filter(s => isExamChecked(u, s));
+                    return picked.length > 0 ? [`[${u.label}]`, ...picked.map(s => `- ${s.key}`)] : [];
+                  });
+                  navigator.clipboard.writeText(lines.join('\n')).then(() => onToast?.('출제할 유형 목록이 복사됐어요.'));
+                }}
+                  style={{ width: '100%', marginTop: '10px', padding: '11px', fontSize: '12px', fontWeight: 700, color: '#fff', background: '#0D2D6B', border: 'none', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                  체크한 유형 목록 복사
                 </button>
               )}
             </div>
           )}
 
-          {/* 오답 노트 라이트박스 — 사진 위에 box_2d(AI가 짚은 문항 좌표, 0~1000 정규화)가
+          {/* 오답 사진 라이트박스 — 사진 위에 box_2d(AI가 짚은 문항 좌표, 0~1000 정규화)가
               유효할 때만 빨간 사각형을 정적으로 얹음. DiagnosticReportInput.jsx의
               PhotoBoxOverlay와 달리 토글/편집 없이 "그 문항이 여기다"만 보여주는 용도라 단순화. */}
           {zoomedWrongPhoto && (
@@ -573,66 +808,8 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
             </div>
           )}
 
-          {/* 복습 이력 — 대시보드에서 "복습 완료" 처리할 때 남긴 조치 메모/재시험 점수.
-              대시보드엔 처리 즉시 목록에서 사라지므로, "그때 뭘 했는지" 다시 확인할 수 있는 유일한 곳 */}
-          {completedReviews.length > 0 && (
-            <div style={{ marginBottom: '20px' }}>
-              <p style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 6px', color: '#1A1A1A' }}>복습 이력</p>
-              <div style={{ width: '32px', height: '2px', background: '#C9A227', marginBottom: '12px' }} />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
-                {completedReviews.slice(0, 5).map((rv) => (
-                  <div key={rv.id} style={{ background: '#FAFAF8', border: '0.5px solid #E5E7EB', borderRadius: '8px', padding: '9px 10px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
-                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#1A1A1A' }}>
-                        {rv.round}차 복습
-                        {rv.weakTypes?.length > 0 && <span style={{ fontWeight: 500, color: T.textSub }}> · {rv.weakTypes.map(w => w.label).join(', ')}</span>}
-                      </span>
-                      <span style={{ fontSize: '10px', color: T.textMute }}>
-                        {rv.completedAt?.seconds ? new Date(rv.completedAt.seconds * 1000).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' }) : ''}
-                      </span>
-                    </div>
-                    {(rv.textbook || rv.unit) && (
-                      <p style={{ fontSize: '10px', color: T.textMute, margin: '0 0 4px' }}>{[rv.textbook, rv.unit].filter(Boolean).join(' · ')}</p>
-                    )}
-                    {rv.testScore != null && rv.testScore !== '' && (
-                      <p style={{ fontSize: '10px', color: '#C9A227', fontWeight: 700, margin: '0 0 4px' }}>재시험 {rv.testScore}점</p>
-                    )}
-                    {editingReviewId === rv.id ? (
-                      <div>
-                        <textarea value={editReviewNoteText} onChange={e => setEditReviewNoteText(e.target.value)} autoFocus
-                          style={{ width: '100%', minHeight: '54px', padding: '6px 8px', border: '1px solid #E5E7EB', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }} />
-                        <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
-                          <button onClick={async () => { await onEditReviewNote?.(rv.id, editReviewNoteText); setEditingReviewId(null); }}
-                            style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 700, border: 'none', borderRadius: '6px', background: C.primary, color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>저장</button>
-                          <button onClick={() => setEditingReviewId(null)}
-                            style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 600, border: '1px solid #E5E7EB', borderRadius: '6px', background: '#fff', color: '#6B7280', cursor: 'pointer', fontFamily: 'inherit' }}>취소</button>
-                        </div>
-                      </div>
-                    ) : rv.note && (
-                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
-                        <p style={{ fontSize: '11px', color: T.textSub, margin: 0, lineHeight: 1.6, flex: 1 }}>{rv.note}</p>
-                        {onEditReviewNote && (
-                          <button onClick={() => { setEditingReviewId(rv.id); setEditReviewNoteText(rv.note || ''); }}
-                            title="메모 수정" aria-label="메모 수정"
-                            style={{ flexShrink: 0, border: 'none', background: 'transparent', cursor: 'pointer', padding: '2px', color: T.textMute, display: 'flex' }}>
-                            <Pencil size={11} />
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-              {completedReviews.length > 5 && (
-                <p style={{ fontSize: '11px', color: T.textMute, margin: '8px 0 0', textAlign: 'center' }}>
-                  최근 5건 표시 · 전체 {completedReviews.length}건
-                </p>
-              )}
-            </div>
-          )}
-
           {/* 최근 학습 단원 */}
-          {unitHistory.length > 0 && (
+          {activeTab === 'history' && unitHistory.length > 0 && (
             <div style={{ marginBottom: '20px' }}>
               <p style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 6px', color: '#1A1A1A' }}>최근 학습 단원</p>
               <div style={{ width: '32px', height: '2px', background: '#C9A227', marginBottom: '12px' }} />
@@ -645,11 +822,16 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
                   </div>
                 ))}
               </div>
+              {unitHistoryAll.length > 3 && (
+                <p style={{ fontSize: '11px', color: T.textMute, margin: '8px 0 0', textAlign: 'center' }}>
+                  최근 3건 표시 · 전체 {unitHistoryAll.length}건
+                </p>
+              )}
             </div>
           )}
 
           {/* 최근 선생님 코멘트 */}
-          {sorted.filter(r => r.teacherNote).length > 0 && (
+          {activeTab === 'history' && sorted.filter(r => r.teacherNote).length > 0 && (
             <div style={{ marginBottom: '20px' }}>
               <p style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 6px', color: '#1A1A1A' }}>최근 선생님 코멘트</p>
               <div style={{ width: '32px', height: '2px', background: '#C9A227', marginBottom: '12px' }} />
@@ -661,10 +843,16 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
                   </div>
                 ))}
               </div>
+              {sorted.filter(r => r.teacherNote).length > 3 && (
+                <p style={{ fontSize: '11px', color: T.textMute, margin: '8px 0 0', textAlign: 'center' }}>
+                  최근 3건 표시 · 전체 {sorted.filter(r => r.teacherNote).length}건
+                </p>
+              )}
             </div>
           )}
 
           {/* 원장님 상담 메모 */}
+          {activeTab === 'history' && (
           <div>
             <p style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 6px', color: '#1A1A1A' }}>원장님 상담 메모</p>
             <div style={{ width: '32px', height: '2px', background: '#C9A227', marginBottom: '12px' }} />
@@ -679,7 +867,13 @@ export function StudentProfileContent({ student, reports, reviews = [], onClose,
                 <p style={{ fontSize: '12px', color: T.textMute, margin: 0 }}>저장된 상담 메모가 없습니다.</p>
               )}
             </div>
+            {sorted.filter(r => r.directorMemo).length > 3 && (
+              <p style={{ fontSize: '11px', color: T.textMute, margin: '8px 0 0', textAlign: 'center' }}>
+                최근 3건 표시 · 전체 {sorted.filter(r => r.directorMemo).length}건
+              </p>
+            )}
           </div>
+          )}
 
           {/* 성장 포트폴리오 공유 */}
           <div style={{ marginTop: '24px', paddingTop: '20px', borderTop: '1px solid #EEECEA' }}>

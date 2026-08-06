@@ -46,10 +46,10 @@ function finalizeParsed(parsed) {
 }
 
 // 이미지 한 장에 대해 Gemini를 호출하고 정제된 JSON을 돌려준다. 실패 시 { ok:false, error }.
-async function analyzeOneImage(img, mode, hintTextbook, hintUnit, hintSubject, model = DEFAULT_MODEL) {
+async function analyzeOneImage(img, mode, hintTextbook, hintUnit, hintSubject, model = DEFAULT_MODEL, existingSubtopics = null) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
   // pageCount는 항상 1 — 이 함수는 사진 한 장만 본다(아래 handler의 사진별 분리 호출 설계 참고)
-  const prompt = buildPrompt(mode || 'auto', hintTextbook, hintUnit, 1, hintSubject);
+  const prompt = buildPrompt(mode || 'auto', hintTextbook, hintUnit, 1, hintSubject, existingSubtopics);
 
   const response = await fetch(url, {
     method: 'POST',
@@ -238,8 +238,8 @@ const RECHECK_BUDGET_MS = 20000;
 // 걸려 함수가 통째로 죽으면 멀쩡히 끝난 1차 결과까지 같이 날아가고 사용자는 타임아웃만 본다.
 // 재확인은 코드 주석대로 "있으면 좋은 보강"이지 필수 단계가 아니므로, 시간이 모자라면
 // 건너뛰고 1차 결과를 살려서 돌려주는 쪽이 항상 낫다.
-async function analyzeOneImageWithRecheck(img, mode, hintTextbook, hintUnit, hintSubject, deadlineAt, model) {
-  const first = await analyzeOneImage(img, mode, hintTextbook, hintUnit, hintSubject, model);
+async function analyzeOneImageWithRecheck(img, mode, hintTextbook, hintUnit, hintSubject, deadlineAt, model, existingSubtopics) {
+  const first = await analyzeOneImage(img, mode, hintTextbook, hintUnit, hintSubject, model, existingSubtopics);
   if (!first.ok) return first;
 
   const sections = first.data.sections || [];
@@ -288,7 +288,7 @@ export default async function handler(req, res) {
   if (!decoded) return res.status(401).json({ error: '로그인이 필요합니다.' });
 
   try {
-    const { images, imageBase64, mimeType, hintTextbook, hintUnit, hintSubject, mode, model: requestedModel } = req.body;
+    const { images, imageBase64, mimeType, hintTextbook, hintUnit, hintSubject, hintUnitKey, mode, model: requestedModel } = req.body;
     // images: [{ imageBase64, mimeType }] 배열 (신규, 다중 업로드). 없으면 구버전 단일 imageBase64로 fallback.
     const imageList = Array.isArray(images) && images.length > 0
       ? images
@@ -324,6 +324,15 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: `체험판은 한 번에 사진 ${billingData.trialPhotoCap || 3}장까지 분석할 수 있어요. 더 보시려면 크레딧을 충전해주세요.` });
     }
 
+    // 소주제(subtopic) 사전 — hintUnitKey는 클라이언트가 findUnitKey(표준 단원표 매칭)로 미리
+    // 계산해 보낸 값이라, 매칭이 안 된 단원이면 아예 안 온다(그럴 땐 분류 자체를 건너뜀 —
+    // buildPrompt가 existingSubtopics:null을 그렇게 해석함). 사진이 여러 장이어도 같은 단원이므로
+    // 사전 조회는 요청당 한 번만 — HANDOFF-Students.md §5 "사전을 미리 만들지 말고 자라게 한다"
+    const isValidUnitKey = typeof hintUnitKey === 'string' && hintUnitKey.trim() && hintUnitKey.length <= 200;
+    const subtopicsRef = isValidUnitKey ? db.collection('academies').doc(academyId).collection('subtopics').doc(hintUnitKey) : null;
+    const subtopicsSnap = subtopicsRef ? await subtopicsRef.get() : null;
+    const existingSubtopics = subtopicsRef ? (subtopicsSnap.exists ? (subtopicsSnap.data().list || []) : []) : null;
+
     // 사진마다 독립적으로(1장씩) Gemini를 병렬 호출 — 여러 장을 한 번에 한 호출로 보내면
     // 특정 사진에 쏟는 주의력이 떨어져, 그 사진 혼자 분석했을 땐 정상 인식되던 채점 표시를
     // 놓치는 현상이 실사용 중 반복 확인됨(3장/5장 모두 재현, 1장씩은 항상 정상). 장수와
@@ -333,7 +342,7 @@ export default async function handler(req, res) {
     // 절반의 결과보다는 명확한 재시도 요청이 안전함.
     const geminiStartedAt = Date.now();
     const results = await Promise.all(
-      imageList.map(img => analyzeOneImageWithRecheck(img, mode, hintTextbook, hintUnit, hintSubject, geminiDeadline, model))
+      imageList.map(img => analyzeOneImageWithRecheck(img, mode, hintTextbook, hintUnit, hintSubject, geminiDeadline, model, existingSubtopics))
     );
     // 모델별 속도 비교의 근거 — Vercel 로그에서 바로 확인할 수 있게 남긴다
     console.log(`[분석완료] model=${model} 사진=${imageList.length}장 Gemini=${Date.now() - geminiStartedAt}ms 전체=${Date.now() - startedAt}ms`);
@@ -379,6 +388,25 @@ export default async function handler(req, res) {
       (d.wrongItems || []).forEach(item => merged.wrongItems.push({ ...item, photoIndex: pi }));
       (d.sections || []).forEach(sec => merged.sections.push({ ...sec, photoIndex: pi }));
     });
+
+    // 소주제 사전 성장 — 이번 응답에서 AI가 골랐거나 새로 만든 subtopic 중, 조회해뒀던
+    // existingSubtopics에 없던 것만 arrayUnion으로 추가. 매칭 안 된 단원(existingSubtopics===null)은
+    // 애초에 buildPrompt가 subtopic을 항상 빈 문자열로 두도록 지시했으므로 여기 걸릴 게 없음.
+    if (subtopicsRef) {
+      const seen = new Set(existingSubtopics);
+      const fresh = new Set();
+      merged.sections.forEach(sec => {
+        (sec.problemTypes || []).forEach(p => { if (p.subtopic && !seen.has(p.subtopic)) fresh.add(p.subtopic); });
+        (sec.weakDetail || []).forEach(p => { if (p.subtopic && !seen.has(p.subtopic)) fresh.add(p.subtopic); });
+      });
+      merged.wrongItems.forEach(item => { if (item.subtopic && !seen.has(item.subtopic)) fresh.add(item.subtopic); });
+      if (fresh.size > 0) {
+        await subtopicsRef.set({
+          list: FieldValue.arrayUnion(...fresh),
+          updatedAt: FieldValue.serverTimestamp(),
+        }, { merge: true }).catch(e => console.error('소주제 사전 갱신 실패(분석 결과엔 영향 없음):', e.message));
+      }
+    }
 
     // 실제로 쓸 수 있는 결과를 돌려줄 때만 차감 — 위에서 하나라도 실패하면 여기 도달하지 않으므로
     // 실패한 요청에는 크레딧이 나가지 않음. 무제한 학원은 차감을 건너뜀(잔액 필드 자체를 안

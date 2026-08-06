@@ -1,4 +1,23 @@
-export function buildPrompt(mode, hintTextbook, hintUnit, pageCount = 1, hintSubject = '') {
+// existingSubtopics: null이면 이 단원이 표준 단원표에 매칭되지 않았다는 뜻이라 소주제 분류
+// 자체를 안 시킨다(subtopic은 항상 빈 문자열). 배열이면(비어있어도) 그 단원에 이미 쌓인
+// 소주제 목록이라는 뜻 — HANDOFF-Students.md §5 "사전을 미리 만들지 말고 자라게 한다" 설계.
+export function buildPrompt(mode, hintTextbook, hintUnit, pageCount = 1, hintSubject = '', existingSubtopics = null) {
+  const subtopicInstruction = existingSubtopics !== null ? `
+
+# 소주제(subtopic) 분류 — 유형(concept)·모의고사(mock_exam) 문항에 적용
+문항마다 자연스러운 문구인 "type"과는 별도로, 이 대단원에서 학원이 계속 쌓아가는 표준화된 분류값 "subtopic"도 함께 채워라.
+
+${existingSubtopics.length > 0
+  ? `이 단원에 이미 등록된 소주제 목록:\n${existingSubtopics.map(s => `- ${s}`).join('\n')}\n\n문항의 내용이 이 목록 중 하나와 같은 개념이면, 반드시 그 목록의 문자열을 정확히 그대로("도형의 닮음 조건"을 "닮음 조건"처럼 줄이거나 바꾸지 말고) subtopic에 사용하라. 목록에 맞는 게 정말 없을 때만 새 소주제를 만들어라.`
+  : `이 단원은 아직 등록된 소주제가 없다. 문항 내용을 보고 소주제를 새로 만들어라.`}
+
+새로 만들 때는 5~10자의 핵심 개념 키워드로 간결하게 작성하라(예: "평행선과 선분의 비", "삼각형 닮음 조건"). 여러 문항에 반복해서 같은 이름을 붙일 수 있을 만큼 일반화된 표현이어야 한다 — "두 직육면체 겉넓이 합"처럼 그 문항 하나만 가리키는 구체적 서술은 subtopic으로 부적절하다(그런 구체적 서술은 기존처럼 type에 넣어라).
+` : `
+
+# 소주제(subtopic) 분류
+이번 요청은 이 단원이 표준 단원표에 없어 소주제 분류 대상이 아니다. problemTypes/weakDetail/wrongItems의 subtopic 필드는 항상 빈 문자열("")로 둬라.
+`;
+
   const modeInstruction = {
     auto: `## 0단계: 페이지 유형 자동 분류
 먼저 사진 전체를 훑어보고 pageType을 판단하라:
@@ -158,18 +177,18 @@ ${pageCount > 1 ? `\n## 다중 페이지 안내\n지금 ${pageCount}장의 사�
 
 ## 유형(concept) 섹션
 - 문제 텍스트로 type 파악 (5~10자 키워드)
-- problemTypes 배열에 {number, type, mark, result, note, confidence} 기록 (confidence는 Step 5 기준)
+- problemTypes 배열에 {number, type, subtopic, mark, result, note, confidence} 기록 (confidence는 Step 5 기준, subtopic은 아래 "소주제 분류" 규칙 참고)
 
 ## 모의고사(mock_exam) 섹션
 - groupSummary: 유형별 {type, total, correct, wrong} 집계
-- weakDetail: 오답 문항만 {number, type, mark, note, confidence}
+- weakDetail: 오답 문항만 {number, type, subtopic, mark, note, confidence}
 
 # 좌표(box_2d)
 wrongItems, problemTypes, weakDetail의 각 항목마다 그 문항 번호와 채점 표시(원/사선)를 함께
 감싸는 영역을 box_2d로 추가하라. 형식은 [ymin, xmin, ymax, xmax], 이미지 전체를 0~1000으로
 정규화한 좌표(왼쪽 위가 0,0). 번호 숫자 하나만이 아니라 그 문항의 채점 표시까지 포함해서
 넉넉히 잡을 것 — 사람이 나중에 이 박스를 보고 실제 사진과 대조 확인하는 용도임.
-
+${subtopicInstruction}
 # 출력 형식
 JSON만 출력하라. 마크다운 코드펜스 없이 JSON 객체 하나만.
 
@@ -184,12 +203,12 @@ JSON만 출력하라. 마크다운 코드펜스 없이 JSON 객체 하나만.
   "pageCutoff": false,
   "pageCutoffNote": "잘린 부분이 있을 때만 간단히 설명 (없으면 빈 문자열)",
   "wrongItems": [
-    { "number": "02", "photoIndex": 1, "type": "두 직육면체 겉넓이 합", "correctRate": "69%", "mark": "빗금", "confidence": "high", "box_2d": [180, 40, 230, 520] }
+    { "number": "02", "photoIndex": 1, "type": "두 직육면체 겉넓이 합", "subtopic": "", "correctRate": "69%", "mark": "빗금", "confidence": "high", "box_2d": [180, 40, 230, 520] }
   ],
   "sections": [
     { "sectionType": "calculation", "label": "단원명", "photoIndex": 1, "bookSection": "이런 문제가 시험에 나온다", "printedPage": 118, "identifiedNumbers": ["01","02","03","04","05"], "summary": { "total": 0, "correct": 0, "wrong": 0 } },
-    { "sectionType": "concept", "photoIndex": 2, "bookSection": null, "printedPage": null, "identifiedNumbers": ["01","02","03","04","05","06"], "problemTypes": [{ "number": "", "type": "", "mark": "", "result": "잘함"|"약점", "note": "", "confidence": "high"|"low", "box_2d": [0,0,0,0] }] },
-    { "sectionType": "mock_exam", "photoIndex": 3, "bookSection": "중단원 마무리하기", "printedPage": 120, "identifiedNumbers": ["01","02","03"], "groupSummary": [{ "type": "", "total": 0, "correct": 0, "wrong": 0 }], "weakDetail": [{ "number": "", "type": "", "mark": "", "note": "", "confidence": "high"|"low", "box_2d": [0,0,0,0] }] }
+    { "sectionType": "concept", "photoIndex": 2, "bookSection": null, "printedPage": null, "identifiedNumbers": ["01","02","03","04","05","06"], "problemTypes": [{ "number": "", "type": "", "subtopic": "", "mark": "", "result": "잘함"|"약점", "note": "", "confidence": "high"|"low", "box_2d": [0,0,0,0] }] },
+    { "sectionType": "mock_exam", "photoIndex": 3, "bookSection": "중단원 마무리하기", "printedPage": 120, "identifiedNumbers": ["01","02","03"], "groupSummary": [{ "type": "", "total": 0, "correct": 0, "wrong": 0 }], "weakDetail": [{ "number": "", "type": "", "subtopic": "", "mark": "", "note": "", "confidence": "high"|"low", "box_2d": [0,0,0,0] }] }
   ]
 }
 
