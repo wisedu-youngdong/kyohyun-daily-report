@@ -3088,25 +3088,6 @@ export default function DiagnosticReportInput({
         }>
           <p style={{ fontSize: '11px', color: TOKENS.textMute, fontWeight: 700, marginBottom: '8px' }}>학부모 발송 미리보기</p>
 
-          {/* 요약(3단 카드) vs 디테일(원본 그대로) 선택 — 다듬기를 한 번이라도 성공해야 고를 게
-              있음(2026-08-06, 학원/선생님마다 선호가 갈려서 발송 직전에 고를 수 있게). 각 버전은
-              아래 미리보기 카드 안의 ✏️ 편집 버튼으로 바로 고쳐 쓸 수 있음 */}
-          {feedback && (feedback.strengths?.headline || feedback.improvements?.headline || feedback.closing?.text) && (
-            <div style={{ display: 'flex', gap: '4px', background: TOKENS.bgSoft, borderRadius: '10px', padding: '3px', marginBottom: '10px' }}>
-              {[{ key: 'summary', label: '요약' }, { key: 'detail', label: '디테일' }].map(t => (
-                <button key={t.key} type="button" onClick={() => { setReportStyle(t.key); setEditingFeedbackField(null); }}
-                  style={{
-                    flex: 1, padding: '8px', fontSize: '12px', fontWeight: 700, borderRadius: '8px', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
-                    background: reportStyle === t.key ? '#fff' : 'transparent',
-                    color: reportStyle === t.key ? TOKENS.text : TOKENS.textMute,
-                    boxShadow: reportStyle === t.key ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                  }}>
-                  {t.label}
-                </button>
-              ))}
-            </div>
-          )}
-
           {/* 스킨 표시 — 학생 개별 스킨 or 선택 스킨. 좌측 입력 폼 전체를 스킨 색으로 물들이지는
               않음(매일 반복해서 보는 작업 도구라 학생마다 색이 바뀌면 오히려 피로해짐) — 대신
               이 카드 상단에 지금 고른 색을 얇은 선으로만 보여줘서 "이 색으로 나간다"는 힌트만 줌 */}
@@ -3234,6 +3215,27 @@ export default function DiagnosticReportInput({
               </div>
             )}
           </div>
+
+          {/* 요약(3단 카드) vs 디테일(원본 그대로) 선택 — 다듬기를 한 번이라도 성공해야 고를 게
+              있음(2026-08-06, 학원/선생님마다 선호가 갈려서 발송 직전에 고를 수 있게). 각 버전은
+              바로 아래 미리보기 카드 안의 ✏️ 편집 버튼으로 고쳐 쓸 수 있음. 카드 바로 위에 둠 —
+              맨 위(스킨 선택 위)에 있으니 실제로 이 토글이 바꾸는 카드까지 스크롤하면 안 보여서
+              찾기 힘들다는 피드백으로 위치 이동(2026-08-06) */}
+          {feedback && (feedback.strengths?.headline || feedback.improvements?.headline || feedback.closing?.text) && (
+            <div style={{ display: 'flex', gap: '4px', background: TOKENS.bgSoft, borderRadius: '10px', padding: '3px', marginBottom: '10px' }}>
+              {[{ key: 'summary', label: '요약' }, { key: 'detail', label: '디테일' }].map(t => (
+                <button key={t.key} type="button" onClick={() => { setReportStyle(t.key); setEditingFeedbackField(null); }}
+                  style={{
+                    flex: 1, padding: '8px', fontSize: '12px', fontWeight: 700, borderRadius: '8px', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                    background: reportStyle === t.key ? '#fff' : 'transparent',
+                    color: reportStyle === t.key ? TOKENS.text : TOKENS.textMute,
+                    boxShadow: reportStyle === t.key ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                  }}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          )}
 
           <ParentCard
             student={student} teacher={teacher}
