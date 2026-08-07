@@ -334,7 +334,7 @@ export default function StudentsView({ students, reports, reviews = [], onSave, 
       {/* 학생 QR 스티커 인쇄 — 자기기록 카드 식별용(2026-08-07) */}
       {showQrPrint && (
         <React.Suspense fallback={null}>
-          <StudentQrPrint students={students} classes={classes} academyName={academyName} onClose={() => setShowQrPrint(false)} />
+          <StudentQrPrint students={students} classes={classes} academyName={academyName} onToast={onToast} onClose={() => setShowQrPrint(false)} />
         </React.Suspense>
       )}
 
