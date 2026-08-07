@@ -72,6 +72,10 @@ export default function StudentQrPrint({ students, classes = [], academyName = n
   const [classFilter, setClassFilter] = useState('all'); // 'all' | classId
   const [qrMap, setQrMap] = useState({}); // { [studentId]: dataURL }
   const [generatingPdf, setGeneratingPdf] = useState(false);
+  // 체크박스로 개별 학생 선택 — 반 필터를 바꿔도 유지돼서, 서로 다른 반 학생을 섞어
+  // "이 학생들만" 카드 PDF로 뽑을 수 있다(2026-08-08, 파트너 요청). 목록(sorted)은 계속
+  // 반 필터를 따르는 "훑어보며 체크하는" 용도이고, 실제 선택 결과는 이 Set 하나로 누적.
+  const [selectedIds, setSelectedIds] = useState(new Set());
   const panelRef = useRef(null);
   useEscapeClose(onClose);
   useFocusTrap(panelRef, true);
@@ -80,12 +84,31 @@ export default function StudentQrPrint({ students, classes = [], academyName = n
   const filtered = classFilter === 'all' ? activeStudents : activeStudents.filter(s => s.classId === classFilter);
   const sorted = [...filtered].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
+  const toggleSelect = (id) => setSelectedIds(prev => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
+  const selectAllVisible = () => setSelectedIds(prev => new Set([...prev, ...sorted.map(s => s.id)]));
+  const clearSelection = () => setSelectedIds(new Set());
+
+  // 카드 PDF 대상 — 체크된 학생이 있으면 반 필터와 무관하게 그 학생들만(다른 반 섞여도 됨),
+  // 없으면 기존처럼 현재 반 필터 목록 전체. 스티커 인쇄(window.print()가 화면에 보이는
+  // DOM을 그대로 찍는 방식)는 이 선택과 무관하게 지금 보이는 반 그대로 인쇄 — 여러 반에
+  // 걸친 선택을 화면 하나에 동시에 보여주려면 브라우징용 그리드 자체를 바꿔야 해서
+  // 복잡도 대비 이득이 낮음. 카드 PDF는 화면에 안 보여도 프로그램으로 만드는 거라 문제없음.
+  const cardTargets = selectedIds.size > 0
+    ? activeStudents.filter(s => selectedIds.has(s.id)).sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+    : sorted;
+
   // 필터가 바뀔 때마다 그 목록에 대해서만 QR 생성(전체 학생 미리 다 만들어두지 않음 —
-  // 반이 많으면 불필요하게 오래 걸릴 수 있어서 필요한 만큼만)
+  // 반이 많으면 불필요하게 오래 걸릴 수 있어서 필요한 만큼만). cardTargets도 함께
+  // 대상에 넣어야, 다른 반에서 체크해둔 학생의 QR도 카드 PDF 생성 시점에 이미 준비돼 있음.
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const need = sorted.filter(s => !qrMap[s.id]);
+      const targets = [...sorted, ...cardTargets].filter((s, i, arr) => arr.findIndex(x => x.id === s.id) === i);
+      const need = targets.filter(s => !qrMap[s.id]);
       if (need.length === 0) return;
       const entries = await Promise.all(need.map(async s => {
         const dataUrl = await QRCode.toDataURL(s.id, {
@@ -99,7 +122,7 @@ export default function StudentQrPrint({ students, classes = [], academyName = n
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [classFilter]);
+  }, [classFilter, selectedIds]);
 
   // 개인화 카드 PDF — 스티커를 잘라 붙이는 대신, 양식 PDF에 학생별 QR을 바로 박아
   // 4명씩 한 장에 인쇄되도록 통짜 PDF로 다운로드(2026-08-08, 파트너 요청 — 학생이 많으면
@@ -113,8 +136,8 @@ export default function StudentQrPrint({ students, classes = [], academyName = n
       const templateDoc = await PDFDocument.load(templateBytes);
       const pageHeight = templateDoc.getPages()[0].getHeight();
       const outDoc = await PDFDocument.create();
-      for (let i = 0; i < sorted.length; i += CARDS_PER_PAGE) {
-        const group = sorted.slice(i, i + CARDS_PER_PAGE);
+      for (let i = 0; i < cardTargets.length; i += CARDS_PER_PAGE) {
+        const group = cardTargets.slice(i, i + CARDS_PER_PAGE);
         const [page] = await outDoc.copyPages(templateDoc, [0]);
         outDoc.addPage(page);
         for (let j = 0; j < group.length; j++) {
@@ -143,7 +166,7 @@ export default function StudentQrPrint({ students, classes = [], academyName = n
       const blob = new Blob([bytes], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      const label = classFilter === 'all' ? '전체' : (classes.find(c => c.id === classFilter)?.name || '반');
+      const label = selectedIds.size > 0 ? `선택${cardTargets.length}명` : (classFilter === 'all' ? '전체' : (classes.find(c => c.id === classFilter)?.name || '반'));
       a.href = url;
       a.download = `자기기록카드_${label}.pdf`;
       a.click();
@@ -188,13 +211,28 @@ export default function StudentQrPrint({ students, classes = [], academyName = n
             style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 16px', fontSize: '13px', fontWeight: 700, color: '#fff', background: sorted.length === 0 ? '#C4C9D1' : '#0D2D6B', border: 'none', borderRadius: `${RADIUS2.input}px`, cursor: sorted.length === 0 ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
             <Printer size={14} /> 스티커 인쇄 ({sorted.length}명)
           </button>
-          <button onClick={handleDownloadCards} disabled={sorted.length === 0 || generatingPdf}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 16px', fontSize: '13px', fontWeight: 700, color: '#0D2D6B', background: '#fff', border: '1px solid #0D2D6B', borderRadius: `${RADIUS2.input}px`, cursor: (sorted.length === 0 || generatingPdf) ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: generatingPdf ? 0.6 : 1 }}>
-            <Download size={14} /> {generatingPdf ? '카드 PDF 생성 중…' : `카드 PDF로 받기 (${sorted.length}명)`}
+          <button onClick={handleDownloadCards} disabled={cardTargets.length === 0 || generatingPdf}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 16px', fontSize: '13px', fontWeight: 700, color: '#0D2D6B', background: '#fff', border: '1px solid #0D2D6B', borderRadius: `${RADIUS2.input}px`, cursor: (cardTargets.length === 0 || generatingPdf) ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: generatingPdf ? 0.6 : 1 }}>
+            <Download size={14} /> {generatingPdf ? '카드 PDF 생성 중…' : `카드 PDF로 받기 (${cardTargets.length}명)`}
           </button>
           <p style={{ fontSize: '11px', color: '#B45309', margin: 0, width: '100%' }}>
             ⚠️ 인쇄 대화상자에서 배율을 반드시 <strong>"100%"(실제 크기)</strong>로 설정하세요 — "자동"이나 "맞춤(용지에 맞게 축소)"으로 두면 QR이 18mm보다 작게 인쇄돼 인식이 안 될 수 있어요.
           </p>
+          <div className="qr-no-print" style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
+            <button onClick={selectAllVisible} disabled={sorted.length === 0}
+              style={{ fontSize: '11.5px', fontWeight: 600, color: '#0D2D6B', background: 'none', border: 'none', padding: 0, cursor: sorted.length === 0 ? 'not-allowed' : 'pointer', textDecoration: 'underline' }}>
+              현재 목록 전체 선택
+            </button>
+            {selectedIds.size > 0 && (
+              <>
+                <span style={{ fontSize: '11.5px', color: '#374151' }}>· 선택됨 {selectedIds.size}명(다른 반 포함 가능) — 카드 PDF는 선택된 학생만 받아요</span>
+                <button onClick={clearSelection}
+                  style={{ fontSize: '11.5px', fontWeight: 600, color: '#B91C1C', background: 'none', border: 'none', padding: 0, cursor: 'pointer', textDecoration: 'underline' }}>
+                  선택 해제
+                </button>
+              </>
+            )}
+          </div>
         </div>
 
         {sorted.length === 0 ? (
@@ -206,7 +244,10 @@ export default function StudentQrPrint({ students, classes = [], academyName = n
             )}
             <div className="qr-print-area" style={{ padding: '20px 22px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(32mm, 1fr))', gap: '4mm' }}>
             {sorted.map(s => (
-              <div key={s.id} style={{ border: '1px dashed #D1D5DB', borderRadius: '4px', padding: '3mm', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2mm', breakInside: 'avoid' }}>
+              <div key={s.id} style={{ position: 'relative', border: selectedIds.has(s.id) ? '1.5px solid #0D2D6B' : '1px dashed #D1D5DB', borderRadius: '4px', padding: '3mm', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2mm', breakInside: 'avoid' }}>
+                <input type="checkbox" className="qr-no-print" checked={selectedIds.has(s.id)} onChange={() => toggleSelect(s.id)}
+                  aria-label={`${s.name} 선택`}
+                  style={{ position: 'absolute', top: '3px', left: '3px', width: '15px', height: '15px', cursor: 'pointer' }} />
                 {qrMap[s.id] ? (
                   <img src={qrMap[s.id]} alt={`${s.name} QR`} style={{ width: `${QR_MM}mm`, height: `${QR_MM}mm`, display: 'block' }} />
                 ) : (
