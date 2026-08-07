@@ -239,6 +239,12 @@ export default function StudentsView({ students, reports, reviews = [], onSave, 
           </button>
         )}
         {!showArchived && isDirector && (
+          <a href="/self-report-card.pdf" download
+            style={{ display: 'inline-flex', alignItems: 'center', background: '#fff', color: C.primary, border: `1px solid ${C.primary}`, borderRadius: '9px', padding: '8px 12px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'none' }}>
+            자기기록 카드 양식 다운로드
+          </a>
+        )}
+        {!showArchived && isDirector && (
           <button onClick={() => setShowQrPrint(true)}
             style={{ background: '#fff', color: C.primary, border: `1px solid ${C.primary}`, borderRadius: '9px', padding: '8px 12px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
             QR 스티커 인쇄
