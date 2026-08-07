@@ -14,7 +14,7 @@ import { useMediaQuery, useEscapeClose, useFocusTrap } from './hooks.js';
 import {
   User,
   FileText, Sparkles, Send, Plus, X, Check,
-  UserPlus, GraduationCap, Info, Star, AlertTriangle, Palette
+  UserPlus, GraduationCap, Info, Star, AlertTriangle, Palette, QrCode
 } from 'lucide-react';
 import { C, R, RADIUS2, TYPE, SHADOW, deriveSkinColors, accentLabelOnPrimary } from './tokens.jsx';
 import { resolveBookSections } from './photoSections.js';
@@ -24,6 +24,8 @@ import { findUnitKey, getUnits, getCourses } from './curriculum.js';
 import { storage, auth } from './firebase.js';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { StudentModal } from './views/StudentModal.jsx';
+// jsQR + 카메라 스트림을 물고 있어서, 실제로 QR 스캔을 열 때만 다운로드되게 지연 로드
+const QrScanCapture = React.lazy(() => import('./views/QrScanCapture.jsx'));
 
 // AI 호출(polish/analyze-photo)은 서버에서 로그인 여부를 검증하므로 매번 최신 ID 토큰을 실어 보냄
 async function getAuthHeaders() {
@@ -747,6 +749,12 @@ export default function DiagnosticReportInput({
   const [wrongItems, setWrongItems] = useState([]);
   const [alertMessage, setAlertMessage] = useState('');
   const [photoError, setPhotoError] = useState('');
+  // 자기기록 카드 불러오기(2026-08-07) — QR 스캔으로 학생 특정 → 카드 사진 업로드 →
+  // AI가 읽은 내용을 폼 필드 초안으로 채움. 채점 사진과 별개 흐름이라 상태도 분리.
+  const [showQrScan, setShowQrScan] = useState(false);
+  const [showSelfCardUpload, setShowSelfCardUpload] = useState(false);
+  const [selfCardLoading, setSelfCardLoading] = useState(false);
+  const [selfCardError, setSelfCardError] = useState('');
   // 사진 확대 보기 — window.open(dataUrl)로 새 탭을 띄우면 최신 Chrome이 data: URL의
   // 최상위 탐색을 보안상 막아 백지 탭만 뜨는 문제가 있어(팝업 차단 위험도 별개로 있음),
   // 새 탭 대신 앱 안에서 원본 크기로 보여주는 라이트박스로 대체
@@ -1258,6 +1266,95 @@ export default function DiagnosticReportInput({
     setAnalyzingPhoto(false);
   };
 
+  // QR 스캔으로 학생이 특정되면 바로 그 학생으로 전환하고, 이어서 카드 사진을 받을 업로드
+  // 창을 연다 — "학생 특정"과 "내용 인식"을 사진 한 장에 같이 걸지 않고 분리한 설계
+  // (실측 검증: 정적 사진에서 QR을 같이 읽으려 하면 카드가 8도만 기울어도 인식 실패).
+  const handleQrDetected = async (detectedStudentId) => {
+    setShowQrScan(false);
+    await selectStudent(detectedStudentId);
+    setSelfCardError('');
+    setShowSelfCardUpload(true);
+  };
+
+  // 손글씨 시각("3:30", "오후 3시 30분" 등)을 TimeField가 요구하는 "HH:MM" 24시간제로 변환.
+  // 확신 없는 형식은 null을 돌려줘 기존 값을 그대로 두게 한다(TimeField는 "HH:MM" 아니면
+  // 깨짐 — 잘못 채우느니 안 채우는 게 낫고, 어차피 선생님이 결과를 검토·수정함).
+  function parseCardTimeToHHMM(raw) {
+    if (!raw || typeof raw !== 'string') return null;
+    const m = raw.match(/(\d{1,2})\s*[:시]\s*(\d{1,2})/);
+    if (!m) return null;
+    let h = parseInt(m[1], 10);
+    const min = parseInt(m[2], 10);
+    if (isNaN(h) || isNaN(min) || min > 59 || h > 23) return null;
+    const isPM = /오후|PM/i.test(raw);
+    const isAM = /오전|AM/i.test(raw);
+    if (isPM && h < 12) h += 12;
+    else if (isAM && h === 12) h = 0;
+    else if (!isPM && !isAM && h < 8) h += 12; // 학원 등하원 맥락상 "3:30"류는 오후로 간주
+    if (h > 23) return null;
+    return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+  }
+
+  // 자기기록 카드 인식 결과를 폼에 초안으로 채운다. 전부 그대로 편집 가능한 상태값이라
+  // 여기서 채워도 "확정"이 아니라 "시작점" — 이름/컨디션/숙제 여부처럼 선생님의 판단이 들어가야
+  // 하는 항목은 슬라이더/평가 필드에 자동으로 넣지 않고 코멘트 초안에 참고 텍스트로만 넣는다
+  // (2026-08-07 확정: homeworkRating/conceptRating은 선생님 평가지 학생 자기보고가 아님).
+  const applySelfCardResult = (card) => {
+    if (!card) return;
+    const val = (field) => card[field]?.value;
+
+    if (val('unit')) setUnit(val('unit'));
+    if (val('pages')) setPages(val('pages'));
+
+    const arrival = parseCardTimeToHHMM(val('arrivalTime'));
+    if (arrival) setArrivalTime(arrival);
+    const departure = parseCardTimeToHHMM(val('departureTime'));
+    if (departure) setDepartureTime(departure);
+
+    const subjectVal = card.subject?.value;
+    if (Array.isArray(subjectVal) && subjectVal.length > 0) {
+      const first = subjectVal[0];
+      setSubject(first === '기타' && card.subject.etcText ? card.subject.etcText : first);
+    }
+
+    // 코멘트를 아직 안 쓴 상태일 때만 참고 초안을 시드 — 이미 뭔가 입력돼 있으면 덮어쓰지 않음
+    if (!teacherNote.trim()) {
+      const lines = [];
+      if (val('condition')) lines.push(`컨디션: ${val('condition')}`);
+      const homeworkDone = card.homeworkDone?.value;
+      if (Array.isArray(homeworkDone) && homeworkDone.length > 0) lines.push(`지난 숙제: ${homeworkDone.join(', ')}`);
+      if (val('nextHomework')) lines.push(`오늘 받은 숙제: ${val('nextHomework')}`);
+      if (val('difficulty')) lines.push(`오늘 어려웠던 점(학생 작성): ${val('difficulty')}`);
+      if (lines.length > 0) {
+        setTeacherNote(`[학생 자기기록 참고 — 확인 후 다듬어 쓰세요]\n${lines.join('\n')}`);
+      }
+    }
+  };
+
+  const handleSelfCardPhoto = async (file) => {
+    if (!file) return;
+    setSelfCardLoading(true);
+    setSelfCardError('');
+    try {
+      const { aiBase64, mimeType } = await compressImage(file);
+      const response = await fetch('/api/analyze-photo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
+        body: JSON.stringify({ images: [{ imageBase64: aiBase64, mimeType }], mode: 'selfcard' }),
+        signal: AbortSignal.timeout(60000),
+      });
+      const data = await response.json().catch(() => null);
+      if (data?.error) throw new Error(data.error);
+      if (!response.ok || !data) throw new Error(`서버 오류 (${response.status})`);
+      applySelfCardResult(data.selfCard);
+      setShowSelfCardUpload(false);
+      showToast('자기기록 카드 내용을 불러왔어요. 확인 후 필요하면 수정해주세요.', 'success');
+    } catch (e) {
+      setSelfCardError(e.name === 'TimeoutError' ? '인식 시간이 초과됐습니다. 다시 시도해주세요.' : (e.message || 'AI 인식에 실패했습니다. 다시 시도해주세요.'));
+    }
+    setSelfCardLoading(false);
+  };
+
   const removeAllPhotos = () => {
     setPhotos([]);
     photosRef.current = [];
@@ -1759,7 +1856,46 @@ export default function DiagnosticReportInput({
             <button onClick={() => setShowStudentModal(true)} style={addStudentButtonStyle}>
               <UserPlus size={13} /> 새 학생 추가
             </button>
+            <button onClick={() => setShowQrScan(true)} style={addStudentButtonStyle}>
+              <QrCode size={13} /> 자기기록 카드 불러오기
+            </button>
           </FormSection>
+
+          {showQrScan && (
+            <React.Suspense fallback={null}>
+              <QrScanCapture students={students} onDetected={handleQrDetected} onClose={() => setShowQrScan(false)} />
+            </React.Suspense>
+          )}
+
+          {showSelfCardUpload && (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px', backdropFilter: 'blur(4px)' }}>
+              <div style={{ background: '#fff', borderRadius: `${RADIUS2.panel}px`, width: '100%', maxWidth: '380px', padding: '22px', boxShadow: SHADOW[3] }}>
+                <p style={{ fontSize: '14px', fontWeight: 800, margin: '0 0 4px', color: TOKENS.text }}>
+                  {student ? `${student.name} 학생` : '학생'} 확인됐어요
+                </p>
+                <p style={{ fontSize: '12px', color: TOKENS.textSub, margin: '0 0 16px' }}>
+                  이제 이 학생이 오늘 작성한 자기기록 카드 사진을 올려주세요. 읽은 내용은 초안으로만 채워지고, 보내기 전에 직접 확인·수정할 수 있어요.
+                </p>
+                {selfCardError && (
+                  <p style={{ fontSize: '12px', color: TOKENS.error, margin: '0 0 12px', background: TOKENS.errorBg, padding: '8px 10px', borderRadius: '8px' }}>{selfCardError}</p>
+                )}
+                <label style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                  padding: '14px', border: `1.5px dashed ${TOKENS.border}`, borderRadius: `${RADIUS2.input}px`,
+                  cursor: selfCardLoading ? 'not-allowed' : 'pointer', color: TOKENS.brandDark, fontSize: '13px', fontWeight: 700,
+                  opacity: selfCardLoading ? 0.6 : 1,
+                }}>
+                  {selfCardLoading ? '읽는 중...' : '카드 사진 선택'}
+                  <input type="file" accept="image/*" capture="environment" disabled={selfCardLoading} style={{ display: 'none' }}
+                    onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) handleSelfCardPhoto(f); }} />
+                </label>
+                <button onClick={() => setShowSelfCardUpload(false)} disabled={selfCardLoading}
+                  style={{ width: '100%', marginTop: '10px', padding: '9px', background: 'none', border: 'none', color: TOKENS.textMute, fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  나중에 할게요
+                </button>
+              </div>
+            </div>
+          )}
 
           {studentId && (
             <>

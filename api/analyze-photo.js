@@ -1,7 +1,7 @@
 import { verifyIdTokenHeader } from './_lib/verifyAuth.js';
 import { ensureAdminApp } from './_lib/adminApp.js';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-import { buildPrompt } from './_lib/analyzePrompt.js';
+import { buildPrompt, buildSelfCardPrompt } from './_lib/analyzePrompt.js';
 
 export const config = {
   api: {
@@ -277,6 +277,59 @@ async function analyzeOneImageWithRecheck(img, mode, hintTextbook, hintUnit, hin
   return { ok: true, data: { ...first.data, sections }, usage };
 }
 
+// 자기기록 카드 인식(mode:'selfcard') 전용 경로 — 채점 분석과 완전히 다른 스키마(10개
+// 고정 필드)라 위의 병합/소주제/재확인 로직을 하나도 안 탄다. 폼 자동입력용이라
+// polish/narrative처럼 무료(크레딧 차감 없음) — 호출부(handler)가 이 분기를 billing 체크보다
+// 앞에 둬서 크레딧 관련 코드를 아예 거치지 않는다. 사진 1장만 지원(카드 한 장짜리 양식).
+async function handleSelfCardAnalyze(img, deadlineAt) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${DEFAULT_MODEL}:generateContent?key=${process.env.GEMINI_API_KEY}`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{
+        parts: [
+          { text: buildSelfCardPrompt() },
+          { inline_data: { mime_type: img.mimeType || 'image/jpeg', data: img.imageBase64 } }
+        ]
+      }],
+      generationConfig: { temperature: 0, responseMimeType: 'application/json', maxOutputTokens: 4096 }
+    }),
+    signal: AbortSignal.timeout(Math.max(1000, deadlineAt - Date.now())),
+  });
+  const data = await response.json();
+  const um = data.usageMetadata || {};
+  const usage = {
+    promptTokens: um.promptTokenCount || 0,
+    outputTokens: (um.candidatesTokenCount || 0) + (um.thoughtsTokenCount || 0),
+    cachedTokens: um.cachedContentTokenCount || 0,
+  };
+
+  if (data.error) {
+    console.error('Gemini API 에러(자기기록 카드):', JSON.stringify(data.error));
+    return { ok: false, error: `Gemini API 오류: ${data.error.message}` };
+  }
+  const finishReason = data.candidates?.[0]?.finishReason;
+  const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  if (!rawText) {
+    return { ok: false, error: `AI가 응답하지 않았습니다. (finishReason: ${finishReason || '알수없음'}) 잠시 후 다시 시도해주세요.` };
+  }
+  const cleaned = rawText.replace(/```json|```/g, '').trim();
+  try {
+    return { ok: true, data: JSON.parse(cleaned), usage };
+  } catch {
+    const start = cleaned.indexOf('{');
+    const end = cleaned.lastIndexOf('}');
+    if (start !== -1 && end !== -1 && end > start) {
+      try {
+        return { ok: true, data: JSON.parse(cleaned.slice(start, end + 1)), usage };
+      } catch { /* 아래 공통 실패로 떨어짐 */ }
+    }
+    console.error('자기기록 카드 JSON 파싱 실패:', cleaned);
+    return { ok: false, error: 'AI 응답을 정리하지 못했습니다. 다시 시도하거나 직접 입력해주세요.' };
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
   // maxDuration(60초)에 걸려 함수가 강제 종료되면 응답 자체가 없어서 클라이언트는 원인도 모른 채
@@ -294,6 +347,17 @@ export default async function handler(req, res) {
       ? images
       : (imageBase64 ? [{ imageBase64, mimeType }] : []);
     if (imageList.length === 0) return res.status(400).json({ error: '이미지가 없습니다.' });
+
+    // 자기기록 카드 인식 — 아래 채점 파이프라인(크레딧 확인·차감·소주제 사전 등)을 전혀
+    // 안 타는 별도 무료 경로. 크레딧 체크보다 앞에서 갈라져야 billing 코드를 아예 안 거친다.
+    if (mode === 'selfcard') {
+      const result = await handleSelfCardAnalyze(imageList[0], geminiDeadline);
+      if (!result.ok) return res.status(500).json({ error: result.error });
+      return res.status(200).json({
+        selfCard: result.data,
+        meta: { model: DEFAULT_MODEL, elapsedMs: Date.now() - startedAt, usage: result.usage },
+      });
+    }
 
     // 사진 분석은 건당 크레딧이 나가는 유료 호출 — Gemini를 부르기 전에 먼저 크레딧을 확인.
     // academyId는 클라이언트가 아니라 로그인 토큰(uid)으로 서버에서 직접 조회 — 클라이언트가

@@ -31,12 +31,14 @@
   - `PartnerLanding.jsx`: 학원 파트너 모집 랜딩 페이지(`/partner`, 공개). CTA는 전부 `/signup`으로 연결, 실사 캡처는 `public/partner-landing/`
   - `OnboardingGuide.jsx`: 신규 학원 온보딩 체크리스트
   - `UsageMonitoring.jsx`: 플랫폼 관리자용 사용량 모니터링 (SettingsView에서 lazy 로드, `api/usage-monitoring.js`와 짝)
+  - `StudentQrPrint.jsx`: 학생별 QR 스티커 인쇄(반 필터 → A4 시트, StudentsView에서 lazy 로드). QR은 `student.id` 하나만 인코딩(`qrcode` 패키지) — 학원명은 `academies/{id}.academyName`을 그대로 표시용으로만 얹음
+  - `QrScanCapture.jsx`: 실시간 카메라 QR 스캔(DiagnosticReportInput에서 lazy 로드, `jsqr` 패키지). 정적 사진에서 QR을 같이 읽는 방식은 실측상 카드가 8도만 기울어도 인식 실패해서 안 씀 — 대신 라이브 프레임을 계속 스캔해 사용자가 각도를 맞추는 동안 잘 맞는 프레임 하나로 인식
   - `shared.jsx`: AVATARS/PRESET_SKINS/StatCard 등 화면 간 공용
 - `DiagnosticReportInput.jsx` (~2950줄): 리포트 작성 화면 (사진 분석, 오답 카드, 코멘트, 사진 위 문항 박스 오버레이, 관리자용 채점 모델 A/B 드롭다운)
 - `PublicReport.jsx`: 학부모에게 공유되는 공개 리포트 (/report/:id)
 - `GrowthStory.jsx`, `GrowthAward.jsx`: 성장 스토리/시상 페이지
 - `tokens.jsx`: 디자인 토큰 — `C`(컬러 규칙), `RADIUS2`, `TYPE`, `SHADOW` 공용 스케일 + `T`/`R` 화면별 팔레트
-- `api/analyze-photo.js`: Gemini Vision으로 채점 사진 분석 (정답/오답 판정)
+- `api/analyze-photo.js`: Gemini Vision으로 채점 사진 분석 (정답/오답 판정). `mode:'selfcard'`면 완전히 다른 경로 — 학생 자기기록 카드(10개 고정 필드) 인식, 채점 파이프라인(병합·소주제·크레딧)을 하나도 안 타는 무료 단발 호출(`handleSelfCardAnalyze`, 프롬프트는 `api/_lib/analyzePrompt.js`의 `buildSelfCardPrompt`)
 - `api/polish.js`: 선생님 메모를 학부모 톤으로 다듬기
 - `api/notify.js`: 이메일 알림 — `type`으로 분기(`question`=학부모 질문 등록 시 원장 알림/기본값·인증 불필요, `signup-approved`/`signup-rejected`=가입 신청 심사 결과를 신청자에게 알림·플랫폼 관리자 인증 필요) (firebase-admin). 원래 `notify-question.js` 하나였는데 12개 함수 제한 때문에 새 파일 대신 이 파일을 일반화함
 - `api/delete-signup-request.js`: 대기/거절 상태인 가입 신청 삭제 (firebase-admin, 플랫폼 관리자 인증 필요 — Auth 계정도 함께 삭제)
@@ -75,9 +77,16 @@
 → [AI로 학부모 톤으로 다듬기] → 발송
 (이전에 있던 "AI 코멘트 초안 생성", "draftComment 표시+이어붙이기" 버튼들은 제거됨 — 루트 하나로 통일)
 
+## 자기기록 카드 불러오기 (2026-08-07)
+학생이 수업 후 종이 카드에 직접 쓴 자기기록(등하원 시각/컨디션/단원/페이지/숙제/오늘 어려웠던 점)을 사진으로 읽어 리포트 초안을 채우는 기능. 선생님이 매번 타이핑하던 부담을 줄이는 게 목적 — DiagnosticReportInput.jsx "자기기록 카드 불러오기" 버튼에서 시작.
+- **흐름은 두 단계로 분리**: ① `QrScanCapture.jsx`로 QR을 실시간 스캔해 학생 특정(카드 스티커는 `StudentQrPrint.jsx`로 미리 인쇄) → ② 학생이 확정되면 카드 전체 사진을 한 장 업로드해 `mode:'selfcard'`로 내용만 인식. 한 사진에서 QR과 내용을 동시에 읽으려 하지 않음(실측상 각도 문제로 신뢰도가 크게 떨어짐).
+- **학생 식별은 QR로만, 손글씨 이름은 절대 신뢰하지 않음** — 실제 학생 샘플 테스트에서 confidence "high"인데도 이름을 오독한 사례가 나왔음(예: "전하랑"→"전사랑"). 그래서 QR 디코딩 값이 실제 `students` 목록에 있는 ID일 때만 학생으로 인정하고, AI가 읽은 이름 필드는 애초에 폼에 반영조차 안 함.
+- **카드에서 읽은 값은 전부 초안일 뿐, 자동 확정 저장되는 필드가 없음** — 특히 컨디션 자기평가·숙제 여부는 `homeworkRating`/`conceptRating`(선생님이 매기는 평가 슬라이더)에 자동으로 안 넣고, `teacherNote` 초안에 참고 텍스트로만 삽입(선생님 판단과 학생 자기보고를 섞지 않기 위함, 2026-08-07 결정). `unit`/`pages`/`subject`/`arrivalTime`/`departureTime`은 실제 폼 필드에 직접 채워지지만 전부 그대로 수정 가능.
+
 ## 크레딧 차감 정책
 - **"무제한" 학원은 잔액 확인·차감을 통째로 건너뜀** — `academies/{id}/private/billing.unlimited === true`면 잔액이 0이어도 분석되고 차감도 안 됨(SettingsView의 관리자 토글로 설정, 교현학원이 여기 해당). 사용 내역(`creditUsage`)은 그대로 기록되므로 실제 사용량은 계속 조회 가능
-- **차감 트리거는 오직 `/api/analyze-photo` 호출 한 가지뿐.** 리포트 텍스트/태그/메모 수정, 오답 정답↔오답 토글, "AI가 놓친 오답 직접 추가"/"✕ 제외", `/api/polish`(오답 분석 기반 코멘트 생성·AI로 학부모 톤으로 다듬기), `/api/narrative`(성장 스토리 서사) — 전부 무료·무제한. 사진을 다시 채점 분석할 때만 크레딧이 나감
+- **차감 트리거는 오직 `/api/analyze-photo` 호출 한 가지뿐** — 단, 같은 엔드포인트라도 `mode:'selfcard'`(자기기록 카드 인식)는 예외로 무료. 리포트 텍스트/태그/메모 수정, 오답 정답↔오답 토글, "AI가 놓친 오답 직접 추가"/"✕ 제외", `/api/polish`(오답 분석 기반 코멘트 생성·AI로 학부모 톤으로 다듬기), `/api/narrative`(성장 스토리 서사), 자기기록 카드 불러오기(QR 스캔+카드 사진 인식) — 전부 무료·무제한. 사진을 다시 채점 분석할 때만 크레딧이 나감
+  - 자기기록 카드를 무료로 둔 이유(2026-08-07 결정): 카드가 채우는 필드(단원/페이지/등하원 시각)는 원래 선생님이 손으로 타이핑하던 무료 항목이라, 이걸 AI로 대신 읽어준다고 유료로 바뀌면 "카드 인식 1건 + 채점 사진 분석 1건"처럼 리포트 한 건에 크레딧이 이중으로 나가는 것처럼 느껴진다는 우려가 나옴(사용자 피드백) — 채점 분석(핵심 유료 가치, 정답/오답 판정)과 성격이 다르다고 보고 분리
 - 사진 여러 장을 올려도 내부적으로 사진별 병렬 Gemini 호출(`analyze-photo.js`)이 여러 번 나가지만, 사용자에게는 **요청당 정확히 1건만** 차감(정책 결정 완료 — 늘어난 API 비용은 서비스가 흡수). 한 장이라도 분석 실패하면 전체를 실패 처리해 크레딧 미차감
 - **"결과가 다르다면 다시 분석" 버튼은 사진을 안 바꿔도 크레딧이 또 나감** — 같은 photos 배열로 `/api/analyze-photo`를 다시 호출하는 것뿐이라 서버는 "재분석"과 "새 분석"을 구분하지 않음. `DiagnosticReportInput.jsx`의 `handleAnalyzePhoto`가 `hasChargedAnalysis` 플래그로 이미 한 번 차감됐음을 추적해, 재클릭 시 `window.confirm`으로 "크레딧이 1건 더 차감돼요"를 사전에 알리고 동의해야만 진행됨
 - **주간형(reportMode: 'weekly')도 리포트 발송 단위가 아니라 분석 클릭 단위로 과금**(정책 결정 완료, 2026-07-28) — 리포트 자체는 세션을 모아 주 1회만 나가지만, 같은 주에 세션(요일)마다 따로 "사진 분석"을 클릭하면 그 횟수만큼 크레딧이 나감(예: 월/수/금 세 번 분석하면 리포트는 1건이어도 3건 차감). "사진 여러 장 = 1건" 규칙은 같은 클릭 안의 여러 장에만 적용되고, 요일이 다른 별개의 분석 클릭끼리는 안 묶임 — 학생당 주 1건으로 캡을 씌우는 로직은 없음(의도적으로 안 만들기로 함)
