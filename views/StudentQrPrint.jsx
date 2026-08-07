@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import QRCode from 'qrcode';
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, rgb } from 'pdf-lib';
 import { Printer, Download, X } from 'lucide-react';
 import { RADIUS2, SHADOW } from '../tokens.jsx';
 import { useEscapeClose, useFocusTrap } from '../hooks.js';
@@ -17,6 +17,40 @@ const CARD_QR_BOXES = [
   { x: 547.0, yTop: 432.4, w: 33.1, h: 33.1 },
 ];
 const CARDS_PER_PAGE = CARD_QR_BOXES.length;
+
+// "이름" 라벨+밑줄 좌표(같은 방식으로 pdf2json Fill에서 확정) — QR만 있으면 선생님이
+// 스캔 전엔 누구 카드인지 못 알아봐서(2026-08-08 파트너 지적) 이름을 자동으로 얹는다.
+// w는 밑줄 전체 폭(라벨 "이름" 글자까지 포함해서 하나의 줄로 이어짐, 21.7~155.1).
+const CARD_NAME_LINES = [
+  { x: 21.7, yTop: 75, w: 133.4 },
+  { x: 319.3, yTop: 75, w: 133.4 },
+  { x: 21.7, yTop: 495.5, w: 133.4 },
+  { x: 319.3, yTop: 495.5, w: 133.4 },
+];
+
+// 이름 텍스트를 캔버스로 그려 PNG로 얹는다 — pdf-lib 기본 폰트는 한글을 지원하지 않아
+// 커스텀 폰트(fontkit) 임베딩이 필요한데, 브라우저가 이미 렌더링 가능한 시스템/웹폰트를
+// 캔버스로 그려 이미지화하는 쪽이 새 의존성 없이 더 가볍다. fontSize를 그대로 PDF pt로
+// 써서(캔버스 css px = PDF pt) 별도 스케일 환산 없이 크기가 맞도록 함.
+function nameToPngImage(name) {
+  const fontSize = 12;
+  const font = `600 ${fontSize}px "Pretendard Variable", "Noto Sans KR", sans-serif`;
+  const measure = document.createElement('canvas').getContext('2d');
+  measure.font = font;
+  const w = Math.ceil(measure.measureText(name).width) + 6;
+  const h = Math.ceil(fontSize * 1.4);
+  const scale = 4; // 저해상도 흐림 방지
+  const canvas = document.createElement('canvas');
+  canvas.width = w * scale;
+  canvas.height = h * scale;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(scale, scale);
+  ctx.font = font;
+  ctx.fillStyle = '#171719';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText(name, 3, fontSize + 1);
+  return { dataUrl: canvas.toDataURL('image/png'), w, h };
+}
 
 // ============================================================
 // 학생별 QR 스티커 인쇄 — 자기기록 카드(종이) 식별용 QR을 반 단위로 모아 인쇄.
@@ -84,11 +118,25 @@ export default function StudentQrPrint({ students, classes = [], academyName = n
         const [page] = await outDoc.copyPages(templateDoc, [0]);
         outDoc.addPage(page);
         for (let j = 0; j < group.length; j++) {
-          const dataUrl = qrMap[group[j].id];
+          const s = group[j];
+          const dataUrl = qrMap[s.id];
           if (!dataUrl) continue; // 아직 생성 중이면 그 칸만 빈 채로 둠(발생하면 아래서 재시도 안내)
           const box = CARD_QR_BOXES[j];
           const img = await outDoc.embedPng(dataUrl.split(',')[1]);
           page.drawImage(img, { x: box.x, y: pageHeight - box.yTop - box.h, width: box.w, height: box.h });
+
+          if (s.name) {
+            const line = CARD_NAME_LINES[j];
+            // "이름" 라벨과 이름이 겹쳐 보인다는 실측 피드백(2026-08-08) — 처음엔 라벨을
+            // 피해 이름을 옆으로 붙이려 했지만 정확한 라벨 글자 폭을 알 수 없어 좌표를
+            // 맞추기 어려웠음. 이름이 채워지면 "이름" 글자 자체가 필요 없어지므로(파트너
+            // 지시) 라벨+밑줄 자리를 통째로 흰 사각형으로 지우고 그 위에 이름만 인쇄 —
+            // 훨씬 견고하고, 명칭이 사라지는 건 이 다운로드 PDF에만 적용됨(양식 자체는 그대로).
+            page.drawRectangle({ x: line.x - 5, y: pageHeight - line.yTop - 8, width: line.w + 10, height: 25, color: rgb(1, 1, 1), opacity: 1, borderWidth: 0 });
+            const { dataUrl: nameUrl, w, h } = nameToPngImage(s.name);
+            const nameImg = await outDoc.embedPng(nameUrl.split(',')[1]);
+            page.drawImage(nameImg, { x: line.x + 15, y: pageHeight - line.yTop + 8, width: w, height: h });
+          }
         }
       }
       const bytes = await outDoc.save();
