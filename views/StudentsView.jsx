@@ -10,10 +10,13 @@ import { useMediaQuery } from '../hooks.js';
 // xlsx 파싱 라이브러리를 물고 있어서, 안 쓰는 사람은 번들에서 빠지게 지연 로드
 // (UsageMonitoring.jsx의 recharts와 같은 패턴)
 const BulkStudentImport = React.lazy(() => import('./BulkStudentImport.jsx'));
+// QR 생성 라이브러리를 물고 있어서, 인쇄 화면을 실제로 열 때만 다운로드되게 지연 로드
+const StudentQrPrint = React.lazy(() => import('./StudentQrPrint.jsx'));
 
 export default function StudentsView({ students, reports, reviews = [], onSave, onDelete, onRestore, teachers = [], classes = [], currentTeacherId = null, isDirector = false, onToast, academyName = null, onEditReviewNote, initialSelectedId = null, onConsumeInitialSelect }) {
   const [showAddStudent, setShowAddStudent] = useState(false);
   const [showBulkImport, setShowBulkImport] = useState(false);
+  const [showQrPrint, setShowQrPrint] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
   const [profileStudent, setProfileStudent] = useState(null);
@@ -235,6 +238,12 @@ export default function StudentsView({ students, reports, reviews = [], onSave, 
             엑셀로 일괄 등록
           </button>
         )}
+        {!showArchived && isDirector && (
+          <button onClick={() => setShowQrPrint(true)}
+            style={{ background: '#fff', color: C.primary, border: `1px solid ${C.primary}`, borderRadius: '9px', padding: '8px 12px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+            QR 스티커 인쇄
+          </button>
+        )}
         {!showArchived && (
           <button onClick={() => setShowAddStudent(true)}
             style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: '9px', padding: '8px 14px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -313,6 +322,13 @@ export default function StudentsView({ students, reports, reviews = [], onSave, 
               await onSave({ ...newStudent, assignedTeacherId });
             }}
           />
+        </React.Suspense>
+      )}
+
+      {/* 학생 QR 스티커 인쇄 — 자기기록 카드 식별용(2026-08-07) */}
+      {showQrPrint && (
+        <React.Suspense fallback={null}>
+          <StudentQrPrint students={students} classes={classes} academyName={academyName} onClose={() => setShowQrPrint(false)} />
         </React.Suspense>
       )}
 
