@@ -207,9 +207,9 @@ export default function StudentQrPrint({ students, classes = [], academyName = n
               <option key={c.id} value={c.id}>{c.name} ({activeStudents.filter(s => s.classId === c.id).length}명)</option>
             ))}
           </select>
-          <button onClick={() => window.print()} disabled={sorted.length === 0}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 16px', fontSize: '13px', fontWeight: 700, color: '#fff', background: sorted.length === 0 ? '#C4C9D1' : '#0D2D6B', border: 'none', borderRadius: `${RADIUS2.input}px`, cursor: sorted.length === 0 ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
-            <Printer size={14} /> 스티커 인쇄 ({sorted.length}명)
+          <button onClick={() => window.print()} disabled={cardTargets.length === 0}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 16px', fontSize: '13px', fontWeight: 700, color: '#fff', background: cardTargets.length === 0 ? '#C4C9D1' : '#0D2D6B', border: 'none', borderRadius: `${RADIUS2.input}px`, cursor: cardTargets.length === 0 ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+            <Printer size={14} /> 스티커 인쇄 ({cardTargets.length}명)
           </button>
           <button onClick={handleDownloadCards} disabled={cardTargets.length === 0 || generatingPdf}
             style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 16px', fontSize: '13px', fontWeight: 700, color: '#0D2D6B', background: '#fff', border: '1px solid #0D2D6B', borderRadius: `${RADIUS2.input}px`, cursor: (cardTargets.length === 0 || generatingPdf) ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: generatingPdf ? 0.6 : 1 }}>
@@ -235,29 +235,49 @@ export default function StudentQrPrint({ students, classes = [], academyName = n
           </div>
         </div>
 
+        {academyName && cardTargets.length > 0 && (
+          <p style={{ padding: '14px 22px 0', margin: 0, fontSize: '11px', fontWeight: 700, color: '#6B7280' }}>{academyName}</p>
+        )}
+
+        {/* 브라우징/체크용 — 항상 반 필터를 따름. 인쇄 대상은 아래 별도 그리드(cardTargets)로
+            분리했으므로 이 그리드는 화면에만 보이고 인쇄되지 않음(qr-no-print) */}
         {sorted.length === 0 ? (
           <p className="qr-no-print" style={{ padding: '40px 22px', textAlign: 'center', fontSize: '13px', color: '#6B7280' }}>이 반에 재원 중인 학생이 없어요.</p>
         ) : (
-          <>
-            {academyName && (
-              <p style={{ padding: '14px 22px 0', margin: 0, fontSize: '11px', fontWeight: 700, color: '#6B7280' }}>{academyName}</p>
-            )}
-            <div className="qr-print-area" style={{ padding: '20px 22px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(32mm, 1fr))', gap: '4mm' }}>
-            {sorted.map(s => (
-              <div key={s.id} style={{ position: 'relative', border: selectedIds.has(s.id) ? '1.5px solid #0D2D6B' : '1px dashed #D1D5DB', borderRadius: '4px', padding: '3mm', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2mm', breakInside: 'avoid' }}>
-                <input type="checkbox" className="qr-no-print" checked={selectedIds.has(s.id)} onChange={() => toggleSelect(s.id)}
-                  aria-label={`${s.name} 선택`}
-                  style={{ position: 'absolute', top: '3px', left: '3px', width: '15px', height: '15px', cursor: 'pointer' }} />
-                {qrMap[s.id] ? (
-                  <img src={qrMap[s.id]} alt={`${s.name} QR`} style={{ width: `${QR_MM}mm`, height: `${QR_MM}mm`, display: 'block' }} />
-                ) : (
-                  <div style={{ width: `${QR_MM}mm`, height: `${QR_MM}mm`, background: '#F3F4F6' }} />
-                )}
-                <span style={{ fontSize: '9px', fontWeight: 700, color: '#1A1A1A', textAlign: 'center', lineHeight: 1.3 }}>{s.name}</span>
-              </div>
-            ))}
+          <div className="qr-no-print" style={{ padding: '20px 22px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(32mm, 1fr))', gap: '4mm' }}>
+          {sorted.map(s => (
+            <div key={s.id} style={{ position: 'relative', border: selectedIds.has(s.id) ? '1.5px solid #0D2D6B' : '1px dashed #D1D5DB', borderRadius: '4px', padding: '3mm', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2mm', breakInside: 'avoid' }}>
+              <input type="checkbox" checked={selectedIds.has(s.id)} onChange={() => toggleSelect(s.id)}
+                aria-label={`${s.name} 선택`}
+                style={{ position: 'absolute', top: '3px', left: '3px', width: '15px', height: '15px', cursor: 'pointer' }} />
+              {qrMap[s.id] ? (
+                <img src={qrMap[s.id]} alt={`${s.name} QR`} style={{ width: `${QR_MM}mm`, height: `${QR_MM}mm`, display: 'block' }} />
+              ) : (
+                <div style={{ width: `${QR_MM}mm`, height: `${QR_MM}mm`, background: '#F3F4F6' }} />
+              )}
+              <span style={{ fontSize: '9px', fontWeight: 700, color: '#1A1A1A', textAlign: 'center', lineHeight: 1.3 }}>{s.name}</span>
             </div>
-          </>
+          ))}
+          </div>
+        )}
+
+        {/* 인쇄 전용 — 화면엔 안 보이고(display:none) 인쇄할 때만 나타남(qr-print-area가
+            @media print에서 display:grid로 강제됨). 선택된 학생이 있으면 반 무관 그 학생들만,
+            없으면 현재 반 그대로 — "카드 PDF로 받기"와 같은 대상(cardTargets)을 스티커
+            인쇄에도 반영해달라는 요청(2026-08-08) */}
+        {cardTargets.length > 0 && (
+          <div className="qr-print-area" style={{ display: 'none', padding: '20px 22px', gridTemplateColumns: 'repeat(auto-fill, minmax(32mm, 1fr))', gap: '4mm' }}>
+          {cardTargets.map(s => (
+            <div key={s.id} style={{ border: '1px dashed #D1D5DB', borderRadius: '4px', padding: '3mm', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2mm', breakInside: 'avoid' }}>
+              {qrMap[s.id] ? (
+                <img src={qrMap[s.id]} alt={`${s.name} QR`} style={{ width: `${QR_MM}mm`, height: `${QR_MM}mm`, display: 'block' }} />
+              ) : (
+                <div style={{ width: `${QR_MM}mm`, height: `${QR_MM}mm`, background: '#F3F4F6' }} />
+              )}
+              <span style={{ fontSize: '9px', fontWeight: 700, color: '#1A1A1A', textAlign: 'center', lineHeight: 1.3 }}>{s.name}</span>
+            </div>
+          ))}
+          </div>
         )}
       </div>
     </div>
